@@ -1,0 +1,982 @@
+# TASKS — Curve Studio v1 可执行任务清单
+
+> 39 个任务，按依赖顺序执行。**一次只做一个**；依赖未完成不得开始。
+> 每个任务的"验证"命令必须在任务报告中附真实输出。完成定义见 `AGENTS.md §10`。
+> 参考人日按人类开发者估算（合计约 65 人日）；AI 协作可压缩，但**验收项不压缩**。
+
+## 0. 状态与协议
+
+- 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（必须在任务报告写明原因）
+- 任务开始前：读 `AGENTS.md`、本任务的"参考"章节、`docs/TESTPLAN.md` 对应层。
+- 任务结束时：勾选本任务 → 更新 `CHANGELOG.md` → 写 ADR（如需）→ 提交。
+- 每个里程碑结束：执行该里程碑的"验收演示"，输出报告，**停下等人类确认**。
+
+## 1. 里程碑总览
+
+| 里程碑 | 主题 | 任务 | 退出标准 | 估算 |
+|---|---|---|---|---|
+| M0 | 基建 | T0.1–T0.5 | 窗口能开、门禁能跑、违规依赖被拦 | 7 人日 |
+| M1 | 领域与持久化 | T1.1–T1.5 | 工作区/表可创建、读写、迁移、恢复 | 8.5 人日 |
+| M2 | 表格数据 | T2.1–T2.7 | 建表、编辑、粘贴、导入、筛选、10 万行 | 13.5 人日 |
+| M3 | 表格外观 | T3.1–T3.6 | 模板、令牌、条件格式、导入导出 | 9.5 人日 |
+| M4 | 图表 | T4.1–T4.6 | 宽/长表出图、交互、采样、PNG | 9 人日 |
+| M5 | 体验 | T5.1–T5.5 | 布局、撤销、自动保存/恢复、设置 | 8.5 人日 |
+| M6 | 扩展与发布 | T6.1–T6.5 | 插件、安装包、全量验收 | 8 人日 |
+
+## 2. 依赖图与推荐主路径
+
+```
+M0
+T0.1 → T0.2 → T0.3 → T0.5
+        └────→ T0.4
+
+M1
+T0.1 → T1.1 → T1.2 → T1.3 → T1.4
+T1.1 + T1.2 + T1.3 → T1.5
+
+M2
+T1.5 → T2.1 → T2.2 → T2.4
+T2.1 + T1.4 → T2.3
+T2.2 + T1.3 → T2.5
+T2.1 → T2.6
+T2.1..T2.6 → T2.7
+
+M3
+T1.1 → T3.1
+T2.1 + T2.6 + T3.1 → T3.2
+T3.1 → T3.3
+T3.2 + T3.3 → T3.4
+T2.6 + T3.4 → T3.5
+T2.6 → T3.6
+
+M4
+T1.1 + T2.6 → T4.1
+T4.1 → T4.2
+T4.1 + T0.4 → T4.3
+T4.3 + T2.6 → T4.4
+T4.4 → T4.5
+T4.2 + T4.5 → T4.6
+
+M5
+T2.1 + T4.4 → T5.1
+T1.5 + T2.2 + T2.3 + T3.4 → T5.2 → T5.4
+T1.2 + T1.3 + T1.5 → T5.3
+T0.4 + T3.1 → T5.5
+
+M6
+T1.1 → T6.1 → T6.2
+T6.2 + T2.5 + T3.2 → T6.3
+T0.2 + T5.5 → T6.4
+全部 → T6.5
+```
+
+**推荐主路径**：`T0.1 → T0.2 → T0.3 → T1.1 → T1.2 → T1.3 → T1.4 → T1.5 → T2.1 → T2.2 → T2.5 → T2.7 → T3.1 → T3.2 → T3.4 → T4.1 → T4.3 → T4.4 → T5.1 → T5.2 → T6.1 → T6.2 → T6.3 → T6.5`
+
+**可并行轨道**（若有多代理）：
+
+- 轨道 A（数据）：M1 → M2。
+- 轨道 B（外观/图表）：T3.1/T3.3 可在 T1.1 后启动；T4.1 可在 T2.6 后启动。
+- 轨道 C（壳/体验）：T0.4 → T5.1 → T5.5。
+- 轨道 D（扩展）：T6.1 → T6.2 可在 T1.1 后启动。
+
+---
+
+## M0 基建
+
+<a id="t01"></a>
+### T0.1 初始化 monorepo 与质量工具链
+- 状态：`[ ]`
+- 依赖：无
+- 覆盖：NFR-07、NFR-02
+- 参考：SPEC §4、§5
+- 产出：
+  - 根 `package.json`、`pnpm-workspace.yaml`、`tsconfig.base.json`、`.gitignore`
+  - `eslint.config.js`、`.prettierrc`、`vitest.config.ts`、`.dependency-cruiser.cjs`
+  - 9 个包骨架：`domain`、`table-engine`、`chart-model`、`chart-echarts`、`persistence`、`plugin-sdk`、`ui`、`app-core`、`desktop`
+  - `CHANGELOG.md`、`docs/adr/README.md`
+- 步骤：
+  1. `pnpm init`，配置 workspace 与 Node/pnpm engines。
+  2. 写 `tsconfig.base.json`：strict + `noUncheckedIndexedAccess` + `noImplicitOverride` + 路径别名。
+  3. ESLint 9 flat config：typescript-eslint、react-hooks、import/order；零 warning。
+  4. Vitest：node 默认环境；UI 用 `// @vitest-environment jsdom`。
+  5. dependency-cruiser 落实 SPEC §4.3 七条规则。
+  6. 每个包 `package.json` + `src/index.ts`（先导出占位类型），桌面包先空壳。
+- 验收：
+  - [ ] `pnpm install` 无 peer 警告/错误。
+  - [ ] `pnpm verify` 全绿（至少 1 个 smoke 测试）。
+  - [ ] 故意写一条 `domain → react` import，`pnpm lint` 必须失败；撤销后恢复。
+  - [ ] 路径别名在 Vitest 中可用。
+- 验证：`pnpm install && pnpm verify`
+
+<a id="t02"></a>
+### T0.2 Electron 三进程骨架与安全窗口
+- 状态：`[ ]`
+- 依赖：T0.1
+- 覆盖：NFR-02、NFR-08
+- 参考：SPEC §15.3
+- 产出：
+  - `apps/desktop/electron.vite.config.ts`、`src/main/index.ts`、`src/preload/index.ts`、`src/renderer/`（React 入口）
+  - 安全窗口配置（`contextIsolation/sandbox/webSecurity`，preload 输出 CJS）
+  - 菜单骨架、窗口尺寸记忆、开发/生产加载路径
+- 步骤：
+  1. 装 Electron、electron-vite、React、electron-builder（先不打包）。
+  2. main 创建窗口并加载 renderer；dev 用 Vite server，prod 用 `loadFile`。
+  3. preload 只暴露 `app.info`；renderer 渲染 "Curve Studio" 空壳。
+  4. 加 `will-navigate`/`setWindowOpenHandler` 拒绝与 CSP。
+- 验收：
+  - [ ] `pnpm dev` 打开窗口，DevTools 仅在开发可用。
+  - [ ] 打包态或预览态能加载 renderer，控制台无 Node 暴露错误。
+  - [ ] 在 renderer 执行 `window.require` / `process` 为 `undefined`。
+  - [ ] 外部链接点击不打开新窗口。
+- 验证：`pnpm build && pnpm exec playwright test --grep "smoke"`（T0.5 提供用例前可手工）
+
+<a id="t03"></a>
+### T0.3 类型化 IPC 与错误信封
+- 状态：`[ ]`
+- 依赖：T0.2
+- 覆盖：NFR-02、NFR-06
+- 参考：SPEC §15.1、§15.2、§18
+- 产出：
+  - `contracts/ipc.ts`：通道常量、请求/响应 Zod schema、`IpcResult<T>`、`AppError`
+  - main：`ipcMain.handle` 注册器、统一错误映射、日志
+  - preload：`window.api`（只暴露 `app.info` + `log.write`，其余为 T1.2/T1.3 预留）
+  - renderer：`api` 客户端封装、错误 toast 骨架
+- 步骤：
+  1. 定义信封与错误码（先实现 SPEC §18 全集类型）。
+  2. 写 `registerHandler(channel, schema, fn)`：校验入参 → 执行 → 包装结果。
+  3. preload 用 `contextBridge` 暴露白名单方法。
+  4. 渲染端统一处理 `ok:false`，未知异常不泄露堆栈。
+- 验收：
+  - [ ] 非法载荷返回 `E_IPC_INVALID_PAYLOAD`，进程不崩。
+  - [ ] 未注册通道调用被拒绝。
+  - [ ] `window.api` 上没有 `invoke`/`send` 泛入口。
+  - [ ] 错误信封单测覆盖成功/失败/异常三种。
+- 验证：`pnpm exec vitest run packages/app-core apps/desktop`
+
+<a id="t04"></a>
+### T0.4 设计令牌与 App Shell
+- 状态：`[ ]`
+- 依赖：T0.2
+- 覆盖：NFR-03、NFR-04
+- 参考：SPEC §10.2、§16.3、§16.4
+- 产出：
+  - `packages/ui`：CSS 变量令牌（颜色/间距/字体/圆角/阴影）、Button/Input/Select/Dialog/Toast/Menu/Tabs
+  - `apps/desktop/src/renderer`：标题栏、侧栏、主区、检查器、状态栏、空态
+  - `messages/zh-CN.ts` + 类型化 `t(key, params)`（先覆盖 Shell 文案）
+  - 浅色/深色主题切换骨架
+- 步骤：
+  1. 定义 `--cs-*` 令牌；深浅色两套值。
+  2. 组件只消费令牌，不写死颜色。
+  3. Shell 用 CSS Grid 布局；面板可折叠；焦点顺序正确。
+  4. 建立消息表与 `t()`，从第一行 UI 起禁止硬编码文案。
+- 验收：
+  - [ ] 组件测试：Dialog 焦点陷阱、Esc 关闭、Toast 自动消失。
+  - [ ] 200% 缩放下无横向裁切。
+  - [ ] 所有按钮有可访问名称；键盘可遍历。
+  - [ ] Shell 无硬编码用户文案（grep 可查）。
+  - [ ] 截图基线（浅/深）通过。
+- 验证：`pnpm exec vitest run packages/ui && pnpm e2e -- --grep "shell"`
+
+<a id="t05"></a>
+### T0.5 CI、E2E 与提交门禁
+- 状态：`[ ]`
+- 依赖：T0.3
+- 覆盖：NFR-07、NFR-08
+- 参考：TESTPLAN §1、§5
+- 产出：
+  - `.github/workflows/ci.yml`（Windows + Ubuntu：install/lint/typecheck/test/build）
+  - `playwright.config.ts`、`apps/desktop/e2e/smoke.spec.ts`（启动 Electron、断言窗口标题）
+  - 覆盖率阈值、`CHANGELOG.md` 模板、PR 模板
+- 步骤：
+  1. Playwright `_electron.launch` 启动构建产物。
+  2. CI 缓存 pnpm；失败上传 trace。
+  3. 覆盖率 gate 接入 Vitest。
+- 验收：
+  - [ ] 干净克隆后 `pnpm install && pnpm verify && pnpm e2e` 全绿。
+  - [ ] E2E 失败时产出 trace/screenshot。
+  - [ ] 覆盖率低于阈值时 CI 失败。
+- 验证：`pnpm verify && pnpm e2e`
+
+**M0 验收演示**：`pnpm dev` 打开窗口 → `pnpm verify` 全绿 → 故意违反依赖边界被 lint 拦截 → E2E smoke 通过。输出报告后停下。
+
+---
+
+<a id="m1"></a>
+## M1 领域与持久化
+
+<a id="t11"></a>
+### T1.1 领域模型、Zod 与不变量
+- 状态：`[ ]`
+- 依赖：T0.1
+- 覆盖：FR-TBL-01、FR-WS-04
+- 参考：SPEC §6
+- 产出：
+  - `packages/domain/src/{types,schemas,factories,invariants,coerce}.ts`
+  - ID 工厂（`ws_/tbl_/col_/row_/cht_/viw_/sty_/rule_` + UUID）
+  - 列类型解析/格式化基础函数（日期、数字、布尔、枚举）
+  - 全部 Zod schema 与不变量检查
+- 步骤：
+  1. 按 SPEC §6 写类型；schema 与类型一一对应。
+  2. 实现 `parseTableMeta`、`parseManifest`、`parseCell`、`assertInvariants`。
+  3. 实现 `coerceCell(raw, column)`：空串/null/千分位/日期/布尔。
+  4. 写正反例测试（每类至少 5 个）。
+- 验收：
+  - [ ] 正例 round-trip；反例返回结构化 issue，不抛裸异常。
+  - [ ] 列 key/主键/行长度/枚举/精度不变量全部覆盖。
+  - [ ] `domain` 无任何 UI/IO import。
+- 验证：`pnpm exec vitest run packages/domain --coverage`
+
+<a id="t12"></a>
+### T1.2 工作区仓库与原子持久化
+- 状态：`[ ]`
+- 依赖：T1.1、T0.3
+- 覆盖：FR-WS-01、FR-WS-04
+- 参考：SPEC §7
+- 产出：
+  - `packages/persistence`：`WorkspaceStore` 端口 + `MemoryWorkspaceStore`
+  - main：`FileWorkspaceStore`（`write-file-atomic`、备份、锁、最近列表）
+  - IPC：`workspace:create/open/close/recent`、`manifest:write`
+- 步骤：
+  1. 定义端口（create/open/readTable/writeTable/writeManifest/trash/listBackups/restore）。
+  2. 实现目录创建、manifest 读写、`.lock` 生命周期、备份轮转。
+  3. 路径白名单与 `realpath` 校验。
+  4. 最近列表存 `userData/recent.json`（路径、名称、最后打开时间）。
+- 验收：
+  - [ ] 新建目录结构完全符合 SPEC §7.1。
+  - [ ] 写入后强杀进程，文件不半写（模拟：写入前中断）。
+  - [ ] manifest 损坏返回 `E_WS_INVALID_MANIFEST`，不覆盖原文件。
+  - [ ] `../` 路径逃逸返回 `E_PATH_DENIED`。
+  - [ ] 备份保留 3 份，恢复可用。
+- 验证：`pnpm exec vitest run packages/persistence apps/desktop && pnpm e2e -- --grep "workspace"`
+
+<a id="t13"></a>
+### T1.3 表数据 JSONL 读写与 Worker
+- 状态：`[ ]`
+- 依赖：T1.2
+- 覆盖：FR-TBL-04、FR-TBL-07
+- 参考：SPEC §7.3、§7.4、§8
+- 产出：
+  - `packages/table-engine`：JSONL 编解码、行集类型、Worker 协议
+  - `apps/desktop/src/renderer/workers/table.worker.ts`
+  - IPC：`table:read/write/trash`，大小与行数限制
+  - 脏表追踪与 `rowCount` 重算
+- 步骤：
+  1. 编码器逐行 `JSON.stringify`，流式拼接，避免一次性大数组。
+  2. 解码器逐行解析，错误带行号；空文件返回空表。
+  3. Worker 接收文本 → 解析 → 返回 rows/issues；主线程不阻塞。
+  4. 写盘前校验行数/字节上限。
+- 验收：
+  - [ ] 100k×10 行 round-trip 数据逐行相等。
+  - [ ] 坏行（截断 JSON）返回 `E_TABLE_PARSE` + 行号，不吞行。
+  - [ ] 空表写 0 字节、读回 0 行。
+  - [ ] 内存峰值不超预算（见 TESTPLAN §4）。
+- 验证：`pnpm exec vitest run packages/table-engine && pnpm bench -- --table-io`
+
+<a id="t14"></a>
+### T1.4 迁移框架与夹具
+- 状态：`[ ]`
+- 依赖：T1.3
+- 覆盖：FR-WS-04、FR-TBL-08
+- 参考：SPEC §7.6
+- 产出：
+  - `packages/domain/src/migrations/`：注册表、执行器、结果类型
+  - 迁移前备份、失败回滚
+  - `fixtures/workspaces/v1-min/` 夹具与逐行等价测试
+- 步骤：
+  1. 定义 `Migration { from, to, migrate(manifest, tables) }`。
+  2. 顺序执行，禁止跳版；每步后校验不变量。
+  3. 失败时恢复备份并返回 `E_MIGRATION_FAILED`。
+  4. 用夹具模拟 v1 → 测试迁移（可造一个测试专用 v0）。
+- 验收：
+  - [ ] 夹具打开成功，行数与内容逐行相等。
+  - [ ] `formatVersion: 2` 被拒绝并提示升级。
+  - [ ] 迁移失败后原文件哈希不变。
+  - [ ] 备份目录存在且可回滚。
+- 验证：`pnpm exec vitest run packages/domain -- --grep "migration"`
+
+<a id="t15"></a>
+### T1.5 app-core 状态与命令总线骨架
+- 状态：`[ ]`
+- 依赖：T1.1、T1.2、T1.3、T0.2
+- 覆盖：FR-WS-01、FR-TBL-02
+- 参考：SPEC §13.1
+- 产出：
+  - `packages/app-core`：Zustand store 切片（workspace/tables/views/ui）
+  - 命令注册表、`dispatch`、Immer patches 捕获、错误 surface
+  - 启动序列：打开工作区 → 读 manifest → 加载表 → 恢复布局
+  - 选择器：当前表、可见行、脏表列表
+- 步骤：
+  1. 定义 `AppState` 与 actions；大数组放表切片，避免全局重渲染。
+  2. 命令 `(state, payload) => { next, patches, inversePatches }`。
+  3. 先实现 `table.cell.set`、`workspace.open` 两个命令验证链路。
+  4. 错误统一进 `ui.error` + 日志。
+- 验收：
+  - [ ] 打开夹具工作区，表数据进入 store，选择器正确。
+  - [ ] 命令 dispatch 产生可逆 patches；失败不改状态。
+  - [ ] `app-core` 无 React/Electron import。
+  - [ ] 100k 行加载后首屏选择器调用 < 16ms（memo 命中）。
+- 验证：`pnpm exec vitest run packages/app-core`
+
+**M1 验收演示**：脚本/测试创建 `Demo.cstudio` → 写入 1,000 行 → 关闭重开 → 数据逐行相等；篡改 manifest → 报错且原文件不变；伪造 `.lock` → 走恢复提示。输出报告后停下。
+
+---
+
+<a id="m2"></a>
+## M2 表格数据
+
+<a id="t21"></a>
+### T2.1 工作区入口、表管理与虚拟化数据网格
+- 状态：`[ ]`
+- 依赖：T1.5、T0.4
+- 覆盖：FR-WS-01、FR-WS-02、FR-TBL-01、FR-TBL-02、FR-TBL-07
+- 参考：SPEC §9.0、§9.1
+- 产出：
+  - 欢迎页：新建/打开/最近打开；无工作区时不显示网格
+  - 表列表：新建表向导（名称 + 主键）、重命名、删除（`.trash`）、打开
+  - 基础标签栏：打开表创建/激活 `ViewDef`；关闭标签
+  - `apps/desktop/src/renderer/features/grid/`：Grid、Header、Cell、SelectionLayer
+  - TanStack Table + Virtual；列宽拖拽、冻结列、矩形选择、键盘导航
+  - ARIA grid 语义与焦点管理
+- 步骤：
+  1. 欢迎页接 `workspace.create/open/recent`；新建默认目录 `Documents/Curve Studio/`。
+  2. 新建表向导创建 `TableMeta`（默认主键 `id` text）并打开视图。
+  3. 用 `TableMeta.columns` 建列定义；`Row.values` 建数据；虚拟化 + sticky 冻结列。
+  4. 键盘状态机：移动/选择/编辑入口；标签栏支持 Ctrl/Cmd+W 关闭。
+  5. 大表用 `React.memo` 单元格，避免整表刷新。
+- 验收：
+  - [ ] 无工作区时欢迎页可用；新建/打开/最近三条路径都能进入网格。
+  - [ ] 新建表（默认主键）→ 重命名 → 删除进 `.trash` → 重新打开，行为正确。
+  - [ ] 删除被图表/视图引用的表：确认框列出数量，确认后引用一并删除，无悬挂引用。
+  - [ ] 打开同一张表两次只激活已有标签，不重复创建。
+  - [ ] 100k 行首帧 < 1s；滚动 ≥ 55fps（基准脚本/手工）。
+  - [ ] 方向键/Tab/Home/End/PageUp/PageDown 行为正确。
+  - [ ] 列宽拖拽与双击自适应生效，刷新后保留。
+  - [ ] 屏幕阅读器可读出行列数（axe 无 critical）。
+- 验证：`pnpm exec vitest run apps/desktop -- --grep "grid|welcome" && pnpm e2e -- --grep "grid|workspace"`
+
+<a id="t22"></a>
+### T2.2 单元格编辑与校验
+- 状态：`[ ]`
+- 依赖：T2.1
+- 覆盖：FR-TBL-02
+- 参考：SPEC §9.2、§8.1
+- 产出：
+  - 各类型编辑器：文本、数字、日期、布尔、枚举下拉
+  - 提交/取消/失焦语义；错误态与状态栏定位
+  - 主键重复、必填、枚举、范围校验
+  - 命令接入与撤销钩子
+- 步骤：
+  1. 编辑器受控于单元格本地状态，提交时才进 store。
+  2. `validateCell` 返回 issue；非法不写模型。
+  3. Enter 提交下移、Tab 提交右移、Esc 取消。
+  4. 批量操作先整体校验。
+- 验收：
+  - [ ] 5 种类型均可编辑；非法值不落库且错误可读。
+  - [ ] 主键重复被阻止并定位冲突行。
+  - [ ] 编辑一次 = 一条撤销记录（800ms 合并）。
+  - [ ] 纯键盘可完成"改一格"。
+- 验证：`pnpm exec vitest run apps/desktop -- --grep "cell" && pnpm e2e -- --grep "edit"`
+
+<a id="t23"></a>
+### T2.3 列管理、结构变更与迁移
+- 状态：`[ ]`
+- 依赖：T2.1、T1.4
+- 覆盖：FR-TBL-01、FR-TBL-08
+- 参考：SPEC §6.6、§7.6
+- 产出：
+  - 列管理面板：新增/编辑/删除/重排/改类型/角色/枚举/主键
+  - 结构变更命令 + 行数据迁移（补 null、类型转换、失败回滚）
+  - 破坏性操作二次确认（删列/改类型/换主键）
+- 步骤：
+  1. 新增列默认 `text/role=none`，可改。
+  2. 改类型：逐行尝试转换，失败列出前 100 行让用户确认。
+  3. 删列：确认后从 rows 删除对应下标；图表引用进入错误态。
+  4. 改主键：校验唯一非空后提交。
+- 验收：
+  - [ ] 加列后旧行补 `null`，行数不变。
+  - [ ] 改类型成功/失败路径都有测试，失败不改数据。
+  - [ ] 删列后清理 `columnOrder/widths/columnOverrides/sort/filter`，重新加载不变量通过。
+  - [ ] 删列后图表显示"列已删除"错误态，不崩溃。
+  - [ ] 100 列上限生效。
+- 验证：`pnpm exec vitest run packages/domain packages/table-engine -- --grep "column" && pnpm e2e -- --grep "schema"`
+
+<a id="t24"></a>
+### T2.4 区域粘贴
+- 状态：`[ ]`
+- 依赖：T2.2
+- 覆盖：FR-TBL-03
+- 参考：SPEC §9.3
+- 产出：
+  - 剪贴板 TSV/CSV 解析器（引号、换行、制表符）
+  - 矩阵应用：扩容行、列确认、批量校验
+  - 进度与取消（>10k 单元格）
+- 步骤：
+  1. 单格文本 vs 多格矩阵判定。
+  2. 解析为 `Cell[][]`，按目标列类型 coerce。
+  3. 超出列数弹确认；超出行数自动追加。
+  4. 整批校验通过才提交，作为一条命令。
+- 验收：
+  - [ ] Excel 5×4 粘贴内容逐格正确，含引号与换行。
+  - [ ] 类型错误整批不提交，错误定位到单元格。
+  - [ ] 10k 单元格粘贴可取消，取消后数据不变。
+  - [ ] 筛选激活时粘贴只写可见行；超出可见行数整批拒绝，隐藏行不被修改。
+  - [ ] 粘贴可一次撤销。
+- 验证：`pnpm exec vitest run packages/table-engine -- --grep "paste" && pnpm e2e -- --grep "paste"`
+
+<a id="t25"></a>
+### T2.5 CSV/JSON 导入向导
+- 状态：`[ ]`
+- 依赖：T2.2、T1.3
+- 覆盖：FR-TBL-04、FR-TBL-06
+- 参考：SPEC §9.4
+- 产出：
+  - 导入向导 5 步 UI；编码/分隔符/表头覆盖
+  - Worker 解析（Papa Parse + jschardet/iconv-lite）
+  - 列映射与类型推断；错误报告导出
+  - 追加/替换（替换前备份）；原始文件副本
+- 步骤：
+  1. 读文件文本（IPC），Worker 嗅探编码/分隔符。
+  2. 预览 20 行；列映射到已有列或新建列。
+  3. 全量解析 + 校验；展示 stats/issues。
+  4. 提交：构建新 rows + JSONL，原子替换；替换前备份。
+- 验收：
+  - [ ] 100k 行 CSV ≤ 8s，UI 不冻结。
+  - [ ] GBK 文件正确解码；错编码有提示可覆盖。
+  - [ ] 坏行报告行号；跳过/取消行为符合 SPEC。
+  - [ ] 取消后内存与磁盘数据完全不变。
+  - [ ] 导入后单表超过 200,000 行被拒绝；100k–200k 先提示再继续。
+- 验证：`pnpm e2e -- --grep "import" && pnpm bench -- --import`
+
+<a id="t26"></a>
+### T2.6 筛选、排序与视图状态
+- 状态：`[ ]`
+- 依赖：T2.1
+- 覆盖：FR-TBL-05
+- 参考：SPEC §9.5、§6.2
+- 产出：
+  - 筛选器构建器（all/any、12 种操作符）
+  - 多列排序（3 级）；空值排最后；`Intl.Collator`
+  - 视图状态持久化；多表格视图（不同筛选/样式）
+  - 大表在 Worker 查询
+- 步骤：
+  1. 纯函数 `applyFilter(rows, predicate)`、`applySort(rows, sort)`。
+  2. UI 状态写入 `TableViewState`，自动保存。
+  3. >20k 行走 Worker，返回行 ID 顺序。
+- 验收：
+  - [ ] 12 种操作符全部单测覆盖；空值排序固定最后。
+  - [ ] 100k 行筛选+排序 ≤ 400ms。
+  - [ ] 重启后筛选/排序/列宽/隐藏/冻结恢复。
+  - [ ] 同一张表两个视图互不影响。
+- 验证：`pnpm exec vitest run packages/table-engine -- --grep "filter|sort" && pnpm bench -- --query`
+
+<a id="t27"></a>
+### T2.7 10 万行性能硬化
+- 状态：`[ ]`
+- 依赖：T2.1–T2.6
+- 覆盖：FR-TBL-07、NFR-01
+- 参考：SPEC §16.1
+- 产出：
+  - `scripts/bench.ts` + 固定 100k 夹具生成器
+  - 性能报告（P50/P95、内存、帧率）
+  - 瓶颈修复：memo、虚拟化、Worker、序列化
+- 步骤：
+  1. 生成 100k×10 夹具，跑打开/滚动/编辑/筛选/保存。
+  2. 记录基线；逐项优化并复测。
+  3. 把预算写入 CI（软门禁 + 报告）。
+- 验收：
+  - [ ] 打开 ≤3s、排序 ≤400ms、编辑提交 ≤50ms、保存 ≤500ms。
+  - [ ] 内存峰值 ≤600MB。
+  - [ ] 报告提交到 `bench/report.json`（CI artifact）。
+  - [ ] 回归超过 20% 时 CI 报警。
+- 验证：`pnpm bench`
+
+**M2 验收演示**：新建表 → 粘贴 200 行 → 导入 100k CSV（GBK + 错误行）→ 筛选/排序 → 列宽/冻结 → 重启还原 → 性能预算达标。输出报告后停下。
+
+---
+
+<a id="m3"></a>
+## M3 表格外观
+
+<a id="t31"></a>
+### T3.1 表格样式模型与内置模板
+- 状态：`[ ]`
+- 依赖：T1.1
+- 覆盖：FR-STY-01、FR-STY-05
+- 参考：SPEC §10.1、§10.3
+- 产出：
+  - `TableStyle` Zod schema、默认值、不变量
+  - 4 个内置模板常量；`resolveStyle(id)` 与回退
+  - 内置模板 fork 语义
+- 步骤：
+  1. 按 SPEC 定义 tokens/overrides/rules。
+  2. 内置模板写成不可变常量，id 稳定。
+  3. `resolveStyle` 找不到 → 默认 + warning。
+- 验收：
+  - [ ] 4 个内置模板通过 schema 校验且视觉差异明显。
+  - [ ] 编辑内置 → 自动生成 `sty_` 副本，内置不变。
+  - [ ] 非法颜色/越界数值被拒绝。
+- 验证：`pnpm exec vitest run packages/domain -- --grep "style"`
+
+<a id="t32"></a>
+### T3.2 样式渲染管线
+- 状态：`[ ]`
+- 依赖：T2.1、T2.6、T3.1
+- 覆盖：FR-STY-02、FR-STY-03、FR-STY-07
+- 参考：SPEC §10.2
+- 产出：
+  - `StyleProvider`：TableStyle → CSS 变量
+  - 密度/斑马纹/网格线/圆角/内边距
+  - 数字/日期/布尔/枚举格式化
+  - 列覆盖（对齐/宽度/标签/渲染模式）
+  - `bar` 与 `badge` 单元格渲染
+- 步骤：
+  1. 单一函数 `styleToCssVars(style)`，网格只读变量。
+  2. 单元格格式化管线：原始值 → 列覆盖 → 字段类型 → 字符串。
+  3. bar 的 min/max 由当前筛选结果计算并缓存。
+- 验收：
+  - [ ] 令牌改动即时反映，无内联硬编码颜色。
+  - [ ] 列覆盖不影响 schema 与其他视图。
+  - [ ] 数字/日期在 zh-CN/en-US 下格式正确。
+  - [ ] 视觉快照通过（浅色/深色/紧凑/财务）。
+- 验证：`pnpm exec vitest run packages/ui apps/desktop -- --grep "style"`
+
+<a id="t33"></a>
+### T3.3 条件格式引擎
+- 状态：`[ ]`
+- 依赖：T3.1、T1.1
+- 覆盖：FR-STY-04
+- 参考：SPEC §10.4
+- 产出：
+  - 纯函数 `evaluateRules(rules, row, columns)`；行/单元格目标
+  - 12 种比较语义；首条命中；空值规则
+  - 可见行求值优化与基准
+- 步骤：
+  1. 复用 `FilterPredicate` 求值器，补条件格式语义。
+  2. 按数组顺序短路；禁用规则跳过。
+  3. 只对可见行求值；缓存列索引。
+- 验收：
+  - [ ] 所有操作符正反例；`between` 含边界。
+  - [ ] 首条命中；50 条规则 × 100 行 ≤ 16ms。
+  - [ ] 空值/类型不匹配不抛异常。
+  - [ ] 规则编辑可撤销。
+- 验证：`pnpm exec vitest run packages/domain -- --grep "condition"`
+
+<a id="t34"></a>
+### T3.4 样式编辑器与实时预览
+- 状态：`[ ]`
+- 依赖：T3.2、T3.3
+- 覆盖：FR-STY-02、FR-STY-04
+- 参考：SPEC §10.6
+- 产出：
+  - 检查器面板：模板、令牌、列覆盖、条件规则
+  - 颜色选择器/数值输入/下拉；非法值内联报错
+  - 前 50 行实时预览；命令接入与撤销
+- 步骤：
+  1. 表单状态本地草稿，提交时发命令。
+  2. 预览复用真实网格渲染管线。
+  3. 规则构建器支持 all/any 嵌套（最多两层）。
+- 验收：
+  - [ ] 改任意令牌 100ms 内预览更新。
+  - [ ] 非法输入不提交且提示明确。
+  - [ ] 一次控件提交 = 一条撤销记录。
+  - [ ] 纯键盘可完成"改密度 + 加一条规则"。
+- 验证：`pnpm exec vitest run apps/desktop -- --grep "style-editor" && pnpm e2e -- --grep "style"`
+
+<a id="t35"></a>
+### T3.5 模板管理与导入导出
+- 状态：`[ ]`
+- 依赖：T2.6、T3.4
+- 覆盖：FR-STY-05、FR-STY-06
+- 参考：SPEC §10.5
+- 产出：
+  - 另存/重命名/复制/删除/设为默认/应用
+  - 导出 `.curvestyle.json`、导入校验与冲突处理
+  - 删除引用回退默认
+- 步骤：
+  1. 模板 CRUD 走命令总线。
+  2. 导出前 Zod 校验；导入后重新分配 id。
+  3. 名称冲突加 ` (2)`；非法文件给具体错误。
+- 验收：
+  - [ ] 导出→新工作区导入→应用，视觉一致。
+  - [ ] 删除被引用模板，所有视图回退默认并提示。
+  - [ ] 非法/损坏文件被拒绝，不污染 manifest。
+  - [ ] 模板操作可撤销（删除除外，需确认）。
+- 验证：`pnpm e2e -- --grep "template"`
+
+<a id="t36"></a>
+### T3.6 CSV 导出
+- 状态：`[ ]`
+- 依赖：T2.6
+- 覆盖：FR-TBL-06
+- 参考：SPEC §9.6
+- 产出：
+  - 导出对话框：原始值/显示格式、列顺序、筛选范围
+  - UTF-8 BOM、转义、文件名
+  - 大表流式导出（不一次性拼 100MB 字符串）
+- 步骤：
+  1. 按视图顺序与筛选结果生成行。
+  2. 显示格式导出走 `StyleProvider` 的格式化函数。
+  3. 分块写入，避免主线程卡顿。
+- 验收：
+  - [ ] Excel 打开无乱码；引号/逗号/换行正确转义。
+  - [ ] 只导出当前筛选/排序结果。
+  - [ ] 100k 行导出 ≤ 5s 且 UI 可取消。
+- 验证：`pnpm e2e -- --grep "export-csv"`
+
+**M3 验收演示**：应用 4 个内置模板对比 → 改令牌/列格式 → 加"高温标红"→ 另存模板 → 导出 → 新工作区导入应用 → 重启还原。输出报告后停下。
+
+---
+
+<a id="m4"></a>
+## M4 图表
+
+<a id="t41"></a>
+### T4.1 RenderModel 与宽/长表映射
+- 状态：`[ ]`
+- 依赖：T1.1、T2.6
+- 覆盖：FR-CHT-01、FR-CHT-02
+- 参考：SPEC §11.1–§11.3
+- 产出：
+  - `packages/chart-model`：`resolveSeries(table, rows, spec)` → `RenderModel`
+  - 宽表/长表映射、系列命名、类型校验、warning 收集
+  - 排序/筛选接入；null 断点；重复 X 警告
+- 步骤：
+  1. 校验映射（列存在、类型/角色匹配），失败返回结构化错误。
+  2. 宽表：每 Y 列一条系列；长表：groupBy 系列列。
+  3. 生成稳定系列 id（列 ID / `seriesId:value`）。
+- 验收：
+  - [ ] 固定夹具的 RenderModel 黄金快照通过。
+  - [ ] 空数据/缺列/类型错返回错误或 warning，不崩溃。
+  - [ ] 系列顺序稳定；>20 系列截断并警告。
+  - [ ] 包内无 echarts import。
+- 验证：`pnpm exec vitest run packages/chart-model`
+
+<a id="t42"></a>
+### T4.2 LTTB 采样与缺失值语义
+- 状态：`[ ]`
+- 依赖：T4.1
+- 覆盖：FR-CHT-05
+- 参考：SPEC §11.2
+- 产出：
+  - LTTB 实现（保留首尾）；阈值/目标可配
+  - 缺失值断点处理；采样元数据
+  - 10 万点基准
+- 步骤：
+  1. 对每个系列独立采样；x 必须单调（排序后）。
+  2. 记录 `sourcePoints/renderedPoints/sampled`。
+  3. 采样关闭时原样输出。
+- 验收：
+  - [ ] 100k → 2k 点，首尾保留，峰值形状肉眼可辨。
+  - [ ] 采样耗时 ≤ 50ms/系列。
+  - [ ] null 不参与采样三角计算，输出仍为 null。
+  - [ ] 属性测试：输出点数 ≤ target 且 x 单调。
+- 验证：`pnpm exec vitest run packages/chart-model -- --grep "sample" && pnpm bench -- --sample`
+
+<a id="t43"></a>
+### T4.3 ECharts 适配器
+- 状态：`[ ]`
+- 依赖：T4.1、T0.4
+- 覆盖：FR-CHT-03、FR-CHT-04
+- 参考：SPEC §11.4
+- 产出：
+  - `packages/chart-echarts`：`createChartRenderer()` 生命周期
+  - RenderModel → option 映射；主题/调色板；tooltip/legend/dataZoom
+  - `toPNG`、resize、dispose
+  - option 黄金快照测试
+- 步骤：
+  1. 按需注册 ECharts 模块。
+  2. `setOption(option, { notMerge: false })` 更新；`dispose` 清理。
+  3. 背景 auto 跟应用主题；导出 2x。
+- 验收：
+  - [ ] 4 个调色板/深浅背景 option 快照通过。
+  - [ ] resize 不变形；dispose 无泄漏（实例计数为 0）。
+  - [ ] tooltip 显示单位/精度；null 断点不连 line。
+  - [ ] 包外无 echarts 引用。
+- 验证：`pnpm exec vitest run packages/chart-echarts`
+
+<a id="t44"></a>
+### T4.4 图表创建与检查器
+- 状态：`[ ]`
+- 依赖：T4.3、T2.6
+- 覆盖：FR-CHT-01、FR-CHT-02、FR-CHT-03
+- 参考：SPEC §11.5
+- 产出：
+  - 图表列表、新建向导（选表→映射→列→预览）
+  - 检查器：数据/映射/外观/坐标轴
+  - 图表 CRUD 走命令总线；图表持久化、复制、删除、视图联动
+- 步骤：
+  1. 映射选择器只展示类型兼容的列。
+  2. 非法映射即时提示，不创建。
+  3. 修改 120ms 防抖更新，`setOption` merge。
+- 验收：
+  - [ ] 宽表多 Y、长表系列拆分均正确。
+  - [ ] 检查器所有项生效并持久化，重启保留。
+  - [ ] 列被删后图表进入可操作错误态。
+  - [ ] 复制图表生成新 id，互不影响。
+- 验证：`pnpm e2e -- --grep "chart"`
+
+<a id="t45"></a>
+### T4.5 图表交互、空态与 PNG 导出
+- 状态：`[ ]`
+- 依赖：T4.4
+- 覆盖：FR-CHT-04、FR-CHT-06、FR-CHT-07
+- 参考：SPEC §11.4–§11.6
+- 产出：
+  - 缩放/图例/tooltip/resize；空态/错误态组件
+  - PNG 导出（透明/白/深背景，2x）
+  - 图表 `aria-label` 摘要与"查看数据表"
+- 步骤：
+  1. 空态区分"无表/未映射/无数据"。
+  2. 导出前等待渲染完成；失败捕获。
+  3. 键盘可达：图例/缩放可用按钮操作。
+- 验收：
+  - [ ] 缩放/图例/tooltip 在 100k 采样图上可用。
+  - [ ] 导出 PNG 尺寸/背景/文件名符合 SPEC。
+  - [ ] 三种空态文案与行动按钮正确。
+  - [ ] axe 无 critical。
+- 验证：`pnpm e2e -- --grep "chart-interaction|png"`
+
+<a id="t46"></a>
+### T4.6 图表性能硬化
+- 状态：`[ ]`
+- 依赖：T4.2、T4.5
+- 覆盖：FR-CHT-05、NFR-01
+- 参考：SPEC §16.1
+- 产出：
+  - 100k 点端到端基准；防抖/采样/merge 优化
+  - 图表更新 <200ms（2k 点）；解析+采样 <300ms
+  - 回归报告
+- 步骤：
+  1. 基准记录解析、采样、option、渲染四段耗时。
+  2. 避免每次更新重建实例；避免重复 resolve。
+  3. 大表切换映射时显示 loading，不冻结输入。
+- 验收：
+  - [ ] 预算达标；连续拖动缩放不卡顿。
+  - [ ] 切换表/映射无内存泄漏（10 次后实例数稳定）。
+  - [ ] 回归 >20% 报警。
+- 验证：`pnpm bench -- --chart && pnpm e2e -- --grep "chart-perf"`
+
+**M4 验收演示**：同一张表建宽表折线 + 长表多系列 → 缩放/图例/tooltip → 100k 点采样徽标 → 导出 PNG → 重启还原。输出报告后停下。
+
+---
+
+<a id="m5"></a>
+## M5 体验
+
+<a id="t51"></a>
+### T5.1 分栏布局与标签页
+- 状态：`[ ]`
+- 依赖：T2.1、T4.4
+- 覆盖：FR-WS-02
+- 参考：SPEC §12
+- 产出：
+  - 递归分栏（最多 4 pane）、拖拽调整比例、标签页
+  - 新建/关闭/移动视图；布局变更走命令总线；布局持久化与恢复
+  - 非法布局回退策略
+- 步骤：
+  1. 用 `LayoutNode` 驱动渲染；比例 0.2–0.8。
+  2. 关闭最后一个标签 → 关闭 pane；至少保留 1 个。
+  3. 保存去抖 500ms；恢复时校验引用。
+- 验收：
+  - [ ] 4 pane、水平/垂直、比例拖拽正常。
+  - [ ] 重启后布局/活动标签/滚动位置（可选）恢复。
+  - [ ] 引用失效回退单 pane，视图不丢。
+  - [ ] 纯键盘可切换标签/关闭。
+- 验证：`pnpm e2e -- --grep "layout"`
+
+<a id="t52"></a>
+### T5.2 撤销/重做
+- 状态：`[ ]`
+- 依赖：T1.5、T2.2、T2.3、T3.4
+- 覆盖：FR-TBL-02、FR-STY-02
+- 参考：SPEC §13.2
+- 产出：
+  - 基于 Immer patches 的历史栈（上限 100）
+  - 合并规则（800ms 单元格编辑）；批量操作单条
+  - 快捷键、菜单文案、历史清空
+- 步骤：
+  1. 命令返回 inverse patches；undo 应用 inverse，redo 应用 patches。
+  2. 新命令入栈丢弃 redo 分支。
+  3. 排除 UI 状态（选择/滚动/标签）。
+- 验收：
+  - [ ] 100 步撤销/重做数据一致；历史内存超 256MB 时丢最旧且不崩。
+  - [ ] 粘贴/导入/列变更各为一条历史。
+  - [ ] 图表创建/修改、视图开关、样式修改均可撤销。
+  - [ ] 撤销后自动保存落盘。
+  - [ ] 关闭工作区清空历史。
+- 验证：`pnpm exec vitest run packages/app-core -- --grep "history" && pnpm e2e -- --grep "undo"`
+
+<a id="t53"></a>
+### T5.3 自动保存、恢复与最近打开
+- 状态：`[ ]`
+- 依赖：T1.2、T1.3、T1.5
+- 覆盖：FR-WS-01、FR-WS-03
+- 参考：SPEC §7.5、§13.3
+- 产出：
+  - 脏表队列、1.5s 防抖/10s 强制、串行写
+  - 保存状态指示；失败重试
+  - 退出 flush（3s）；崩溃恢复对话框
+  - 手动保存（Ctrl/Cmd+S）立即 flush；最近列表、未保存确认
+- 步骤：
+  1. 订阅文档状态，标脏；队列合并同表写入。
+  2. 写表→写 manifest；失败保留脏标记。
+  3. 启动检测 stale lock，提供恢复/直接打开。
+- 验收：
+  - [ ] 强杀进程后重开，已提交数据不丢（允许丢最后 <1.5s 的编辑并提示）。
+  - [ ] 保存失败可见、可重试，不丢内存数据。
+  - [ ] 退出时 flush 成功；超时确认不卡死。
+  - [ ] Ctrl/Cmd+S 立即落盘，状态指示从"保存中"回到"已保存"。
+  - [ ] 最近列表可打开/移除/清空。
+- 验证：`pnpm e2e -- --grep "autosave|recovery"`
+
+<a id="t54"></a>
+### T5.4 快捷键与命令面板
+- 状态：`[ ]`
+- 依赖：T5.2
+- 覆盖：FR-WS-02、NFR-03
+- 参考：SPEC §9.1、§13.2
+- 产出：
+  - 键位注册表（作用域：全局/网格/图表）
+  - 命令面板（Ctrl/Cmd+K，模糊搜索，最近使用）
+  - 冲突检测与不可用原因
+- 步骤：
+  1. 命令声明 `id/label/shortcut/scopes/isEnabled`。
+  2. 统一 keydown 分发；输入框内不劫持。
+  3. 面板列出可执行命令并显示快捷键。
+- 验收：
+  - [ ] 所有核心操作有快捷键且不冲突。
+  - [ ] 输入框内 Ctrl/Cmd+C/V 不被劫持。
+  - [ ] 面板键盘可操作，Esc 关闭。
+- 验证：`pnpm exec vitest run apps/desktop -- --grep "keymap" && pnpm e2e -- --grep "palette"`
+
+<a id="t55"></a>
+### T5.5 设置与国际化
+- 状态：`[ ]`
+- 依赖：T0.4、T3.1
+- 覆盖：NFR-04、FR-STY-01
+- 参考：SPEC §16.3–§16.4
+- 产出：
+  - 设置对话框：主题、语言、默认表格样式、自动保存
+  - 完整 `en-US` 消息表；`zh-CN` 补齐
+  - 全量文案审计与迁移（T0.4 之后的 UI）
+- 步骤：
+  1. 扩展 `MessageKey` 与插值；补 en-US。
+  2. 设置持久化到 `userData/settings.json`（非工作区）。
+  3. 语言切换即时生效（不需重启）。
+  4. grep 审计并迁移遗漏的硬编码文案。
+- 验收：
+  - [ ] 中英文可切换，无缺失 key（开发模式报错）。
+  - [ ] 设置重启后保留。
+  - [ ] 组件中无硬编码用户文案（grep 检查）。
+  - [ ] 文案变长 30% 不破布局。
+- 验证：`pnpm exec vitest run packages/ui apps/desktop -- --grep "i18n|settings" && pnpm e2e -- --grep "settings"`
+
+**M5 验收演示**：建 2 表 3 视图分 2 pane → 撤销/重做 5 步 → 强杀恢复 → 最近打开 → 切英文/深色 → 重启全部还原。输出报告后停下。
+
+---
+
+<a id="m6"></a>
+## M6 扩展与发布
+
+<a id="t61"></a>
+### T6.1 插件 SDK 与注册表
+- 状态：`[ ]`
+- 依赖：T1.1
+- 覆盖：FR-EXT-01、FR-EXT-02、FR-EXT-04
+- 参考：SPEC §14
+- 产出：
+  - `packages/plugin-sdk`：清单、上下文、4 类注册表、生命周期
+  - 版本校验（主版本=1）、重复 id、dispose
+  - 宿主激活器：错误隔离、禁用列表、日志
+- 步骤：
+  1. 注册表纯数据 + 订阅；`register/replace/list/dispose`。
+  2. `activatePlugin`：校验 apiVersion → activate → 记录贡献。
+  3. 失败回滚已注册项，标记禁用。
+- 验收：
+  - [ ] 注册/列出/移除/重复 id 全部有测试。
+  - [ ] 插件激活抛错不影响内置功能。
+  - [ ] 不兼容版本被禁用并提示。
+  - [ ] `deactivate` 后 UI 无残留贡献。
+- 验证：`pnpm exec vitest run packages/plugin-sdk`
+
+<a id="t62"></a>
+### T6.2 示例插件
+- 状态：`[ ]`
+- 依赖：T6.1
+- 覆盖：FR-EXT-03
+- 参考：SPEC §14.2
+- 产出：
+  - `plugins/plugin-sample`：`rating` 语义字段类型（storageType=number）+ 简易 JSON 导入器
+  - 单元测试与 README
+- 步骤：
+  1. 字段类型：1–5 解析/校验/格式化（★）；storageType=number。
+  2. 导入器：解析 `{points:[{x,y}]}`。
+  3. 在桌面组装点静态导入并激活。
+- 验收：
+  - [ ] 新建列可选 `rating`，存为 number，重启后仍可解析。
+  - [ ] 示例导入器出现在导入向导并可完成导入。
+  - [ ] 插件测试独立运行，不依赖桌面。
+- 验证：`pnpm exec vitest run plugins/plugin-sample && pnpm e2e -- --grep "plugin"`
+
+<a id="t63"></a>
+### T6.3 插件接入 UI 与隔离
+- 状态：`[ ]`
+- 依赖：T6.2、T2.5、T3.2
+- 覆盖：FR-EXT-01、FR-EXT-02
+- 参考：SPEC §14.3
+- 产出：
+  - 列类型选择器/导入器列表/图表类型列表读取注册表
+  - 插件错误边界与"禁用插件"入口
+  - 贡献点变更后的 UI 刷新
+- 步骤：
+  1. 移除硬编码的内置列表，改为注册表 + 内置注册。
+  2. 插件贡献的菜单项加来源标识。
+  3. 错误 toast 带插件名，可跳日志。
+- 验收：
+  - [ ] 移除示例插件后 UI 不残留其选项。
+  - [ ] 插件抛错只影响自身，其他功能正常。
+  - [ ] 所有贡献点从注册表读取（grep 无硬编码）。
+- 验证：`pnpm e2e -- --grep "plugin-ui"`
+
+<a id="t64"></a>
+### T6.4 安装包与发布配置
+- 状态：`[ ]`
+- 依赖：T0.2、T5.5
+- 覆盖：NFR-08
+- 参考：SPEC §16.6
+- 产出：
+  - electron-builder：`appId=com.curvestudio.app`、productName、NSIS + portable
+  - 图标、许可证、版本号注入、`userData` 路径
+  - 安装/卸载/数据保留冒烟
+- 步骤：
+  1. 配 `electron-builder.yml`；产物到 `release/`。
+  2. 安装包默认当前用户，不要求管理员。
+  3. 首次启动创建 `userData`；卸载不删工作区。
+- 验收：
+  - [ ] 干净 Windows 用户安装/启动/卸载成功。
+  - [ ] 安装后工作区默认路径可写；卸载后用户工作区仍在。
+  - [ ] 版本号与 `package.json` 一致。
+- 验证：`pnpm package` + 手工安装冒烟
+
+<a id="t65"></a>
+### T6.5 全量验收与文档收尾
+- 状态：`[ ]`
+- 依赖：M0–M6 全部任务（T6.5 除外）
+- 覆盖：全部 FR/NFR
+- 参考：TESTPLAN §3–§6
+- 产出：
+  - 全量 E2E、性能报告、可访问性报告
+  - README 更新为产品说明；用户手册；开发者指南；ADR 索引
+  - 发布检查清单与已知限制
+- 步骤：
+  1. 跑 `pnpm verify && pnpm e2e && pnpm bench`，归档报告。
+  2. 执行 README §6 九步验收演示并录屏/截图。
+  3. 对照 SPEC §17 逐条勾选；未达标项列明确认。
+- 验收：
+  - [ ] 九步演示一次通过。
+  - [ ] 全部 FR 有证据（测试名/截图/报告）。
+  - [ ] 已知限制写入文档，不隐藏在代码里。
+  - [ ] 安装包在干净机器复验通过。
+- 验证：`pnpm verify && pnpm e2e && pnpm bench`
+
+**M6 验收演示**：示例插件可用 → 安装包安装/卸载 → 全量 E2E/性能/可访问性报告 → 九步演示 → 发布清单签字。输出报告后停下。
