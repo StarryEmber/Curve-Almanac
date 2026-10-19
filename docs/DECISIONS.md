@@ -20,6 +20,7 @@
 - 理由：避免多包构建编排与 `dist` 同步问题；依赖边界仍可用 dependency-cruiser 强制。
 - 代价：包不能单独发布；IDE 需正确解析路径别名。
 - 复核条件：需要把 `domain`/`plugin-sdk` 发布为独立 npm 包时，改为构建产物 + `exports` 条件。
+- 实现备注（T0.1，2026-10-19）：实际安装 pnpm 11.28.5、Node 24.21.0、TypeScript 5.9.3、ESLint 9.39.5、Vitest 5.0.5、Vite 8.3.4、dependency-cruiser 18.6.0；以 `pnpm-lock.yaml` 为准。ESLint 9 为 TASKS 指定的主版本；npm 已标记 9.x 停止支持，升级到 10 需先评估 `eslint-plugin-import` 的 peer 约束。
 
 <a id="adr-003"></a>
 ## ADR-003 文件型工作区（目录 + JSONL）

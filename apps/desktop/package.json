@@ -1,0 +1,13 @@
+{
+  "name": "@curve/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Electron main, preload and renderer shell.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b --pretty false"
+  }
+}

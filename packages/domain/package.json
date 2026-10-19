@@ -1,0 +1,13 @@
+{
+  "name": "@curve/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure domain model, Zod schemas, invariants and migrations. No UI or IO.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b --pretty false"
+  }
+}

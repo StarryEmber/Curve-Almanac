@@ -1,0 +1,17 @@
+{
+  "name": "@curve/chart-model",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chart-agnostic RenderModel, wide/long mapping and LTTB sampling.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@curve/domain": "workspace:*",
+    "@curve/table-engine": "workspace:*"
+  }
+}

@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+  - packages/*
+  - plugins/*
+
+# Explicit allowlist for dependency install scripts. pnpm blocks all build
+# scripts by default; only the packages below may run theirs.
+# - electron: downloads the desktop runtime binary (T0.2)
+# - esbuild / unrs-resolver: native binaries used by the toolchain
+allowBuilds:
+  electron: true
+  esbuild: true
+  unrs-resolver: true

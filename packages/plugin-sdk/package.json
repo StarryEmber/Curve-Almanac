@@ -1,0 +1,16 @@
+{
+  "name": "@curve/plugin-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Plugin manifest, contribution registries and host API types.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@curve/domain": "workspace:*"
+  }
+}

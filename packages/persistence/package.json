@@ -1,0 +1,16 @@
+{
+  "name": "@curve/persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "WorkspaceStore port and in-memory adapter. Electron-free.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@curve/domain": "workspace:*"
+  }
+}

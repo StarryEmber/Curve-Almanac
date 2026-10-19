@@ -1,0 +1,17 @@
+{
+  "name": "@curve/chart-echarts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The only package allowed to import ECharts; adapts RenderModel to ECharts options.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@curve/domain": "workspace:*",
+    "@curve/chart-model": "workspace:*"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@curve/table-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Row sets, JSONL codec, query, paste and import primitives.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@curve/domain": "workspace:*"
+  }
+}

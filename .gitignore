@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+dist-types/
+out/
+release/
+*.tsbuildinfo
+
+# Test output
+coverage/
+playwright-report/
+test-results/
+
+# Tooling caches
+.vite/
+.eslintcache
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*

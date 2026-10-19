@@ -85,7 +85,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t01"></a>
 ### T0.1 初始化 monorepo 与质量工具链
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：无
 - 覆盖：NFR-07、NFR-02
 - 参考：SPEC §4、§5
@@ -102,10 +102,10 @@ T0.2 + T5.5 → T6.4
   5. dependency-cruiser 落实 SPEC §4.3 七条规则。
   6. 每个包 `package.json` + `src/index.ts`（先导出占位类型），桌面包先空壳。
 - 验收：
-  - [ ] `pnpm install` 无 peer 警告/错误。
-  - [ ] `pnpm verify` 全绿（至少 1 个 smoke 测试）。
-  - [ ] 故意写一条 `domain → react` import，`pnpm lint` 必须失败；撤销后恢复。
-  - [ ] 路径别名在 Vitest 中可用。
+  - [x] `pnpm install` 无 peer 警告/错误。
+  - [x] `pnpm verify` 全绿（至少 1 个 smoke 测试）。
+  - [x] 故意写一条 `domain → react` import，`pnpm lint` 必须失败；撤销后恢复。
+  - [x] 路径别名在 Vitest 中可用。
 - 验证：`pnpm install && pnpm verify`
 
 <a id="t02"></a>

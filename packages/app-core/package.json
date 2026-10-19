@@ -1,0 +1,20 @@
+{
+  "name": "@curve/app-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Use cases, command bus, undo/redo and application state.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@curve/chart-model": "workspace:*",
+    "@curve/domain": "workspace:*",
+    "@curve/persistence": "workspace:*",
+    "@curve/plugin-sdk": "workspace:*",
+    "@curve/table-engine": "workspace:*"
+  }
+}

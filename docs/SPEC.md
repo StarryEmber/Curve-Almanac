@@ -180,7 +180,8 @@ Curve Studio 是一个**本地优先、单机离线**的桌面数据可视化工
     "dev": "pnpm --filter @curve/desktop dev",
     "build": "pnpm --filter @curve/desktop build",
     "package": "pnpm build && pnpm --filter @curve/desktop package",
-    "lint": "eslint . --max-warnings=0",
+    "lint": "eslint . --max-warnings=0 && pnpm lint:boundaries",
+    "lint:boundaries": "depcruise apps packages --config .dependency-cruiser.cjs",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -190,6 +191,8 @@ Curve Studio 是一个**本地优先、单机离线**的桌面数据可视化工
   }
 }
 ```
+
+> `lint` 同时执行 ESLint 与 dependency-cruiser（ADR-017）；`plugins/*` 目录在 T6.2 创建后加入扫描路径。
 
 ### 5.3 内部包是源码包
 

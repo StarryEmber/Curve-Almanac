@@ -1,0 +1,13 @@
+{
+  "name": "@curve/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Design tokens and presentational React components.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b --pretty false"
+  }
+}

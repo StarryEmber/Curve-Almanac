@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/domain" },
+    { "path": "packages/table-engine" },
+    { "path": "packages/chart-model" },
+    { "path": "packages/chart-echarts" },
+    { "path": "packages/persistence" },
+    { "path": "packages/plugin-sdk" },
+    { "path": "packages/ui" },
+    { "path": "packages/app-core" },
+    { "path": "apps/desktop" }
+  ]
+}

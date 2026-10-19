@@ -1,0 +1,9 @@
+# Workspace data (JSONL, manifest, CSV fixtures) requires LF line endings.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
