@@ -17,6 +17,7 @@
   "devDependencies": {
     "@curve/domain": "workspace:*",
     "@curve/persistence": "workspace:*",
+    "@curve/table-engine": "workspace:*",
     "@curve/ui": "workspace:*",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",

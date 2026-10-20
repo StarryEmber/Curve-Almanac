@@ -101,6 +101,45 @@ describe('createCurveApi', () => {
     });
   });
 
+  it('forwards table methods over their channels', async () => {
+    const invoke = vi.fn(async (channel: string) => {
+      if (channel === IPC_CHANNELS.tableRead) {
+        return { ok: true, data: { jsonl: 'x\n', bytes: 2 } };
+      }
+      if (channel === IPC_CHANNELS.tableWrite) {
+        return { ok: true, data: { bytes: 2 } };
+      }
+      return { ok: true, data: { ok: true } };
+    });
+    const api = createCurveApi(invoke);
+
+    await expect(api.table.read({ workspaceId: 'ws_1', tableId: 'tbl_1' })).resolves.toEqual({
+      ok: true,
+      data: { jsonl: 'x\n', bytes: 2 },
+    });
+    await expect(
+      api.table.write({ workspaceId: 'ws_1', tableId: 'tbl_1', jsonl: 'x\n' }),
+    ).resolves.toEqual({ ok: true, data: { bytes: 2 } });
+    await expect(api.table.trash({ workspaceId: 'ws_1', tableId: 'tbl_1' })).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.tableRead, {
+      workspaceId: 'ws_1',
+      tableId: 'tbl_1',
+    });
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.tableWrite, {
+      workspaceId: 'ws_1',
+      tableId: 'tbl_1',
+      jsonl: 'x\n',
+    });
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.tableTrash, {
+      workspaceId: 'ws_1',
+      tableId: 'tbl_1',
+    });
+  });
+
   it('passes an error envelope through unchanged', async () => {
     const envelope = {
       ok: false as const,
@@ -129,11 +168,12 @@ describe('createCurveApi', () => {
   it('exposes no generic invoke/send escape hatch', () => {
     const api = createCurveApi(async () => ({ ok: true, data: null }));
 
-    expect(Object.keys(api)).toEqual(['app', 'log', 'workspace', 'manifest']);
+    expect(Object.keys(api)).toEqual(['app', 'log', 'workspace', 'manifest', 'table']);
     expect(Object.keys(api.app)).toEqual(['info']);
     expect(Object.keys(api.log)).toEqual(['write']);
     expect(Object.keys(api.workspace)).toEqual(['create', 'open', 'close', 'recent']);
     expect(Object.keys(api.manifest)).toEqual(['write']);
+    expect(Object.keys(api.table)).toEqual(['read', 'write', 'trash']);
     expect(api).not.toHaveProperty('invoke');
     expect(api).not.toHaveProperty('send');
     expect(api).not.toHaveProperty('ipcRenderer');

@@ -173,4 +173,67 @@ describe('registerIpcHandlers', () => {
       ipcMain.invoke(IPC_CHANNELS.manifestWrite, { workspaceId: 'ws_1', manifest: {} }),
     ).resolves.toMatchObject({ ok: false, error: { code: 'E_IPC_INVALID_PAYLOAD' } });
   });
+
+  it('routes table:read/write/trash through the store and keeps paths out of IPC', async () => {
+    const { ipcMain } = wire();
+
+    const created = (await ipcMain.invoke(IPC_CHANNELS.workspaceCreate, {
+      dir: '/tmp/tables',
+      name: 'Demo',
+    })) as IpcResult<WorkspaceManifest>;
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+
+    const table = {
+      id: 'tbl_1',
+      name: 'T',
+      file: 'tables/tbl_1.jsonl',
+      schemaVersion: 1,
+      columns: [{ id: 'col_1', key: 'id', label: 'id', type: 'text', role: 'label' }],
+      primaryKey: 'col_1',
+      // Declared non-empty but the file does not exist yet: reading must fail
+      // rather than pretend the table is empty (ADR-022).
+      rowCount: 1,
+      createdAt: '2026-10-20T00:00:00.000Z',
+      updatedAt: '2026-10-20T00:00:00.000Z',
+    };
+    const manifest = { ...created.data, tables: [table] };
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.manifestWrite, {
+        workspaceId: created.data.id,
+        manifest,
+      }),
+    ).resolves.toEqual({ ok: true, data: { ok: true } });
+
+    const ref = { workspaceId: created.data.id, tableId: 'tbl_1' };
+    await expect(ipcMain.invoke(IPC_CHANNELS.tableRead, ref)).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'E_TABLE_NOT_FOUND' },
+    });
+
+    const jsonl = '{"id":"row_1","v":["a"]}\n';
+    await expect(ipcMain.invoke(IPC_CHANNELS.tableWrite, { ...ref, jsonl })).resolves.toEqual({
+      ok: true,
+      data: { bytes: 25 },
+    });
+    await expect(ipcMain.invoke(IPC_CHANNELS.tableRead, ref)).resolves.toEqual({
+      ok: true,
+      data: { jsonl, bytes: 25 },
+    });
+    await expect(ipcMain.invoke(IPC_CHANNELS.tableTrash, ref)).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+    await expect(ipcMain.invoke(IPC_CHANNELS.tableRead, ref)).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'E_TABLE_NOT_FOUND' },
+    });
+
+    // Only ids cross the boundary; an absolute path in the payload is rejected.
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.tableRead, { workspaceId: created.data.id, path: '/tmp/x' }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'E_IPC_INVALID_PAYLOAD' } });
+  });
 });

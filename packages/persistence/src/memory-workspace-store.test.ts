@@ -151,6 +151,25 @@ describe('MemoryWorkspaceStore', () => {
     expect(opened.manifest.tables).toHaveLength(1);
   });
 
+  it('treats a missing table as empty only while the hint is zero (ADR-022)', async () => {
+    const { store, workspaceId } = await createWithTable();
+
+    await expect(store.readTable({ workspaceId, tableId: 'tbl_1' })).resolves.toEqual({
+      jsonl: '',
+      bytes: 0,
+    });
+
+    const opened = await store.open({ dir: '/tmp/parent/Demo.cstudio' });
+    await store.writeManifest({
+      workspaceId,
+      manifest: { ...opened.manifest, tables: [table({ rowCount: 2 })] },
+    });
+
+    await expect(store.readTable({ workspaceId, tableId: 'tbl_1' })).rejects.toMatchObject({
+      code: 'E_TABLE_NOT_FOUND',
+    });
+  });
+
   it('rejects an invalid manifest write', async () => {
     const { store, manifest, workspaceId } = await createWithTable();
 

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { TableMeta, WorkspaceManifest } from '@curve/domain';
 import { formatBackupTimestamp } from '@curve/persistence';
+import { MAX_ROWS_PER_TABLE } from '@curve/table-engine';
 
 import { atomicWrite } from './atomic-write';
 import { FileWorkspaceStore } from './file-workspace-store';
@@ -338,6 +339,61 @@ describe('FileWorkspaceStore tables and backups', () => {
     await expect(
       harness.store.trash({ workspaceId: created.id, tableId: 'tbl_1' }),
     ).resolves.toEqual({ ok: true });
+  });
+
+  it('treats a missing file as empty only while the rowCount hint is zero (ADR-022)', async () => {
+    const harness = createHarness();
+    const { parent, root } = workspacePath(harness);
+    const created = await harness.store.create({ dir: parent, name: 'Demo' });
+    await addTable(harness.store, created);
+
+    // A table the manifest describes as empty has never been written.
+    await expect(
+      harness.store.readTable({ workspaceId: created.id, tableId: 'tbl_1' }),
+    ).resolves.toEqual({ jsonl: '', bytes: 0 });
+
+    await harness.store.writeTable({
+      workspaceId: created.id,
+      tableId: 'tbl_1',
+      jsonl: 'v1\n',
+    });
+    await harness.store.close({ workspaceId: created.id });
+
+    // SPEC §7.5: opening repairs the hint and says so.
+    const reopened = await harness.store.open({ dir: root });
+    expect(reopened.manifest.tables[0]?.rowCount).toBe(1);
+    expect(reopened.warnings.join('\n')).toContain('row count');
+    const persisted = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8')) as {
+      tables: { rowCount: number }[];
+    };
+    expect(persisted.tables[0]?.rowCount).toBe(1);
+
+    await harness.store.trash({ workspaceId: reopened.manifest.id, tableId: 'tbl_1' });
+    await expect(
+      harness.store.readTable({ workspaceId: reopened.manifest.id, tableId: 'tbl_1' }),
+    ).rejects.toMatchObject({ code: 'E_TABLE_NOT_FOUND' });
+
+    await harness.store.close({ workspaceId: reopened.manifest.id });
+  });
+
+  it('rejects a table write above the 200k row cap with E_TABLE_LIMIT', async () => {
+    const harness = createHarness();
+    const { parent } = workspacePath(harness);
+    const created = await harness.store.create({ dir: parent, name: 'Demo' });
+    await addTable(harness.store, created);
+
+    const jsonl = `${Array.from(
+      { length: MAX_ROWS_PER_TABLE + 1 },
+      (_, index) => `{"id":"row_${index}","v":["x"]}`,
+    ).join('\n')}\n`;
+
+    await expect(
+      harness.store.writeTable({ workspaceId: created.id, tableId: 'tbl_1', jsonl }),
+    ).rejects.toMatchObject({ code: 'E_TABLE_LIMIT' });
+    // The rejected write must not leave a file behind.
+    await expect(
+      harness.store.readTable({ workspaceId: created.id, tableId: 'tbl_1' }),
+    ).resolves.toEqual({ jsonl: '', bytes: 0 });
   });
 
   it('rejects an invalid manifest without overwriting the old one', async () => {

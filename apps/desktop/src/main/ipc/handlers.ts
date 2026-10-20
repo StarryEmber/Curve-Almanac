@@ -1,8 +1,11 @@
 /**
- * The channels wired so far: app/log (T0.3) and workspace/manifest (T1.2).
+ * The channels wired so far: app/log (T0.3), workspace/manifest (T1.2) and
+ * table data (T1.3).
  *
  * Each handler is a thin adapter over an injected dependency so it can be unit
- * tested without Electron (see handlers.test.ts).
+ * tested without Electron (see handlers.test.ts). Table bytes never reach the
+ * renderer through this layer: `table:read` returns the JSONL document and the
+ * Worker decodes it.
  */
 
 import type { WorkspaceStore } from '@curve/persistence';
@@ -15,6 +18,12 @@ import {
   logWriteResponseSchema,
   manifestWriteRequestSchema,
   manifestWriteResponseSchema,
+  tableReadRequestSchema,
+  tableReadResponseSchema,
+  tableTrashRequestSchema,
+  tableTrashResponseSchema,
+  tableWriteRequestSchema,
+  tableWriteResponseSchema,
   workspaceCloseRequestSchema,
   workspaceCloseResponseSchema,
   workspaceCreateRequestSchema,
@@ -87,5 +96,26 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     IPC_CHANNELS.manifestWrite,
     { request: manifestWriteRequestSchema, response: manifestWriteResponseSchema },
     (request) => workspaceStore.writeManifest(request),
+  );
+
+  // SPEC §15.1: only ids cross the boundary; paths are resolved inside the
+  // store. Size and row limits are enforced by the store before it writes.
+  registrar.handle(
+    IPC_CHANNELS.tableRead,
+    { request: tableReadRequestSchema, response: tableReadResponseSchema },
+    (request) => workspaceStore.readTable(request),
+  );
+
+  registrar.handle(
+    IPC_CHANNELS.tableWrite,
+    { request: tableWriteRequestSchema, response: tableWriteResponseSchema },
+    (request) => workspaceStore.writeTable(request),
+  );
+
+  // Moves the file only; the caller updates the manifest (T2.1 delete flow).
+  registrar.handle(
+    IPC_CHANNELS.tableTrash,
+    { request: tableTrashRequestSchema, response: tableTrashResponseSchema },
+    (request) => workspaceStore.trash(request),
   );
 }

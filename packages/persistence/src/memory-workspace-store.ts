@@ -1,5 +1,5 @@
 import { createAppError, isId } from '@curve/domain';
-import type { UuidFactory, WorkspaceManifest } from '@curve/domain';
+import type { TableMeta, UuidFactory, WorkspaceManifest } from '@curve/domain';
 
 import {
   MAX_BACKUPS_PER_TARGET,
@@ -122,8 +122,17 @@ export class MemoryWorkspaceStore implements WorkspaceStore {
   }
 
   async readTable(request: TableRef): Promise<TableReadResult> {
-    const { workspace, tableId } = this.requireTable(request);
-    const jsonl = workspace.tables.get(tableId) ?? '';
+    const { workspace, tableId, table } = this.requireTable(request);
+    const jsonl = workspace.tables.get(tableId);
+    if (jsonl === undefined) {
+      // Same semantics as the file adapter (ADR-022): a table the manifest
+      // still describes as empty has never been written; anything else is data
+      // loss and must not be reported as an empty table.
+      if (table.rowCount === 0) {
+        return { jsonl: '', bytes: 0 };
+      }
+      throw createAppError('E_TABLE_NOT_FOUND', 'The table data file is missing.');
+    }
     return { jsonl, bytes: utf8ByteLength(jsonl) };
   }
 
@@ -203,7 +212,11 @@ export class MemoryWorkspaceStore implements WorkspaceStore {
     return workspace;
   }
 
-  private requireTable(request: TableRef): { workspace: MemoryWorkspace; tableId: string } {
+  private requireTable(request: TableRef): {
+    workspace: MemoryWorkspace;
+    tableId: string;
+    table: TableMeta;
+  } {
     if (!isId('tbl', request.tableId)) {
       throw createAppError('E_PATH_DENIED', 'The table id is not a safe table id.');
     }
@@ -215,7 +228,7 @@ export class MemoryWorkspaceStore implements WorkspaceStore {
     if (table.file !== tableFilePath(request.tableId)) {
       throw createAppError('E_WS_INVALID_MANIFEST', 'The table file path is invalid.');
     }
-    return { workspace, tableId: request.tableId };
+    return { workspace, tableId: request.tableId, table };
   }
 
   private addBackup(workspace: MemoryWorkspace, tableId: string, content: string): void {

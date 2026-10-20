@@ -13,6 +13,12 @@ import {
   logWriteResponseSchema,
   manifestWriteRequestSchema,
   manifestWriteResponseSchema,
+  tableReadRequestSchema,
+  tableReadResponseSchema,
+  tableTrashRequestSchema,
+  tableTrashResponseSchema,
+  tableWriteRequestSchema,
+  tableWriteResponseSchema,
   workspaceCloseRequestSchema,
   workspaceCloseResponseSchema,
   workspaceCreateRequestSchema,
@@ -29,6 +35,10 @@ import type {
   ManifestWriteRequest,
   OkReply,
   RecentEntry,
+  TableReadReply,
+  TableRefRequest,
+  TableWriteReply,
+  TableWriteRequest,
   WorkspaceCloseRequest,
   WorkspaceCreateRequest,
   WorkspaceManifest,
@@ -96,6 +106,7 @@ export function createApiClient(bridge: CurveApi | undefined): CurveApi {
         recent: unavailable,
       },
       manifest: { write: unavailable },
+      table: { read: unavailable, write: unavailable, trash: unavailable },
     };
   }
 
@@ -144,6 +155,29 @@ export function createApiClient(bridge: CurveApi | undefined): CurveApi {
           return Promise.resolve(INVALID_REQUEST);
         }
         return call(manifestWriteResponseSchema, () => bridge.manifest.write(parsed.data));
+      },
+    },
+    table: {
+      read: (request: TableRefRequest): Promise<IpcResult<TableReadReply>> => {
+        const parsed = tableReadRequestSchema.safeParse(request);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(tableReadResponseSchema, () => bridge.table.read(parsed.data));
+      },
+      write: (request: TableWriteRequest): Promise<IpcResult<TableWriteReply>> => {
+        const parsed = tableWriteRequestSchema.safeParse(request);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(tableWriteResponseSchema, () => bridge.table.write(parsed.data));
+      },
+      trash: (request: TableRefRequest): Promise<IpcResult<OkReply>> => {
+        const parsed = tableTrashRequestSchema.safeParse(request);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(tableTrashResponseSchema, () => bridge.table.trash(parsed.data));
       },
     },
   };

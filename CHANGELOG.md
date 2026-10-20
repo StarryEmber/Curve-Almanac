@@ -81,6 +81,24 @@
 - T1.2：E2E `apps/desktop/e2e/workspace.spec.ts` 四条（SPEC §7.1 布局与 open/recent/close、损坏 manifest
   不覆盖、未来版本拒绝、manifest:write）。
 - T1.2：ADR-019（`write-file-atomic` 依赖）、ADR-020（create 目录语义）、ADR-021（备份命名/轮转/恢复路径）。
+- T1.3：`@curve/table-engine` JSONL 编解码（SPEC §7.3）：`encodeJsonl`/`encodeJsonlWithStats`（逐行
+  `JSON.stringify` + 一次性 `join`）、`decodeJsonl`（逐行解析、行号、每格 `parseCell`、8MB 行上限、
+  BOM/CRLF/空行/重复主键/200k 行硬上限）、`countJsonlRows`（不解析的廉价计数）、
+  `toJsonlAppError`（`E_TABLE_PARSE` + 行号，超限时为 `E_TABLE_LIMIT`）、`tableWriteLimitError`。
+- T1.3：行集与脏表纯原语：`TableData`/`createTableData`、`diffRowCounts`/`reconcileRowCounts`、
+  `diffTableRows`（含 `orderChanged`）、`DirtyTableTracker`（可注入时钟、单调 revision，ADR-023）。
+- T1.3：Worker 协议 `table-engine/worker-protocol`（decode/encode 请求与响应判别联合 + 手写 guard）、
+  `apps/desktop/src/renderer/table-io/{handler,client}.ts` 与 `workers/table.worker.ts`
+  （`new Worker(new URL(...), { type: 'module' })`，请求 id 关联、超时、终止与错误兜底）。
+- T1.3：IPC `table:read/write/trash`（Zod 请求/响应契约、main handler、preload 白名单方法、
+  renderer `api-client` 双向校验）；`table:write` 走既有原子写并在写盘前校验 200k 行 / 256MB。
+- T1.3：打开工作区时按磁盘内容重算每表 `rowCount` 并追加 warning（SPEC §7.5），缺文件语义按 ADR-022
+  统一 File/Memory 两个适配器；新增 `E_TABLE_LIMIT` 写入路径。
+- T1.3：E2E `apps/desktop/e2e/table-io.spec.ts` 三条（空表→3 行 JSONL 逐字读回→trash 中间态与
+  `E_TABLE_NOT_FOUND`、IPC 边界拒绝路径形 id、生产 CSP 下加载真实 Worker 并解码）。
+- T1.3：`scripts/bench.ts` 与 `tsx` devDependency：`pnpm bench -- --table-io` 固定种子生成 100k×10，
+  测 `table.encode.100k`/`table.decode.100k`，写 `bench/report.json`（TESTPLAN §5.2 格式）。
+- T1.3：ADR-022（缺文件语义与 `rowCount` 重算）、ADR-023（脏表追踪原语归属）。
 
 ### Changed
 
@@ -114,3 +132,11 @@
 - T1.2：`HandlerContract` 的输入类型改为 `unknown`（`safeParse` 接收跨进程原始载荷，schema 负责收窄）；
   `IMPLEMENTED_IPC_CHANNELS` 从 2 个扩到 7 个，`e2e/ipc.spec.ts` 的桥白名单同步。
 - T1.2：Vitest 覆盖率排除纯类型模块 `packages/persistence/src/types.ts`（同 T1.1 的 `domain/src/types.ts` 处理）。
+- T1.3：SPEC §7.5 补充 `rowCount` 重算边界与表文件缺失语义，§15.1 补充 `table:read/write` 的
+  缺文件语义与写盘上限（ADR-022）。
+- T1.3：`IMPLEMENTED_IPC_CHANNELS` 从 7 个扩到 10 个，`e2e/ipc.spec.ts` 桥白名单、`channels.test.ts`、
+  preload `api.test.ts`、renderer `api-client.test.ts` 同步 `table` 命名空间。
+- T1.3：`apps/desktop` 新增 `@curve/table-engine` 依赖与 node/web/e2e 工程引用；`electron.vite.config.ts`
+  的 renderer 增加显式 `table-worker` 入口（T1.5 接入客户端后可移除），用于在 E2E 中验证生产 CSP。
+- T1.3：Vitest 覆盖率排除 Worker 入口 `renderer/workers/*.worker.ts`（仅一条转发，行为由 E2E 覆盖）。
+- T1.3：`.gitignore` 增加 `bench/`（`pnpm bench` 产物，CI 以 artifact 保留）。

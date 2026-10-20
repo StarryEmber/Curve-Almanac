@@ -20,6 +20,10 @@ import type {
   ManifestWriteRequest,
   OkReply,
   RecentEntry,
+  TableReadReply,
+  TableRefRequest,
+  TableWriteReply,
+  TableWriteRequest,
   WorkspaceCloseRequest,
   WorkspaceCreateRequest,
   WorkspaceManifest,
@@ -69,6 +73,14 @@ export function createCurveApi(invoke: InvokeFn): CurveApi {
     manifest: {
       write: (request: ManifestWriteRequest): Promise<IpcResult<OkReply>> =>
         call<OkReply>(invoke, IPC_CHANNELS.manifestWrite, request),
+    },
+    table: {
+      read: (request: TableRefRequest): Promise<IpcResult<TableReadReply>> =>
+        call<TableReadReply>(invoke, IPC_CHANNELS.tableRead, request),
+      write: (request: TableWriteRequest): Promise<IpcResult<TableWriteReply>> =>
+        call<TableWriteReply>(invoke, IPC_CHANNELS.tableWrite, request),
+      trash: (request: TableRefRequest): Promise<IpcResult<OkReply>> =>
+        call<OkReply>(invoke, IPC_CHANNELS.tableTrash, request),
     },
   };
 }

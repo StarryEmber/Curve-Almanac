@@ -37,7 +37,7 @@ describe('IPC channels', () => {
     expect(names).toEqual(Object.values(SPEC_CHANNELS));
   });
 
-  it('wires app/log plus the T1.2 workspace lifecycle and manifest:write', () => {
+  it('wires app/log, the T1.2 workspace lifecycle, manifest:write and the T1.3 table channels', () => {
     expect([...IMPLEMENTED_IPC_CHANNELS]).toEqual([
       IPC_CHANNELS.appInfo,
       IPC_CHANNELS.logWrite,
@@ -46,6 +46,9 @@ describe('IPC channels', () => {
       IPC_CHANNELS.workspaceClose,
       IPC_CHANNELS.workspaceRecent,
       IPC_CHANNELS.manifestWrite,
+      IPC_CHANNELS.tableRead,
+      IPC_CHANNELS.tableWrite,
+      IPC_CHANNELS.tableTrash,
     ]);
   });
 

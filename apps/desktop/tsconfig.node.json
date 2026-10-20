@@ -9,7 +9,11 @@
     "lib": ["ES2022"],
     "types": ["node"]
   },
-  "references": [{ "path": "../../packages/domain" }, { "path": "../../packages/persistence" }],
+  "references": [
+    { "path": "../../packages/domain" },
+    { "path": "../../packages/persistence" },
+    { "path": "../../packages/table-engine" }
+  ],
   "include": [
     "electron.vite.config.ts",
     "src/main/**/*.ts",

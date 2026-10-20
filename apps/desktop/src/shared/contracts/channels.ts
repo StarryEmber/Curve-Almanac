@@ -37,8 +37,9 @@ export const ALL_IPC_CHANNELS: readonly IpcChannel[] = Object.freeze(Object.valu
  * must stay unregistered: an unhandled channel is rejected by Electron, which
  * is the behaviour the T0.3 acceptance criteria ask for.
  *
- * T1.2 adds the workspace lifecycle and `manifest:write`. `workspace:recent:remove`
- * and `workspace:recent:clear` stay unregistered until the welcome UI (T2.1).
+ * T1.2 adds the workspace lifecycle and `manifest:write`; T1.3 adds the three
+ * `table:*` channels. `workspace:recent:remove` and `workspace:recent:clear`
+ * stay unregistered until the welcome UI (T2.1).
  */
 export const IMPLEMENTED_IPC_CHANNELS = [
   IPC_CHANNELS.appInfo,
@@ -48,4 +49,7 @@ export const IMPLEMENTED_IPC_CHANNELS = [
   IPC_CHANNELS.workspaceClose,
   IPC_CHANNELS.workspaceRecent,
   IPC_CHANNELS.manifestWrite,
+  IPC_CHANNELS.tableRead,
+  IPC_CHANNELS.tableWrite,
+  IPC_CHANNELS.tableTrash,
 ] as const;

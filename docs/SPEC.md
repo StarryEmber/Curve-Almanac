@@ -534,6 +534,10 @@ main 进程必须使用 `write-file-atomic`：
 - 恢复流程：manifest 可读则用 manifest；不可读则扫描 `backups/` 中最新的
   `manifest.<timestamp>.json.bak`（见 ADR-021），重建 manifest 后让用户确认。
 - 打开后立即重算每表 `rowCount`，与 manifest 不一致则更新并警告。
+  - 只统计内容行数（不解析单元格）；重写 manifest 走 §7.4 的备份 + 原子写，且不修改 `updatedAt`（ADR-022）。
+  - 数据文件缺失时：`rowCount === 0` 视为尚未写入的空表；`rowCount > 0` 时 `table:read` 返回
+    `E_TABLE_NOT_FOUND`，打开时给出警告，**不得**把 `rowCount` 静默清零（ADR-022）。
+  - 单元格级解析错误在读取该表时以 `E_TABLE_PARSE` + 行号报告，不在打开工作区时阻塞。
 
 ### 7.6 迁移
 
@@ -1093,6 +1097,10 @@ export interface PluginCommandContext {
 - 所有响应统一包装：`{ ok: true, data } | { ok: false, error: AppError }`。
 - main 端任何异常都转成 `AppError`，不得把堆栈直接抛给 renderer。
 - `table:read/write` 不接受绝对路径，只接受 `workspaceId + tableId`；main 从内部映射解析路径。
+- `table:read` 在表文件缺失时的语义见 §7.5 与 ADR-022：`rowCount === 0` 返回空表，否则
+  `E_TABLE_NOT_FOUND`。
+- `table:write` 在写盘前校验 §2.2 的行数（200,000）与字节（256 MB）上限，超限返回 `E_TABLE_LIMIT`，
+  不落盘、不备份。
 - 单次 IPC 载荷上限 256MB；超过返回 `E_PAYLOAD_TOO_LARGE`。
 
 ### 15.2 路径白名单

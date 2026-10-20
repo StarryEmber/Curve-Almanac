@@ -9,7 +9,12 @@
 
 import { z } from 'zod';
 
-import { isoTimestampSchema, workspaceIdSchema, workspaceManifestSchema } from '@curve/domain';
+import {
+  isoTimestampSchema,
+  tableIdSchema,
+  workspaceIdSchema,
+  workspaceManifestSchema,
+} from '@curve/domain';
 import type { WorkspaceManifest } from '@curve/domain';
 
 import type { IpcResult } from './envelope';
@@ -68,11 +73,32 @@ export interface ManifestWriteRequest {
   manifest: WorkspaceManifest;
 }
 
+/** `table:read` / `table:trash` request (SPEC §15.1). */
+export interface TableRefRequest {
+  workspaceId: string;
+  tableId: string;
+}
+
+/** `table:read` reply: the raw JSONL document and its byte length. */
+export interface TableReadReply {
+  jsonl: string;
+  bytes: number;
+}
+
+/** `table:write` request: the whole document, written atomically. */
+export interface TableWriteRequest extends TableRefRequest {
+  jsonl: string;
+}
+
+export interface TableWriteReply {
+  bytes: number;
+}
+
 /**
  * `window.api` surface. SPEC §15.4 lists the full interface; this milestone
- * ships `app`, `log`, `workspace` and `manifest` only. The remaining namespaces
- * land with their handlers so an unimplemented method can never appear on the
- * bridge.
+ * ships `app`, `log`, `workspace`, `manifest` and `table`. The remaining
+ * namespaces land with their handlers so an unimplemented method can never
+ * appear on the bridge.
  */
 export interface CurveApi {
   app: {
@@ -89,6 +115,11 @@ export interface CurveApi {
   };
   manifest: {
     write(request: ManifestWriteRequest): Promise<IpcResult<OkReply>>;
+  };
+  table: {
+    read(request: TableRefRequest): Promise<IpcResult<TableReadReply>>;
+    write(request: TableWriteRequest): Promise<IpcResult<TableWriteReply>>;
+    trash(request: TableRefRequest): Promise<IpcResult<OkReply>>;
   };
 }
 
@@ -158,3 +189,30 @@ export const manifestWriteRequestSchema: z.ZodType<ManifestWriteRequest> = z.str
 });
 
 export const manifestWriteResponseSchema = okReplySchema;
+
+export const tableRefRequestSchema: z.ZodType<TableRefRequest, TableRefRequest> = z.strictObject({
+  workspaceId: workspaceIdSchema,
+  tableId: tableIdSchema,
+});
+
+export const tableReadRequestSchema = tableRefRequestSchema;
+
+export const tableReadResponseSchema: z.ZodType<TableReadReply> = z.strictObject({
+  jsonl: z.string(),
+  bytes: z.number().int().nonnegative(),
+});
+
+export const tableWriteRequestSchema: z.ZodType<TableWriteRequest, TableWriteRequest> =
+  z.strictObject({
+    workspaceId: workspaceIdSchema,
+    tableId: tableIdSchema,
+    jsonl: z.string(),
+  });
+
+export const tableWriteResponseSchema: z.ZodType<TableWriteReply> = z.strictObject({
+  bytes: z.number().int().nonnegative(),
+});
+
+export const tableTrashRequestSchema = tableRefRequestSchema;
+
+export const tableTrashResponseSchema = okReplySchema;

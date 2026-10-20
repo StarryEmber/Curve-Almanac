@@ -384,7 +384,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t13"></a>
 ### T1.3 表数据 JSONL 读写与 Worker
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T1.2
 - 覆盖：FR-TBL-04、FR-TBL-07
 - 参考：SPEC §7.3、§7.4、§8
@@ -399,10 +399,10 @@ T0.2 + T5.5 → T6.4
   3. Worker 接收文本 → 解析 → 返回 rows/issues；主线程不阻塞。
   4. 写盘前校验行数/字节上限。
 - 验收：
-  - [ ] 100k×10 行 round-trip 数据逐行相等。
-  - [ ] 坏行（截断 JSON）返回 `E_TABLE_PARSE` + 行号，不吞行。
-  - [ ] 空表写 0 字节、读回 0 行。
-  - [ ] 内存峰值不超预算（见 TESTPLAN §4）。
+  - [x] 100k×10 行 round-trip 数据逐行相等。
+  - [x] 坏行（截断 JSON）返回 `E_TABLE_PARSE` + 行号，不吞行。
+  - [x] 空表写 0 字节、读回 0 行。
+  - [x] 内存峰值不超预算（`table.decode.100k` 实测 328.6MB ≤ 600MB，见 SPEC §16.1 / TESTPLAN §5.1）。
 - 验证：`pnpm exec vitest run packages/table-engine && pnpm bench -- --table-io`
 
 <a id="t14"></a>

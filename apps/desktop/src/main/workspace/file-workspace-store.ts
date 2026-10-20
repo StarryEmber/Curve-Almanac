@@ -56,6 +56,12 @@ import type {
   WriteTableRequest,
   WriteTableResult,
 } from '@curve/persistence';
+import {
+  countJsonlRows,
+  hasTrailingNewline,
+  reconcileRowCounts,
+  tableWriteLimitError,
+} from '@curve/table-engine';
 
 import { atomicWrite } from './atomic-write';
 import { inspectLock, lockDocument, removeLockIfOwned, writeLock } from './lock-file';
@@ -320,9 +326,16 @@ export class FileWorkspaceStore implements WorkspaceStore {
     });
     this.rootIndex.set(workspaceRootKey(realRoot), validated.manifest.id);
 
+    // SPEC §7.5: recompute every rowCount hint right after opening. A failure
+    // to write the repaired manifest must not fail the open itself.
+    const workspace = this.workspaces.get(validated.manifest.id);
+    if (workspace !== undefined) {
+      await this.reconcileTableRowCounts(workspace);
+    }
+
     await this.pruneOldBackups(realRoot);
     await this.rememberRecent(realRoot, validated.manifest.name);
-    return { manifest: validated.manifest, warnings };
+    return { manifest: workspace?.manifest ?? validated.manifest, warnings };
   }
 
   async close(request: CloseWorkspaceRequest): Promise<OkReply> {
@@ -355,7 +368,15 @@ export class FileWorkspaceStore implements WorkspaceStore {
       buffer = await readFile(filePath);
     } catch (error) {
       if (isEnoent(error)) {
-        throw createAppError('E_TABLE_NOT_FOUND', 'The table data file is missing.');
+        // SPEC §7.5 + ADR-022: a table that the manifest still describes as
+        // empty has simply never been written. Anything else is data loss and
+        // must not be silently reported as an empty table.
+        if (table.rowCount === 0) {
+          return { jsonl: '', bytes: 0 };
+        }
+        throw createAppError('E_TABLE_NOT_FOUND', 'The table data file is missing.', {
+          detail: `table=${table.id} rowCount=${table.rowCount}`,
+        });
       }
       throw toFsError('E_FS_READ', 'Cannot read the table data file.', error);
     }
@@ -366,12 +387,22 @@ export class FileWorkspaceStore implements WorkspaceStore {
     const { workspace, table } = this.requireTable(request);
     const filePath = await this.resolveTableFile(workspace, table);
 
+    // SPEC §2.2: refuse to persist a table above the row or file-size budget.
+    const bytes = Buffer.byteLength(request.jsonl, 'utf8');
+    const limitError = tableWriteLimitError({
+      rowCount: countJsonlRows(request.jsonl),
+      bytes,
+    });
+    if (limitError !== null) {
+      throw limitError;
+    }
+
     if (await pathExists(filePath)) {
       await this.backupTableFile(workspace, table.id, filePath);
     }
 
     await this.writeAtomic(filePath, request.jsonl, 'Cannot write the table data file.');
-    return { bytes: Buffer.byteLength(request.jsonl, 'utf8') };
+    return { bytes };
   }
 
   async writeManifest(request: WriteManifestRequest): Promise<OkReply> {
@@ -679,6 +710,79 @@ export class FileWorkspaceStore implements WorkspaceStore {
           `[workspace] failed to prune an expired backup: ${toAppError(error).message}`,
         );
       }
+    }
+  }
+
+  /**
+   * SPEC §7.5: recompute every `rowCount` hint from the files on disk.
+   *
+   * A missing file keeps its declared count (the open path already warns about
+   * it), so data loss is never laundered into "0 rows". Repairing a hint is not
+   * a user edit, so `updatedAt` is left alone. A failed manifest write degrades
+   * to a warning: opening the workspace must still succeed.
+   */
+  private async reconcileTableRowCounts(workspace: OpenWorkspace): Promise<void> {
+    const actual = new Map<string, number>();
+    for (const table of workspace.manifest.tables) {
+      let tablePath: string;
+      try {
+        tablePath = await this.resolveTableFile(workspace, table);
+      } catch {
+        continue;
+      }
+      let content: string;
+      try {
+        content = await readFile(tablePath, 'utf8');
+      } catch (error) {
+        if (!isEnoent(error)) {
+          workspace.warnings.push(
+            `The data file for table "${table.name}" could not be read; its row count was not verified.`,
+          );
+        }
+        continue;
+      }
+      actual.set(table.id, countJsonlRows(content));
+      if (!hasTrailingNewline(content)) {
+        workspace.warnings.push(
+          `The data file for table "${table.name}" does not end with a newline.`,
+        );
+      }
+    }
+
+    const reconciled = reconcileRowCounts(workspace.manifest, actual);
+    if (!reconciled.changed) {
+      return;
+    }
+
+    try {
+      const manifestPath = await resolveInsideRoot(
+        workspace.root,
+        join(workspace.root, WORKSPACE_MANIFEST_FILE),
+        'workspace manifest',
+      );
+      if (await pathExists(manifestPath)) {
+        await this.backupManifestFile(workspace, manifestPath);
+      }
+      await this.writeAtomic(
+        manifestPath,
+        serializeManifest(reconciled.manifest),
+        'Cannot write the workspace manifest.',
+      );
+      workspace.manifest = reconciled.manifest;
+      for (const drift of reconciled.drifts) {
+        const table = reconciled.manifest.tables.find(
+          (candidate) => candidate.id === drift.tableId,
+        );
+        workspace.warnings.push(
+          `The row count of table "${table?.name ?? drift.tableId}" was ${drift.declared} ` +
+            `in the manifest and is ${drift.actual} on disk; the manifest was updated.`,
+        );
+      }
+    } catch (error) {
+      this.logger?.warn(
+        `[workspace] failed to repair the row counts: ${toAppError(error).message}`,
+      );
+      workspace.warnings.push('The row counts could not be written back to the manifest.');
     }
   }
 

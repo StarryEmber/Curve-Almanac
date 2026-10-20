@@ -37,6 +37,11 @@ function bridge(overrides: Partial<CurveApi> = {}): CurveApi {
       recent: async () => ({ ok: true, data: [] }),
     },
     manifest: { write: async () => ({ ok: true, data: { ok: true } }) },
+    table: {
+      read: async () => ({ ok: true, data: { jsonl: '', bytes: 0 } }),
+      write: async () => ({ ok: true, data: { bytes: 0 } }),
+      trash: async () => ({ ok: true, data: { ok: true } }),
+    },
   };
   return { ...base, ...overrides };
 }
@@ -167,6 +172,43 @@ describe('createApiClient', () => {
     expect(close).not.toHaveBeenCalled();
   });
 
+  it('forwards table:read/write/trash and validates their payloads', async () => {
+    const read = vi.fn(async () => ({ ok: true as const, data: { jsonl: 'x\n', bytes: 2 } }));
+    const write = vi.fn(async () => ({ ok: true as const, data: { bytes: 2 } }));
+    const trash = vi.fn(async () => ({ ok: true as const, data: { ok: true as const } }));
+    const client = createApiClient(bridge({ table: { read, write, trash } }));
+
+    await expect(client.table.read({ workspaceId: 'ws_1', tableId: 'tbl_1' })).resolves.toEqual({
+      ok: true,
+      data: { jsonl: 'x\n', bytes: 2 },
+    });
+    await expect(
+      client.table.write({ workspaceId: 'ws_1', tableId: 'tbl_1', jsonl: 'x\n' }),
+    ).resolves.toEqual({ ok: true, data: { bytes: 2 } });
+    await expect(client.table.trash({ workspaceId: 'ws_1', tableId: 'tbl_1' })).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+
+    expect(read).toHaveBeenCalledWith({ workspaceId: 'ws_1', tableId: 'tbl_1' });
+    expect(write).toHaveBeenCalledWith({
+      workspaceId: 'ws_1',
+      tableId: 'tbl_1',
+      jsonl: 'x\n',
+    });
+    expect(trash).toHaveBeenCalledWith({ workspaceId: 'ws_1', tableId: 'tbl_1' });
+  });
+
+  it('rejects an invalid table id before calling the bridge', async () => {
+    const read = vi.fn(async () => ({ ok: true as const, data: { jsonl: '', bytes: 0 } }));
+    const client = createApiClient(bridge({ table: { ...bridge().table, read } }));
+
+    const result = await client.table.read({ workspaceId: 'ws_1', tableId: '../escape' });
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'E_VALIDATION' } });
+    expect(read).not.toHaveBeenCalled();
+  });
+
   it('reports an unavailable preload bridge for every namespace', async () => {
     const client = createApiClient(undefined);
 
@@ -185,12 +227,21 @@ describe('createApiClient', () => {
     await expect(
       client.manifest.write({ workspaceId: 'ws_1', manifest: MANIFEST }),
     ).resolves.toMatchObject({ ok: false });
+    await expect(
+      client.table.read({ workspaceId: 'ws_1', tableId: 'tbl_1' }),
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      client.table.write({ workspaceId: 'ws_1', tableId: 'tbl_1', jsonl: '' }),
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      client.table.trash({ workspaceId: 'ws_1', tableId: 'tbl_1' }),
+    ).resolves.toMatchObject({ ok: false });
   });
 
   it('exposes no generic invoke/send escape hatch', () => {
     const client = createApiClient(bridge());
 
-    expect(Object.keys(client)).toEqual(['app', 'log', 'workspace', 'manifest']);
+    expect(Object.keys(client)).toEqual(['app', 'log', 'workspace', 'manifest', 'table']);
     expect(client).not.toHaveProperty('invoke');
     expect(client).not.toHaveProperty('send');
   });

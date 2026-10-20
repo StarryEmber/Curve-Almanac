@@ -31,6 +31,9 @@ export default defineConfig({
         'apps/desktop/src/main/index.ts',
         'apps/desktop/src/preload/index.ts',
         'apps/desktop/src/renderer/main.tsx',
+        // Worker entry: one `onmessage` forwarding call into the pure handler
+        // in `table-io/handler.ts`; the E2E table scenario covers the wiring.
+        'apps/desktop/src/renderer/workers/*.worker.ts',
       ],
       thresholds: {
         lines: 70,
