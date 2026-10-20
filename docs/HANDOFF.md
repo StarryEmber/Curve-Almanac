@@ -1,9 +1,9 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T1.1`（领域模型、Zod 与不变量），按用户要求停止。
-> 最后更新：2026-10-20 · T1.1 提交：`a58ee20` · 分支：`main` · 工作树：干净。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T1.2 → `docs/TESTPLAN.md` §1、§2、§5 →
-> `docs/SPEC.md` §7（§7.1–§7.6）、§13.1、§15.1、§15.2、§18 → `docs/DECISIONS.md` ADR-003/007/008。
+> 本文件面向**下一个实现会话**。当前会话已完成 `T1.2`（工作区仓库与原子持久化），按用户要求停止。
+> 最后更新：2026-10-20 · T1.2 提交：`4b742dd` · 分支：`main` · 工作树：干净。
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T1.3 → `docs/TESTPLAN.md` §1、§2、§3（E2/E3）、§4、§5 →
+> `docs/SPEC.md` §7.3、§7.4、§8、§15.1 → `docs/DECISIONS.md` ADR-003/007/011/014/019/021。
 
 ---
 
@@ -13,16 +13,17 @@
 |---|---|
 | 方案文档 | v1.0 已锁定（SPEC / TASKS / TESTPLAN / DECISIONS） |
 | M0 基建（T0.1–T0.5） | **已完成**；验收报告 `docs/reports/m0/REPORT.md`（`02afe4b`） |
-| `T0.5` CI、E2E 与提交门禁 | **已完成**（`1aefcdb`），干净克隆 install/verify/e2e 全绿 |
 | `T1.1` 领域模型、Zod 与不变量 | **已完成**（`a58ee20`），43 files / 302 tests，domain 行覆盖 97.63% |
-| 当前里程碑 | M1 进行中（T1.1 完成，T1.2 未开始） |
-| 下一个任务 | **`T1.2` 工作区仓库与原子持久化**（依赖 T1.1、T0.3，均已满足） |
-| 提交历史（近 5 条） | `a58ee20 feat(domain): add domain model schemas and invariants（T1.1）`<br>`02afe4b docs: add m0 acceptance report`<br>`1aefcdb chore(ci): …（T0.5）`<br>`16f159d docs: add T0.5 implementation handoff`<br>`7b42a04 feat(ui): …（T0.4）`<br>其上一条为本交接提交 `docs: add T1.2 implementation handoff` |
+| `T1.2` 工作区仓库与原子持久化 | **已完成**（`4b742dd`），51 files / 417 tests，persistence 行覆盖 95.68% |
+| 当前里程碑 | M1 进行中（T1.1、T1.2 完成，T1.3 未开始） |
+| 下一个任务 | **`T1.3` 表数据 JSONL 读写与 Worker**（依赖 T1.2，已满足） |
+| 提交历史（近 5 条） | `4b742dd feat(persistence): add workspace store, atomic file adapter and IPC (T1.2)`<br>`df29db9 docs: add T1.2 implementation handoff`<br>`a58ee20 feat(domain): add domain model schemas and invariants (T1.1)`<br>`02afe4b docs: add m0 acceptance report`<br>`1aefcdb chore(ci): add ci gate and e2e failure artifacts (T0.5)` |
 | 工作树 | 干净（`git status --short` 无输出） |
+| 当前基线 | `pnpm verify` 51 files / 417 tests；`pnpm e2e` **19 passed**；depcruise 148 modules / 381 dependencies / 0 violations |
 
 **用户明确要求**：一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify`
 与任务指定 e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-新会话从 `T1.2` 开始；**T1.2 完成后输出任务报告并停下等确认**，不要自动进入 T1.3。
+新会话从 `T1.3` 开始；**T1.3 完成后输出任务报告并停下等确认**，不要自动进入 T1.4。
 
 ---
 
@@ -31,24 +32,23 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T1.2、docs/TESTPLAN.md §1/§2/§5、
-docs/SPEC.md §7（§7.1–§7.6）、§13.1、§15.1/§15.2、§18，以及 docs/DECISIONS.md 的
-ADR-003/ADR-007/ADR-008。
+先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T1.3、docs/TESTPLAN.md §1/§2/§3（E2/E3）/§4/§5、
+docs/SPEC.md §7.3/§7.4/§8/§15.1，以及 docs/DECISIONS.md 的 ADR-003/ADR-007/ADR-011/ADR-014/ADR-019/ADR-021。
 
-现状：M0 已完成（docs/reports/m0/REPORT.md），T1.1 已提交（a58ee20），工作树干净，
-pnpm verify（43 files / 302 tests）与 pnpm e2e（15 passed）全绿。
+现状：M0、T1.1、T1.2 已完成（T1.2 提交 4b742dd），工作树干净，
+pnpm verify（51 files / 417 tests）与 pnpm e2e（19 passed）全绿，persistence 行覆盖 95.68%。
 
-请执行 T1.2：先按 AGENTS.md §8 复述目标/产出/验收与风险，并先确认 HANDOFF §6.2 列出的
-三个待决问题（备份文件名规范、workspace 目录命名语义、write-file-atomic 依赖 ADR）——
-这三个都属于文件格式/依赖决策，按 AGENTS.md §11 必须先问，不要自行选定。
+请执行 T1.3：先按 AGENTS.md §8 复述目标/产出/验收与风险，并先确认 HANDOFF §6.2 的两个缺口
+（bench 骨架缺失、table:read 缺文件语义）以及脏表追踪的归属；这些是验证/行为/分层决策，
+按 AGENTS.md §11 先问，不要自行选定。
 
-确认后实现：packages/persistence 的 WorkspaceStore 端口 + MemoryWorkspaceStore；
-apps/desktop/src/main 的 FileWorkspaceStore（原子写、备份轮转、.lock、最近列表、路径白名单）；
-IPC workspace:create/open/close/recent 与 manifest:write（含 preload 与契约）；
-补 E2E `pnpm e2e -- --grep "workspace"`，并跑 `pnpm verify`。
+确认后实现：packages/table-engine 的 JSONL 编解码、行集类型、Worker 协议；
+apps/desktop/src/renderer/workers/table.worker.ts 与 Worker 客户端；
+IPC table:read/write/trash（含 preload 与契约）；行数重算与脏表原语；
+补 E2E `pnpm e2e -- --grep "table"`，并跑 `pnpm verify` 与 `pnpm bench -- --table-io`。
 
 完成后勾选 TASKS、更新 CHANGELOG、按 Conventional Commits 提交，输出任务报告并停下等我确认。
-不要自动进入 T1.3；不要放宽 CSP/沙箱；不要跳过测试或降低 lint/覆盖率阈值。
+不要自动进入 T1.4；不要放宽 CSP/沙箱；不要跳过测试或降低 lint/覆盖率阈值。
 ```
 
 ---
@@ -65,7 +65,7 @@ IPC workspace:create/open/close/recent 与 manifest:write（含 preload 与契�
 | pnpm 命令垫片 | `D:\DSH_Work_Space\tools\bin\pnpm.cmd`（仓库外，未提交） |
 | git | `D:\DSH_Work_Space\tools\mingit\cmd\git.exe`（MinGit **2.56.0.windows.2**，仓库外） |
 | pnpm store | `D:\.pnpm-store\v11`（跨盘时 pnpm 会提示 `C:\Users\...\AppData\Local\pnpm\store` 不可硬链接，正常） |
-| Electron 二进制 | `apps/desktop/node_modules/electron/dist/electron.exe`（**44.9.0**） |
+| Electron 二进制 | `apps/desktop/node_modules/electron/dist/electron.exe`（**44.9.0**，内置 Node 24.22.0） |
 | 干净克隆（可删） | `D:\DSH_Work_Space\curve-studio-clean`（622 MB，T0.5 证据，可 `Remove-Item -Recurse -Force`） |
 
 Node/pnpm **不在 PATH**。每条命令前先注入：
@@ -109,6 +109,10 @@ pnpm dev    # 期望日志：[main] window ready (mode=development, devTools=tru
 
 - 用户自己的普通终端没有这些限制：`pnpm dev` / `pnpm e2e` 原样可用，**不要**把
   `--no-sandbox`、`CURVE_E2E_NO_SANDBOX` 写进应用代码、默认脚本或 CI。
+- **T1.2 实测的 grep 陷阱**：`pnpm e2e -- --grep "workspace"` 会实际跑全量（pnpm 把额外的 `--`
+  传给 Playwright，grep 被当成位置参数忽略）。要只跑子集，用：
+  `pnpm exec playwright test --config apps/desktop/playwright.config.ts --grep "workspace"`。
+  全量 19 条仍然全绿。
 
 ### 3.4 `ELECTRON_RUN_AS_NODE=1`
 
@@ -144,218 +148,279 @@ pnpm install
 - 截图是设备像素（125% DPI）：窗口 1440×816 → 页面 1426×779 CSS px → PNG 1783×943。
   新增截图用例必须复用 `shell.spec.ts` 的 `settleFrame()`（双 rAF），否则首帧会拼接旧画面。
 
-### 3.7 已知的测试产物行为
+### 3.7 已知的测试/依赖行为
 
 - `pnpm e2e` 会重写 `docs/reports/m0/t0.2-window.png`；调试主题时还会重写
   `t0.4-shell-dark.png`（受**真实鼠标悬停**影响，字节不稳定，视觉无变化）。断言不依赖像素；
   提交时若不想要噪声可 `git checkout --` 还原并在提交说明里写一句。
 - `apps/desktop/test-results/`、`playwright-report/`、`coverage/` 均已 gitignore。
-- Vitest 覆盖率已排除 `packages/domain/src/types.ts`（纯类型、零可执行语句，否则恒 0%）。
+- Vitest 覆盖率已排除纯类型模块：`packages/domain/src/types.ts`、`packages/persistence/src/types.ts`。
 - 通过用例不残留 trace；失败用例在 `apps/desktop/test-results/<test>/` 留下
   `test-failed-1.png`、`trace.zip`（内建）与 `attachments/trace-*.zip`（fixture 录的完整 context trace）。
+- T1.2 起 `apps/desktop` 的 `dependencies` 只有 `write-file-atomic@8.0.0`；main 构建会**外置**它
+  （`out/main/index.cjs` 里是 `require("write-file-atomic")`），所以打包时它必须留在 dependencies。
+- preload 产物仍只 `require("electron")`；`@curve/persistence` 与 zod 都不得进入 preload。
 
 ---
 
-## 4. T1.1 已交付的关键接口（T1.2 直接消费，不要回退）
+## 4. 已交付的关键接口（T1.3 直接消费，不要回退）
 
-`@curve/domain`（`packages/domain/src/index.ts` 统一导出）：
+### 4.1 `@curve/domain`
 
 ```ts
 // 类型（SPEC §6 全集）
-Cell, ColumnType, ColumnDef, TableMeta, Row, TableViewState, ViewDef, ChartSpec,
-TableStyle, LayoutNode, WorkspaceManifest, WorkspaceSettings, FilterPredicate, SortSpec …
+Cell, ColumnDef, TableMeta, Row, ViewDef, ChartSpec, TableStyle, LayoutNode, WorkspaceManifest …
 
 // 解析（永不抛裸异常）
 parseManifest(value): ParseResult<WorkspaceManifest>
 parseTableMeta(value): ParseResult<TableMeta>
-parseColumnDef(value): ParseResult<ColumnDef>
-parseRow(value): ParseResult<Row>
-parseCell(value, column): CellResult          // 严格：JSONL 读取路径
+parseRow(value): ParseResult<Row>          // 注意：Row 是 {id, values}，不是 JSONL 的 {id, v}
+parseCell(value, column): CellResult        // 严格：JSONL 读取路径
 toValidationIssues(error, input?): ValidationIssue[]
 
 // 不变量（SPEC §6.6）
-checkTable(table, { rows?, resolveFieldTypeStorage? }): InvariantReport
+checkTable(table, { rowsByTable?, resolveFieldTypeStorage? }): InvariantReport
 checkInvariants(manifest, { rowsByTable?, resolveFieldTypeStorage? }): InvariantReport
-assertInvariants(report): void                // 有 issue 时抛 typed E_WS_INVALID_MANIFEST
+assertInvariants(report): void
 
 // 归一与格式化（SPEC §8.1）
-coerceCell(raw, column): CellResult           // 宽松：粘贴/导入路径
+coerceCell(raw, column): CellResult
 formatCellValue(value, column, options?): string
 
 // 工厂
-createId(prefix, uuid?) / createWorkspaceId / createTableId / createColumnId / createRowId /
-createChartId / createViewId / createStyleId / createRuleId / isId(prefix, value)
+createId / createWorkspaceId / createTableId / createColumnId / createRowId / … / isId
 createTimestamp(now?: Date): string
 ```
 
-约定（T1.2 必须遵守）：
+约定：schema 一律 `strictObject`；ID 读取放宽为 `^<prefix>_[A-Za-z0-9][A-Za-z0-9_-]*$`，写入恒为
+`<prefix>_<uuid>`；`checkInvariants` 的 `issues` 阻塞、`warnings` 可修复；`rowCount` 只是提示值。
 
-- `ParseResult` / `CellResult` 是**结构化失败**：`{ ok:false, issues:[{path,code,message}] }`，
-  code 取 SPEC §18（`E_TYPE`/`E_REQUIRED`/`E_ENUM`/`E_RANGE`/`E_DUPLICATE_KEY`/`E_VALIDATION`）。
-- schema 一律 `strictObject`：manifest 里出现未知字段会被拒绝（视为格式漂移）。
-- ID 读取放宽为 `^<prefix>_[A-Za-z0-9][A-Za-z0-9_-]*$`（兼容 SPEC §7.2 的 `col_time`），
-  写入恒为 `<prefix>_<uuid>`。
-- `checkInvariants` 的 `issues` 是**阻塞**的（应转 `E_WS_INVALID_MANIFEST`），`warnings` 是**可修复**的
-  （应回传给 renderer，SPEC §6.6 末段）。
-- `rowCount` 只是提示值：`checkInvariants` 在传入真实行时会给出 warning 而不是 error。
+### 4.2 `@curve/persistence`
+
+`WorkspaceStore` 端口（`packages/persistence/src/types.ts`）：
+
+```ts
+create({ dir, name }): Promise<WorkspaceManifest>
+open({ dir }): Promise<{ manifest, warnings }>
+close({ workspaceId }): Promise<{ ok: true }>
+readTable({ workspaceId, tableId }): Promise<{ jsonl, bytes }>
+writeTable({ workspaceId, tableId, jsonl }): Promise<{ bytes }>
+writeManifest({ workspaceId, manifest }): Promise<{ ok: true }>
+trash({ workspaceId, tableId }): Promise<{ ok: true }>   // 只移文件，manifest 由调用方更新
+listBackups({ workspaceId, tableId }): Promise<BackupEntry[]>
+restore({ workspaceId, tableId, backupPath }): Promise<{ ok: true }>
+```
+
+`MemoryWorkspaceStore` 已实现同一端口，供 app-core/T1.5 单测使用。
+
+纯函数/常量（包根统一导出）：
+
+- 布局：`WORKSPACE_*`、`tableFilePath(tableId)`、`tableFileName`、`workspaceFolderName(name)`、
+  `sanitizeWorkspaceFolderName`、`isSafeRelativePath`、`assertSafeRelativePath`、`findManifestPathIssues`。
+- 备份：`formatBackupTimestamp`、`tableBackupFileName`、`manifestBackupFileName`、
+  `parseTableBackupFileName`、`parseBackupPath`、`planBackupRotation`、`isExpiredBackup`、`MAX_BACKUPS_PER_TARGET`。
+- manifest：`createEmptyManifest`、`validateManifest`、`parseManifestDocument`、`serializeManifest`。
+
+`packages/persistence` 无 Electron/Node 内置导入；T1.3 不要把 `node:fs` 放进这个包。
+
+### 4.3 main：`FileWorkspaceStore`
+
+`apps/desktop/src/main/workspace/file-workspace-store.ts`：
+
+- 构造参数：`{ userDataPath, appVersion, now?, uuid?, logger?, isProcessAlive?, writeFile? }`。
+- 额外公开 `listRecent(): Promise<RecentEntry[]>`（`recent.json`）。
+- `create` 会创建并打开工作区、写 `.lock`、写最近列表；`open` 先校验 manifest，再检查/替换锁；
+  `close` 删除自己的 `.lock`；未知 id 的 `close` 幂等返回 `{ok:true}`。
+- `writeTable`：旧文件存在时先备份（最多 3 份），再 `write-file-atomic` 替换；失败保留旧文件并返回 `E_FS_WRITE`。
+- `writeManifest`：先 `validateManifest`（id 必须匹配、table.file 必须是 `tables/<tableId>.jsonl`），
+  备份旧 manifest，再原子写；损坏的 manifest 不会被 `open` 覆盖。
+- `trash` 只把表文件移到 `.trash/`，不修改 manifest。
+- 路径白名单：`path-safety.ts` 的 `resolveInsideRoot` / `resolveWorkspaceRelativePath` 全部先
+  `fs.realpath`（缺失目标则解析父目录）再做 `path.relative` 前缀判断；失败 `E_PATH_DENIED`。
+- `.lock`：`{pid, startedAt, appVersion}`；PID 存活且 <24h → `E_WS_LOCKED`；PID 不存在/超过 24h →
+  stale warning 并替换；无法解析的 lock 按 corrupt 处理（warning + 替换）。
+- 备份轮转与 7 天清理已在 `open` 执行；manifest 也有独立 3 份备份。
+
+### 4.4 IPC / preload / renderer
+
+- `CurveApi` 当前命名空间：`app`、`log`、`workspace`、`manifest`。
+- `IMPLEMENTED_IPC_CHANNELS` 共 7 个：`app:info`、`log:write`、`workspace:create/open/close/recent`、
+  `manifest:write`。
+- `workspace:recent:remove/clear` 仍未注册（留给 T5.3/欢迎页）。
+- `HandlerContract` 的 request/response 输入类型是 `unknown`（`safeParse` 接收跨进程原始载荷）。
+- preload 只 import `channels.ts`/`envelope.ts` 的运行时内容；`ipc.ts` 只做 `import type`。
+- `e2e/ipc.spec.ts` 会断言“实际注册通道 == `IMPLEMENTED_IPC_CHANNELS`”。T1.3 加 `table:*` 时
+  必须同步 `channels.ts`、handlers、preload、`CurveApi`、renderer `api-client` 和该 E2E。
 
 ---
 
-## 5. T1.1 实施记录（已完成 2026-10-20，提交 `a58ee20`）
+## 5. T1.2 实施记录（已完成 2026-10-20，提交 `4b742dd`）
 
 ### 5.1 交付文件
 
 ```
-packages/domain/src/
-├─ types.ts        # SPEC §6 全部类型 + ParseResult/CellResult/ValidationIssue
-├─ limits.ts       # SPEC §2.2 上限常量
-├─ schemas.ts      # 全部 Zod schema；parseManifest/parseTableMeta/parseColumnDef/parseRow/parseCell
-├─ factories.ts    # ID 工厂（uuid 可注入）、createTimestamp
-├─ invariants.ts   # SPEC §6.6 不变量；checkTable/checkInvariants/assertInvariants
-├─ coerce.ts       # SPEC §8.1 归一
-├─ format.ts       # 数字/日期/布尔/枚举显示基线
-├─ *.test.ts       # 6 个测试文件（domain 共 89 条用例）
-└─ index.ts        # 统一导出
-vitest.config.ts   # 覆盖率排除 packages/domain/src/types.ts
+packages/persistence/src/
+├─ types.ts                  # WorkspaceStore 端口与请求/响应类型
+├─ layout.ts                 # §7.1 布局、名称清洗、相对路径校验
+├─ backup.ts                 # 时间戳、备份命名、轮转、7 天过期、路径解析
+├─ manifest.ts               # 空 manifest、版本优先检查、Zod+不变量、序列化
+├─ memory-workspace-store.ts # 内存适配器
+├─ *.test.ts                 # 4 个测试文件（共 77 条）
+└─ index.ts
+apps/desktop/src/main/workspace/
+├─ file-workspace-store.ts   # 文件适配器（711 行）
+├─ path-safety.ts            # realpath + 前缀白名单
+├─ lock-file.ts              # .lock 生命周期与 stale 判断
+├─ recent-list.ts            # userData/recent.json
+├─ atomic-write.ts           # write-file-atomic 包装
+└─ *.test.ts                 # 4 个测试文件（共 29 条）
+apps/desktop/e2e/workspace.spec.ts   # 4 条 E2E
+docs/adr/019-write-file-atomic.md
+docs/adr/020-workspace-create-path.md
+docs/adr/021-backup-naming.md
 ```
 
 ### 5.2 关键决策
 
-- **schema 与类型强绑定**：实体 schema 标注 `z.ZodType<T>`，类型与 schema 不同步直接编译失败。
-- **递归结构用 `discriminatedUnion`**（filter 的 `kind`、layout 的 `type`），错误路径能精确到
-  `views[0].tableView.filter.children`，而普通 `z.union` 只会给出 `invalid_union`。
-- **缺失字段 vs 类型错误**：Zod 4 的 `invalid_type` 不携带 `input`，因此 `toValidationIssues` 会按
-  issue path 回查原始值：`undefined` → `E_REQUIRED`，否则 `E_TYPE`。
-- **日期不许回滚**：`YYYY-MM-DD` 逐段校验（`2026-02-30` 不会变成 3 月 2 日）；非 date-only 字符串才走
-  `Date.parse`；数字日期必须是整数 epoch ms。
-- **`fieldTypeId` 暂缓严判**：没有字段类型注册表时给 warning；T6.1 接入 registry 后再按
-  `storageType` 严格校验（`checkInvariants` 的 `resolveFieldTypeStorage` 参数已预留）。
-- **issue 截断**：`MAX_REPORTED_ISSUES = 100`，超出后追加一条 "report truncated"。
+- 备份：`backups/<tableId>.<YYYYMMDDTHHmmssSSSZ>.jsonl.bak`，manifest 为
+  `manifest.<timestamp>.json.bak`；每目标 3 份，打开时清理 7 天前（ADR-021）。
+- `workspace:create` 的 `dir` 是父目录；根为 `dir/<清洗名称>.cstudio`；已存在 `E_WS_BUSY`（ADR-020）。
+- 原子写用 `write-file-atomic@8.0.0`，只进 main；`fsync: true`（ADR-019）。
+- 读取 manifest 先看原始 `formatVersion`，数字且 >1 → `E_WS_VERSION_UNSUPPORTED`，再走 Zod/不变量。
+- 路径白名单不是字符串前缀，而是 `realpath` 后 `path.relative`；缺失目标解析父目录。
+- manifest 也有 3 份备份，供 SPEC §7.5 启动恢复使用；`backup:list/restore` 仍只看表备份。
+- `.trash` 只移动文件，manifest 更新由调用方负责（T2.1 删除表流程）。
 
 ### 5.3 已验证证据
 
 | 命令 | 结果 |
 |---|---|
-| `pnpm verify` | exit 0；ESLint 0 problem；depcruise **127 modules / 288 dependencies / 0 violations**；**43 files / 302 tests** |
-| `pnpm test:coverage` | exit 0；domain **lines 97.63% / branches 92.24% / functions 98.92%**；全局 lines 96.56% / branches 89.11% |
-| `pnpm e2e` | 15 passed（T0.4 shell 6 + T0.3 IPC 4 + E1 5） |
+| `pnpm verify` | exit 0；ESLint 0 problem；depcruise **148 modules / 381 dependencies / 0 violations**；**51 files / 417 tests** |
+| `pnpm test:coverage` | exit 0；persistence **lines 95.68% / branches 88% / functions 100%**；全局 lines 92.86% / branches 84.75% |
+| `pnpm e2e` | **19 passed**（T0.4 shell 6 + T0.3 IPC 4 + E1 5 + T1.2 workspace 4） |
+| `pnpm exec playwright test ... --grep "workspace"` | **4 passed** |
+| `pnpm build` | exit 0；main 277.54 kB、preload 3.65 kB |
 | `pnpm format:check` | exit 0 |
 
 ### 5.4 与计划/规格的差异
 
-- 无 SPEC/公共 API 偏离，未新增 ADR。
-- 新增覆盖率 exclude：`packages/domain/src/types.ts`（纯类型）。
-- ID 读取宽松度（见 §4）已写入 `docs/TASKS.md` T1.1 实现备注。
+- 新增 ADR-019/020/021，并同步 SPEC §7.1、§7.4、§7.5、§9.0、§15.1。
+- 新增 manifest 备份（原 SPEC §7.4 只明确表备份，§7.5 的恢复流程实际需要 manifest 备份）。
+- `HandlerContract` 的输入泛型改为 `unknown`，避免 Zod 4 的 input 泛型把已注解 schema 推成 `unknown`。
+- Vitest 覆盖率排除 `packages/persistence/src/types.ts`（纯类型，无语可执行语句）。
+- 未实现 `app.requestSingleInstanceLock()`；未在应用退出时主动 `closeAll()`。
+- 未在 `open` 重算 `rowCount`；留给 T1.3 的 JSONL 读取路径（SPEC §7.5）。
 
 ---
 
-## 6. T1.2 工作区仓库与原子持久化（下一个任务）
+## 6. T1.3 表数据 JSONL 读写与 Worker（下一个任务）
 
-### 6.1 任务原文（`docs/TASKS.md` T1.2）
+### 6.1 任务原文（`docs/TASKS.md` T1.3）
 
-- **依赖**：T1.1、T0.3（均已完成）
-- **覆盖**：FR-WS-01、FR-WS-04
+- **依赖**：T1.2（已完成）
+- **覆盖**：FR-TBL-04、FR-TBL-07
+- **参考**：SPEC §7.3、§7.4、§8
 - **产出**：
-  - `packages/persistence`：`WorkspaceStore` 端口 + `MemoryWorkspaceStore`
-  - main：`FileWorkspaceStore`（`write-file-atomic`、备份、锁、最近列表）
-  - IPC：`workspace:create` / `open` / `close` / `recent`、`manifest:write`
+  - `packages/table-engine`：JSONL 编解码、行集类型、Worker 协议
+  - `apps/desktop/src/renderer/workers/table.worker.ts`
+  - IPC：`table:read/write/trash`，大小与行数限制
+  - 脏表追踪与 `rowCount` 重算
 - **步骤**：
-  1. 定义端口（create/open/readTable/writeTable/writeManifest/trash/listBackups/restore）。
-  2. 实现目录创建、manifest 读写、`.lock` 生命周期、备份轮转。
-  3. 路径白名单与 `realpath` 校验。
-  4. 最近列表存 `userData/recent.json`（路径、名称、最后打开时间）。
+  1. 编码器逐行 `JSON.stringify`，流式拼接，避免一次性大数组。
+  2. 解码器逐行解析，错误带行号；空文件返回空表。
+  3. Worker 接收文本 → 解析 → 返回 rows/issues；主线程不阻塞。
+  4. 写盘前校验行数/字节上限。
 - **验收**：
-  - [ ] 新建目录结构完全符合 SPEC §7.1。
-  - [ ] 写入后强杀进程，文件不半写（模拟：写入前中断）。
-  - [ ] manifest 损坏返回 `E_WS_INVALID_MANIFEST`，不覆盖原文件。
-  - [ ] `../` 路径逃逸返回 `E_PATH_DENIED`。
-  - [ ] 备份保留 3 份，恢复可用。
-- **验证**：`pnpm exec vitest run packages/persistence apps/desktop && pnpm e2e -- --grep "workspace"`
+  - [ ] 100k×10 行 round-trip 数据逐行相等。
+  - [ ] 坏行（截断 JSON）返回 `E_TABLE_PARSE` + 行号，不吞行。
+  - [ ] 空表写 0 字节、读回 0 行。
+  - [ ] 内存峰值不超预算（见 TESTPLAN §4）。
+- **验证**：`pnpm exec vitest run packages/table-engine && pnpm bench -- --table-io`
 
-### 6.2 开始前必须问用户的 3 个问题（属于格式/依赖决策，AGENTS §11）
+### 6.2 开工前必须先确认的缺口
 
-1. **备份文件命名**：SPEC §7.1 写 `backups/tbl_<uuid>.<timestamp>.jsonl.bak`，
-   §7.4 写 `backups/<name>.<ISO时间戳>.bak`（若 `<name>` 含扩展名则为 `tbl_x.jsonl.<ts>.bak`）。
-   两处不一致，必须选一个并写 ADR；推荐以 §7.1 目录布局为准，同时修正 §7.4 文案。
-2. **`workspace:create` 的 `dir` 语义**：`dir` 是"父目录 + 自动拼 `<name>.cstudio`"，还是"工作区根目录本身"？
-   SPEC §7.1 示例是 `Demo.cstudio/`，§9.0 默认目录是 `Documents/Curve Studio/`，未定义拼接规则。
-   需要确认（建议父目录 + 清洗后的名称 + `.cstudio`），并写 ADR。
-3. **`write-file-atomic` 依赖**：SPEC §5.1 已指定该库，但 AGENTS §4 要求新增运行时依赖写 ADR
-   （体积/维护/替代方案）。建议新增 ADR 记录，并把实际版本补进备注；替代方案是自写约 50 行
-   （临时文件 + fsync + rename）。
+1. **bench 骨架不存在**：根 `package.json` 有 `"bench": "tsx scripts/bench.ts"`，但 `scripts/bench.ts`
+   和 `node_modules/.bin/tsx` 都不存在，`fixtures/` 也没有。T1.3 的验证命令会直接失败。
+   建议补最小 `scripts/bench.ts`（`--table-io`：固定种子生成 100k×10，测 encode/decode，写
+   `bench/report.json`）并加 `tsx` devDependency；这是工具接线，不是运行时依赖。若用户不接受新增
+   devDependency，则必须把 bench 明确记为阻塞，不能假装通过。
+2. **`table:read` 缺文件语义**：当前 `FileWorkspaceStore.readTable` 在 `tables/<id>.jsonl` 不存在时返回
+   `E_TABLE_NOT_FOUND`；`MemoryWorkspaceStore` 返回 `""`。T1.3 必须统一。建议：表在 manifest 中且
+   `rowCount === 0` 时缺文件视为空表（`{jsonl:"",bytes:0}`）；`rowCount > 0` 时返回 `E_TABLE_NOT_FOUND`
+   并让上层告警。该选择影响 T2.1 新建空表与崩溃恢复，先问用户。
+3. **脏表追踪归属**：T1.3 产出写了“脏表追踪”，但 `app-core` 是 T1.5，AGENTS §5 要求业务状态进
+   app-core。建议 T1.3 只在 `table-engine` 提供纯 `DirtyTableTracker`/`diffTableRows` 原语，Zustand
+   接线留给 T1.5；先确认用户是否接受这个拆分。
 
-### 6.3 依赖已就绪的 domain API
+### 6.3 建议的落地拆分
 
-见 §4。T1.2 的读取路径建议：
+1. **`packages/table-engine`（纯逻辑）**
+   - `jsonl.ts`：
+     - `encodeJsonl(rows: readonly Row[]): string`：`{id, values}` → `{"id":"...","v":[...]}`；
+       每行 `\n`，末尾保留换行；空数组 → `""`；不写 BOM。
+     - `decodeJsonl(jsonl: string, table: TableMeta): JsonlDecodeResult`：空串 → 0 行；逐行解析，
+       1-based 行号；`v` 顺序对应 columns；逐格 `parseCell`；行长 ≤ 8MB；返回 `rows`、`issues`
+       （`row`/`columnId?`/`code`/`message`）与 `stats`。**不要直接把 `{id,v}` 传给 `parseRow`**
+       （它要 `values`）。
+     - 错误映射：调用方把阻塞 issue 转 `E_TABLE_PARSE`，保留行号。
+   - `row-set.ts`：`TableData`/`RowSet` 类型、`countRows`、`rowCount` 与 manifest 的差异比较。
+   - `worker-protocol.ts`：`{ id, type: 'decode'|'encode', payload }` 请求/响应 discriminated union。
+   - `dirty-set.ts`：纯 `DirtyTableTracker`（mark/clear/list），不依赖 Zustand/React。
+   - 测试：round-trip、空表、坏行、BOM/CRLF/末尾换行、超长行、Unicode、100k×10（可较小基准）。
+2. **Worker**
+   - `apps/desktop/src/renderer/workers/table.worker.ts`：`self.onmessage` → `decode/encode` →
+     `postMessage`；不要让异常变成未处理 rejection。
+   - `apps/desktop/src/renderer/table-io/client.ts`：请求 id、pending map、取消/关闭；`new Worker(new URL(...), { type: 'module' })`。
+   - 先验证生产 CSP：`default-src 'self'` 是否允许 Vite 产物 worker；若需要 `worker-src blob:`，
+     属于 CSP 变更，**先写 ADR 并问用户**，不要直接放宽。
+3. **IPC `table:read/write/trash`**
+   - 契约：`{ workspaceId, tableId }`，`table:write` 加 `jsonl`；响应 `table:read` → `{jsonl,bytes}`，
+     `table:write` → `{bytes}`，`table:trash` → `{ok:true}`。
+   - 请求 schema 用 `workspaceIdSchema`/`tableIdSchema`；main handlers 直接调
+     `FileWorkspaceStore.readTable/writeTable/trash`，不要在 IPC 层再拼路径。
+   - 同步 `channels.ts`（`IMPLEMENTED` 变 10 个）、preload、renderer `api-client`、`e2e/ipc.spec.ts`。
+   - `table:trash` 仍只移文件；删除表时由调用方发 `manifest:write`。
+4. **`rowCount` 重算**
+   - 在 `FileWorkspaceStore.open` 成功后，用 table-engine 的纯解码/计数重算每表行数；与 manifest
+     不一致时更新 manifest（复用内部原子写与备份）并追加 warning；不要覆盖损坏的 manifest。
+   - 如果某表 JSONL 解析失败，记 warning/`E_TABLE_PARSE`，不要静默清零。
+5. **E2E 与 bench**
+   - 新增 `e2e/table-io.spec.ts`（或扩展 workspace.spec）：创建 workspace → 写一个 1 表 manifest →
+     `table:write` 3 行 → `table:read` 逐字相等 → `table:trash` 后文件消失 → 清理。
+   - `pnpm exec playwright test --config apps/desktop/playwright.config.ts --grep "table"`。
+   - `pnpm bench -- --table-io`：固定种子、不依赖网络/真实用户目录；输出 `bench/report.json`。
 
-```ts
-const parsed = parseManifest(rawJson);           // 结构 + 字段级校验
-if (!parsed.ok) throw createAppError('E_WS_INVALID_MANIFEST', '…', { detail: … });
-const report = checkInvariants(parsed.data, { rowsByTable });  // 跨对象不变量
-if (report.issues.length > 0) throw createAppError('E_WS_INVALID_MANIFEST', '…', { detail: … });
-return { manifest: parsed.data, warnings: report.warnings };
-```
-
-**注意 `formatVersion`**：`workspaceManifestSchema` 用 `z.literal(1)`，未来版本会被解析成 `E_ENUM`。
-在 `parseManifest` 之前先读原始 JSON 的 `formatVersion`：数字且 > 1 → 立即返回
-`E_WS_VERSION_UNSUPPORTED`（SPEC §2.2 / §7.6 / AGENTS §2.2），不要把它当普通格式错误。
-
-### 6.4 建议的落地拆分
-
-1. **`packages/persistence`（纯逻辑，域内）**
-   - `WorkspaceStore` 端口（create/open/readTable/writeTable/writeManifest/trash/listBackups/restore）。
-   - `MemoryWorkspaceStore`（测试与命令总线用）。
-   - 纯函数：目录布局常量（`manifest.json`/`tables/`/`backups/`/`.trash/`/`imports/`/`.lock`）、
-     备份名生成与轮转、相对路径校验（拒绝 `..`、绝对路径、盘符）。
-   - **不得 import Electron**；只允许 `@curve/domain` + 标准 JS。
-2. **`apps/desktop/src/main/workspace/`**
-   - `FileWorkspaceStore`：`fs/promises` + `write-file-atomic`，原子写、备份、`.lock`、最近列表。
-   - 工作区根白名单：`Map<workspaceId, realRoot>`；所有入参路径先 `realpath` 再校验前缀，
-     失败 → `E_PATH_DENIED`。
-3. **契约与 preload**
-   - `apps/desktop/src/shared/contracts/ipc.ts`：补 workspace/manifest 的请求/响应 Zod schema 与
-     `CurveApi` 命名空间；`RecentEntry`/`WorkspaceManifest` 复用 `@curve/domain` 类型。
-   - `channels.ts`：把 5 个通道加入 `IMPLEMENTED_IPC_CHANNELS`。**注意**：`e2e/ipc.spec.ts` 会断言
-     "实际已注册通道 == `IMPLEMENTED_IPC_CHANNELS`"，忘记同步会让 T0.3 的用例失败（这是有意的护栏）。
-   - `preload/api.ts`：只加白名单方法；**preload 不得 import `ipc.ts`（含 zod）**，类型用
-     `import type` 从 `ipc.ts` 取（编译后擦除）。产物仍应只含 `require("electron")`。
-4. **E2E**：新增 `apps/desktop/e2e/workspace.spec.ts`（`--grep "workspace"`）：
-   - 在 `test-results/` 下的临时绝对路径创建 → 断言 §7.1 目录结构；
-   - `open` 读回 manifest → `warnings` 为空；
-   - 篡改 `manifest.json` → `E_WS_INVALID_MANIFEST` 且原文件内容不变；
-   - `../` 逃逸 / 绝对路径 → `E_PATH_DENIED`；
-   - 写表 → `listBackups` 3 份 → `restore` 后内容回退。
-   直接 `page.evaluate(() => window.api.workspace...)`，不必等 UI（T2.1 才有入口）。
-5. **工程接线**：`@curve/persistence` 加进 desktop 的 `devDependencies`（源码包）与
-   `apps/desktop/tsconfig.node.json` 的 `references`（否则 `tsc -b` 报 TS6307/TS6059），
-   根 `tsconfig.json` 已引用 desktop 的 solution，无需改动。
-
-### 6.5 关键陷阱
+### 6.4 关键陷阱
 
 | 陷阱 | 说明 |
 |---|---|
-| 半写文件 | 原子写必须"同目录临时文件 → fsync → rename"；跨目录/跨盘 rename 会失败 |
-| 写序 | 先写所有表文件，最后写 `manifest.json`（SPEC §7.4.4）；任何一步失败保留旧文件并返回 `E_FS_WRITE` |
-| `.lock` | 写 `{pid, startedAt, appVersion}`；PID 存活 → `E_WS_LOCKED`；不存在或超 24h → stale 提示恢复/直接打开 |
-| 单实例 | SPEC §7.5 要求 `app.requestSingleInstanceLock()`，当前 main **尚未实现**；若要补，注意 E2E 每个用例有独立 userData，不会被锁挡住（但 dev 与 E2E 同时跑会争锁） |
-| 备份轮转 | 每表最多 3 份；启动时清理 7 天前的备份；恢复前要校验目标路径在 `backups/` 内 |
-| 路径校验 | Windows 大小写不敏感、8.3 短路径、符号链接：一律 `fs.realpath` 后做前缀比较，再拼相对路径 |
-| manifest 覆盖 | 损坏的 manifest 不得被静默重写；解析失败时原文件原样保留，返回 `E_WS_INVALID_MANIFEST` |
-| 最近列表 | `userData/recent.json` 不在 SPEC §6 的 manifest 里，需要自己的 Zod schema（`RecentEntry[]`，按路径去重、按最后打开时间排序） |
-| 测试隔离 | 单测用临时目录（`fs.mkdtemp`，放 `os.tmpdir()` 或 `test-results/`）；E2E 目录放 `apps/desktop/test-results/` 下（沙箱内可写） |
+| `Row` vs JSONL | `Row.values` 对应 JSONL 的 `v`；`parseRow` 只接受 `{id,values}` |
+| 编码/解码不分工 | 编码在 renderer（或 Worker），写盘在 main；不要 renderer 直接 `fs` |
+| 空表 | 空数组编码为 `""`（0 字节）；解码空串为 0 行；不要写 `\n` 表示空表 |
+| BOM/CRLF | SPEC 要求 UTF-8 无 BOM、`\n`；解码要明确 BOM/CRLF 是报错还是容忍，并测试 |
+| 8MB 单行 | 在解码前按行长度拒；错误带行号，不要整文件吞掉 |
+| 100k 内存 | 不要 `JSON.parse` 整个数组；逐行处理，避免多次 `+` 拼接大字符串 |
+| Worker CSP | 先测生产产物；不得为 Worker 放宽 `script-src`/`worker-src` 而不写 ADR |
+| IPC 上限 | 单次载荷 256MB；100k×10 JSONL 可能数十 MB，注意 `table:write` 的序列化/复制 |
+| 路径 | IPC 只传 id；main 用已有 `readTable/writeTable`，不要新造路径逻辑 |
+| `rowCount` | 是提示值；重算后更新 manifest 要原子写+备份，失败不影响打开 |
+| `table:trash` | 只移文件；manifest 更新是独立步骤，测试要覆盖“文件移走但 manifest 未改”的中间态 |
+| 覆盖率 | `table-engine` 行覆盖 ≥85%；新逻辑必须有正反例 |
+| e2e grep | `pnpm e2e -- --grep` 会跑全量；过滤用直接 `playwright ... --grep` |
 
-### 6.6 验证命令
+### 6.5 验证命令
 
 ```powershell
 $env:PATH = "D:\DSH_Work_Space\tools\bin;C:\Users\MECHREVO\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin;$env:PATH"
 cd D:\DSH_Work_Space\curve-studio
 Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 
-pnpm exec vitest run packages/persistence apps/desktop
+pnpm exec vitest run packages/table-engine
 pnpm verify
+pnpm test:coverage        # table-engine 行覆盖 ≥ 85%
 $env:CURVE_E2E_NO_SANDBOX = '1'
-pnpm e2e -- --grep "workspace"
-pnpm test:coverage        # persistence 行覆盖 ≥ 85%
+pnpm exec playwright test --config apps/desktop/playwright.config.ts --grep "table"
+pnpm bench -- --table-io  # 先解决 §6.2 的 bench 缺口
 ```
 
 ---
@@ -365,20 +430,24 @@ pnpm test:coverage        # persistence 行覆盖 ≥ 85%
 ### 7.1 公共 API / 契约位置（已获批，改动先问用户）
 
 - `ErrorCode` / `AppError` / `toAppError` → `@curve/domain`（`src/errors.ts`）。
-- 领域类型与 schema → `@curve/domain`（`src/types.ts`、`src/schemas.ts`）。`schemas.ts` 的
-  `strictObject` 策略与 ID 宽松度是**读取契约**，改动需 ADR。
-- `IpcResult<T>` 在 `apps/desktop/src/shared/contracts/envelope.ts`；
-  通道名在 `channels.ts`（SPEC §15.1 冻结的 18 个）。
-- `@curve/ui` 的公共入口与 `tokens.css` 的令牌名/`data-theme` 是主题契约，改名等于破坏主题。
-- 消息表 key（`shell.*`/`theme.*`/`language.*`/`error.*`）由 zh-CN 表定义；新增 UI 文案必须同时加
-  zh-CN 与 en-US（缺一条 `tsc` 就报错）。
+- 领域类型与 schema → `@curve/domain`（`src/types.ts`、`src/schemas.ts`）。`strictObject` 策略与
+  ID 宽松度是**读取契约**，改动需 ADR。
+- `WorkspaceStore` 端口、布局/备份纯函数、`MemoryWorkspaceStore` → `@curve/persistence`。
+- `FileWorkspaceStore` / 路径白名单 / 锁 / 最近列表 → `apps/desktop/src/main/workspace/`。
+- `IpcResult<T>` → `apps/desktop/src/shared/contracts/envelope.ts`；通道名 → `channels.ts`。
+- `CurveApi` → `apps/desktop/src/shared/contracts/ipc.ts`；preload 只暴露白名单方法。
+- `@curve/ui` 的公共入口与 `tokens.css` 令牌名/`data-theme` 是主题契约。
+- 消息表 key（`shell.*`/`theme.*`/`language.*`/`error.*`）在 `renderer/i18n/messages/zh-CN.ts`；
+  新增 UI 文案必须同时加 zh-CN 与 en-US。
 
 ### 7.2 M1–M6
 
 - 严格按 `docs/TASKS.md` 的 ID 顺序；每个任务一个提交；每个里程碑结束跑验收演示、写报告、停下。
-- `T1.3` 是 JSONL 编解码 + Worker（依赖 T1.2）；`T1.4` 迁移框架（依赖 T1.3）；`T1.5` app-core 命令总线。
-- 文件格式 / IPC 通道 / 公共 API 的歧义必须停问；其余按 SPEC §19 默认值 + ADR。
-- `T2.1` 起 UI 才接工作区入口；T1.2 的 E2E 直接调 `window.api` 即可，不要提前做 UI。
+- `T1.3` JSONL + Worker（下一个）；`T1.4` 迁移框架与夹具；`T1.5` app-core 命令总线。
+- `T1.4` 才创建 `fixtures/workspaces/`；T1.3 的 100k 数据在测试/bench 脚本里生成，不要提交大文件。
+- `T2.1` 起 UI 才接工作区入口；T1.3 的 E2E 直接调 `window.api`，不要提前做 UI。
+- M1 验收演示：创建 `Demo.cstudio` → 写 1,000 行 → 关闭重开 → 逐行相等；篡改 manifest → 报错且
+  原文件不变；伪造 `.lock` → 走恢复提示。
 
 ---
 
@@ -388,15 +457,18 @@ pnpm test:coverage        # persistence 行覆盖 ≥ 85%
 |---|---|---|
 | 会话策略回到 `workspace-write` | `pnpm verify` 报 `spawn EPERM`，e2e 同样受影响 | 切到 `danger-full-access`；不要改项目配置绕过 |
 | agent shell 内 Electron 无法初始化 | E2E `Process failed to launch!` | `CURVE_E2E_NO_SANDBOX=1`（E2E）/ `NO_SANDBOX=1`（dev）；普通终端不需要 |
-| 干净安装缺 Electron 运行时 | `pnpm dev`/`e2e` 失败 | 根 `postinstall` → `scripts/install-electron.mjs`；仍缺时手工 `node install.js` |
+| 干净安装缺 Electron 运行时 | `pnpm dev`/`e2e` 失败 | 根 `postinstall`；仍缺时手工 `node install.js` |
 | 截图证据非字节稳定（鼠标悬停） | 每次 e2e 后工作树变脏 | 预期行为；断言不依赖像素；提交时说明或还原 |
-| `manifest.json` 手改/损坏 | 打不开工作区 | T1.2 要求：返回 `E_WS_INVALID_MANIFEST` 且不覆盖原文件 |
-| Windows 路径大小写/短路径 | 白名单误判 | 一律 `realpath` 后比较；测试覆盖大小写变体 |
-| `write-file-atomic` 新增依赖 | 安装体积/维护 | 先写 ADR（§6.2 问题 3），版本补进 ADR 备注 |
-| 跨包 import 未加 TS reference | `tsc -b` TS6307/TS6059 | 新增包时同步 `apps/desktop/tsconfig.node.json` 的 `references` |
-| preload 误 import zod/`ipc.ts` | sandbox 下加载失败 | preload 只 import `channels.ts`/`envelope.ts`，类型用 `import type` |
-| `pnpm e2e` 需要 build | 忘记 build 就测旧产物 | `pnpm e2e` 脚本已包含 `pnpm build` |
-| 100k 性能预算 | M2/M4 可能超预算 | T2.1/T2.6 提前 Worker/虚拟化；T2.7/T4.6 专项硬化 |
+| `pnpm bench` 缺失 | T1.3 验证命令无法执行 | 先补 `scripts/bench.ts` + `tsx` devDependency，或明确记为阻塞并问用户 |
+| `table:read` 缺文件语义不一致 | 新空表读失败或静默丢数据 | T1.3 先定语义并统一 Memory/File 适配器 |
+| Worker 与生产 CSP 不兼容 | E2E 中 Worker 无法加载 | 先测 `default-src 'self'`；需要 `blob:` 时写 ADR 并问用户，禁止直接放宽 CSP |
+| `app.requestSingleInstanceLock()` 未实现 | 两个进程可同时打开同一工作区 | `.lock` 仍能拦截；T1.2 已记录，后续任务补 |
+| 应用退出未 `closeAll` | 异常退出留下 `.lock` | 下次打开按 PID/24h 识别 stale 并替换；正常 close 会删锁 |
+| `write-file-atomic@8` 引擎 | Node 20.11 下 `engines` 不满足 | 实际 Node 24.21 / Electron 24.22 满足；若必须支持 Node 20 需复核 ADR-019 |
+| `rowCount` 未重算 | manifest 提示值与真实行数不一致 | T1.3 在 open 后用 JSONL 计数更新并 warning |
+| `pnpm e2e -- --grep` 不过滤 | 误以为只跑了子集 | 用直接 `playwright ... --grep` 过滤；全量 19 条已绿 |
+| 100k 性能预算 | M2/M4 可能超预算 | T1.3 先测编解码；T2.1/T2.6 提前 Worker/虚拟化 |
+| `fixtures/` 尚不存在 | T1.4 前无法复用工作区夹具 | T1.3 用临时目录/脚本生成；T1.4 建正式夹具 |
 
 ---
 
@@ -418,13 +490,13 @@ pnpm test:coverage        # persistence 行覆盖 ≥ 85%
 ## 10. 新会话启动检查清单
 
 - [ ] `git status --short` 干净，`git log --oneline -3` 顶部为本交接提交
-      （`docs: add T1.2 implementation handoff`），其下为 `a58ee20`（T1.1）。
+      （`docs: add T1.3 implementation handoff`），其下为 `4b742dd`（T1.2）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2），否则先切换。
-- [ ] 已读 `AGENTS.md`、本文件、`docs/TASKS.md` T1.2、`docs/TESTPLAN.md` §1/§2/§5、
-      `docs/SPEC.md` §7、`docs/DECISIONS.md` ADR-003/007/008。
+- [ ] 已读 `AGENTS.md`、本文件、`docs/TASKS.md` T1.3、`docs/TESTPLAN.md` §1/§2/§3（E2/E3）/§4/§5、
+      `docs/SPEC.md` §7.3/§7.4/§8/§15.1、`docs/DECISIONS.md` ADR-003/007/011/014/019/021。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认用户本轮范围（T1.2，然后停下；不进入 T1.3）。
-- [ ] 已就 §6.2 的三个问题得到用户答复（或用户明确授权按推荐方案 + ADR 执行）。
-- [ ] 复述 T1.2 目标/产出/验收后再动手。
+- [ ] 已确认用户本轮范围（T1.3，然后停下；不进入 T1.4）。
+- [ ] 已就 §6.2 的 bench、`table:read` 缺文件语义、脏表归属得到用户答复。
+- [ ] 复述 T1.3 目标/产出/验收后再动手。
