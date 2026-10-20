@@ -1,9 +1,9 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T0.2`，按用户要求停止。
-> 最后更新：2026-10-20 · T0.2 提交：`6520c65` · 分支：`main` · 工作树：干净。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/SPEC.md` §15（IPC/窗口/preload/public API）→ `docs/TASKS.md` 的 T0.3 →
-> `docs/TESTPLAN.md` §1.1 与 §2 的 `ipc` 行 → `docs/DECISIONS.md` ADR-007/017/018。
+> 本文件面向**下一个实现会话**。当前会话已完成 `T0.3`，按用户要求停止。
+> 最后更新：2026-10-20 · T0.3 提交：`21f7bbe` · 分支：`main` · 工作树：干净。
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/SPEC.md` §10.2（令牌与渲染）与 §16.3/§16.4（可访问性/国际化）→
+> `docs/TASKS.md` 的 T0.4 → `docs/TESTPLAN.md` §2 的 `ui/components` 行与 §6.1 → `docs/DECISIONS.md` ADR-013。
 
 ---
 
@@ -14,12 +14,13 @@
 | 方案文档 | v1.0 已锁定（SPEC / TASKS / TESTPLAN / DECISIONS） |
 | `T0.1` monorepo 与质量工具链 | **已完成**（`702293c`） |
 | `T0.2` Electron 三进程骨架与安全窗口 | **已完成**（`6520c65`），验收 4/4，E2E E1 5/5 |
-| 下一个任务 | `T0.3` 类型化 IPC 与错误信封 |
-| 里程碑 | M0 进行中；剩余 `T0.3 → T0.4 → T0.5` |
-| 提交历史 | `347637b docs: import v1 specification`<br>`702293c chore(tooling): initialize monorepo and quality gates`（T0.1）<br>`6b0a395 docs: add T0.2 implementation handoff`<br>`6520c65 feat(desktop): add secure electron shell`（T0.2）<br>其后一条 `docs: add T0.3 handoff` |
+| `T0.3` 类型化 IPC 与错误信封 | **已完成**（`21f7bbe`），验收 4/4，148 tests / E2E 9 passed |
+| 下一个任务 | `T0.4` 设计令牌与 App Shell |
+| 里程碑 | M0 进行中；剩余 `T0.4 → T0.5` |
+| 提交历史 | `347637b docs: import v1 specification`<br>`702293c chore(tooling): initialize monorepo and quality gates`（T0.1）<br>`6b0a395 docs: add T0.2 implementation handoff`<br>`6520c65 feat(desktop): add secure electron shell`（T0.2）<br>`e4f14fb docs: add T0.3 implementation handoff`<br>`21f7bbe feat(ipc): add typed ipc envelope and error mapping`（T0.3）<br>其后一条 `docs: add T0.4 handoff` |
 | 工作树 | 干净（`git status --short` 无输出） |
 
-**用户明确要求**：一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定 e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。新会话从 `T0.3` 开始，完成并报告后**停下等确认**；除非用户明确要求连续执行，否则不要自行推进到 `T0.4`。
+**用户明确要求**：一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定 e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。新会话从 `T0.4` 开始，完成并报告后**停下等确认**；除非用户明确要求连续执行，否则不要自行推进到 `T0.5`。
 
 ---
 
@@ -28,15 +29,15 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/SPEC.md §15（15.1–15.4）与 §18、docs/TASKS.md 的 T0.3、
-docs/TESTPLAN.md §1.1 与 §2 的 ipc 行，以及 docs/DECISIONS.md 的 ADR-007/017/018。
+先读 AGENTS.md、docs/HANDOFF.md、docs/SPEC.md §10.2 与 §16.3/§16.4、docs/TASKS.md 的 T0.4、
+docs/TESTPLAN.md §2 的 ui/components 行与 §6.1，以及 docs/DECISIONS.md 的 ADR-013。
 
-当前 T0.2 已完成并提交（6520c65），工作树干净。请执行 T0.3：
-先按 AGENTS.md §8 复述目标/产出/验收与风险，再测试先行（错误信封三种分支 + 非法载荷）、
-实现（AppError 迁到 @curve/domain、contracts/ipc.ts、registerHandler、preload 扩到 app.info + log.write、
-renderer api 封装与 toast 骨架、TESTPLAN §1.1 的对话框替身），跑 pnpm verify 与任务验证命令，
-更新 TASKS/CHANGELOG/ADR，按 Conventional Commits 提交，最后输出任务报告并停下等我确认。
-不要自动进入 T0.4；不要放宽 CSP/沙箱；不要把 Zod 放进 preload。
+当前 T0.3 已完成并提交（21f7bbe），工作树干净。请执行 T0.4：
+先按 AGENTS.md §8 复述目标/产出/验收与风险，再测试先行（Dialog 焦点陷阱/Esc、Toast 自动消失、
+Shell 无硬编码文案），实现 --cs-* 令牌 + packages/ui 基础组件 + App Shell + 消息表 t() + 浅深色骨架，
+跑 pnpm verify 与 pnpm e2e（截图放 docs/reports/m0/），更新 TASKS/CHANGELOG，按 Conventional Commits 提交，
+最后输出任务报告并停下等我确认。
+不要自动进入 T0.5；不要放宽 CSP/沙箱；Dialog/Toast 必须可键盘操作，且 200% 缩放下不横向裁切。
 ```
 
 ---
@@ -136,6 +137,16 @@ DSH 进程环境全局存在该变量，子进程会继承；Electron 会退化�
 | electron-builder | 26.15.3 | 仅安装，未配置打包（T6.4） |
 | Playwright | 1.64.1 | 只用 `_electron`，未下载浏览器 |
 
+### 3.7 【新增】agent shell 的文本编码与路径陷阱（T0.3 实测）
+
+- 该 shell 是 **Windows PowerShell 5.1**：`Get-Content` 默认按 GBK 解码无 BOM 的 UTF-8 文件（显示成乱码），
+  `Set-Content -Encoding UTF8` 会写入 **BOM**。**源码与文档一律用编辑器工具（read/write/edit）修改**，
+  不要用 shell 重定向/`Set-Content` 改文本，否则会把中文写坏或让 prettier 报错。
+- `[System.IO.File]::ReadAllBytes('相对路径')` 按**进程 CWD**（`D:\DSH_Work_Space`）解析，不是 PowerShell 的
+  `cd` 目录；这类 .NET 调用必须给绝对路径。
+- `pnpm` 的 stdout 被 PowerShell 当成错误流时会打印 `NativeCommandError` 红字，但**结论看 `$LASTEXITCODE`**；
+  建议 `pnpm ... > log 2>&1` 到 `test-results/`（已 gitignore）后再判断与检索。
+
 ---
 
 ## 4. T0.2 已交付内容
@@ -204,7 +215,10 @@ docs/adr/018-dev-csp-react-refresh.md
 
 ---
 
-## 5. 下一步：T0.3 类型化 IPC 与错误信封
+## 5. T0.3 实施记录（已完成 2026-10-20，提交 `21f7bbe`）
+
+> 5.1–5.5 是实施前的计划，保留作决策依据；5.6 是实际交付与验证，5.7 是下一任务入口。
+> 计划与实现的差异（契约拆成三个文件、`IpcResult` 从 `envelope.ts` 导入）记录在 5.6。
 
 ### 5.1 任务原文要点（TASKS.md）
 
@@ -264,15 +278,46 @@ registerHandler(channel, requestSchema, async (payload) => data);
 - 提交示例：`feat(ipc): add typed ipc envelope and error mapping`，正文写“验证：”与命令结果。
 - 输出任务报告（任务 ID、改动文件、验证命令与真实结果、残留风险），**停下等确认**。
 
+### 5.6 实际交付与验证（2026-10-20，提交 `21f7bbe`）
+
+- 新增：`packages/domain/src/errors.ts`（`ERROR_CODES` / strict 的 `appErrorSchema` / `createAppError` /
+  `isAppError` / `toAppError`）、`shared/contracts/{channels,envelope,ipc}.ts`、
+  `main/{logger,ipc/{dispatch,register,handlers}}.ts`、`renderer/{api-client,error-text,toast}`、`e2e/ipc.spec.ts`。
+- 删除：`shared/ipc.ts`、`main/errors.ts`（及其单测）；旧入口改用 `@curve/domain` 与新的 `main/index.ts` 接线。
+- 与 §5.3 的差异（有意为之）：契约拆成三个文件 —— `channels.ts` 零 import、`envelope.ts` 只对 domain 做**类型**
+  依赖、只有 `ipc.ts` import zod。preload 只 import 前两者，产物 3.11 kB 且仅 `require("electron")`。
+  `IpcResult` 不再从 `contracts/ipc.ts` 重导出，消费方从 `contracts/envelope.ts` 取（避免同模块 import+export）。
+- 双向校验：`dispatch.ts` 校验 handler 的返回值；renderer `api-client` 再校验一次 `data`。`log:write` 的 `level`
+  按 SPEC 保持 `string`，未知值在 logger 降级为 `info`；消息/详情截断（2000/1000 字符）避免日志被撑爆。
+- 验证证据：`pnpm verify` exit 0（ESLint 0 problem；depcruise 78 modules / 0 violations；28 files / 148 tests）；
+  `pnpm test:coverage` lines 99.11% / statements 99.14% / branches 96.17% / functions 100%；
+  `pnpm e2e`（`CURVE_E2E_NO_SANDBOX=1`）9 passed；`pnpm dev` 日志
+  `[main] window ready (mode=development, devTools=true, visible=true)`。
+
+### 5.7 下一个会话入口：T0.4 设计令牌与 App Shell
+
+- 目标（TASKS T0.4）：`packages/ui` 的 `--cs-*` 令牌与 Button/Input/Select/Dialog/Toast/Menu/Tabs；
+  `apps/desktop/src/renderer` 的 Shell（标题栏/侧栏/主区/检查器/状态栏/空态）；`messages/zh-CN.ts` +
+  类型化 `t(key, params)`；浅/深色切换骨架。
+- **必须替换的 T0.3 占位物**：
+  - `src/renderer/App.tsx`（空壳 + 运行态面板，含 `runtime-status` testid 与 `role="status"/"alert"`）；
+  - `src/renderer/toast.tsx`（骨架：`useToasts` + `ToastHost`，`role=alert/status` 与 `Dismiss notification` 按钮）；
+  - `src/renderer/error-text.ts`（按 code 的英文文案表 → 应改为 `t('error.<code>')`）；
+  - `src/renderer/styles.css` 的 `.toast*` 规则。
+- 同步修改：`src/renderer/App.test.tsx`（依赖上述 testid/role）、必要时 `contracts/ipc.ts` 的 `CurveApi` 不变。
+- 可访问性/缩放：TESTPLAN §2 的 `ui/components` 行 + §6.1（200% 缩放、纯键盘脚本）。
+- 不要动 T0.3 的安全面：CSP 注入点、`window.api` 白名单、preload 零依赖边界。
+
 ---
 
 ## 6. M0 剩余任务与停点
 
 | 任务 | 内容 | 关键依赖/注意 |
 |---|---|---|
-| T0.3 | 类型化 IPC 与错误信封 | `AppError` 放 `@curve/domain`；preload 不放 Zod；dialog 替身 gate 在 `!app.isPackaged` |
-| T0.4 | 设计令牌与 App Shell | 需要 e2e 截图；200% 缩放；文案走 `t()`；会替换 `App.tsx` 空壳 |
-| T0.5 | CI、E2E 与提交门禁 | 已有 Playwright 骨架，补 trace/CI YAML/覆盖率 gate；Windows runner 必须能跑 Electron |
+| T0.4 | 设计令牌与 App Shell | 需要 e2e 截图；200% 缩放；文案走 `t()`；会替换 `App.tsx` 空壳、`toast.tsx` 与 `error-text.ts` |
+| T0.5 | CI、E2E 与提交门禁 | 已有 Playwright 骨架与 `e2e/ipc.spec.ts`；补 trace/CI YAML/覆盖率 gate；Windows runner 必须能跑 Electron |
+
+T0.1–T0.3 已完成。
 
 **M0 验收演示**：`pnpm dev` 打开窗口 → `pnpm verify` 全绿 → 故意违反依赖边界被 lint 拦截 →
 E2E smoke 通过。产出 `docs/reports/m0/REPORT.md`（命令、结果、截图路径、遗留问题）后**停下等用户确认**，
@@ -282,10 +327,11 @@ E2E smoke 通过。产出 `docs/reports/m0/REPORT.md`（命令、结果、截图
 
 ## 7. 后续里程碑提醒
 
-### 7.1 T0.3 的公共 API 位置（已获用户批准）
+### 7.1 公共 API 位置（T0.3 已落地，已获用户批准）
 
-- `ErrorCode` / `AppError` → `@curve/domain`；`apps/desktop/src/shared/contracts/ipc.ts` 重导出；
-  `IpcResult<T>` 留在 desktop contracts。
+- `ErrorCode` / `AppError` / `toAppError` → `@curve/domain`（`src/errors.ts`），由
+  `apps/desktop/src/shared/contracts/ipc.ts` 以 `export type` 重导出。
+- `IpcResult<T>` 留在 desktop contracts 的 `envelope.ts`；`ipc.ts` 不重导出它（渲染端从 `envelope.ts` 取）。
 - 若新会话要改这个位置，属于公共 API 决策，**先问用户**。
 
 ### 7.2 M1–M6
@@ -307,7 +353,8 @@ E2E smoke 通过。产出 `docs/reports/m0/REPORT.md`（命令、结果、截图
 | `electron-winstaller` build script | `pnpm install` 报 `ERR_PNPM_IGNORED_BUILDS` | 已在 `pnpm-workspace.yaml` 显式 `electron-winstaller: false`；不要整体放开 allowBuilds |
 | Vite 8 提示改用原生 `resolve.tsconfigPaths` | 每次测试打印一条非阻断提示 | 按 SPEC §5.3 保留 `vite-tsconfig-paths` |
 | ESLint 9.39.5 已停止支持 | 长期无安全更新 | TASKS 指定 ESLint 9；升级需 ADR + 评估 `eslint-plugin-import` |
-| 跨包 import 未加 TS reference | `tsc -b` TS6307/TS6059 | 见 §5.3；新增 import 时同步 references |
+| 跨包 import 未加 TS reference | `tsc -b` TS6307/TS6059 | desktop 三个 tsconfig 已引用 `packages/domain`；再引入新包时同步 `references` 与 `@curve/*` 路径映射 |
+| preload 误 import `contracts/ipc.ts` 或 zod | sandbox 下加载失败 / 预加载体积暴涨 | preload 只 import `contracts/channels.ts` 与 `envelope.ts`；`out/preload/index.cjs` 应只含 `require("electron")`（当前 3.11 kB） |
 | Playwright 未下载浏览器 | 若未来加浏览器测试会失败 | 本项目只用 `_electron`；需要时显式 `pnpm exec playwright install` |
 | 截图基线字体差异 | 视觉快照不稳定 | 断言令牌/计算样式；像素基线允许字体差异（TESTPLAN E5） |
 | 100k 性能预算 | M2/M4 可能超预算 | T2.1/T2.6 提前 Worker/虚拟化；T2.7/T4.6 专项硬化 |
@@ -330,10 +377,10 @@ E2E smoke 通过。产出 `docs/reports/m0/REPORT.md`（命令、结果、截图
 
 ## 10. 新会话启动检查清单
 
-- [ ] `git status --short` 干净，`git log --oneline -3` 显示 `6520c65`。
+- [ ] `git status --short` 干净，`git log --oneline -3` 显示 `21f7bbe`。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
-- [ ] 已读 `AGENTS.md`、本文件、SPEC §15/§18、T0.3 相关 TESTPLAN 段落。
+- [ ] 已读 `AGENTS.md`、本文件、SPEC §10.2/§16.3/§16.4、T0.4 相关 TESTPLAN 段落。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；agent 会话内再设 `CURVE_E2E_NO_SANDBOX=1` 才能跑 E2E。
-- [ ] 已确认用户本轮范围（默认 T0.3 完成后停下）。
-- [ ] 复述 T0.3 目标/产出/验收后再动手。
+- [ ] 已确认用户本轮范围（默认 T0.4 完成后停下）。
+- [ ] 复述 T0.4 目标/产出/验收后再动手。
