@@ -3,35 +3,46 @@
  * preload bridge can be unit tested with a fake `invoke`.
  *
  * Only whitelisted methods are exposed; `ipcRenderer` itself must never cross
- * the context bridge (AGENTS §2.1).
+ * the context bridge (AGENTS §2.1). No Zod here: `sandbox: true` means the
+ * preload may not load packages from `dependencies` (SPEC §15.4), so the
+ * envelope is narrowed by hand and the payloads are validated in the main
+ * process and again in the renderer client.
  */
 
-import {
-  IPC_CHANNELS,
-  isIpcResult,
-  type AppInfo,
-  type CurveApi,
-  type IpcResult,
-} from '../shared/ipc';
+import { IPC_CHANNELS } from '../shared/contracts/channels';
+import { isIpcResult } from '../shared/contracts/envelope';
+
+import type { IpcResult } from '../shared/contracts/envelope';
+import type { AppInfo, CurveApi, LogWriteRequest, OkReply } from '../shared/contracts/ipc';
 
 /** Mirrors `ipcRenderer.invoke` without importing Electron. */
-export type InvokeFn = (channel: string) => Promise<unknown>;
+export type InvokeFn = (channel: string, payload?: unknown) => Promise<unknown>;
 
-const MALFORMED_RESPONSE = {
+const MALFORMED_RESPONSE: IpcResult<never> = {
   ok: false,
   error: {
     code: 'E_UNKNOWN',
     message: 'The main process returned a malformed response.',
   },
-} as const satisfies IpcResult<never>;
+};
+
+async function call<TResponse>(
+  invoke: InvokeFn,
+  channel: string,
+  payload?: unknown,
+): Promise<IpcResult<TResponse>> {
+  const response = await invoke(channel, payload);
+  return isIpcResult<TResponse>(response) ? response : MALFORMED_RESPONSE;
+}
 
 export function createCurveApi(invoke: InvokeFn): CurveApi {
   return {
     app: {
-      info: async (): Promise<IpcResult<AppInfo>> => {
-        const response = await invoke(IPC_CHANNELS.appInfo);
-        return isIpcResult<AppInfo>(response) ? response : MALFORMED_RESPONSE;
-      },
+      info: (): Promise<IpcResult<AppInfo>> => call<AppInfo>(invoke, IPC_CHANNELS.appInfo),
+    },
+    log: {
+      write: (request: LogWriteRequest): Promise<IpcResult<OkReply>> =>
+        call<OkReply>(invoke, IPC_CHANNELS.logWrite, request),
     },
   };
 }

@@ -9,5 +9,6 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node"]
   },
+  "references": [{ "path": "../../packages/domain" }],
   "include": ["playwright.config.ts", "e2e/**/*.ts", "src/shared/**/*.ts"]
 }

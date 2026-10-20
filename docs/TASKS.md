@@ -139,7 +139,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t03"></a>
 ### T0.3 类型化 IPC 与错误信封
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T0.2
 - 覆盖：NFR-02、NFR-06
 - 参考：SPEC §15.1、§15.2、§18
@@ -154,11 +154,34 @@ T0.2 + T5.5 → T6.4
   3. preload 用 `contextBridge` 暴露白名单方法。
   4. 渲染端统一处理 `ok:false`，未知异常不泄露堆栈。
 - 验收：
-  - [ ] 非法载荷返回 `E_IPC_INVALID_PAYLOAD`，进程不崩。
-  - [ ] 未注册通道调用被拒绝。
-  - [ ] `window.api` 上没有 `invoke`/`send` 泛入口。
-  - [ ] 错误信封单测覆盖成功/失败/异常三种。
+  - [x] 非法载荷返回 `E_IPC_INVALID_PAYLOAD`，进程不崩。
+  - [x] 未注册通道调用被拒绝。
+  - [x] `window.api` 上没有 `invoke`/`send` 泛入口。
+  - [x] 错误信封单测覆盖成功/失败/异常三种。
 - 验证：`pnpm exec vitest run packages/app-core apps/desktop`
+- 实现备注（2026-10-20）：
+  - `ErrorCode`/`AppError`/`appErrorSchema`/`toAppError`/`createAppError` 落在
+    `packages/domain/src/errors.ts`（ADR-007，schema 为 strict，带 `stack` 的信封会被拒绝）；
+    `@curve/domain` 新增唯一运行时依赖 `zod`（SPEC §4.2 允许），desktop 侧 `zod` 放 devDependencies。
+  - 契约拆三个文件以满足 preload 零依赖（SPEC §15.4）：`shared/contracts/channels.ts`（18 个通道名，
+    无任何 import）、`envelope.ts`（`IpcResult` + `ipcOk`/`ipcFail`/`isIpcResult`，仅类型依赖 domain）、
+    `ipc.ts`（Zod 请求/响应 schema 与 `AppInfo`/`LogWriteRequest`/`CurveApi`）。preload 只 import 前两者；
+    产物 3.11 kB、只有 `require("electron")`，zod 与 domain 均未进入 preload。
+  - main：`ipc/dispatch.ts`（256MB 载荷上限 → 入参 Zod → handler → 响应 Zod → `toAppError`，
+    任何分支都不抛）、`ipc/register.ts`（只接受 `IpcChannel` 白名单、重复注册抛错、未注册通道保持未处理）、
+    `ipc/handlers.ts`（`app:info`、`log:write`）、`logger.ts`（分级 + 消息/详情截断，T1.x 换文件日志）。
+  - renderer：`api-client.ts` 两端校验（入参失败 `E_VALIDATION` 且不触发 IPC；响应 schema 不匹配 → 信封化
+    `E_UNKNOWN`；preload 缺失/抛错都有确定信封），`error-text.ts` 按 code 出文案（不回显 `message`/`detail`），
+    `toast.tsx` 为 T0.4 前的骨架。
+  - TESTPLAN §1.1 对话框替身以纯函数 `resolveE2EDialogStubs` 落地（`!app.isPackaged && CURVE_E2E=1`），
+    T1.2/T1.3 的 dialog/file 通道直接消费；打包后一律 `null`，有单测。
+  - E2E 新增 `e2e/ipc.spec.ts` 四条：`window.api` 白名单方法、`app:info`/`log:write` 正常路径、
+    三种非法载荷后进程仍存活、以及“已注册通道集合 == `IMPLEMENTED_IPC_CHANNELS`”
+    （利用 Electron 重复 `ipcMain.handle` 会抛错的特性探测真实注册表）。
+  - 验证结果：`pnpm verify` exit 0（28 test files / 148 tests，depcruise 78 modules 0 violations）；
+    `pnpm test:coverage` lines 99.11% / statements 99.14% / branches 96.17% / functions 100%；
+    `pnpm e2e`（`CURVE_E2E_NO_SANDBOX=1`）9 passed；`pnpm dev` 日志
+    `[main] window ready (mode=development, devTools=true, visible=true)`。
 
 <a id="t04"></a>
 ### T0.4 设计令牌与 App Shell

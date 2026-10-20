@@ -1,4 +1,4 @@
-import type { CurveApi } from '../shared/ipc';
+import type { CurveApi } from '../shared/contracts/ipc';
 
 declare global {
   interface Window {

@@ -65,6 +65,9 @@ importers:
 
   apps/desktop:
     devDependencies:
+      '@curve/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@testing-library/dom':
         specifier: ^10.4.2
         version: 10.4.2
@@ -98,6 +101,9 @@ importers:
       vite:
         specifier: ^8.3.4
         version: 8.3.4(@types/node@24.19.2)(jiti@2.7.0)
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
 
   packages/app-core:
     dependencies:
@@ -135,7 +141,11 @@ importers:
         specifier: workspace:*
         version: link:../table-engine
 
-  packages/domain: {}
+  packages/domain:
+    dependencies:
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
 
   packages/persistence:
     dependencies:

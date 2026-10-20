@@ -5,20 +5,23 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from './App';
 
-import type { AppInfo, IpcResult } from '../shared/ipc';
-
-function stubAppInfo(impl: () => Promise<IpcResult<AppInfo>>): void {
-  vi.stubGlobal('api', { app: { info: impl } });
-}
-
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
 
+function stubApi(info: () => Promise<unknown>): void {
+  vi.stubGlobal('api', {
+    app: { info },
+    log: {
+      write: async () => ({ ok: true, data: { ok: true } }),
+    },
+  });
+}
+
 describe('App shell', () => {
   it('renders the product title before the main process answers', () => {
-    stubAppInfo(() => new Promise<IpcResult<AppInfo>>(() => undefined));
+    stubApi(() => new Promise(() => undefined));
 
     render(<App />);
 
@@ -27,7 +30,7 @@ describe('App shell', () => {
   });
 
   it('shows the runtime facts from the app:info response', async () => {
-    stubAppInfo(async () => ({
+    stubApi(async () => ({
       ok: true,
       data: { version: '0.1.0', platform: 'win32', locale: 'en-US' },
     }));
@@ -40,24 +43,26 @@ describe('App shell', () => {
     expect(facts.textContent).toContain('en-US');
   });
 
-  it('shows the error envelope message when the main process rejects the call', async () => {
-    stubAppInfo(async () => ({
+  it('shows a localised toast instead of the raw main-process error', async () => {
+    stubApi(async () => ({
       ok: false,
-      error: { code: 'E_UNKNOWN', message: 'main is unavailable' },
+      error: { code: 'E_WS_LOCKED', message: 'SECRET RAW MESSAGE' },
     }));
 
     render(<App />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('main is unavailable');
+    expect(alert.textContent).toContain('E_WS_LOCKED');
+    expect(alert.textContent).not.toContain('SECRET RAW MESSAGE');
+    expect(screen.getByRole('status').textContent).toContain('unavailable');
   });
 
   it('reports a rejected bridge instead of crashing', async () => {
-    stubAppInfo(async () => Promise.reject(new Error('no handler registered')));
+    stubApi(async () => Promise.reject(new Error('no handler registered')));
 
     render(<App />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('did not answer');
+    expect(alert.textContent).toContain('E_UNKNOWN');
   });
 });

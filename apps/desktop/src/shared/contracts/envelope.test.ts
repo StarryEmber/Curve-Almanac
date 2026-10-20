@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import { IPC_CHANNELS, isIpcResult } from './ipc';
+import { ipcFail, ipcOk, isIpcResult } from './envelope';
 
-describe('IPC channel names', () => {
-  it('uses the channel names frozen by SPEC §15.1', () => {
-    expect(IPC_CHANNELS.appInfo).toBe('app:info');
+describe('ipcOk', () => {
+  it('wraps data in a success envelope', () => {
+    expect(ipcOk({ version: '0.1.0' })).toEqual({ ok: true, data: { version: '0.1.0' } });
+  });
+});
+
+describe('ipcFail', () => {
+  it('wraps an AppError in a failure envelope', () => {
+    expect(ipcFail({ code: 'E_UNKNOWN', message: 'boom' })).toEqual({
+      ok: false,
+      error: { code: 'E_UNKNOWN', message: 'boom' },
+    });
   });
 });
 

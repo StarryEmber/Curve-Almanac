@@ -1,37 +1,38 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import type { AppInfo } from '../shared/ipc';
+import { createApiClient } from './api-client';
+import { describeAppError } from './error-text';
+import { ToastHost, useToasts } from './toast';
+
+import type { AppInfo } from '../shared/contracts/ipc';
 import type { ReactElement } from 'react';
 
 type RuntimeState =
-  { status: 'loading' } | { status: 'ready'; info: AppInfo } | { status: 'error'; message: string };
+  { status: 'loading' } | { status: 'ready'; info: AppInfo } | { status: 'error' };
 
 /**
- * T0.2 placeholder shell: proves the preload bridge works end to end.
+ * T0.2 placeholder shell: proves the typed IPC bridge works end to end.
  * T0.4 replaces it with the real App Shell, design tokens and i18n.
  */
 export function App(): ReactElement {
   const [state, setState] = useState<RuntimeState>({ status: 'loading' });
+  const { toasts, push, dismiss } = useToasts();
+  const api = useMemo(() => createApiClient(window.api), []);
 
   useEffect(() => {
     let cancelled = false;
 
     const load = async (): Promise<void> => {
-      try {
-        const result = await window.api.app.info();
-        if (cancelled) {
-          return;
-        }
-        setState(
-          result.ok
-            ? { status: 'ready', info: result.data }
-            : { status: 'error', message: result.error.message },
-        );
-      } catch {
-        if (!cancelled) {
-          setState({ status: 'error', message: 'The main process did not answer.' });
-        }
+      const result = await api.app.info();
+      if (cancelled) {
+        return;
       }
+      if (result.ok) {
+        setState({ status: 'ready', info: result.data });
+        return;
+      }
+      setState({ status: 'error' });
+      push('error', describeAppError(result.error));
     };
 
     void load();
@@ -39,7 +40,7 @@ export function App(): ReactElement {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [api, push]);
 
   return (
     <main className="shell" role="main">
@@ -60,8 +61,8 @@ export function App(): ReactElement {
         )}
 
         {state.status === 'error' && (
-          <p className="shell__status shell__status--error" role="alert">
-            {state.message}
+          <p className="shell__status shell__status--error" role="status">
+            Runtime information is unavailable.
           </p>
         )}
 
@@ -82,6 +83,8 @@ export function App(): ReactElement {
           </dl>
         )}
       </section>
+
+      <ToastHost toasts={toasts} onDismiss={dismiss} />
     </main>
   );
 }

@@ -1,16 +1,16 @@
 /**
- * Electron main process entry (T0.2).
+ * Electron main process entry.
  *
  * Responsibilities:
  * - Create the single hardened BrowserWindow (SPEC §15.3).
  * - Serve the renderer from the Vite dev server in development, from
  *   `out/renderer/index.html` otherwise.
  * - Deny navigation, popups, webviews and permission requests.
- * - Implement the `app:info` channel with the SPEC §18 result envelope.
+ * - Register the typed IPC handlers (T0.3, see `./ipc`).
  * - Persist window geometry in `userData`.
  *
  * Pure logic lives in sibling modules so it can be unit tested; this file is
- * wiring only and is excluded from the coverage gate (E2E E1 covers it).
+ * wiring only and is excluded from the coverage gate (E2E covers it).
  */
 
 import { mkdirSync } from 'node:fs';
@@ -19,10 +19,12 @@ import { pathToFileURL } from 'node:url';
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session } from 'electron';
 
-import { IPC_CHANNELS, type AppInfo, type IpcResult } from '../shared/ipc';
+import { toAppError } from '@curve/domain';
 
 import { resolveE2EUserDataPath } from './e2e-hooks';
-import { toAppError } from './errors';
+import { registerIpcHandlers } from './ipc/handlers';
+import { createIpcRegistrar } from './ipc/register';
+import { createConsoleLogger } from './logger';
 import { buildMenuTemplate } from './menu';
 import { isNavigationAllowed } from './navigation';
 import { buildWindowOptions } from './window-options';
@@ -41,6 +43,8 @@ const APP_NAME = 'Curve Studio';
  * built renderer used by preview and E2E must behave like production.
  */
 const isDev = !app.isPackaged && Boolean(process.env['ELECTRON_RENDERER_URL']);
+
+const logger = createConsoleLogger({ minLevel: isDev ? 'debug' : 'info' });
 
 let mainWindow: BrowserWindow | null = null;
 /** Base URL of the loaded renderer; the navigation guard fails closed while empty. */
@@ -61,26 +65,20 @@ function applyE2EUserDataOverride(): void {
     mkdirSync(userDataPath, { recursive: true });
     app.setPath('userData', userDataPath);
   } catch (error) {
-    console.error(`[main] ignored E2E userData override: ${toAppError(error).message}`);
+    logger.error('ignored E2E userData override', toAppError(error).message);
   }
 }
 
-function registerAppInfoHandler(): void {
-  ipcMain.handle(IPC_CHANNELS.appInfo, (): IpcResult<AppInfo> => {
-    try {
-      return {
-        ok: true,
-        data: {
-          version: app.getVersion(),
-          platform: process.platform,
-          locale: app.getLocale(),
-        },
-      };
-    } catch (error) {
-      const appError = toAppError(error);
-      console.error(`[main] app:info failed: ${appError.code} ${appError.message}`);
-      return { ok: false, error: appError };
-    }
+function registerIpc(): void {
+  const registrar = createIpcRegistrar({ ipcMain, logger });
+  registerIpcHandlers({
+    registrar,
+    logger,
+    getAppInfo: () => ({
+      version: app.getVersion(),
+      platform: process.platform,
+      locale: app.getLocale(),
+    }),
   });
 }
 
@@ -154,8 +152,8 @@ function createMainWindow(): BrowserWindow {
 
   appWindow.once('ready-to-show', () => {
     appWindow.show();
-    console.log(
-      `[main] window ready (mode=${isDev ? 'development' : 'production'}, ` +
+    logger.info(
+      `window ready (mode=${isDev ? 'development' : 'production'}, ` +
         `devTools=${String(isDev)}, visible=${String(appWindow.isVisible())})`,
     );
   });
@@ -189,7 +187,7 @@ async function start(): Promise<void> {
 
   installNavigationGuards();
   installPermissionHandlers();
-  registerAppInfoHandler();
+  registerIpc();
   installApplicationMenu();
 
   mainWindow = createMainWindow();
@@ -209,6 +207,6 @@ app.on('window-all-closed', () => {
 
 void start().catch((error: unknown) => {
   const appError = toAppError(error);
-  console.error(`[main] failed to start ${APP_NAME}: ${appError.code} ${appError.message}`);
+  logger.error(`failed to start ${APP_NAME}: ${appError.code} ${appError.message}`, error);
   app.exit(1);
 });

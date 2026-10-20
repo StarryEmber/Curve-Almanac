@@ -9,6 +9,7 @@
     "lib": ["ES2022"],
     "types": ["node"]
   },
+  "references": [{ "path": "../../packages/domain" }],
   "include": [
     "electron.vite.config.ts",
     "src/main/**/*.ts",

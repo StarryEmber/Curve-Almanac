@@ -1,0 +1,123 @@
+import { describe, expect, it } from 'vitest';
+
+import { IMPLEMENTED_IPC_CHANNELS, IPC_CHANNELS } from '../../shared/contracts/channels';
+import { createLogger } from '../logger';
+
+import { registerIpcHandlers } from './handlers';
+import { createIpcRegistrar } from './register';
+
+import type { IpcMainLike } from './register';
+
+interface FakeIpcMain extends IpcMainLike {
+  invoke(channel: string, payload?: unknown): Promise<unknown>;
+  registered(): string[];
+}
+
+function createFakeIpcMain(): FakeIpcMain {
+  const listeners = new Map<string, (event: unknown, payload?: unknown) => unknown>();
+  return {
+    handle(channel, listener) {
+      if (listeners.has(channel)) {
+        throw new Error(`Attempted to register a second handler for '${channel}'`);
+      }
+      listeners.set(channel, listener);
+    },
+    async invoke(channel, payload) {
+      const listener = listeners.get(channel);
+      if (!listener) {
+        throw new Error(`No handler registered for '${channel}'`);
+      }
+      return listener({}, payload);
+    },
+    registered: () => [...listeners.keys()],
+  };
+}
+
+function wire(): { ipcMain: FakeIpcMain; lines: string[] } {
+  const ipcMain = createFakeIpcMain();
+  const lines: string[] = [];
+  const logger = createLogger((level, line) => {
+    lines.push(`${level}: ${line}`);
+  });
+  const registrar = createIpcRegistrar({ ipcMain, logger });
+
+  registerIpcHandlers({
+    registrar,
+    logger,
+    getAppInfo: () => ({ version: '0.1.0', platform: 'win32', locale: 'en-US' }),
+  });
+
+  return { ipcMain, lines };
+}
+
+describe('registerIpcHandlers', () => {
+  it('registers exactly the channels implemented in this milestone', () => {
+    const { ipcMain } = wire();
+
+    expect(ipcMain.registered()).toEqual([...IMPLEMENTED_IPC_CHANNELS]);
+  });
+
+  it('answers app:info from the injected provider', async () => {
+    const { ipcMain } = wire();
+
+    await expect(ipcMain.invoke(IPC_CHANNELS.appInfo)).resolves.toEqual({
+      ok: true,
+      data: { version: '0.1.0', platform: 'win32', locale: 'en-US' },
+    });
+  });
+
+  it('accepts an empty object payload for app:info', async () => {
+    const { ipcMain } = wire();
+
+    await expect(ipcMain.invoke(IPC_CHANNELS.appInfo, {})).resolves.toMatchObject({ ok: true });
+  });
+
+  it('rejects an unexpected app:info payload', async () => {
+    const { ipcMain } = wire();
+
+    await expect(ipcMain.invoke(IPC_CHANNELS.appInfo, { dir: 'C:/ws' })).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'E_IPC_INVALID_PAYLOAD' },
+    });
+  });
+
+  it('writes a renderer log entry and replies with ok', async () => {
+    const { ipcMain, lines } = wire();
+
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.logWrite, { level: 'warn', message: 'renderer says hi' }),
+    ).resolves.toEqual({ ok: true, data: { ok: true } });
+    expect(lines).toEqual(['warn: [renderer] renderer says hi']);
+  });
+
+  it('normalises an unknown level to info', async () => {
+    const { ipcMain, lines } = wire();
+
+    await ipcMain.invoke(IPC_CHANNELS.logWrite, { level: 'verbose', message: 'hi' });
+
+    expect(lines).toEqual(['info: [renderer] hi']);
+  });
+
+  it('forwards a detail value and truncates a very long message', async () => {
+    const { ipcMain, lines } = wire();
+
+    await ipcMain.invoke(IPC_CHANNELS.logWrite, {
+      level: 'error',
+      message: 'x'.repeat(5000),
+      detail: 'EACCES',
+    });
+
+    expect(lines[0]).toContain('EACCES');
+    expect(lines[0]?.length).toBeLessThan(2100);
+    expect(lines[0]).toContain('...');
+  });
+
+  it('rejects an invalid log payload without throwing', async () => {
+    const { ipcMain, lines } = wire();
+
+    const result = await ipcMain.invoke(IPC_CHANNELS.logWrite, { level: 'info' });
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'E_IPC_INVALID_PAYLOAD' } });
+    expect(lines.some((line) => line.includes('invalid request payload'))).toBe(true);
+  });
+});

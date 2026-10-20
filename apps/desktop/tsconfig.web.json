@@ -10,5 +10,6 @@
     "types": ["vite/client"],
     "jsx": "react-jsx"
   },
+  "references": [{ "path": "../../packages/domain" }],
   "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx", "src/shared/**/*.ts"]
 }

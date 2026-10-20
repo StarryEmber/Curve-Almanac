@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'electron-vite';
+import tsconfigPaths from 'vite-tsconfig-paths';
 
 import { buildContentSecurityPolicy, type RuntimeMode } from './src/shared/csp';
 
@@ -9,6 +10,16 @@ import type { Plugin } from 'vite';
 
 const fromConfigDir = (relativePath: string): string =>
   fileURLToPath(new URL(relativePath, import.meta.url));
+
+/**
+ * Resolves the `@curve/*` aliases from the root tsconfig (SPEC §5.3). The main
+ * process imports `@curve/domain` at runtime, and electron-vite does not read
+ * tsconfig `paths` on its own. The renderer and preload only use type-only
+ * imports from workspace packages, so they do not need it.
+ */
+const workspacePaths = tsconfigPaths({
+  projects: [fromConfigDir('../../tsconfig.base.json')],
+});
 
 /**
  * Injects the renderer Content-Security-Policy as a meta tag into `index.html`
@@ -43,6 +54,9 @@ function cspPlugin(): Plugin {
 
 export default defineConfig({
   main: {
+    // `@curve/domain` is a source package (SPEC §5.3), so the Electron main
+    // bundle must resolve it through the workspace path aliases.
+    plugins: [workspacePaths],
     // Sandboxed renderers cannot load an ESM preload, so both process bundles
     // are pinned to CJS with an explicit `.cjs` extension. `"type": "module"`
     // in package.json would otherwise make Node treat `.js` as ESM.

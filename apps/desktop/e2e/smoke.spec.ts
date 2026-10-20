@@ -5,7 +5,7 @@ import { expect } from '@playwright/test';
 
 import { desktopAppDir, repositoryRoot, test } from './fixtures';
 
-import type { CurveApi } from '../src/shared/ipc';
+import type { CurveApi } from '../src/shared/contracts/ipc';
 
 /**
  * TESTPLAN E1 — startup and security smoke, run against the built app

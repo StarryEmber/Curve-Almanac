@@ -26,6 +26,20 @@
 - T0.2：Playwright Electron E2E（TESTPLAN E1 五条 smoke）+ 截图证据
   `docs/reports/m0/t0.2-window.png`、`t0.2-dev-window.png`。
 - T0.2：ADR-018（开发模式 CSP 为 Fast Refresh 放宽）与 SPEC §15.3 同步。
+- T0.3：`ErrorCode`/`AppError`/`appErrorSchema`/`toAppError` 迁入 `@curve/domain`
+  （`zod` 成为该包唯一运行时依赖），新增 `packages/domain/src/errors.ts` 与 16 条单测。
+- T0.3：类型化 IPC 契约 `apps/desktop/src/shared/contracts/`：`channels.ts`（SPEC §15.1 的 18 个通道名，
+  零依赖）、`envelope.ts`（`IpcResult` 与 `isIpcResult`）、`ipc.ts`（每个已实现通道的 Zod 请求/响应 schema、
+  `AppInfo`/`LogWriteRequest`/`CurveApi`）。
+- T0.3：main 的 IPC 注册与分发 `src/main/ipc/{dispatch,register,handlers}.ts`：256MB 载荷上限、
+  入参校验失败 → `E_IPC_INVALID_PAYLOAD`、异常统一映射（不泄露堆栈）、响应契约校验、重复注册抛错。
+- T0.3：`log:write` 通道与 `log.write` preload 方法；`window.api` 仍只暴露 `app.info`/`log.write`，
+  无 `invoke`/`send` 泛入口。
+- T0.3：renderer 的 `api-client`（入参与响应双向校验）、`error-text`（按 code 出文案，不回显
+  `message`/`detail`）与 toast 骨架（T0.4 替换为 `@curve/ui`）。
+- T0.3：TESTPLAN §1.1 对话框替身 `resolveE2EDialogStubs`（仅未打包 + `CURVE_E2E=1` 生效）。
+- T0.3：E2E `apps/desktop/e2e/ipc.spec.ts` 四条（桥方法白名单、正常路径、非法载荷后进程存活、
+  真实已注册通道集合）。
 
 ### Changed
 
@@ -36,3 +50,7 @@
 - T0.2：Vitest 覆盖率排除三个进程入口（其行为由 E2E 覆盖），其余逻辑仍受门禁约束。
 - T0.2：`package.json` 的 `e2e` 脚本改用 `apps/desktop/playwright.config.ts`。
 - T0.2：`pnpm-workspace.yaml` 显式声明 `electron-winstaller: false`（v1 用 NSIS，不需要 Squirrel 安装脚本）。
+- T0.3：删除 `apps/desktop/src/shared/ipc.ts` 与 `apps/desktop/src/main/errors.ts`
+  （分别由 `shared/contracts/*` 与 `@curve/domain` 取代）；`src/main/index.ts` 改用 IPC 注册器与 `logger`。
+- T0.3：`electron.vite.config.ts` 为 main 增加 `vite-tsconfig-paths`（SPEC §5.3），
+  `apps/desktop/tsconfig.{node,web,e2e}.json` 增加对 `packages/domain` 的工程引用。
