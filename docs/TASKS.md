@@ -237,7 +237,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t05"></a>
 ### T0.5 CI、E2E 与提交门禁
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T0.3
 - 覆盖：NFR-07、NFR-08
 - 参考：TESTPLAN §1、§5
@@ -250,10 +250,38 @@ T0.2 + T5.5 → T6.4
   2. CI 缓存 pnpm；失败上传 trace。
   3. 覆盖率 gate 接入 Vitest。
 - 验收：
-  - [ ] 干净克隆后 `pnpm install && pnpm verify && pnpm e2e` 全绿。
-  - [ ] E2E 失败时产出 trace/screenshot。
-  - [ ] 覆盖率低于阈值时 CI 失败。
+  - [x] 干净克隆后 `pnpm install && pnpm verify && pnpm e2e` 全绿。
+  - [x] E2E 失败时产出 trace/screenshot。
+  - [x] 覆盖率低于阈值时 CI 失败。
 - 验证：`pnpm verify && pnpm e2e`
+- 实现备注（2026-10-20）：
+  - `.github/workflows/ci.yml`：`quality` 任务在 `windows-latest` + `ubuntu-latest` 矩阵上跑
+    `pnpm install --frozen-lockfile` → `pnpm lint` → `pnpm typecheck` → `pnpm test:coverage` → `pnpm build`，
+    覆盖率阈值只来自 `vitest.config.ts`（低于阈值该 step 退出非零、任务失败，阈值未下调）；
+    `e2e` 任务仅在 `windows-latest`（`needs: quality`）跑 `pnpm e2e`，失败时上传
+    `apps/desktop/test-results` 与 `apps/desktop/playwright-report`（`retention-days: 7`）。
+    pnpm 版本由 `packageManager` 固定、Node 24、pnpm store 由 `setup-node` 缓存；
+    CI 不使用 `--no-sandbox` / `CURVE_E2E_NO_SANDBOX`（那是 agent shell 的逃生舱）。
+  - `apps/desktop/playwright.config.ts`：`outputDir=./test-results`、`trace: 'retain-on-failure'`、
+    `screenshot: 'only-on-failure'`、html reporter（`playwright-report`，不自动打开）、
+    `forbidOnly`（CI 上禁止 `test.only`）。
+  - `apps/desktop/e2e/fixtures.ts`：Electron 是用 `_electron.launch` 手动启动的，Playwright 内建的 trace 只记录
+    test steps；fixture 为每个用例开 browser-context trace（DOM snapshot + screencast + console），
+    仅在用例失败时保留并 attach 到报告。截图由内建的 `screenshot: 'only-on-failure'`（`test-failed-1.png`）负责；
+    采集证据本身失败时只 attach 文本，不掩盖真实失败。
+  - `.github/pull_request_template.md`：任务 ID、验证命令与真实结果、证据、风险/回滚、不可做清单自查。
+  - **安装缺口修复**：`electron@44.9.0` 的 npm 包不再带 `postinstall`（只提供 `bin.install-electron`），
+    干净克隆/CI 上 `pnpm install` 不会下载运行时，`pnpm e2e` 必然失败。新增根 `postinstall` →
+    `scripts/install-electron.mjs`：已存在则跳过，缺失时调用 electron 自带 `install.js`，继承 stdio（兼容
+    禁止管道的受限 shell），尊重 `ELECTRON_MIRROR`/`ELECTRON_CUSTOM_DIR`，下载失败以非零退出而不是静默跳过。
+  - 失败路径实测：临时加一条必失败用例 → `test-results/<test>/test-failed-1.png`（46.5 kB）与
+    `trace.zip`（内建 test trace，45.9 kB）+ `attachments/trace-*.zip`（完整 context trace，含
+    `trace.network` 与 `screencast/*.jpeg`）均生成；删除临时用例后 15 条正式用例全绿，
+    通过用例不残留任何 trace 目录（`retain-on-failure` 生效）。
+  - 干净克隆验证（`D:\DSH_Work_Space\curve-studio-clean`，工作树与提交内容一致）：
+    `pnpm install --frozen-lockfile` 12.5s（postinstall 解压运行时）→ `pnpm verify` 12.8s /
+    38 files / 228 tests，depcruise 115 modules 0 violations → `pnpm e2e` 35.5s / 15 passed，
+    三条命令均 exit 0（agent shell 内 E2E 需 `CURVE_E2E_NO_SANDBOX=1`）。
 
 **M0 验收演示**：`pnpm dev` 打开窗口 → `pnpm verify` 全绿 → 故意违反依赖边界被 lint 拦截 → E2E smoke 通过。输出报告后停下。
 

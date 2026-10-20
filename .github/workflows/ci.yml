@@ -1,0 +1,114 @@
+# CI — Curve Studio commit gate (T0.5)
+
+# 门禁定义见 TESTPLAN §1 / ADR-014：
+#   - L1–L3（lint / dependencies / typecheck / test+coverage / build）在 Windows 与 Linux 上都要过；
+#   - L4 E2E 只在 Windows runner 跑（Electron 需要真实桌面会话），失败时上传 trace 与截图；
+#   - 覆盖率阈值在 vitest.config.ts，低于阈值本工作流必须失败，不得下调阈值来变绿。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Reads the pinned `packageManager` field (pnpm@11.28.5).
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ESLint (zero warnings) + dependency-cruiser boundary rules (ADR-017).
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # Coverage gate: thresholds live in vitest.config.ts and must not be
+      # lowered. A regression below them fails this step and the job.
+      - name: Test with coverage gate
+        run: pnpm test:coverage
+
+      - name: Build
+        run: pnpm build
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}
+          path: coverage
+          if-no-files-found: ignore
+          retention-days: 7
+
+  e2e:
+    name: E2E (windows-latest)
+    # E2E is the slowest gate; only spend it once lint/typecheck/test/build pass.
+    needs: quality
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `pnpm e2e` builds the app and then drives it with Playwright `_electron`.
+      # Never pass `--no-sandbox` here: that flag is an agent-shell workaround
+      # (CURVE_E2E_NO_SANDBOX) and must not leak into CI or the app.
+      - name: Build and run Electron E2E
+        run: pnpm e2e
+
+      # playright.config.ts keeps trace/screenshot only for failures, and
+      # e2e/fixtures.ts attaches them to the report as well.
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            apps/desktop/test-results
+            apps/desktop/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7

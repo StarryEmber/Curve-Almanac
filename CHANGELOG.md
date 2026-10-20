@@ -52,6 +52,15 @@
 - T0.4：令牌与对比度测试、`apps/desktop/test/ui-conventions.test.ts` 文案/颜色门禁、
   `apps/desktop/e2e/shell.spec.ts` 六条（结构、面板折叠、纯键盘、200% 缩放、浅深截图、中英切换）。
 - T0.4：截图证据 `docs/reports/m0/t0.4-shell-light.png`、`t0.4-shell-dark.png`。
+- T0.5：CI 工作流 `.github/workflows/ci.yml`：`quality` 任务在 Windows + Ubuntu 矩阵上跑
+  `install --frozen-lockfile` → `lint` → `typecheck` → `test:coverage` → `build`（覆盖率阈值即门禁），
+  `e2e` 任务仅在 Windows 上跑 `pnpm e2e` 并依赖 `quality`；pnpm store 缓存、Node 24、并发取消旧运行。
+- T0.5：E2E 失败证据：`playwright.config.ts` 声明 `trace: 'retain-on-failure'` 与
+  `screenshot: 'only-on-failure'`，CI 失败时上传 `apps/desktop/test-results` 与 `apps/desktop/playwright-report`；
+  `e2e/fixtures.ts` 额外录制 browser-context trace（DOM snapshot + screencast），仅失败时保留并 attach。
+- T0.5：`.github/pull_request_template.md`（任务 ID、验证命令结果、证据、风险/回滚、不可做清单自查）。
+- T0.5：根 `postinstall` 与 `scripts/install-electron.mjs`：`electron@44.9.0` 不再自带下载脚本，干净克隆或 CI
+  安装后补装匹配版本的 Electron 运行时（已存在则跳过，尊重 `ELECTRON_MIRROR`/`ELECTRON_CUSTOM_DIR`）。
 
 ### Changed
 
@@ -75,3 +84,6 @@
   测试工程，读源码做文案/令牌门禁）。
 - T0.4：E1 smoke 的 `runtime-status` 断言改为与 `app:info` 的版本号比对（状态栏文案已本地化）；
   E2E 仍会刷新 `docs/reports/m0/t0.2-window.png`，该文件现在展示 T0.4 的 Shell。
+- T0.5：`apps/desktop/playwright.config.ts` 增加 `outputDir`、`trace`/`screenshot` 策略、html 报告器与
+  CI 下的 `forbidOnly`；`e2e/fixtures.ts` 在启动后开启 context trace，失败时保留证据。
+- T0.5：覆盖率门禁接线到 CI（`pnpm test:coverage`），阈值（lines/statements/functions 70、branches 60）不变。
