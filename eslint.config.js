@@ -107,5 +107,59 @@ export default tseslint.config(
       'react-hooks/rules-of-hooks': 'error',
     },
   },
+  // Renderer Node boundary (AGENTS §2.1). The runtime is already locked down by
+  // `nodeIntegration: false` + `contextIsolation`; this keeps the lint/type layer
+  // from regressing it and forces all privileged work through window.api.
+  {
+    files: ['apps/desktop/src/renderer/**/*.{ts,tsx}'],
+    languageOptions: {
+      globals: { ...globals.browser },
+    },
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        { name: 'process', message: 'Not available in the renderer (nodeIntegration: false).' },
+        { name: 'require', message: 'Not available in the renderer (nodeIntegration: false).' },
+        { name: 'module', message: 'Not available in the renderer (nodeIntegration: false).' },
+        { name: 'Buffer', message: 'Not available in the renderer (nodeIntegration: false).' },
+        { name: '__dirname', message: 'Not available in the renderer (nodeIntegration: false).' },
+        { name: '__filename', message: 'Not available in the renderer (nodeIntegration: false).' },
+        {
+          name: 'global',
+          message: 'Use globalThis; the Node global is not available in the renderer.',
+        },
+      ],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                'node:*',
+                'fs',
+                'path',
+                'os',
+                'child_process',
+                'crypto',
+                'http',
+                'https',
+                'net',
+              ],
+              message: 'The renderer must use the typed window.api bridge, never Node builtins.',
+            },
+            {
+              group: ['electron', 'electron/*'],
+              message: 'The renderer must use window.api, never the Electron modules directly.',
+            },
+            {
+              group: ['@curve/*/src', '@curve/*/src/*'],
+              message:
+                'Import workspace packages from their package root (e.g. @curve/domain), never from src/* (SPEC §4.3.7).',
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettier,
 );

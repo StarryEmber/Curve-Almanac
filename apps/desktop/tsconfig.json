@@ -1,11 +1,9 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "rootDir": "src",
-    "outDir": "dist-types",
-    "tsBuildInfoFile": "dist-types/tsconfig.tsbuildinfo",
-    "types": ["node"]
-  },
-  "include": ["src/**/*.ts"]
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.web.json" },
+    { "path": "./tsconfig.e2e.json" }
+  ]
 }

@@ -1,0 +1,95 @@
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { _electron as electron, test as base } from '@playwright/test';
+
+import type { ElectronApplication, Page } from '@playwright/test';
+
+const e2eDirectory = dirname(fileURLToPath(import.meta.url));
+
+/** Repository root, used for report artifacts. */
+export const repositoryRoot = resolve(e2eDirectory, '../../..');
+
+/** The Electron app directory; its package.json `main` points at the build output. */
+export const desktopAppDir = resolve(repositoryRoot, 'apps/desktop');
+
+/**
+ * Scratch directory for E2E userData. It lives inside the repository (and is
+ * git-ignored) instead of the OS temp directory so the suite also works in
+ * shells whose sandbox only allows writes under the workspace.
+ */
+const E2E_SCRATCH_DIR = join(desktopAppDir, 'test-results', 'e2e-user-data');
+
+/**
+ * Restricted shells (for example the agent sandbox) cannot initialise
+ * Chromium's OS sandbox. Setting `CURVE_E2E_NO_SANDBOX=1` passes
+ * `--no-sandbox` to Electron *for the test run only*; it never changes the
+ * app's `webPreferences.sandbox` and is never read by application code.
+ */
+const DISABLE_CHROMIUM_SANDBOX = process.env['CURVE_E2E_NO_SANDBOX'] === '1';
+
+function resolveElectronExecutable(): string {
+  const requireFromHere = createRequire(import.meta.url);
+  const electronEntry = requireFromHere.resolve('electron');
+  const electronDirectory = dirname(electronEntry);
+  const executableName = readFileSync(join(electronDirectory, 'path.txt'), 'utf8').trim();
+  return join(electronDirectory, 'dist', executableName);
+}
+
+export interface AppFixtures {
+  userDataDir: string;
+  electronApp: ElectronApplication;
+  page: Page;
+}
+
+/**
+ * Launches the built app once per test with an isolated userData directory.
+ * `ELECTRON_RUN_AS_NODE` must be removed or Electron starts as plain Node.
+ *
+ * The fixture callback is passed to the test runner positionally, so it is
+ * named `provide` instead of Playwright's `use` to avoid tripping
+ * react-hooks/rules-of-hooks in this non-React package.
+ */
+export const test = base.extend<AppFixtures>({
+  userDataDir: async ({}, provide) => {
+    mkdirSync(E2E_SCRATCH_DIR, { recursive: true });
+    const directory = mkdtempSync(join(E2E_SCRATCH_DIR, 'run-'));
+    await provide(directory);
+    rmSync(directory, { recursive: true, force: true });
+  },
+
+  electronApp: async ({ userDataDir }, provide) => {
+    const env: Record<string, string> = {};
+    for (const [key, value] of Object.entries(process.env)) {
+      if (typeof value === 'string') {
+        env[key] = value;
+      }
+    }
+    delete env['ELECTRON_RUN_AS_NODE'];
+    env['CURVE_E2E'] = '1';
+    env['CURVE_E2E_USER_DATA'] = userDataDir;
+
+    const args = [desktopAppDir];
+    if (DISABLE_CHROMIUM_SANDBOX) {
+      args.push('--no-sandbox');
+    }
+
+    const electronApp = await electron.launch({
+      executablePath: resolveElectronExecutable(),
+      args,
+      cwd: desktopAppDir,
+      env,
+    });
+
+    await provide(electronApp);
+    await electronApp.close();
+  },
+
+  page: async ({ electronApp }, provide) => {
+    const page = await electronApp.firstWindow();
+    await page.waitForLoadState('domcontentloaded');
+    await provide(page);
+  },
+});

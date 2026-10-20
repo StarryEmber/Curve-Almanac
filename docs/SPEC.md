@@ -1100,16 +1100,18 @@ export interface PluginCommandContext {
 ```ts
 new BrowserWindow({
   webPreferences: {
-    preload: join(__dirname, '../preload/index.js'),
+    preload: join(__dirname, '../preload/index.cjs'),
     contextIsolation: true,
     nodeIntegration: false,
     sandbox: true,
     webSecurity: true,
+    devTools: isDev, // 仅 electron-vite dev；生产构建为 false
   },
 });
 ```
 
-- preload 输出 CJS（`sandbox: true` 不支持 ESM preload）。
+- preload 输出 CJS（`sandbox: true` 不支持 ESM preload）；因根 `package.json` 为 `"type": "module"`，
+  产物使用 `.cjs` 扩展名。
 - 拒绝 `will-navigate`；`setWindowOpenHandler` 一律 `{ action: 'deny' }`。
 - CSP（生产）：
 
@@ -1119,7 +1121,9 @@ new BrowserWindow({
                img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'">
 ```
 
-开发模式仅额外允许 `ws://localhost:*` 与 `http://localhost:*`；不得在生产保留。
+开发模式在 `script-src` 额外允许 `'unsafe-inline'`（`@vitejs/plugin-react` 的 Fast Refresh 前置脚本为内联），
+并在 `connect-src` 额外允许 `ws://localhost:*` 与 `http://localhost:*`；这些额外项不得出现在生产策略中
+（实现与验证见 ADR-018）。CSP 由 renderer 构建插件注入 `<meta>`，生产产物中只有生产策略。
 
 **E2E 对话框替身**：仅当 `app.isPackaged === false` 且 `process.env.CURVE_E2E === '1'` 时，main 可以按 `TESTPLAN §1.1` 返回固定路径，避免驱动原生对话框。生产构建必须短路该分支；安全测试必须验证打包后环境变量无效。
 

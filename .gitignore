@@ -18,6 +18,9 @@ test-results/
 .vite/
 .eslintcache
 
+# Chromium/Electron runtime logs (created in the process cwd when logging is on)
+debug.log
+
 # Local environment
 .env
 .env.*

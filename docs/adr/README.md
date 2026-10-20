@@ -47,3 +47,4 @@
 | ADR-015 | 存储类型与语义字段类型分离 | 已接受 | [DECISIONS.md#adr-015](../DECISIONS.md#adr-015) |
 | ADR-016 | 无遥测、无网络、无自动更新（v1） | 已接受 | [DECISIONS.md#adr-016](../DECISIONS.md#adr-016) |
 | ADR-017 | 将依赖边界检查纳入 pnpm lint | 已接受 | [017-lint-boundary-gate.md](017-lint-boundary-gate.md) |
+| ADR-018 | 开发模式 CSP 为 React Fast Refresh 放宽 `script-src` | 已接受 | [018-dev-csp-react-refresh.md](018-dev-csp-react-refresh.md) |

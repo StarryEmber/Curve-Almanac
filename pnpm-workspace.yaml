@@ -11,3 +11,8 @@ allowBuilds:
   electron: true
   esbuild: true
   unrs-resolver: true
+  # electron-builder (T0.2 devDependency, first used in T6.4) pulls
+  # electron-winstaller for Squirrel.Windows. v1 ships an NSIS installer, so its
+  # postinstall is not needed; declaring it false keeps the policy explicit
+  # instead of silently dropping it from the allowlist.
+  electron-winstaller: false

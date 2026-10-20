@@ -110,7 +110,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t02"></a>
 ### T0.2 Electron 三进程骨架与安全窗口
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T0.1
 - 覆盖：NFR-02、NFR-08
 - 参考：SPEC §15.3
@@ -124,11 +124,18 @@ T0.2 + T5.5 → T6.4
   3. preload 只暴露 `app.info`；renderer 渲染 "Curve Studio" 空壳。
   4. 加 `will-navigate`/`setWindowOpenHandler` 拒绝与 CSP。
 - 验收：
-  - [ ] `pnpm dev` 打开窗口，DevTools 仅在开发可用。
-  - [ ] 打包态或预览态能加载 renderer，控制台无 Node 暴露错误。
-  - [ ] 在 renderer 执行 `window.require` / `process` 为 `undefined`。
-  - [ ] 外部链接点击不打开新窗口。
-- 验证：`pnpm build && pnpm exec playwright test --grep "smoke"`（T0.5 提供用例前可手工）
+  - [x] `pnpm dev` 打开窗口，DevTools 仅在开发可用。
+  - [x] 打包态或预览态能加载 renderer，控制台无 Node 暴露错误。
+  - [x] 在 renderer 执行 `window.require` / `process` 为 `undefined`。
+  - [x] 外部链接点击不打开新窗口。
+- 验证：`pnpm build && pnpm exec playwright test --grep "smoke"`
+- 实现备注（2026-10-20）：
+  - 前移了 T0.5 的最小 E2E：`apps/desktop/e2e/{fixtures,smoke}.spec.ts` + `apps/desktop/playwright.config.ts`，
+    覆盖 TESTPLAN E1 的五条断言；证据截图 `docs/reports/m0/t0.2-window.png`、`t0.2-dev-window.png`。
+  - 受限 shell（DSH agent 沙箱）内 Chromium OS 沙箱无法初始化，E2E 需设 `CURVE_E2E_NO_SANDBOX=1`
+    才会给 Electron 传 `--no-sandbox`；该变量**只被 E2E fixture 读取**，不影响应用配置，也不改变
+    `webPreferences.sandbox: true`。普通终端直接 `pnpm e2e` 即可，无需该变量。
+  - 开发模式 CSP 的内联脚本放宽见 ADR-018；生产策略由 E2E 逐字比对 SPEC §15.3。
 
 <a id="t03"></a>
 ### T0.3 类型化 IPC 与错误信封

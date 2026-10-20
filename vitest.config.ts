@@ -20,7 +20,14 @@ export default defineConfig({
         'apps/*/src/**/*.{ts,tsx}',
         'plugins/*/src/**/*.{ts,tsx}',
       ],
-      exclude: ['**/*.test.{ts,tsx}', '**/*.d.ts'],
+      // Process entry points are wiring only; TESTPLAN E1 covers them end to end.
+      exclude: [
+        '**/*.test.{ts,tsx}',
+        '**/*.d.ts',
+        'apps/desktop/src/main/index.ts',
+        'apps/desktop/src/preload/index.ts',
+        'apps/desktop/src/renderer/main.tsx',
+      ],
       thresholds: {
         lines: 70,
         statements: 70,

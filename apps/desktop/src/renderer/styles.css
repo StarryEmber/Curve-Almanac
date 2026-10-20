@@ -1,0 +1,102 @@
+:root {
+  color-scheme: light dark;
+  font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+  --shell-bg: #f6f7f9;
+  --shell-panel: #ffffff;
+  --shell-border: #d8dde5;
+  --shell-text: #1c2330;
+  --shell-muted: #5b6675;
+  --shell-accent: #2d6cdf;
+  --shell-danger: #b42318;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--shell-bg);
+  color: var(--shell-text);
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 100%;
+  padding: 40px 48px;
+}
+
+.shell__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shell__title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.shell__subtitle {
+  margin: 0;
+  color: var(--shell-muted);
+  font-size: 14px;
+}
+
+.shell__panel {
+  max-width: 520px;
+  padding: 20px 24px;
+  border: 1px solid var(--shell-border);
+  border-radius: 10px;
+  background: var(--shell-panel);
+}
+
+.shell__panel-title {
+  margin: 0 0 12px;
+  color: var(--shell-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shell__status {
+  margin: 0;
+  font-size: 14px;
+}
+
+.shell__status--error {
+  color: var(--shell-danger);
+}
+
+.shell__facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.shell__fact {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  font-size: 14px;
+}
+
+.shell__fact dt {
+  color: var(--shell-muted);
+}
+
+.shell__fact dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}

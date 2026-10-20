@@ -15,8 +15,7 @@
       "@curve/persistence": ["packages/persistence/src/index.ts"],
       "@curve/plugin-sdk": ["packages/plugin-sdk/src/index.ts"],
       "@curve/ui": ["packages/ui/src/index.ts"],
-      "@curve/app-core": ["packages/app-core/src/index.ts"],
-      "@curve/desktop": ["apps/desktop/src/index.ts"]
+      "@curve/app-core": ["packages/app-core/src/index.ts"]
     },
     "strict": true,
     "noUncheckedIndexedAccess": true,
