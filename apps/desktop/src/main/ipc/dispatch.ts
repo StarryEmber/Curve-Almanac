@@ -20,8 +20,12 @@ import type { z } from 'zod';
 export const MAX_IPC_PAYLOAD_BYTES = 268_435_456;
 
 export interface HandlerContract<TRequest, TResponse> {
-  request: z.ZodType<TRequest, TRequest>;
-  response?: z.ZodType<TResponse, TResponse>;
+  /**
+   * The input type is deliberately `unknown`: `safeParse` receives whatever
+   * crossed the IPC boundary, and the schema is responsible for narrowing it.
+   */
+  request: z.ZodType<TRequest, unknown>;
+  response?: z.ZodType<TResponse, unknown>;
 }
 
 export interface HandlerDefinition<TRequest, TResponse> {

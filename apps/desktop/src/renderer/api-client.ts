@@ -4,17 +4,37 @@
  * The preload bridge is a dumb pipe, so this layer re-validates both directions
  * (AGENTS §2.1: payloads are checked in main *and* renderer) and turns every
  * failure into an `IpcResult` envelope — the UI never sees a rejected promise or
- * a stack trace. T0.4 replaces the ad-hoc `E_UNKNOWN` messages with `t()` keys.
+ * a stack trace.
  */
 
 import {
   appInfoResponseSchema,
   logWriteRequestSchema,
   logWriteResponseSchema,
+  manifestWriteRequestSchema,
+  manifestWriteResponseSchema,
+  workspaceCloseRequestSchema,
+  workspaceCloseResponseSchema,
+  workspaceCreateRequestSchema,
+  workspaceCreateResponseSchema,
+  workspaceOpenRequestSchema,
+  workspaceOpenResponseSchema,
+  workspaceRecentResponseSchema,
 } from '../shared/contracts/ipc';
 
 import type { IpcResult } from '../shared/contracts/envelope';
-import type { CurveApi, LogWriteRequest, OkReply } from '../shared/contracts/ipc';
+import type {
+  CurveApi,
+  LogWriteRequest,
+  ManifestWriteRequest,
+  OkReply,
+  RecentEntry,
+  WorkspaceCloseRequest,
+  WorkspaceCreateRequest,
+  WorkspaceManifest,
+  WorkspaceOpenRequest,
+  WorkspaceOpenResult,
+} from '../shared/contracts/ipc';
 import type { z } from 'zod';
 
 const BRIDGE_UNAVAILABLE: IpcResult<never> = {
@@ -41,7 +61,7 @@ const INVALID_REQUEST: IpcResult<never> = {
 };
 
 async function call<TResponse>(
-  schema: z.ZodType<TResponse, TResponse>,
+  schema: z.ZodType<TResponse, unknown>,
   run: () => Promise<IpcResult<unknown>>,
 ): Promise<IpcResult<TResponse>> {
   let result: IpcResult<unknown>;
@@ -60,11 +80,22 @@ async function call<TResponse>(
   return { ok: true, data: parsed.data };
 }
 
+function unavailable<TResponse>(): Promise<IpcResult<TResponse>> {
+  return Promise.resolve(BRIDGE_UNAVAILABLE);
+}
+
 export function createApiClient(bridge: CurveApi | undefined): CurveApi {
   if (!bridge) {
     return {
-      app: { info: async (): Promise<IpcResult<never>> => BRIDGE_UNAVAILABLE },
-      log: { write: async (): Promise<IpcResult<never>> => BRIDGE_UNAVAILABLE },
+      app: { info: unavailable },
+      log: { write: unavailable },
+      workspace: {
+        create: unavailable,
+        open: unavailable,
+        close: unavailable,
+        recent: unavailable,
+      },
+      manifest: { write: unavailable },
     };
   }
 
@@ -79,6 +110,40 @@ export function createApiClient(bridge: CurveApi | undefined): CurveApi {
           return Promise.resolve(INVALID_REQUEST);
         }
         return call(logWriteResponseSchema, () => bridge.log.write(parsed.data));
+      },
+    },
+    workspace: {
+      create: (request: WorkspaceCreateRequest): Promise<IpcResult<WorkspaceManifest>> => {
+        const parsed = workspaceCreateRequestSchema.safeParse(request);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(workspaceCreateResponseSchema, () => bridge.workspace.create(parsed.data));
+      },
+      open: (request: WorkspaceOpenRequest): Promise<IpcResult<WorkspaceOpenResult>> => {
+        const parsed = workspaceOpenRequestSchema.safeParse(request);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(workspaceOpenResponseSchema, () => bridge.workspace.open(parsed.data));
+      },
+      close: (request: WorkspaceCloseRequest): Promise<IpcResult<OkReply>> => {
+        const parsed = workspaceCloseRequestSchema.safeParse(request);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(workspaceCloseResponseSchema, () => bridge.workspace.close(parsed.data));
+      },
+      recent: (): Promise<IpcResult<RecentEntry[]>> =>
+        call(workspaceRecentResponseSchema, () => bridge.workspace.recent()),
+    },
+    manifest: {
+      write: (request: ManifestWriteRequest): Promise<IpcResult<OkReply>> => {
+        const parsed = manifestWriteRequestSchema.safeParse(request);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(manifestWriteResponseSchema, () => bridge.manifest.write(parsed.data));
       },
     },
   };

@@ -2,29 +2,60 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createApiClient } from './api-client';
 
-import type { CurveApi } from '../shared/contracts/ipc';
+import type { CurveApi, WorkspaceManifest } from '../shared/contracts/ipc';
 
 const INFO = { version: '0.1.0', platform: 'win32', locale: 'en-US' };
 
-function bridgeReturning(
-  infoResult: unknown,
-  writeResult: unknown = { ok: true, data: { ok: true } },
-): CurveApi {
-  return {
-    app: { info: async () => infoResult },
-    log: { write: async () => writeResult },
-  } as unknown as CurveApi;
+const MANIFEST: WorkspaceManifest = {
+  formatVersion: 1,
+  id: 'ws_1',
+  name: 'Demo',
+  appVersion: '0.1.0',
+  createdAt: '2026-10-20T00:00:00.000Z',
+  updatedAt: '2026-10-20T00:00:00.000Z',
+  tables: [],
+  charts: [],
+  views: [],
+  tableStyles: [],
+  layout: { type: 'pane', viewIds: [], activeViewId: null },
+  settings: {
+    theme: 'system',
+    locale: 'zh-CN',
+    defaultTableStyleId: 'builtin.report-light',
+    autosave: true,
+  },
+};
+
+function bridge(overrides: Partial<CurveApi> = {}): CurveApi {
+  const base: CurveApi = {
+    app: { info: async () => ({ ok: true, data: INFO }) },
+    log: { write: async () => ({ ok: true, data: { ok: true } }) },
+    workspace: {
+      create: async () => ({ ok: true, data: MANIFEST }),
+      open: async () => ({ ok: true, data: { manifest: MANIFEST, warnings: [] } }),
+      close: async () => ({ ok: true, data: { ok: true } }),
+      recent: async () => ({ ok: true, data: [] }),
+    },
+    manifest: { write: async () => ({ ok: true, data: { ok: true } }) },
+  };
+  return { ...base, ...overrides };
 }
 
 describe('createApiClient', () => {
   it('forwards a valid app:info response', async () => {
-    const client = createApiClient(bridgeReturning({ ok: true, data: INFO }));
+    const client = createApiClient(bridge());
 
     await expect(client.app.info()).resolves.toEqual({ ok: true, data: INFO });
   });
 
   it('rejects a response whose data does not match the contract', async () => {
-    const client = createApiClient(bridgeReturning({ ok: true, data: { version: 1 } }));
+    const client = createApiClient(
+      bridge({
+        app: {
+          info: async () => ({ ok: true, data: { version: 1 } }),
+        } as unknown as CurveApi['app'],
+      }),
+    );
 
     await expect(client.app.info()).resolves.toEqual({
       ok: false,
@@ -33,36 +64,35 @@ describe('createApiClient', () => {
   });
 
   it('passes an error envelope through', async () => {
-    const envelope = { ok: false, error: { code: 'E_WS_LOCKED', message: 'locked' } };
-    const client = createApiClient(bridgeReturning(envelope));
+    const envelope = {
+      ok: false as const,
+      error: { code: 'E_WS_LOCKED' as const, message: 'locked' },
+    };
+    const client = createApiClient(bridge({ app: { info: async () => envelope } }));
 
     await expect(client.app.info()).resolves.toEqual(envelope);
   });
 
   it('reports a rejected bridge without leaking the thrown message', async () => {
-    const client = createApiClient({
-      app: {
-        info: async () => {
-          throw new Error('SECRET stack details');
+    const client = createApiClient(
+      bridge({
+        app: {
+          info: async () => {
+            throw new Error('SECRET stack details');
+          },
         },
-      },
-      log: { write: async () => ({ ok: true, data: { ok: true } }) },
-    });
+      }),
+    );
 
-    const result = await client.app.info();
-
-    expect(result).toEqual({
+    await expect(client.app.info()).resolves.toEqual({
       ok: false,
       error: { code: 'E_UNKNOWN', message: 'The main process did not answer.' },
     });
   });
 
-  it('rejects an invalid request and never calls the bridge', async () => {
+  it('rejects an invalid log request and never calls the bridge', async () => {
     const write = vi.fn(async () => ({ ok: true as const, data: { ok: true as const } }));
-    const client = createApiClient({
-      app: { info: async () => ({ ok: true, data: INFO }) },
-      log: { write },
-    });
+    const client = createApiClient(bridge({ log: { write } }));
 
     const result = await client.log.write({ level: '', message: 'hello' });
 
@@ -73,32 +103,94 @@ describe('createApiClient', () => {
     expect(write).not.toHaveBeenCalled();
   });
 
-  it('validates the log:write reply', async () => {
-    const client = createApiClient(
-      bridgeReturning({ ok: true, data: INFO }, { ok: true, data: {} }),
-    );
+  it('forwards workspace:create and validates the returned manifest', async () => {
+    const create = vi.fn(async () => ({ ok: true as const, data: MANIFEST }));
+    const client = createApiClient(bridge({ workspace: { ...bridge().workspace, create } }));
 
-    const result = await client.log.write({ level: 'info', message: 'hello' });
-
-    expect(result).toMatchObject({ ok: false, error: { code: 'E_UNKNOWN' } });
+    await expect(client.workspace.create({ dir: 'C:/tmp', name: 'Demo' })).resolves.toEqual({
+      ok: true,
+      data: MANIFEST,
+    });
+    expect(create).toHaveBeenCalledWith({ dir: 'C:/tmp', name: 'Demo' });
   });
 
-  it('reports an unavailable preload bridge', async () => {
+  it('rejects an invalid workspace:create request without calling the bridge', async () => {
+    const create = vi.fn(async () => ({ ok: true as const, data: MANIFEST }));
+    const client = createApiClient(bridge({ workspace: { ...bridge().workspace, create } }));
+
+    const result = await client.workspace.create({ dir: '', name: 'Demo' });
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'E_VALIDATION' } });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('forwards workspace:open/close/recent and manifest:write', async () => {
+    const open = vi.fn(async () => ({
+      ok: true as const,
+      data: { manifest: MANIFEST, warnings: [] },
+    }));
+    const close = vi.fn(async () => ({ ok: true as const, data: { ok: true as const } }));
+    const recent = vi.fn(async () => ({ ok: true as const, data: [] }));
+    const write = vi.fn(async () => ({ ok: true as const, data: { ok: true as const } }));
+    const client = createApiClient(
+      bridge({
+        workspace: { create: bridge().workspace.create, open, close, recent },
+        manifest: { write },
+      }),
+    );
+
+    await expect(client.workspace.open({ dir: 'C:/tmp/Demo.cstudio' })).resolves.toMatchObject({
+      ok: true,
+    });
+    await expect(client.workspace.close({ workspaceId: 'ws_1' })).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+    await expect(client.workspace.recent()).resolves.toEqual({ ok: true, data: [] });
+    await expect(
+      client.manifest.write({ workspaceId: 'ws_1', manifest: MANIFEST }),
+    ).resolves.toEqual({ ok: true, data: { ok: true } });
+
+    expect(open).toHaveBeenCalledWith({ dir: 'C:/tmp/Demo.cstudio' });
+    expect(close).toHaveBeenCalledWith({ workspaceId: 'ws_1' });
+    expect(recent).toHaveBeenCalledWith();
+    expect(write).toHaveBeenCalledWith({ workspaceId: 'ws_1', manifest: MANIFEST });
+  });
+
+  it('rejects an invalid workspace id before calling the bridge', async () => {
+    const close = vi.fn(async () => ({ ok: true as const, data: { ok: true as const } }));
+    const client = createApiClient(bridge({ workspace: { ...bridge().workspace, close } }));
+
+    const result = await client.workspace.close({ workspaceId: '../wrong' });
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'E_VALIDATION' } });
+    expect(close).not.toHaveBeenCalled();
+  });
+
+  it('reports an unavailable preload bridge for every namespace', async () => {
     const client = createApiClient(undefined);
 
-    await expect(client.app.info()).resolves.toEqual({
-      ok: false,
-      error: { code: 'E_UNKNOWN', message: 'The preload bridge is unavailable.' },
-    });
+    await expect(client.app.info()).resolves.toMatchObject({ ok: false });
     await expect(client.log.write({ level: 'info', message: 'hello' })).resolves.toMatchObject({
       ok: false,
     });
+    await expect(client.workspace.create({ dir: 'C:/tmp', name: 'Demo' })).resolves.toMatchObject({
+      ok: false,
+    });
+    await expect(client.workspace.open({ dir: 'C:/tmp' })).resolves.toMatchObject({ ok: false });
+    await expect(client.workspace.close({ workspaceId: 'ws_1' })).resolves.toMatchObject({
+      ok: false,
+    });
+    await expect(client.workspace.recent()).resolves.toMatchObject({ ok: false });
+    await expect(
+      client.manifest.write({ workspaceId: 'ws_1', manifest: MANIFEST }),
+    ).resolves.toMatchObject({ ok: false });
   });
 
   it('exposes no generic invoke/send escape hatch', () => {
-    const client = createApiClient(bridgeReturning({ ok: true, data: INFO }));
+    const client = createApiClient(bridge());
 
-    expect(Object.keys(client)).toEqual(['app', 'log']);
+    expect(Object.keys(client)).toEqual(['app', 'log', 'workspace', 'manifest']);
     expect(client).not.toHaveProperty('invoke');
     expect(client).not.toHaveProperty('send');
   });

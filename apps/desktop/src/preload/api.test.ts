@@ -4,6 +4,28 @@ import { IPC_CHANNELS } from '../shared/contracts/channels';
 
 import { createCurveApi } from './api';
 
+import type { WorkspaceManifest } from '../shared/contracts/ipc';
+
+const MANIFEST: WorkspaceManifest = {
+  formatVersion: 1,
+  id: 'ws_1',
+  name: 'Demo',
+  appVersion: '0.1.0',
+  createdAt: '2026-10-20T00:00:00.000Z',
+  updatedAt: '2026-10-20T00:00:00.000Z',
+  tables: [],
+  charts: [],
+  views: [],
+  tableStyles: [],
+  layout: { type: 'pane', viewIds: [], activeViewId: null },
+  settings: {
+    theme: 'system',
+    locale: 'zh-CN',
+    defaultTableStyleId: 'builtin.report-light',
+    autosave: true,
+  },
+};
+
 describe('createCurveApi', () => {
   it('calls app:info without a payload and forwards a well-formed response', async () => {
     const invoke = vi.fn(async () => ({
@@ -30,6 +52,52 @@ describe('createCurveApi', () => {
     expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.logWrite, {
       level: 'info',
       message: 'hello',
+    });
+  });
+
+  it('forwards workspace and manifest methods over their channels', async () => {
+    const invoke = vi.fn(async (channel: string) => {
+      if (channel === IPC_CHANNELS.workspaceCreate) {
+        return { ok: true, data: MANIFEST };
+      }
+      if (channel === IPC_CHANNELS.workspaceOpen) {
+        return { ok: true, data: { manifest: MANIFEST, warnings: [] } };
+      }
+      if (channel === IPC_CHANNELS.workspaceRecent) {
+        return { ok: true, data: [] };
+      }
+      return { ok: true, data: { ok: true } };
+    });
+    const api = createCurveApi(invoke);
+
+    await expect(api.workspace.create({ dir: 'C:/tmp', name: 'Demo' })).resolves.toMatchObject({
+      ok: true,
+    });
+    await expect(api.workspace.open({ dir: 'C:/tmp/Demo.cstudio' })).resolves.toMatchObject({
+      ok: true,
+    });
+    await expect(api.workspace.close({ workspaceId: 'ws_1' })).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+    await expect(api.workspace.recent()).resolves.toEqual({ ok: true, data: [] });
+    await expect(api.manifest.write({ workspaceId: 'ws_1', manifest: MANIFEST })).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.workspaceCreate, {
+      dir: 'C:/tmp',
+      name: 'Demo',
+    });
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.workspaceOpen, {
+      dir: 'C:/tmp/Demo.cstudio',
+    });
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.workspaceClose, { workspaceId: 'ws_1' });
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.workspaceRecent, undefined);
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.manifestWrite, {
+      workspaceId: 'ws_1',
+      manifest: MANIFEST,
     });
   });
 
@@ -61,9 +129,11 @@ describe('createCurveApi', () => {
   it('exposes no generic invoke/send escape hatch', () => {
     const api = createCurveApi(async () => ({ ok: true, data: null }));
 
-    expect(Object.keys(api)).toEqual(['app', 'log']);
+    expect(Object.keys(api)).toEqual(['app', 'log', 'workspace', 'manifest']);
     expect(Object.keys(api.app)).toEqual(['info']);
     expect(Object.keys(api.log)).toEqual(['write']);
+    expect(Object.keys(api.workspace)).toEqual(['create', 'open', 'close', 'recent']);
+    expect(Object.keys(api.manifest)).toEqual(['write']);
     expect(api).not.toHaveProperty('invoke');
     expect(api).not.toHaveProperty('send');
     expect(api).not.toHaveProperty('ipcRenderer');

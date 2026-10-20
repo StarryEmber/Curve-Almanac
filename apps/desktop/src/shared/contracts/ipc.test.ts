@@ -5,7 +5,37 @@ import {
   appInfoResponseSchema,
   logWriteRequestSchema,
   logWriteResponseSchema,
+  manifestWriteRequestSchema,
+  manifestWriteResponseSchema,
+  workspaceCloseRequestSchema,
+  workspaceCloseResponseSchema,
+  workspaceCreateRequestSchema,
+  workspaceCreateResponseSchema,
+  workspaceOpenRequestSchema,
+  workspaceOpenResponseSchema,
+  workspaceRecentRequestSchema,
+  workspaceRecentResponseSchema,
 } from './ipc';
+
+const MANIFEST = {
+  formatVersion: 1,
+  id: 'ws_1',
+  name: 'Demo',
+  appVersion: '0.1.0',
+  createdAt: '2026-10-20T00:00:00.000Z',
+  updatedAt: '2026-10-20T00:00:00.000Z',
+  tables: [],
+  charts: [],
+  views: [],
+  tableStyles: [],
+  layout: { type: 'pane', viewIds: [], activeViewId: null },
+  settings: {
+    theme: 'system',
+    locale: 'zh-CN',
+    defaultTableStyleId: 'builtin.report-light',
+    autosave: true,
+  },
+};
 
 describe('app:info contract', () => {
   it('accepts the documented response', () => {
@@ -86,5 +116,59 @@ describe('log:write contract', () => {
     expect(logWriteResponseSchema.safeParse({ ok: true }).success).toBe(true);
     expect(logWriteResponseSchema.safeParse({ ok: false }).success).toBe(false);
     expect(logWriteResponseSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('workspace contract', () => {
+  it('accepts create/open requests and rejects missing or extra fields', () => {
+    expect(workspaceCreateRequestSchema.safeParse({ dir: 'C:/tmp', name: 'Demo' }).success).toBe(
+      true,
+    );
+    expect(workspaceCreateRequestSchema.safeParse({ dir: '', name: 'Demo' }).success).toBe(false);
+    expect(
+      workspaceCreateRequestSchema.safeParse({ dir: 'C:/tmp', name: 'Demo', x: 1 }).success,
+    ).toBe(false);
+    expect(workspaceOpenRequestSchema.safeParse({ dir: 'C:/tmp/Demo.cstudio' }).success).toBe(true);
+    expect(workspaceOpenRequestSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('accepts a valid manifest response and rejects an invalid one', () => {
+    expect(workspaceCreateResponseSchema.safeParse(MANIFEST).success).toBe(true);
+    expect(workspaceCreateResponseSchema.safeParse({ ...MANIFEST, formatVersion: 2 }).success).toBe(
+      false,
+    );
+    expect(
+      workspaceOpenResponseSchema.safeParse({ manifest: MANIFEST, warnings: [] }).success,
+    ).toBe(true);
+    expect(workspaceOpenResponseSchema.safeParse({ manifest: MANIFEST }).success).toBe(false);
+  });
+
+  it('validates workspace ids and the recent list', () => {
+    expect(workspaceCloseRequestSchema.safeParse({ workspaceId: 'ws_1' }).success).toBe(true);
+    expect(workspaceCloseRequestSchema.safeParse({ workspaceId: '../escape' }).success).toBe(false);
+    expect(workspaceCloseResponseSchema.safeParse({ ok: true }).success).toBe(true);
+    expect(workspaceRecentRequestSchema.safeParse(undefined).success).toBe(true);
+    expect(workspaceRecentRequestSchema.safeParse({}).success).toBe(true);
+    expect(workspaceRecentResponseSchema.safeParse([]).success).toBe(true);
+    expect(
+      workspaceRecentResponseSchema.safeParse([
+        { path: 'C:/tmp/Demo.cstudio', name: 'Demo', lastOpenedAt: '2026-10-20T00:00:00.000Z' },
+      ]).success,
+    ).toBe(true);
+    expect(
+      workspaceRecentResponseSchema.safeParse([
+        { path: 'C:/tmp/Demo.cstudio', name: 'Demo', lastOpenedAt: 'not-a-date' },
+      ]).success,
+    ).toBe(false);
+  });
+
+  it('requires a valid manifest for manifest:write', () => {
+    expect(
+      manifestWriteRequestSchema.safeParse({ workspaceId: 'ws_1', manifest: MANIFEST }).success,
+    ).toBe(true);
+    expect(
+      manifestWriteRequestSchema.safeParse({ workspaceId: 'ws_1', manifest: {} }).success,
+    ).toBe(false);
+    expect(manifestWriteResponseSchema.safeParse({ ok: true }).success).toBe(true);
   });
 });

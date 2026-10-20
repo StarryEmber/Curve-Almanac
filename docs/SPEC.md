@@ -446,14 +446,16 @@ Demo.cstudio/
 │  ├─ tbl_<uuid>.jsonl
 │  └─ ...
 ├─ backups/
-│  └─ tbl_<uuid>.<timestamp>.jsonl.bak
+│  ├─ tbl_<uuid>.<timestamp>.jsonl.bak
+│  └─ manifest.<timestamp>.json.bak
 ├─ imports/                      # 原始导入文件副本（可选，≤ 50MB/个）
 ├─ .lock                         # 运行期锁
 └─ .trash/                       # 删除的表先移到这里，24h 后可清
 ```
 
 - 所有路径必须相对工作区根；manifest 中不得出现 `..` 或绝对路径。
-- 备份每表保留最近 3 份；启动时清理 7 天前的备份。
+- `<timestamp>` 是 UTC 紧凑格式 `YYYYMMDDTHHmmssSSSZ`（见 ADR-021）。
+- 每个表保留最近 3 份备份，manifest 同样保留 3 份；打开工作区时清理 7 天前的备份。
 - 删除表 = 移入 `.trash/` 并更新 manifest；不直接 `unlink`。
 
 ### 7.2 `manifest.json` 示例
@@ -515,7 +517,8 @@ Demo.cstudio/
 main 进程必须使用 `write-file-atomic`：
 
 1. 写临时文件并 `fsync`。
-2. 将旧文件复制到 `backups/<name>.<ISO时间戳>.bak`（每表最多 3 份）。
+2. 将旧文件复制到 `backups/`：表为 `tbl_<uuid>.<timestamp>.jsonl.bak`，manifest 为
+   `manifest.<timestamp>.json.bak`（`<timestamp>` = `YYYYMMDDTHHmmssSSSZ`；每个目标最多 3 份，见 ADR-021）。
 3. 原子替换目标文件。
 4. 表文件全部成功后再写 `manifest.json`。
 5. 任一步失败：保留旧文件，返回 `E_FS_WRITE`，不得留下半写文件。
@@ -528,7 +531,8 @@ main 进程必须使用 `write-file-atomic`：
 - 发现 `.lock`：
   - PID 仍存活 → 拒绝并返回 `E_WS_LOCKED`，提示"可能被另一个窗口占用"。
   - PID 不存在或超过 24h → 标记为 stale，提示"上次未正常退出"，提供"尝试恢复"与"直接打开"。
-- 恢复流程：manifest 可读则用 manifest；不可读则扫描 `backups/` 最新可用备份，重建 manifest 后让用户确认。
+- 恢复流程：manifest 可读则用 manifest；不可读则扫描 `backups/` 中最新的
+  `manifest.<timestamp>.json.bak`（见 ADR-021），重建 manifest 后让用户确认。
 - 打开后立即重算每表 `rowCount`，与 manifest 不一致则更新并警告。
 
 ### 7.6 迁移
@@ -616,7 +620,7 @@ interface ImportResult {
 
 ### 9.0 工作区入口、表与视图管理
 
-- **欢迎页**：应用启动且无打开工作区时，显示"新建工作区 / 打开工作区 / 最近打开"。新建默认目录为 `app.getPath('documents')/Curve Studio/`，用户可改。
+- **欢迎页**：应用启动且无打开工作区时，显示"新建工作区 / 打开工作区 / 最近打开"。新建默认目录为 `app.getPath('documents')/Curve Studio/`，用户可改。该目录是**父目录**：实际工作区根为 `<父目录>/<清洗后的名称>.cstudio`（ADR-020）。
 - **新建表向导**：输入表名 + 主键列（默认 `id`，text，必填，自动填充），可选初始列；创建后立即打开该表的表格视图。
 - **表列表**：新建、重命名、删除（移入 `.trash/`）、打开。删除必须二次确认；同时删除引用该表的图表与视图，确认框必须列出将删除的数量。
 - **打开表**：若已存在该表的视图则激活，否则创建 `ViewDef { kind: 'table' }` 并加入当前 pane 标签栏。
@@ -1083,6 +1087,9 @@ export interface PluginCommandContext {
 | `backup:restore` | R→M | `{ workspaceId, tableId, backupPath }` | `{ ok: true }` |
 | `log:write` | R→M | `{ level, message, detail? }` | `{ ok: true }` |
 
+- `workspace:create` 的 `dir` 是父目录；main 在其下创建 `<清洗后的 name>.cstudio`。根已存在返回
+  `E_WS_BUSY`；名称清洗后为空返回 `E_VALIDATION`（ADR-020）。
+- `workspace:recent` 只读 `userData/recent.json`，不自动重新授权；打开仍需 `workspace:open`。
 - 所有响应统一包装：`{ ok: true, data } | { ok: false, error: AppError }`。
 - main 端任何异常都转成 `AppError`，不得把堆栈直接抛给 renderer。
 - `table:read/write` 不接受绝对路径，只接受 `workspaceId + tableId`；main 从内部映射解析路径。

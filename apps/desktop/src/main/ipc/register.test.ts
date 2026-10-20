@@ -87,10 +87,10 @@ describe('createIpcRegistrar', () => {
     const registrar = createIpcRegistrar({ ipcMain, logger: quietLogger() });
     registrar.handle(IPC_CHANNELS.appInfo, { request, response }, () => ({ greeting: 'hi' }));
 
-    expect(registrar.handles(IPC_CHANNELS.workspaceOpen)).toBe(false);
+    expect(registrar.handles(IPC_CHANNELS.tableRead)).toBe(false);
     expect(registrar.channels()).toEqual([IPC_CHANNELS.appInfo]);
-    await expect(ipcMain.invoke(IPC_CHANNELS.workspaceOpen, { dir: 'C:/ws' })).rejects.toThrow(
-      /No handler registered for 'workspace:open'/,
+    await expect(ipcMain.invoke(IPC_CHANNELS.tableRead, { dir: 'C:/ws' })).rejects.toThrow(
+      /No handler registered for 'table:read'/,
     );
   });
 });

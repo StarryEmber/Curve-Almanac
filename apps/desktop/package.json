@@ -11,13 +11,18 @@
     "build": "electron-vite build",
     "typecheck": "tsc -b --pretty false"
   },
+  "dependencies": {
+    "write-file-atomic": "^8.0.0"
+  },
   "devDependencies": {
     "@curve/domain": "workspace:*",
+    "@curve/persistence": "workspace:*",
     "@curve/ui": "workspace:*",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/write-file-atomic": "^4.0.3",
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^44.9.0",
     "electron-builder": "^26.15.3",

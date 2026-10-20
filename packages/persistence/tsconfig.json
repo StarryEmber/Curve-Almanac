@@ -6,5 +6,6 @@
     "outDir": "dist-types",
     "tsBuildInfoFile": "dist-types/tsconfig.tsbuildinfo"
   },
+  "references": [{ "path": "../domain" }],
   "include": ["src/**/*.ts"]
 }

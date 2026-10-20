@@ -3,18 +3,21 @@
  *
  * Every channel declares a request schema and a response schema; the main
  * process validates both (see `src/main/ipc/dispatch.ts`) and the renderer
- * client re-validates the response it receives. Only the two channels wired in
- * T0.3 have schemas so far — later milestones add theirs with their handlers.
+ * client re-validates the response it receives. Only channels wired in this
+ * milestone have schemas — later milestones add theirs with their handlers.
  */
 
 import { z } from 'zod';
+
+import { isoTimestampSchema, workspaceIdSchema, workspaceManifestSchema } from '@curve/domain';
+import type { WorkspaceManifest } from '@curve/domain';
 
 import type { IpcResult } from './envelope';
 
 export { ALL_IPC_CHANNELS, IMPLEMENTED_IPC_CHANNELS, IPC_CHANNELS } from './channels';
 export type { IpcChannel } from './channels';
 export { ipcFail, ipcOk, isIpcResult } from './envelope';
-export type { AppError, ErrorCode } from '@curve/domain';
+export type { AppError, ErrorCode, WorkspaceManifest } from '@curve/domain';
 
 /** Payload of `app:info` (SPEC §15.4). */
 export interface AppInfo {
@@ -35,10 +38,41 @@ export interface OkReply {
   ok: true;
 }
 
+/** One entry of `workspace:recent` (SPEC §15.4). */
+export interface RecentEntry {
+  path: string;
+  name: string;
+  lastOpenedAt: string;
+}
+
+export interface WorkspaceCreateRequest {
+  dir: string;
+  name: string;
+}
+
+export interface WorkspaceOpenRequest {
+  dir: string;
+}
+
+export interface WorkspaceCloseRequest {
+  workspaceId: string;
+}
+
+export interface WorkspaceOpenResult {
+  manifest: WorkspaceManifest;
+  warnings: string[];
+}
+
+export interface ManifestWriteRequest {
+  workspaceId: string;
+  manifest: WorkspaceManifest;
+}
+
 /**
- * `window.api` surface. SPEC §15.4 lists the full interface; T0.3 ships `app`
- * and `log` only. The remaining namespaces land with their handlers (T1.2/T1.3)
- * so an unimplemented method can never appear on the bridge.
+ * `window.api` surface. SPEC §15.4 lists the full interface; this milestone
+ * ships `app`, `log`, `workspace` and `manifest` only. The remaining namespaces
+ * land with their handlers so an unimplemented method can never appear on the
+ * bridge.
  */
 export interface CurveApi {
   app: {
@@ -46,6 +80,15 @@ export interface CurveApi {
   };
   log: {
     write(request: LogWriteRequest): Promise<IpcResult<OkReply>>;
+  };
+  workspace: {
+    create(request: WorkspaceCreateRequest): Promise<IpcResult<WorkspaceManifest>>;
+    open(request: WorkspaceOpenRequest): Promise<IpcResult<WorkspaceOpenResult>>;
+    close(request: WorkspaceCloseRequest): Promise<IpcResult<OkReply>>;
+    recent(): Promise<IpcResult<RecentEntry[]>>;
+  };
+  manifest: {
+    write(request: ManifestWriteRequest): Promise<IpcResult<OkReply>>;
   };
 }
 
@@ -68,4 +111,50 @@ export const logWriteRequestSchema = z.strictObject({
   detail: z.unknown().optional(),
 });
 
-export const logWriteResponseSchema = z.strictObject({ ok: z.literal(true) });
+export const okReplySchema: z.ZodType<OkReply> = z.strictObject({ ok: z.literal(true) });
+
+export const logWriteResponseSchema = okReplySchema;
+
+export const workspaceCreateRequestSchema: z.ZodType<
+  WorkspaceCreateRequest,
+  WorkspaceCreateRequest
+> = z.strictObject({
+  dir: z.string().min(1),
+  name: z.string().min(1),
+});
+
+export const workspaceCreateResponseSchema = workspaceManifestSchema;
+
+export const workspaceOpenRequestSchema: z.ZodType<WorkspaceOpenRequest, WorkspaceOpenRequest> =
+  z.strictObject({
+    dir: z.string().min(1),
+  });
+
+export const workspaceOpenResponseSchema: z.ZodType<WorkspaceOpenResult> = z.strictObject({
+  manifest: workspaceManifestSchema,
+  warnings: z.array(z.string()),
+});
+
+export const workspaceCloseRequestSchema: z.ZodType<WorkspaceCloseRequest, WorkspaceCloseRequest> =
+  z.strictObject({
+    workspaceId: workspaceIdSchema,
+  });
+
+export const workspaceCloseResponseSchema = okReplySchema;
+
+export const workspaceRecentRequestSchema = z.union([z.undefined(), z.strictObject({})]);
+
+export const recentEntrySchema: z.ZodType<RecentEntry> = z.strictObject({
+  path: z.string().min(1),
+  name: z.string().min(1),
+  lastOpenedAt: isoTimestampSchema,
+});
+
+export const workspaceRecentResponseSchema: z.ZodType<RecentEntry[]> = z.array(recentEntrySchema);
+
+export const manifestWriteRequestSchema: z.ZodType<ManifestWriteRequest> = z.strictObject({
+  workspaceId: workspaceIdSchema,
+  manifest: workspaceManifestSchema,
+});
+
+export const manifestWriteResponseSchema = okReplySchema;

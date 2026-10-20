@@ -48,3 +48,6 @@
 | ADR-016 | 无遥测、无网络、无自动更新（v1） | 已接受 | [DECISIONS.md#adr-016](../DECISIONS.md#adr-016) |
 | ADR-017 | 将依赖边界检查纳入 pnpm lint | 已接受 | [017-lint-boundary-gate.md](017-lint-boundary-gate.md) |
 | ADR-018 | 开发模式 CSP 为 React Fast Refresh 放宽 `script-src` | 已接受 | [018-dev-csp-react-refresh.md](018-dev-csp-react-refresh.md) |
+| ADR-019 | 工作区原子写入采用 write-file-atomic | 已接受 | [019-write-file-atomic.md](019-write-file-atomic.md) |
+| ADR-020 | workspace:create 的目录语义 | 已接受 | [020-workspace-create-path.md](020-workspace-create-path.md) |
+| ADR-021 | 备份文件命名、轮转与恢复路径 | 已接受 | [021-backup-naming.md](021-backup-naming.md) |

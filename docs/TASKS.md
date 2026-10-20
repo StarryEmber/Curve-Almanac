@@ -339,7 +339,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t12"></a>
 ### T1.2 工作区仓库与原子持久化
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T1.1、T0.3
 - 覆盖：FR-WS-01、FR-WS-04
 - 参考：SPEC §7
@@ -353,12 +353,34 @@ T0.2 + T5.5 → T6.4
   3. 路径白名单与 `realpath` 校验。
   4. 最近列表存 `userData/recent.json`（路径、名称、最后打开时间）。
 - 验收：
-  - [ ] 新建目录结构完全符合 SPEC §7.1。
-  - [ ] 写入后强杀进程，文件不半写（模拟：写入前中断）。
-  - [ ] manifest 损坏返回 `E_WS_INVALID_MANIFEST`，不覆盖原文件。
-  - [ ] `../` 路径逃逸返回 `E_PATH_DENIED`。
-  - [ ] 备份保留 3 份，恢复可用。
+  - [x] 新建目录结构完全符合 SPEC §7.1。
+  - [x] 写入后强杀进程，文件不半写（模拟：写入前中断）。
+  - [x] manifest 损坏返回 `E_WS_INVALID_MANIFEST`，不覆盖原文件。
+  - [x] `../` 路径逃逸返回 `E_PATH_DENIED`。
+  - [x] 备份保留 3 份，恢复可用。
 - 验证：`pnpm exec vitest run packages/persistence apps/desktop && pnpm e2e -- --grep "workspace"`
+- 实现备注（2026-10-20）：
+  - 决策：ADR-019（`write-file-atomic` 8.0.0）、ADR-020（`workspace:create` 的 `dir` 为父目录 +
+    清洗名称 + `.cstudio`）、ADR-021（备份命名/轮转）；SPEC §7.1、§7.4、§7.5、§9.0、§15.1 已同步。
+  - `packages/persistence`：`types.ts`（`WorkspaceStore` 端口：create/open/close/readTable/writeTable/
+    writeManifest/trash/listBackups/restore）、`layout.ts`（§7.1 布局常量、名称清洗、相对路径校验）、
+    `backup.ts`（紧凑 UTC 时间戳、3 份轮转、7 天清理、备份路径解析）、`manifest.ts`（空 manifest、
+    先读 `formatVersion` 再 Zod + 不变量、序列化）、`memory-workspace-store.ts`；无 Electron/Node 内置模块。
+  - `apps/desktop/src/main/workspace`：`file-workspace-store.ts`（realpath 白名单、原子写、表/manifest
+    备份、`.lock`、`.trash`、最近列表）、`path-safety.ts`、`lock-file.ts`、`recent-list.ts`、`atomic-write.ts`。
+    manifest 先校验后写；损坏 manifest 只读不覆盖；高版本返回 `E_WS_VERSION_UNSUPPORTED`。
+  - IPC：新增 `workspace:create/open/close/recent`、`manifest:write`（`IMPLEMENTED_IPC_CHANNELS` 共 7 个）；
+    preload 只加白名单方法；renderer `api-client` 双向校验。`workspace:recent:remove/clear` 仍未注册。
+  - E2E：`apps/desktop/e2e/workspace.spec.ts` 4 条（§7.1 布局 + open/recent/close、损坏 manifest 不覆盖、
+    未来版本拒绝、`manifest:write`）。
+  - 测试：`pnpm verify` exit 0；ESLint 0 problem；depcruise 148 modules / 381 dependencies / 0 violations；
+    **51 files / 417 tests**；`pnpm test:coverage` exit 0，persistence lines **95.68%**（全局 lines 92.86%）；
+    `pnpm e2e -- --grep "workspace"` 19 passed（含 workspace 4 条；直接 `playwright --grep workspace`
+    4 passed）；`pnpm format:check` exit 0。
+  - 覆盖：原子写中断（注入 writer 失败后旧文件不变）、损坏 manifest、高版本、`../`/非法 table id →
+    `E_PATH_DENIED`、备份 3 份与恢复、锁 stale/active/corrupt、最近列表去重/上限/损坏降级、7 天清理。
+  - 残留：`app.requestSingleInstanceLock()` 仍未实现（SPEC §7.5，HANDOFF §6.5 已记录）；应用退出时
+    未主动 `closeAll`，正常 `workspace:close` 会删除 `.lock`。
 
 <a id="t13"></a>
 ### T1.3 表数据 JSONL 读写与 Worker

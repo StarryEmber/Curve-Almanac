@@ -72,6 +72,15 @@
   可修复项以 warnings 返回。
 - T1.1：`coerce.ts` 按 SPEC §8.1 归一（千分位、日期、布尔、枚举、必填）；`format.ts` 提供数字/日期/布尔/枚举
   的显示基线。
+- T1.2：`@curve/persistence` 的 `WorkspaceStore` 端口（create/open/close/readTable/writeTable/writeManifest/
+  trash/listBackups/restore）、`MemoryWorkspaceStore`，以及布局、名称清洗、备份命名/轮转、相对路径校验等纯函数。
+- T1.2：main 的 `FileWorkspaceStore`：`fs.realpath` 路径白名单、`write-file-atomic` 原子写、表/manifest
+  备份与轮转、`.lock` 生命周期、`.trash`、`userData/recent.json` 最近列表。
+- T1.2：IPC `workspace:create/open/close/recent` 与 `manifest:write`（main handler、Zod 请求/响应契约、
+  preload 白名单方法、renderer `api-client` 双向校验）。
+- T1.2：E2E `apps/desktop/e2e/workspace.spec.ts` 四条（SPEC §7.1 布局与 open/recent/close、损坏 manifest
+  不覆盖、未来版本拒绝、manifest:write）。
+- T1.2：ADR-019（`write-file-atomic` 依赖）、ADR-020（create 目录语义）、ADR-021（备份命名/轮转/恢复路径）。
 
 ### Changed
 
@@ -99,3 +108,9 @@
   CI 下的 `forbidOnly`；`e2e/fixtures.ts` 在启动后开启 context trace，失败时保留证据。
 - T0.5：覆盖率门禁接线到 CI（`pnpm test:coverage`），阈值（lines/statements/functions 70、branches 60）不变。
 - T1.1：Vitest 覆盖率排除纯类型模块 `packages/domain/src/types.ts`（无语可执行语句，避免 0% 失真）。
+- T1.2：SPEC §7.1/§7.4/§7.5、§9.0、§15.1 同步 create 目录语义与备份命名（ADR-020/021）。
+- T1.2：`apps/desktop` 新增 `@curve/persistence` 工程引用与 `write-file-atomic` 运行时依赖；
+  `@curve/persistence` 增加 `packages/domain` 工程引用。
+- T1.2：`HandlerContract` 的输入类型改为 `unknown`（`safeParse` 接收跨进程原始载荷，schema 负责收窄）；
+  `IMPLEMENTED_IPC_CHANNELS` 从 2 个扩到 7 个，`e2e/ipc.spec.ts` 的桥白名单同步。
+- T1.2：Vitest 覆盖率排除纯类型模块 `packages/persistence/src/types.ts`（同 T1.1 的 `domain/src/types.ts` 处理）。

@@ -33,8 +33,19 @@ export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
 export const ALL_IPC_CHANNELS: readonly IpcChannel[] = Object.freeze(Object.values(IPC_CHANNELS));
 
 /**
- * Channels wired in this milestone. Everything else belongs to T1.2/T1.3 and
+ * Channels wired in this milestone. Everything else belongs to T1.3/T1.5 and
  * must stay unregistered: an unhandled channel is rejected by Electron, which
  * is the behaviour the T0.3 acceptance criteria ask for.
+ *
+ * T1.2 adds the workspace lifecycle and `manifest:write`. `workspace:recent:remove`
+ * and `workspace:recent:clear` stay unregistered until the welcome UI (T2.1).
  */
-export const IMPLEMENTED_IPC_CHANNELS = [IPC_CHANNELS.appInfo, IPC_CHANNELS.logWrite] as const;
+export const IMPLEMENTED_IPC_CHANNELS = [
+  IPC_CHANNELS.appInfo,
+  IPC_CHANNELS.logWrite,
+  IPC_CHANNELS.workspaceCreate,
+  IPC_CHANNELS.workspaceOpen,
+  IPC_CHANNELS.workspaceClose,
+  IPC_CHANNELS.workspaceRecent,
+  IPC_CHANNELS.manifestWrite,
+] as const;

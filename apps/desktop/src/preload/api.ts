@@ -13,7 +13,19 @@ import { IPC_CHANNELS } from '../shared/contracts/channels';
 import { isIpcResult } from '../shared/contracts/envelope';
 
 import type { IpcResult } from '../shared/contracts/envelope';
-import type { AppInfo, CurveApi, LogWriteRequest, OkReply } from '../shared/contracts/ipc';
+import type {
+  AppInfo,
+  CurveApi,
+  LogWriteRequest,
+  ManifestWriteRequest,
+  OkReply,
+  RecentEntry,
+  WorkspaceCloseRequest,
+  WorkspaceCreateRequest,
+  WorkspaceManifest,
+  WorkspaceOpenRequest,
+  WorkspaceOpenResult,
+} from '../shared/contracts/ipc';
 
 /** Mirrors `ipcRenderer.invoke` without importing Electron. */
 export type InvokeFn = (channel: string, payload?: unknown) => Promise<unknown>;
@@ -43,6 +55,20 @@ export function createCurveApi(invoke: InvokeFn): CurveApi {
     log: {
       write: (request: LogWriteRequest): Promise<IpcResult<OkReply>> =>
         call<OkReply>(invoke, IPC_CHANNELS.logWrite, request),
+    },
+    workspace: {
+      create: (request: WorkspaceCreateRequest): Promise<IpcResult<WorkspaceManifest>> =>
+        call<WorkspaceManifest>(invoke, IPC_CHANNELS.workspaceCreate, request),
+      open: (request: WorkspaceOpenRequest): Promise<IpcResult<WorkspaceOpenResult>> =>
+        call<WorkspaceOpenResult>(invoke, IPC_CHANNELS.workspaceOpen, request),
+      close: (request: WorkspaceCloseRequest): Promise<IpcResult<OkReply>> =>
+        call<OkReply>(invoke, IPC_CHANNELS.workspaceClose, request),
+      recent: (): Promise<IpcResult<RecentEntry[]>> =>
+        call<RecentEntry[]>(invoke, IPC_CHANNELS.workspaceRecent),
+    },
+    manifest: {
+      write: (request: ManifestWriteRequest): Promise<IpcResult<OkReply>> =>
+        call<OkReply>(invoke, IPC_CHANNELS.manifestWrite, request),
     },
   };
 }

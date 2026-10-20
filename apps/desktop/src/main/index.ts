@@ -35,6 +35,7 @@ import {
   saveWindowState,
   WINDOW_STATE_FILE,
 } from './window-state';
+import { FileWorkspaceStore } from './workspace/file-workspace-store';
 
 const APP_NAME = 'Curve Studio';
 
@@ -69,7 +70,7 @@ function applyE2EUserDataOverride(): void {
   }
 }
 
-function registerIpc(): void {
+function registerIpc(workspaceStore: FileWorkspaceStore): void {
   const registrar = createIpcRegistrar({ ipcMain, logger });
   registerIpcHandlers({
     registrar,
@@ -79,6 +80,8 @@ function registerIpc(): void {
       platform: process.platform,
       locale: app.getLocale(),
     }),
+    workspaceStore,
+    listRecentWorkspaces: () => workspaceStore.listRecent(),
   });
 }
 
@@ -187,7 +190,12 @@ async function start(): Promise<void> {
 
   installNavigationGuards();
   installPermissionHandlers();
-  registerIpc();
+  const workspaceStore = new FileWorkspaceStore({
+    userDataPath: app.getPath('userData'),
+    appVersion: app.getVersion(),
+    logger,
+  });
+  registerIpc(workspaceStore);
   installApplicationMenu();
 
   mainWindow = createMainWindow();
