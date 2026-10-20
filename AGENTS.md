@@ -5,8 +5,8 @@
 ## 0. 当前状态
 
 - 方案已完成并锁定（v1.0）。
-- 实施进行中：`T0.1` 已完成（pnpm monorepo + 质量工具链）；下一个任务是 `T0.2`。
-- 仓库已有 `package.json`、`pnpm-lock.yaml` 与 9 个包骨架；**续作前先读 `docs/HANDOFF.md`**。
+- 实施进行中：`T0.2` 已完成（Electron 三进程 + 安全窗口）；下一个任务是 `T0.3`（类型化 IPC 与错误信封）。
+- 仓库已有 pnpm workspace、9 个包骨架与可运行的 Electron 壳；**续作前先读 `docs/HANDOFF.md`**。
 - 每个任务的协议与里程碑停点见 §8。
 
 ## 1. 必读顺序
