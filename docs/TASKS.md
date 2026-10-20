@@ -207,7 +207,7 @@ T0.2 + T5.5 → T6.4
   - [x] 截图基线（浅/深）通过。
 - 验证：`pnpm exec vitest run packages/ui && pnpm e2e -- --grep "shell"`
 - 实现备注（2026-10-20）：
-  - `@curve/ui`：`tokens.css` 定义 57 个 `--cs-*`（浅/深两套，深色覆盖全部颜色与阴影令牌）与 `ui.css`
+  - `@curve/ui`：`tokens.css` 定义 58 个 `--cs-*`（浅/深两套，深色覆盖全部颜色与阴影令牌）与 `ui.css`
     （组件样式只消费令牌）；`index.ts` 以副作用引入两份 CSS，`sideEffects` 防止打包时被摇树删除。
   - 组件：Button（`iconOnly` 在类型层强制 `aria-label`）、Input/Select（label/hint/error 关联，`hideLabel`
     仍保留可访问名）、Dialog（焦点陷阱 + Esc + 焦点恢复 + 背景滚动锁）、Menu（APG 键盘契约与 `menuitemradio`）、

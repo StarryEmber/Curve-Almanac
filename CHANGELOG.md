@@ -40,7 +40,7 @@
 - T0.3：TESTPLAN §1.1 对话框替身 `resolveE2EDialogStubs`（仅未打包 + `CURVE_E2E=1` 生效）。
 - T0.3：E2E `apps/desktop/e2e/ipc.spec.ts` 四条（桥方法白名单、正常路径、非法载荷后进程存活、
   真实已注册通道集合）。
-- T0.4：`@curve/ui` 设计令牌 `tokens.css`（57 个 `--cs-*`，浅/深两套，深色覆盖全部颜色与阴影）与组件样式
+- T0.4：`@curve/ui` 设计令牌 `tokens.css`（58 个 `--cs-*`，浅/深两套，深色覆盖全部颜色与阴影）与组件样式
   `ui.css`（只消费令牌）。
 - T0.4：`@curve/ui` 组件 Button/Input/Select/Dialog/Toast/Menu/Tabs；图标按钮在类型层强制 `aria-label`，
   Dialog 提供焦点陷阱/Esc/焦点恢复，Menu 与 Tabs 实现 APG 键盘契约，Toast 提供自动消失与 `useToasts`。
