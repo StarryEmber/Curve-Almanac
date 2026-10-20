@@ -61,6 +61,8 @@
 - T0.5：`.github/pull_request_template.md`（任务 ID、验证命令结果、证据、风险/回滚、不可做清单自查）。
 - T0.5：根 `postinstall` 与 `scripts/install-electron.mjs`：`electron@44.9.0` 不再自带下载脚本，干净克隆或 CI
   安装后补装匹配版本的 Electron 运行时（已存在则跳过，尊重 `ELECTRON_MIRROR`/`ELECTRON_CUSTOM_DIR`）。
+- T0.5 / M0：`docs/reports/m0/REPORT.md`（M0 验收演示、干净克隆、失败留证与遗留问题汇总）；
+  `t0.2-window.png` 与 `t0.4-shell-dark.png` 随本次 E2E 刷新。
 
 ### Changed
 

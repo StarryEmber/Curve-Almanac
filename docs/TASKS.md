@@ -278,12 +278,13 @@ T0.2 + T5.5 → T6.4
     `trace.zip`（内建 test trace，45.9 kB）+ `attachments/trace-*.zip`（完整 context trace，含
     `trace.network` 与 `screencast/*.jpeg`）均生成；删除临时用例后 15 条正式用例全绿，
     通过用例不残留任何 trace 目录（`retain-on-failure` 生效）。
-  - 干净克隆验证（`D:\DSH_Work_Space\curve-studio-clean`，工作树与提交内容一致）：
-    `pnpm install --frozen-lockfile` 12.5s（postinstall 解压运行时）→ `pnpm verify` 12.8s /
-    38 files / 228 tests，depcruise 115 modules 0 violations → `pnpm e2e` 35.5s / 15 passed，
+  - 干净克隆验证（`D:\DSH_Work_Space\curve-studio-clean`，克隆提交 `1aefcdb`）：
+    `pnpm install --frozen-lockfile` 13.1s（根 postinstall 解压运行时）→ `pnpm verify` 17.4s /
+    38 files / 228 tests，depcruise 115 modules 0 violations → `pnpm e2e` 32.8s / 15 passed，
     三条命令均 exit 0（agent shell 内 E2E 需 `CURVE_E2E_NO_SANDBOX=1`）。
 
 **M0 验收演示**：`pnpm dev` 打开窗口 → `pnpm verify` 全绿 → 故意违反依赖边界被 lint 拦截 → E2E smoke 通过。输出报告后停下。
+（2026-10-20 已完成，报告：`docs/reports/m0/REPORT.md`；违规探针已撤销，未提交。）
 
 ---
 
