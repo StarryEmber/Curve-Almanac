@@ -293,7 +293,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t11"></a>
 ### T1.1 领域模型、Zod 与不变量
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T0.1
 - 覆盖：FR-TBL-01、FR-WS-04
 - 参考：SPEC §6
@@ -308,10 +308,34 @@ T0.2 + T5.5 → T6.4
   3. 实现 `coerceCell(raw, column)`：空串/null/千分位/日期/布尔。
   4. 写正反例测试（每类至少 5 个）。
 - 验收：
-  - [ ] 正例 round-trip；反例返回结构化 issue，不抛裸异常。
-  - [ ] 列 key/主键/行长度/枚举/精度不变量全部覆盖。
-  - [ ] `domain` 无任何 UI/IO import。
+  - [x] 正例 round-trip；反例返回结构化 issue，不抛裸异常。
+  - [x] 列 key/主键/行长度/枚举/精度不变量全部覆盖。
+  - [x] `domain` 无任何 UI/IO import。
 - 验证：`pnpm exec vitest run packages/domain --coverage`
+- 实现备注（2026-10-20）：
+  - 文件：`types.ts`（SPEC §6 全部类型）、`schemas.ts`（全部 Zod schema 与 `parseManifest`/`parseTableMeta`/
+    `parseColumnDef`/`parseRow`/`parseCell`）、`factories.ts`（`<prefix>_<uuid>` ID 工厂 + `createTimestamp`）、
+    `invariants.ts`（§6.6 全部不变量 + `assertInvariants`）、`coerce.ts`（§8.1 归一）、
+    `format.ts`（数字/日期/布尔/枚举显示基线）、`limits.ts`（§2.2 上限常量）。
+  - schema 与类型同步：实体 schema 显式标注 `z.ZodType<T>`，类型与 schema 不一致会直接编译失败；对象一律
+    `strictObject`（未知字段视为格式漂移）；递归结构（filter/layout）用 `discriminatedUnion`，错误路径精确到
+    字段（例如 `views[0].tableView.filter.children`）。
+  - ID：写入一律 `<prefix>_<uuid>`（`crypto.randomUUID`，测试可注入 uuid）；读取放宽为
+    `^<prefix>_[A-Za-z0-9][A-Za-z0-9_-]*$`，以兼容 SPEC §7.2 示例里的 `col_time`/`row_001`。
+    该取舍只影响校验宽松度，未改变任何持久化格式。
+  - 错误返回：解析一律返回 `{ ok:false, issues }`（`path` + SPEC §18 code：`E_TYPE`/`E_REQUIRED`/`E_ENUM`/
+    `E_RANGE`/`E_DUPLICATE_KEY`/`E_VALIDATION`），不抛裸异常；`assertInvariants` 只在"打开或失败"场景抛 typed
+    `E_WS_INVALID_MANIFEST`（带前 5 条 detail）。
+  - 不变量：列 id/key 唯一、主键存在且为 text、行长度/单元格物理类型/主键非空且唯一/行 id 唯一、视图与图表引用、
+    layout（≤4 pane、view 至多出现一次、activeViewId 合法）、columnOrder 恰好包含每列一次、widths/sort/filter 引用、
+    用户样式 id 不得以 `builtin.` 开头、样式不可解析时 warning 回退；`rowCount` 只告警；issue 超过 100 条后截断。
+  - `fieldTypeId`：未提供字段类型注册表时只给 warning（T6.1 接入真实注册表后再严格校验）；提供 resolver 时校验
+    `storageType` 与列类型一致。
+  - 覆盖率：`packages/domain/src/types.ts` 加入 Vitest 覆盖率 exclude（纯类型、零可执行语句，否则被计为 0% 并
+    拉低 domain 包）。
+  - 验证结果：`pnpm verify` exit 0（ESLint 0 problem；depcruise 127 modules / 288 dependencies / 0 violations；
+    43 files / 302 tests）；`pnpm test:coverage` exit 0，domain 包 lines **97.63%** / branches 92.24% /
+    functions 98.92%，全局 lines 96.56% / branches 89.11%；`pnpm format:check` exit 0。
 
 <a id="t12"></a>
 ### T1.2 工作区仓库与原子持久化

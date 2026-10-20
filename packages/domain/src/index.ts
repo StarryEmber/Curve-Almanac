@@ -1,11 +1,15 @@
 /**
- * @curve/domain — pure domain model, Zod schemas, invariants and migrations.
- *
- * Dependency rule (SPEC §4.2): this package may only import `zod`.
- * React, Electron, ECharts, Zustand and Node builtins are forbidden here.
+ * @curve/domain — pure domain model, Zod schemas, invariants, coercion and
+ * formatting. No UI, IO, Electron or chart-library imports (SPEC §4.2).
  */
 
 export const PACKAGE_NAME = '@curve/domain' as const;
 
-export { ERROR_CODES, appErrorSchema, createAppError, isAppError, toAppError } from './errors';
-export type { AppError, AppErrorOptions, ErrorCode } from './errors';
+export * from './errors';
+export * from './invariants';
+export * from './limits';
+export * from './schemas';
+export * from './coerce';
+export * from './factories';
+export * from './format';
+export type * from './types';

@@ -24,6 +24,9 @@ export default defineConfig({
       exclude: [
         '**/*.test.{ts,tsx}',
         '**/*.d.ts',
+        // Type-only module: it compiles to no executable statements, so V8
+        // reports it as 0% and distorts the domain package's line coverage.
+        'packages/domain/src/types.ts',
         'apps/desktop/src/main/index.ts',
         'apps/desktop/src/preload/index.ts',
         'apps/desktop/src/renderer/main.tsx',

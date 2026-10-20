@@ -63,6 +63,15 @@
   安装后补装匹配版本的 Electron 运行时（已存在则跳过，尊重 `ELECTRON_MIRROR`/`ELECTRON_CUSTOM_DIR`）。
 - T0.5 / M0：`docs/reports/m0/REPORT.md`（M0 验收演示、干净克隆、失败留证与遗留问题汇总）；
   `t0.2-window.png` 与 `t0.4-shell-dark.png` 随本次 E2E 刷新。
+- T1.1：`@curve/domain` 领域模型 `types.ts`（SPEC §6 全部类型）与 `limits.ts`（SPEC §2.2 上限常量）。
+- T1.1：`schemas.ts` 全部 Zod schema（column/table/row/view/chart/style/manifest）与
+  `parseManifest`/`parseTableMeta`/`parseColumnDef`/`parseRow`/`parseCell`；解析返回结构化 issue
+  （`path` + SPEC §18 code），不抛裸异常。
+- T1.1：`factories.ts` ID 工厂（`ws_/tbl_/col_/row_/cht_/viw_/sty_/rule_` + UUID，可注入）与 ISO 时间戳。
+- T1.1：`invariants.ts` 实现 SPEC §6.6 全部不变量（`checkTable`/`checkInvariants`/`assertInvariants`），
+  可修复项以 warnings 返回。
+- T1.1：`coerce.ts` 按 SPEC §8.1 归一（千分位、日期、布尔、枚举、必填）；`format.ts` 提供数字/日期/布尔/枚举
+  的显示基线。
 
 ### Changed
 
@@ -89,3 +98,4 @@
 - T0.5：`apps/desktop/playwright.config.ts` 增加 `outputDir`、`trace`/`screenshot` 策略、html 报告器与
   CI 下的 `forbidOnly`；`e2e/fixtures.ts` 在启动后开启 context trace，失败时保留证据。
 - T0.5：覆盖率门禁接线到 CI（`pnpm test:coverage`），阈值（lines/statements/functions 70、branches 60）不变。
+- T1.1：Vitest 覆盖率排除纯类型模块 `packages/domain/src/types.ts`（无语可执行语句，避免 0% 失真）。
