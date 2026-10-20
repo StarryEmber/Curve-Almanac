@@ -107,6 +107,13 @@ export default tseslint.config(
       'react-hooks/rules-of-hooks': 'error',
     },
   },
+  // `@curve/ui` runs in the renderer, so it gets the same browser globals (and
+  // none of the Node ones). It may not reach for Electron or app packages; the
+  // dependency-cruiser rules enforce the package direction.
+  {
+    files: ['packages/ui/**/*.{ts,tsx}'],
+    languageOptions: { globals: { ...globals.browser } },
+  },
   // Renderer Node boundary (AGENTS §2.1). The runtime is already locked down by
   // `nodeIntegration: false` + `contextIsolation`; this keeps the lint/type layer
   // from regressing it and forces all privileged work through window.api.

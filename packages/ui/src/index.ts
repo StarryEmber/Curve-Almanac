@@ -1,9 +1,54 @@
 /**
- * @curve/ui — design tokens and presentational React components.
+ * `@curve/ui` — design tokens and presentational React components.
  *
- * Dependency rule (SPEC §4.2): React plus @curve/domain types.
- * app-core, persistence and Electron are forbidden here.
+ * Dependency rule (SPEC §4.2): React plus `@curve/domain` types. app-core,
+ * persistence and Electron are forbidden here.
  *
- * Placeholder export created in T0.1; real tokens and components land in T0.4.
+ * The stylesheets are imported for their side effects so any consumer of the
+ * package gets the tokens and component classes exactly once (Vite de-dupes
+ * them; `sideEffects` in package.json keeps them from being tree-shaken).
  */
-export const PACKAGE_NAME = '@curve/ui' as const;
+
+import './tokens.css';
+import './ui.css';
+
+export { Button } from './Button';
+export type { ButtonProps, ButtonSize, ButtonVariant } from './Button';
+
+export { Dialog } from './Dialog';
+export type { DialogProps } from './Dialog';
+
+export { Input } from './Input';
+export type { InputProps } from './Input';
+
+export { Menu } from './Menu';
+export type { MenuItemDefinition, MenuProps } from './Menu';
+
+export { Select } from './Select';
+export type { SelectOption, SelectProps } from './Select';
+
+export { Tabs } from './Tabs';
+export type { TabItem, TabsProps } from './Tabs';
+
+export { DEFAULT_TOAST_AUTO_DISMISS_MS, ToastHost, useToasts } from './Toast';
+export type {
+  ToastController,
+  ToastHostProps,
+  ToastMessage,
+  ToastTone,
+  UseToastsOptions,
+} from './Toast';
+
+export {
+  DEFAULT_THEME_MODE,
+  THEME_ATTRIBUTE,
+  THEME_MODES,
+  THEME_STORAGE_KEY,
+  applyTheme,
+  getSystemDarkQuery,
+  isThemeMode,
+  prefersDark,
+  readStoredTheme,
+  resolveTheme,
+} from './theme';
+export type { MediaQueryLike, ResolvedTheme, ThemeMode, ThemeStorage } from './theme';

@@ -1,0 +1,442 @@
+/**
+ * Component styles for `@curve/ui` (T0.4).
+ *
+ * Rule: every colour, radius, shadow, font and spacing value comes from a
+ * `--cs-*` token in `tokens.css`. The token test scans this file and fails on a
+ * raw colour literal, so components stay themeable.
+ */
+
+:where(.cs-button, .cs-input, .cs-select, .cs-tab, .cs-menu__item, .cs-dialog, .cs-toast) {
+  box-sizing: border-box;
+}
+
+.cs-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------- Button */
+
+.cs-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cs-space-2);
+  min-height: var(--cs-size-control-md);
+  padding: 0 var(--cs-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--cs-radius-md);
+  background: transparent;
+  color: var(--cs-color-fg-default);
+  font-family: inherit;
+  font-size: var(--cs-font-size-md);
+  font-weight: var(--cs-font-weight-medium);
+  line-height: var(--cs-line-height-tight);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.cs-button--sm {
+  min-height: var(--cs-size-control-sm);
+  padding: 0 var(--cs-space-3);
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-button--icon {
+  width: var(--cs-size-control-md);
+  min-width: var(--cs-size-control-md);
+  padding: 0;
+}
+
+.cs-button--icon.cs-button--sm {
+  width: var(--cs-size-control-sm);
+  min-width: var(--cs-size-control-sm);
+}
+
+.cs-button--primary {
+  background: var(--cs-color-accent-default);
+  color: var(--cs-color-accent-fg);
+}
+
+.cs-button--primary:hover:not(:disabled) {
+  background: var(--cs-color-accent-hover);
+}
+
+.cs-button--secondary {
+  border-color: var(--cs-color-border-default);
+  background: var(--cs-color-bg-surface);
+}
+
+.cs-button--secondary:hover:not(:disabled) {
+  background: var(--cs-color-bg-muted);
+}
+
+.cs-button--ghost:hover:not(:disabled) {
+  background: var(--cs-color-bg-muted);
+}
+
+.cs-button--danger {
+  background: var(--cs-color-danger-default);
+  color: var(--cs-color-fg-inverse);
+}
+
+.cs-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* ---------------------------------------------------------------- Fields */
+
+.cs-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-1);
+  min-width: 0;
+}
+
+.cs-field--inline {
+  gap: 0;
+}
+
+.cs-field__label {
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-xs);
+  font-weight: var(--cs-font-weight-medium);
+}
+
+.cs-input,
+.cs-select {
+  width: 100%;
+  min-height: var(--cs-size-control-md);
+  padding: 0 var(--cs-space-3);
+  border: 1px solid var(--cs-color-border-default);
+  border-radius: var(--cs-radius-md);
+  background: var(--cs-color-bg-surface);
+  color: var(--cs-color-fg-default);
+  font-family: inherit;
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-select {
+  padding-right: var(--cs-space-2);
+}
+
+.cs-input[aria-invalid='true'],
+.cs-select[aria-invalid='true'] {
+  border-color: var(--cs-color-danger-default);
+}
+
+.cs-field__hint {
+  margin: 0;
+  color: var(--cs-color-fg-subtle);
+  font-size: var(--cs-font-size-xs);
+}
+
+.cs-field__error {
+  margin: 0;
+  color: var(--cs-color-danger-fg);
+  font-size: var(--cs-font-size-xs);
+}
+
+/* ------------------------------------------------------------------ Tabs */
+
+.cs-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-3);
+  min-width: 0;
+}
+
+.cs-tabs__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cs-space-1);
+  padding: 3px;
+  border-radius: var(--cs-radius-md);
+  background: var(--cs-color-bg-muted);
+}
+
+.cs-tab {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--cs-space-1) var(--cs-space-2);
+  border: 0;
+  border-radius: var(--cs-radius-sm);
+  background: transparent;
+  color: var(--cs-color-fg-muted);
+  font-family: inherit;
+  font-size: var(--cs-font-size-xs);
+  font-weight: var(--cs-font-weight-medium);
+  line-height: var(--cs-line-height-normal);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cs-tab[aria-selected='true'] {
+  background: var(--cs-color-bg-surface);
+  color: var(--cs-color-fg-default);
+  box-shadow: var(--cs-shadow-1);
+}
+
+.cs-tabs__panel {
+  min-width: 0;
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-sm);
+  line-height: var(--cs-line-height-normal);
+}
+
+.cs-tabs__panel:focus-visible {
+  outline: 2px solid var(--cs-color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ Menu */
+
+.cs-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.cs-menu__trigger::after {
+  content: '';
+  width: 0;
+  height: 0;
+  margin-left: var(--cs-space-1);
+  border-top: 5px solid currentColor;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  opacity: 0.65;
+}
+
+.cs-menu__list {
+  position: absolute;
+  top: calc(100% + var(--cs-space-1));
+  z-index: var(--cs-z-menu);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 176px;
+  padding: var(--cs-space-1);
+  border: 1px solid var(--cs-color-border-default);
+  border-radius: var(--cs-radius-md);
+  background: var(--cs-color-bg-surface);
+  box-shadow: var(--cs-shadow-2);
+}
+
+.cs-menu__list--start {
+  left: 0;
+}
+
+.cs-menu__list--end {
+  right: 0;
+}
+
+.cs-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-2);
+  width: 100%;
+  padding: var(--cs-space-2) var(--cs-space-3);
+  border: 0;
+  border-radius: var(--cs-radius-sm);
+  background: transparent;
+  color: var(--cs-color-fg-default);
+  font-family: inherit;
+  font-size: var(--cs-font-size-sm);
+  line-height: var(--cs-line-height-tight);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cs-menu__item:hover:not(:disabled),
+.cs-menu__item:focus-visible {
+  background: var(--cs-color-bg-muted);
+}
+
+.cs-menu__item[aria-checked='true'] {
+  color: var(--cs-color-accent-default);
+  font-weight: var(--cs-font-weight-medium);
+}
+
+.cs-menu__item[aria-checked='true']::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--cs-radius-pill);
+  background: currentColor;
+}
+
+.cs-menu__item:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* ---------------------------------------------------------------- Dialog */
+
+.cs-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--cs-z-dialog);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--cs-space-5);
+  overflow: auto;
+  background: var(--cs-color-bg-backdrop);
+}
+
+.cs-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: calc(100vh - var(--cs-space-8));
+  overflow: auto;
+  border: 1px solid var(--cs-color-border-default);
+  border-radius: var(--cs-radius-lg);
+  background: var(--cs-color-bg-surface);
+  box-shadow: var(--cs-shadow-2);
+}
+
+.cs-dialog:focus-visible {
+  outline: 2px solid var(--cs-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.cs-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cs-space-3);
+  padding: var(--cs-space-4) var(--cs-space-4) 0;
+}
+
+.cs-dialog__title {
+  margin: 0;
+  color: var(--cs-color-fg-default);
+  font-size: var(--cs-font-size-lg);
+  font-weight: var(--cs-font-weight-semibold);
+  line-height: var(--cs-line-height-tight);
+}
+
+.cs-dialog__close {
+  flex: none;
+  font-size: var(--cs-font-size-lg);
+}
+
+.cs-dialog__description {
+  margin: 0;
+  padding: var(--cs-space-2) var(--cs-space-4) 0;
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-sm);
+  line-height: var(--cs-line-height-normal);
+}
+
+.cs-dialog__body {
+  padding: var(--cs-space-4);
+  color: var(--cs-color-fg-default);
+  font-size: var(--cs-font-size-sm);
+  line-height: var(--cs-line-height-normal);
+}
+
+.cs-dialog__footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cs-space-2);
+  padding: 0 var(--cs-space-4) var(--cs-space-4);
+}
+
+/* ----------------------------------------------------------------- Toast */
+
+.cs-toasts {
+  position: fixed;
+  right: var(--cs-space-5);
+  bottom: calc(var(--cs-size-statusbar) + var(--cs-space-4));
+  z-index: var(--cs-z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-2);
+  width: min(420px, calc(100vw - var(--cs-space-8)));
+}
+
+.cs-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cs-space-3);
+  padding: var(--cs-space-3) var(--cs-space-4);
+  border: 1px solid var(--cs-color-border-default);
+  border-left: 4px solid var(--cs-color-accent-default);
+  border-radius: var(--cs-radius-md);
+  background: var(--cs-color-bg-surface);
+  box-shadow: var(--cs-shadow-2);
+  color: var(--cs-color-fg-default);
+  font-size: var(--cs-font-size-sm);
+  line-height: var(--cs-line-height-normal);
+}
+
+.cs-toast--error {
+  border-left-color: var(--cs-color-danger-default);
+}
+
+.cs-toast--success {
+  border-left-color: var(--cs-color-success-default);
+}
+
+.cs-toast__text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cs-toast__close {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cs-color-fg-muted);
+  font-family: inherit;
+  font-size: var(--cs-font-size-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cs-toast__close:hover {
+  color: var(--cs-color-fg-default);
+}
+
+/* ----------------------------------------------------------------- Misc */
+
+.cs-kbd {
+  padding: 1px var(--cs-space-1);
+  border: 1px solid var(--cs-color-border-default);
+  border-radius: var(--cs-radius-sm);
+  background: var(--cs-color-bg-muted);
+  color: var(--cs-color-fg-default);
+  font-family: var(--cs-font-mono);
+  font-size: var(--cs-font-size-xs);
+}
+
+/* ---------------------------------------------------------------- Focus */
+
+.cs-button:focus-visible,
+.cs-input:focus-visible,
+.cs-select:focus-visible,
+.cs-tab:focus-visible,
+.cs-menu__item:focus-visible,
+.cs-menu__trigger:focus-visible,
+.cs-toast__close:focus-visible {
+  outline: 2px solid var(--cs-color-focus-ring);
+  outline-offset: 2px;
+}

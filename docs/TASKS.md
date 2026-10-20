@@ -185,7 +185,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t04"></a>
 ### T0.4 设计令牌与 App Shell
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T0.2
 - 覆盖：NFR-03、NFR-04
 - 参考：SPEC §10.2、§16.3、§16.4
@@ -200,12 +200,40 @@ T0.2 + T5.5 → T6.4
   3. Shell 用 CSS Grid 布局；面板可折叠；焦点顺序正确。
   4. 建立消息表与 `t()`，从第一行 UI 起禁止硬编码文案。
 - 验收：
-  - [ ] 组件测试：Dialog 焦点陷阱、Esc 关闭、Toast 自动消失。
-  - [ ] 200% 缩放下无横向裁切。
-  - [ ] 所有按钮有可访问名称；键盘可遍历。
-  - [ ] Shell 无硬编码用户文案（grep 可查）。
-  - [ ] 截图基线（浅/深）通过。
+  - [x] 组件测试：Dialog 焦点陷阱、Esc 关闭、Toast 自动消失。
+  - [x] 200% 缩放下无横向裁切。
+  - [x] 所有按钮有可访问名称；键盘可遍历。
+  - [x] Shell 无硬编码用户文案（grep 可查）。
+  - [x] 截图基线（浅/深）通过。
 - 验证：`pnpm exec vitest run packages/ui && pnpm e2e -- --grep "shell"`
+- 实现备注（2026-10-20）：
+  - `@curve/ui`：`tokens.css` 定义 57 个 `--cs-*`（浅/深两套，深色覆盖全部颜色与阴影令牌）与 `ui.css`
+    （组件样式只消费令牌）；`index.ts` 以副作用引入两份 CSS，`sideEffects` 防止打包时被摇树删除。
+  - 组件：Button（`iconOnly` 在类型层强制 `aria-label`）、Input/Select（label/hint/error 关联，`hideLabel`
+    仍保留可访问名）、Dialog（焦点陷阱 + Esc + 焦点恢复 + 背景滚动锁）、Menu（APG 键盘契约与 `menuitemradio`）、
+    Tabs（自动激活 + roving tabindex）、Toast（`useToasts` + `ToastHost`，错误 `role=alert`、其余 `role=status`）。
+  - 令牌测试：解析 `tokens.css` 校验使用/声明一致与深色覆盖完整，并对 8 组前景/背景计算 WCAG 对比度
+    （正文 ≥4.5:1、控件 ≥3:1），浅深两套均通过。按 TESTPLAN §8，浅/深"基线"以令牌与计算样式断言为准，
+    PNG（`docs/reports/m0/t0.4-shell-{light,dark}.png`）作为证据，不做像素 diff。
+  - Shell：CSS Grid 三行三列（标题栏/侧栏/主区/检查器/状态栏），DOM 顺序即键盘顺序；跳转链接是第一个
+    Tab 停点；侧栏用 Tabs、标题栏用 Menu（主题）、状态栏用 Select（语言）、帮助入口用 Dialog；空态按钮点击后
+    toast 说明工作区功能尚未提供（不假装成功）。
+  - i18n：`renderer/i18n/messages/{zh-CN,en-US}.ts` + `createTranslator`/`formatMessage`；`MessageKey` 由
+    zh-CN 推导，en-US 用 `Record<MessageKey, string>` 强制完整；`error` 文案用映射类型（键为
+    `error.${ErrorCode}`）强制覆盖 SPEC §18 全集；默认 zh-CN，语言选择与 `<html lang>` 同步并持久化到
+    localStorage。
+  - 主题：`ThemeProvider` 用 `useLayoutEffect` 在首帧前写 `data-theme`/`color-scheme`，支持
+    light/dark/system 与系统变化订阅；`resolveTheme`/`applyTheme` 等纯函数放在 `@curve/ui`。
+  - 文案门禁：`apps/desktop/test/ui-conventions.test.ts`（Node 工程）用 TypeScript AST 检查 JSX 文本与
+    字符串/模板字面量无硬编码文案（注释豁免），并校验 shell CSS 无裸色值且只消费已声明令牌。
+  - 工程：desktop 新增 `@curve/ui` 依赖与 tsconfig 引用；新增 `apps/desktop/tsconfig.test.json`（Node 侧
+    渲染测试工程）；electron-vite renderer 增加 workspace 路径解析与 react/react-dom `dedupe`；ESLint 为
+    `packages/ui` 打开浏览器 globals。
+  - 验证结果：`pnpm verify` exit 0（ESLint 0 problem；depcruise 115 modules / 0 violations；38 files /
+    228 tests）；`pnpm test:coverage` lines 95.89% / statements 96.02% / branches 86.76% / functions 100%
+    （`@curve/ui` 行覆盖 92.33%）；`pnpm e2e`（`CURVE_E2E_NO_SANDBOX=1`）15 passed（T0.4 shell 6 +
+    T0.3 IPC 4 + E1 5）；`pnpm dev` 日志 `window ready (mode=development, devTools=true, visible=true)`，
+    dev 渲染器 0 console error、Node 全局不可用、开发 CSP 与 ADR-018 一致。
 
 <a id="t05"></a>
 ### T0.5 CI、E2E 与提交门禁

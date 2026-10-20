@@ -1,0 +1,66 @@
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, createTranslator, isLocale } from './translate';
+
+import type { Locale, Translate } from './translate';
+import type { ReactElement, ReactNode } from 'react';
+
+export {
+  DEFAULT_LOCALE,
+  LOCALES,
+  LOCALE_STORAGE_KEY,
+  MESSAGE_TABLES,
+  createTranslator,
+  formatMessage,
+  isLocale,
+} from './translate';
+export type { Locale, MessageKey, MessageParams, Translate } from './translate';
+
+export interface I18nContextValue {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+  t: Translate;
+}
+
+const I18nContext = createContext<I18nContextValue | null>(null);
+
+function readStoredLocale(): Locale {
+  try {
+    const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+    return isLocale(stored) ? stored : DEFAULT_LOCALE;
+  } catch {
+    // Storage can be unavailable (privacy mode); the default locale still works.
+    return DEFAULT_LOCALE;
+  }
+}
+
+export interface I18nProviderProps {
+  children: ReactNode;
+  initialLocale?: Locale;
+}
+
+export function I18nProvider({ children, initialLocale }: I18nProviderProps): ReactElement {
+  const [locale, setLocale] = useState<Locale>(() => initialLocale ?? readStoredLocale());
+  const t = useMemo(() => createTranslator(locale), [locale]);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    try {
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    } catch {
+      // Persisting the choice is best-effort.
+    }
+  }, [locale]);
+
+  const value = useMemo<I18nContextValue>(() => ({ locale, setLocale, t }), [locale, t]);
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function useI18n(): I18nContextValue {
+  const value = useContext(I18nContext);
+  if (value === null) {
+    throw new Error('useI18n must be used inside <I18nProvider>');
+  }
+  return value;
+}

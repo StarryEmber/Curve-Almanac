@@ -1,0 +1,137 @@
+/**
+ * Curve Studio design tokens (T0.4).
+ *
+ * Every visual decision in `@curve/ui` and in the app shell goes through a
+ * `--cs-*` custom property. Components must never hard-code a colour; the token
+ * tests fail the build if one does.
+ *
+ * Theming: `:root` holds the light values, `[data-theme='dark']` overrides the
+ * colour and shadow tokens. `data-theme` is set on `<html>` by the renderer's
+ * ThemeProvider (`@curve/ui` exports the attribute name and the pure helpers).
+ * The table style tokens (`--cs-table-*`, SPEC §10.2) arrive with T4.x; they are
+ * deliberately not part of the application chrome palette.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Colour — surfaces */
+  --cs-color-bg-canvas: #f2f5f9;
+  --cs-color-bg-surface: #ffffff;
+  --cs-color-bg-muted: #e9eef5;
+  --cs-color-bg-backdrop: rgb(15 23 35 / 55%);
+
+  /* Colour — text */
+  --cs-color-fg-default: #17202e;
+  --cs-color-fg-muted: #475467;
+  --cs-color-fg-subtle: #667085;
+  --cs-color-fg-inverse: #ffffff;
+
+  /* Colour — borders */
+  --cs-color-border-default: #d0d8e3;
+  --cs-color-border-subtle: #e3e9f1;
+  --cs-color-border-strong: #9aa7b8;
+
+  /* Colour — accent / status */
+  --cs-color-accent-default: #1d4ed8;
+  --cs-color-accent-hover: #1e40af;
+  --cs-color-accent-soft: #e5edff;
+  --cs-color-accent-fg: #ffffff;
+  --cs-color-danger-default: #b42318;
+  --cs-color-danger-soft: #fdecea;
+  --cs-color-danger-fg: #8a1c12;
+  --cs-color-success-default: #067647;
+  --cs-color-warning-default: #b54708;
+  --cs-color-focus-ring: #1d4ed8;
+
+  /* Spacing — 4px scale */
+  --cs-space-1: 4px;
+  --cs-space-2: 8px;
+  --cs-space-3: 12px;
+  --cs-space-4: 16px;
+  --cs-space-5: 20px;
+  --cs-space-6: 24px;
+  --cs-space-7: 32px;
+  --cs-space-8: 40px;
+
+  /* Radius */
+  --cs-radius-sm: 4px;
+  --cs-radius-md: 8px;
+  --cs-radius-lg: 12px;
+  --cs-radius-pill: 999px;
+
+  /* Typography */
+  --cs-font-sans: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+  --cs-font-mono: 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
+  --cs-font-size-xs: 12px;
+  --cs-font-size-sm: 13px;
+  --cs-font-size-md: 14px;
+  --cs-font-size-lg: 16px;
+  --cs-font-size-xl: 20px;
+  --cs-font-size-2xl: 26px;
+  --cs-font-weight-normal: 400;
+  --cs-font-weight-medium: 500;
+  --cs-font-weight-semibold: 600;
+  --cs-line-height-tight: 1.25;
+  --cs-line-height-normal: 1.5;
+
+  /* Elevation */
+  --cs-shadow-1: 0 1px 2px rgb(16 24 40 / 8%);
+  --cs-shadow-2: 0 12px 32px rgb(16 24 40 / 16%);
+
+  /* Layout */
+  --cs-size-titlebar: 52px;
+  --cs-size-statusbar: 34px;
+  --cs-size-sidebar: clamp(180px, 20vw, 232px);
+  --cs-size-inspector: clamp(168px, 22vw, 260px);
+  --cs-size-control-sm: 28px;
+  --cs-size-control-md: 34px;
+
+  /* Stacking */
+  --cs-z-menu: 40;
+  --cs-z-dialog: 50;
+  --cs-z-toast: 60;
+  --cs-z-skip: 70;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --cs-color-bg-canvas: #11161d;
+  --cs-color-bg-surface: #1a212b;
+  --cs-color-bg-muted: #232c38;
+  --cs-color-bg-backdrop: rgb(3 6 10 / 65%);
+
+  --cs-color-fg-default: #e7edf5;
+  --cs-color-fg-muted: #a9b4c4;
+  --cs-color-fg-subtle: #8b97a8;
+  --cs-color-fg-inverse: #0b1118;
+
+  --cs-color-border-default: #33404f;
+  --cs-color-border-subtle: #263140;
+  --cs-color-border-strong: #55647a;
+
+  --cs-color-accent-default: #6fa4ff;
+  --cs-color-accent-hover: #8fb8ff;
+  --cs-color-accent-soft: #1e2f4d;
+  --cs-color-accent-fg: #0b1118;
+  --cs-color-danger-default: #ff9b93;
+  --cs-color-danger-soft: #3a211f;
+  --cs-color-danger-fg: #ffc2bc;
+  --cs-color-success-default: #55d6a0;
+  --cs-color-warning-default: #f7c168;
+  --cs-color-focus-ring: #8fb8ff;
+
+  --cs-shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
+  --cs-shadow-2: 0 16px 40px rgb(0 0 0 / 55%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

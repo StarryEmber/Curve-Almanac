@@ -84,6 +84,12 @@ export default defineConfig({
     },
   },
   renderer: {
-    plugins: [react(), cspPlugin()],
+    // `@curve/ui` is a source package too, and the renderer imports its React
+    // components at runtime; `dedupe` makes sure the shell and the components
+    // share one React instance (hooks would break otherwise).
+    plugins: [react(), workspacePaths, cspPlugin()],
+    resolve: {
+      dedupe: ['react', 'react-dom'],
+    },
   },
 });

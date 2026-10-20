@@ -3,9 +3,9 @@
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ToastHost, useToasts } from './toast';
+import { ToastHost, useToasts } from './Toast';
 
-import type { ToastMessage } from './toast';
+import type { ToastMessage } from './Toast';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -48,7 +48,7 @@ describe('useToasts', () => {
     const { result } = renderHook(() => useToasts({ autoDismissMs: 1000 }));
 
     act(() => {
-      result.current.push('error', 'boom');
+      result.current.push('success', 'saved');
     });
     act(() => {
       vi.advanceTimersByTime(999);
@@ -93,30 +93,47 @@ function toast(overrides: Partial<ToastMessage> = {}): ToastMessage {
   return { id: 'toast-1', tone: 'error', text: 'boom', ...overrides };
 }
 
+function host(
+  toasts: readonly ToastMessage[],
+  onDismiss: (id: string) => void = () => undefined,
+): void {
+  render(
+    <ToastHost
+      toasts={toasts}
+      onDismiss={onDismiss}
+      dismissLabel="Dismiss notification"
+      regionLabel="Notifications"
+    />,
+  );
+}
+
 describe('ToastHost', () => {
   it('renders nothing without toasts', () => {
-    const { container } = render(<ToastHost toasts={[]} onDismiss={() => undefined} />);
+    const { container } = render(
+      <ToastHost
+        toasts={[]}
+        onDismiss={() => undefined}
+        dismissLabel="Dismiss notification"
+        regionLabel="Notifications"
+      />,
+    );
 
     expect(container.innerHTML).toBe('');
   });
 
-  it('uses an alert for errors and a status for information', () => {
-    render(
-      <ToastHost
-        toasts={[toast(), toast({ id: 'toast-2', tone: 'info', text: 'fyi' })]}
-        onDismiss={() => undefined}
-      />,
-    );
+  it('announces errors as alerts and everything else as status', () => {
+    host([toast(), toast({ id: 'toast-2', tone: 'info', text: 'fyi' })]);
 
     expect(screen.getByRole('alert').textContent).toContain('boom');
     expect(screen.getByRole('status').textContent).toContain('fyi');
+    expect(screen.getByRole('region', { name: 'Notifications' })).toBeDefined();
   });
 
   it('dismisses through the accessible button', () => {
     const onDismiss = vi.fn();
-    render(<ToastHost toasts={[toast()]} onDismiss={onDismiss} />);
+    host([toast()], onDismiss);
 
-    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));
 
     expect(onDismiss).toHaveBeenCalledWith('toast-1');
   });

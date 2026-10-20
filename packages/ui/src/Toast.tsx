@@ -1,16 +1,10 @@
-/**
- * Toast skeleton for the renderer.
- *
- * T0.3 only needs "show the error envelope, let the user dismiss it". T0.4
- * replaces this with the token-driven `Toast` from `@curve/ui`; the hook API is
- * intentionally small so the swap stays local.
- */
-
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { cx } from './class-names';
 
 import type { ReactElement } from 'react';
 
-export type ToastTone = 'info' | 'error';
+export type ToastTone = 'info' | 'success' | 'error';
 
 export interface ToastMessage {
   id: string;
@@ -32,15 +26,19 @@ export interface UseToastsOptions {
 export interface ToastHostProps {
   toasts: readonly ToastMessage[];
   onDismiss: (id: string) => void;
+  /** Accessible name of the dismiss button, supplied by the app's message table. */
+  dismissLabel: string;
+  /** Accessible name of the notifications region. */
+  regionLabel: string;
 }
 
-const DEFAULT_AUTO_DISMISS_MS = 6000;
+export const DEFAULT_TOAST_AUTO_DISMISS_MS = 6000;
 
 export function useToasts(options: UseToastsOptions = {}): ToastController {
   const [toasts, setToasts] = useState<readonly ToastMessage[]>([]);
   const nextId = useRef(0);
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const autoDismissMs = options.autoDismissMs ?? DEFAULT_AUTO_DISMISS_MS;
+  const autoDismissMs = options.autoDismissMs ?? DEFAULT_TOAST_AUTO_DISMISS_MS;
 
   const dismiss = useCallback((id: string): void => {
     const timer = timers.current.get(id);
@@ -81,27 +79,38 @@ export function useToasts(options: UseToastsOptions = {}): ToastController {
   return { toasts, push, dismiss };
 }
 
-export function ToastHost({ toasts, onDismiss }: ToastHostProps): ReactElement | null {
+/**
+ * Renders the toast stack (SPEC §16.3: errors are announced as `alert`, status
+ * changes as `status`; the dismiss control is a real, named button).
+ */
+export function ToastHost({
+  toasts,
+  onDismiss,
+  dismissLabel,
+  regionLabel,
+}: ToastHostProps): ReactElement | null {
   if (toasts.length === 0) {
     return null;
   }
 
   return (
-    <div className="toasts" role="region" aria-label="Notifications">
+    <div className="cs-toasts" role="region" aria-label={regionLabel}>
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`toast toast--${toast.tone}`}
+          className={cx('cs-toast', `cs-toast--${toast.tone}`)}
           role={toast.tone === 'error' ? 'alert' : 'status'}
         >
-          <span className="toast__text">{toast.text}</span>
+          <span className="cs-toast__text">{toast.text}</span>
           <button
             type="button"
-            className="toast__close"
-            onClick={() => onDismiss(toast.id)}
-            aria-label="Dismiss notification"
+            className="cs-toast__close"
+            onClick={() => {
+              onDismiss(toast.id);
+            }}
+            aria-label={dismissLabel}
           >
-            ×
+            <span aria-hidden="true">×</span>
           </button>
         </div>
       ))}

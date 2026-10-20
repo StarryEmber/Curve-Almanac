@@ -40,6 +40,18 @@
 - T0.3：TESTPLAN §1.1 对话框替身 `resolveE2EDialogStubs`（仅未打包 + `CURVE_E2E=1` 生效）。
 - T0.3：E2E `apps/desktop/e2e/ipc.spec.ts` 四条（桥方法白名单、正常路径、非法载荷后进程存活、
   真实已注册通道集合）。
+- T0.4：`@curve/ui` 设计令牌 `tokens.css`（57 个 `--cs-*`，浅/深两套，深色覆盖全部颜色与阴影）与组件样式
+  `ui.css`（只消费令牌）。
+- T0.4：`@curve/ui` 组件 Button/Input/Select/Dialog/Toast/Menu/Tabs；图标按钮在类型层强制 `aria-label`，
+  Dialog 提供焦点陷阱/Esc/焦点恢复，Menu 与 Tabs 实现 APG 键盘契约，Toast 提供自动消失与 `useToasts`。
+- T0.4：App Shell `apps/desktop/src/renderer/shell/`：标题栏（产品名/工作区胶囊/面板折叠/主题菜单/帮助）、
+  标签式侧栏、主区空态、检查器、状态栏与跳转链接；CSS Grid 三行三列，DOM 顺序即键盘顺序。
+- T0.4：渲染端 i18n `i18n/messages/{zh-CN,en-US}.ts` + 类型化 `t(key, params)`（ADR-013），默认 zh-CN、
+  可切换 en-US 并持久化；SPEC §18 全部 26 个错误码都有本地化文案（`describeAppError(error, t)`）。
+- T0.4：浅/深色骨架 `ThemeProvider`（light/dark/system、跟随系统变化、首帧前应用 `data-theme`）。
+- T0.4：令牌与对比度测试、`apps/desktop/test/ui-conventions.test.ts` 文案/颜色门禁、
+  `apps/desktop/e2e/shell.spec.ts` 六条（结构、面板折叠、纯键盘、200% 缩放、浅深截图、中英切换）。
+- T0.4：截图证据 `docs/reports/m0/t0.4-shell-light.png`、`t0.4-shell-dark.png`。
 
 ### Changed
 
@@ -54,3 +66,12 @@
   （分别由 `shared/contracts/*` 与 `@curve/domain` 取代）；`src/main/index.ts` 改用 IPC 注册器与 `logger`。
 - T0.3：`electron.vite.config.ts` 为 main 增加 `vite-tsconfig-paths`（SPEC §5.3），
   `apps/desktop/tsconfig.{node,web,e2e}.json` 增加对 `packages/domain` 的工程引用。
+- T0.4：`App.tsx` 从运行态占位壳改为 `I18nProvider` + `ThemeProvider` + `AppShell` 组合；
+  删除 T0.3 的 `renderer/toast.tsx` 骨架（由 `@curve/ui` 的 Toast 取代）。
+- T0.4：`error-text.ts` 改为按 `code` 查消息表；`index.html` 默认 `lang="zh-CN"`。
+- T0.4：`electron.vite.config.ts` 的 renderer 增加 workspace 路径解析与 react/react-dom `dedupe`；
+  desktop 新增 `@curve/ui` 依赖与 web tsconfig 引用。
+- T0.4：ESLint 为 `packages/ui` 启用浏览器 globals；新增 `apps/desktop/tsconfig.test.json`（Node 侧渲染
+  测试工程，读源码做文案/令牌门禁）。
+- T0.4：E1 smoke 的 `runtime-status` 断言改为与 `app:info` 的版本号比对（状态栏文案已本地化）；
+  E2E 仍会刷新 `docs/reports/m0/t0.2-window.png`，该文件现在展示 T0.4 的 Shell。

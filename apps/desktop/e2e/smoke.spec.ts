@@ -51,7 +51,10 @@ test.describe('E1 startup and security', () => {
       expect(info.data.locale.length).toBeGreaterThan(0);
     }
 
-    await expect(page.getByTestId('runtime-status')).toContainText('Version');
+    // Since T0.4 the runtime facts live in the status bar, which is localised.
+    await expect(page.getByTestId('runtime-status')).toContainText(
+      info.ok ? info.data.version : '',
+    );
 
     // Reload after wiring the listeners so load-time console output is covered.
     await page.reload();
