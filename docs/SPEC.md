@@ -538,6 +538,10 @@ main 进程必须使用 `write-file-atomic`：
   - 数据文件缺失时：`rowCount === 0` 视为尚未写入的空表；`rowCount > 0` 时 `table:read` 返回
     `E_TABLE_NOT_FOUND`，打开时给出警告，**不得**把 `rowCount` 静默清零（ADR-022）。
   - 单元格级解析错误在读取该表时以 `E_TABLE_PARSE` + 行号报告，不在打开工作区时阻塞。
+- 实现边界（ADR-026）：M1–T5.2 阶段只把 stale/corrupt `.lock` 作为 warning 返回并替换锁；
+  manifest 损坏返回 `E_WS_INVALID_MANIFEST` 且不改原文件。“尝试恢复/直接打开”的交互与
+  `backups/` manifest 重建在 T5.3（自动保存、恢复与最近打开）实现；T2.1 只呈现 warning，
+  不新增恢复 IPC、不做静默重建。
 
 ### 7.6 迁移
 

@@ -1,9 +1,9 @@
 # HANDOFF — Curve Studio 实施交接
 
-> **更新（2026-10-21，M1 验收会话）**：M1 验收演示已执行并通过，报告见
+> **更新（2026-10-21，M1 验收会话）**：M1 验收演示已执行，用户已**接受 M1**；报告见
 > `docs/reports/m1/REPORT.md`，可复现测试为 `apps/desktop/src/main/workspace/m1-acceptance.test.ts`。
-> **M1 尚未获得用户签字**；确认后才进入 `T2.1`，且 T2.1 开工前仍须逐项确认 §7.5 的待定决策。
-> SPEC §7.5 的“尝试恢复/直接打开 + manifest 备份重建”仍未实现，需用户裁决（报告 §5 R1）。
+> SPEC §7.5 的“尝试恢复/直接打开 + manifest 备份重建”按 ADR-026 后置到 **T5.3**（自动保存、恢复与
+> 最近打开）；T2.1 只呈现 warning。下一步是 `T2.1`，开工前必须逐项确认 §7.5 的待定决策，不要自行选定。
 > 本文其余内容仍是 T1.5 → T2.1 的交接。
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T1.5`（app-core 状态与命令总线骨架），按用户要求停止。
@@ -26,8 +26,8 @@
 | `T1.3` 表数据 JSONL 读写与 Worker | **已完成**（`212aa0b`） |
 | `T1.4` 迁移框架与夹具 | **已完成**（`3eb306e`），migrations 行覆盖 100% |
 | `T1.5` app-core 状态与命令总线骨架 | **已完成**（`c077cf2`）；6 files / 26 tests，app-core 新增代码行覆盖 82–100% |
-| 当前里程碑 | **M1 实现完成**（T1.1–T1.5）；**M1 验收演示尚未执行**，见 §6 |
-| 下一个任务 | 先做 **M1 验收演示**，用户确认后才能进入 **T2.1** 工作区入口/网格 |
+| 当前里程碑 | **M1 已验收**（2026-10-21 用户接受；报告 `docs/reports/m1/REPORT.md`；ADR-026） |
+| 下一个任务 | **T2.1**（工作区入口、表管理与虚拟化数据网格）；开工前按 §7.5 逐项确认 8 个决策 |
 | 提交历史（近 7 条） | `c077cf2 feat(app-core): add state slices, command bus and workspace.open (T1.5)`<br>`fc54b27 docs: add T1.5 implementation handoff`<br>`3eb306e feat(domain): add migration registry, executor, backups and fixtures (T1.4)`<br>`af9ba02 docs(agents): refresh status snapshot and handoff pointers`<br>`b435029 docs: add T1.4 implementation handoff`<br>`212aa0b feat(tbl): add JSONL codec, table worker and table IPC (T1.3)`<br>`9c08c0f docs: add T1.3 implementation handoff` |
 | 当前基线 | `pnpm verify` **66 files / 554 tests**；depcruise **187 modules / 548 deps / 0 violations**；`pnpm test:coverage` 全局 lines **93.51%** / branches **84.80%**；`pnpm format:check` 通过 |
 | E2E 基线 | 最近一次完整运行是 T1.4 的 **22 passed**；T1.5 未改 renderer/main/preload，未重跑 E2E |
@@ -369,7 +369,11 @@ ECharts）、`vitest.config.ts`（app-core 类型模块覆盖率豁免）、TASK
 
 ---
 
-## 6. M1 验收演示（下一步，先做这个）
+## 6. M1 验收演示（2026-10-21 已完成）
+
+> **已完成（2026-10-21）**：三条演示通过，用户已接受 M1；报告见 `docs/reports/m1/REPORT.md`，
+> 恢复交互按 ADR-026 后置到 T5.3。以下保留为历史记录（建议做法已由
+> `m1-acceptance.test.ts` 落地）。
 
 TASKS 的 M1 条目要求：**脚本/测试创建 `Demo.cstudio` → 写入 1,000 行 → 关闭重开 → 数据逐行相等；
 篡改 manifest → 报错且原文件不变；伪造 `.lock` → 走恢复提示。输出报告后停下。**
@@ -392,7 +396,7 @@ TASKS 的 M1 条目要求：**脚本/测试创建 `Demo.cstudio` → 写入 1,00
 5. 写入固定 stale `.lock` 再打开，断言 warning/替换，关闭后 `.lock` 删除；
 6. 写 `docs/reports/m1/REPORT.md`（命令、实际输出、环境、残留风险），提交后停下等确认。
 
-**不要**直接进入 T2.1；M1 报告需要用户确认。
+**不要**直接进入 T2.2；M1 已验收，T2.1 开工前仍需确认 §7.5 的决策。
 
 ---
 
@@ -545,7 +549,7 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts --grep "gri
 
 ## 8. 后续里程碑提醒
 
-- M1 验收报告是 M2 的停点门禁；没有用户确认不要开始 T2.1。
+- M1 已验收（2026-10-21）；T2.1 开工前仍须确认 §7.5 的 8 个决策，不要自动进入 T2.2。
 - T2.1 完成后再进入 T2.2（单元格编辑与校验）；不要跨任务。
 - T2.3 是首个真实迁移落点：届时接 `FileWorkspaceStore.open`、升 `CURRENT_FORMAT_VERSION`、
   补 v1→v2 夹具与逐行等价测试，并补 E2E 锁顺序/失败路径。
@@ -562,7 +566,7 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts --grep "gri
 |---|---|---|
 | 会话策略回到 `workspace-write` | `verify`/E2E 报 EPERM | 切 `danger-full-access`，不改项目配置 |
 | Windows 无 symlink 权限 | `pnpm add`/`pnpm install` 失败 | 开 Developer Mode 或用 junction 补齐；不要删 node_modules |
-| M1 验收演示未做 | 里程碑未签字就进 T2.1 | 先做 §6，报告后等确认 |
+| 崩溃恢复交互未实现 | 崩溃后应用内无法恢复 | 已裁决后置 T5.3（ADR-026）；T2.1 只呈现 warning，当前仅“warning + 替换锁” |
 | 迁移未接线 | 未来 v2 工作区只会被拒绝 | T2.3 按 ADR-024 接线并补 E2E |
 | Worker 未接 renderer | 100k 打开阻塞 UI 线程 | T2.1 注入异步解码并删显式 worker 入口 |
 | `openWorkspace` 失败不 close | 残留 `.lock` | T2.1 适配层/main 生命周期补 close-on-failure |

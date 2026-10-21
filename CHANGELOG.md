@@ -188,3 +188,6 @@
 - T1.5：dependency-cruiser 新增 app-core 禁止 React/Electron/ECharts 的边界规则；命令 bus 在模块入口
   `enablePatches()` 并按 ADR-025 关闭 Immer auto-freeze，避免首次编辑深冻结 10 万行表。
 - T1.5：`docs/TASKS.md` 勾选 T1.5；ADR 索引登记 ADR-025。
+- M1：用户确认接受 M1（2026-10-21）；SPEC §7.5 的完整恢复交互按 ADR-026 后置到 T5.3
+  （自动保存、恢复与最近打开），T2.1 只呈现 warning、不新增恢复 IPC；同步 SPEC §7.5、
+  TASKS T5.3、HANDOFF 与 AGENTS §0。

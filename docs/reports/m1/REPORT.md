@@ -4,6 +4,7 @@
 > 环境：Windows 10 x64 · Node 24.21.0 · pnpm 11.28.5 · Electron 44.9.0（本次演示未启动 Electron）
 > 退出标准（`docs/TASKS.md` M1）：**工作区/表可创建、读写、迁移、恢复**；三条验收演示见 §3。
 > 决策依据：AGENTS §8、TASKS M1、SPEC §7.1–§7.6/§13.1/§15.1/§16.1、ADR-020–ADR-025。
+> **验收结果（2026-10-21）**：用户接受 M1；R1 的恢复交互按 ADR-026 后置到 T5.3。
 
 ## 1. 结论
 
@@ -19,8 +20,9 @@ M1 的三条验收演示全部通过，并已固化为可重复运行的测试�
 `pnpm test:coverage` 全局 lines **93.62%**；`pnpm format:check` 通过；`pnpm e2e` **22 passed**。
 本次未修改任何生产代码、`formatVersion`、IPC 通道、CSP 或沙箱配置。
 
-**建议接受 M1 并进入 T2.1，但需用户确认**；T2.1 开工前仍须按 AGENTS §11 逐项确认
-`docs/HANDOFF.md §7.5` 的 8 个待定决策。另有一个与 SPEC §7.5 的差距需要用户裁决（§5 R1）。
+**用户已于 2026-10-21 接受 M1，并授权进入 T2.1**；T2.1 开工前仍须按 AGENTS §11 逐项确认
+`docs/HANDOFF.md §7.5` 的 8 个待定决策。与 SPEC §7.5 的差距（§5 R1）已裁决：恢复交互后置到 T5.3
+（ADR-026），M1 以“warning + 替换锁”现状验收。
 
 ## 2. 演示方式
 
@@ -133,8 +135,9 @@ pnpm exec vitest run apps/desktop/src/main/workspace/m1-acceptance.test.ts --rep
 结论：stale/corrupt 锁走“提示 + 替换”的恢复路径，active 锁走拒绝路径，且都不影响已写入的 1,000 行。
 
 **“恢复提示”的当前形态**：它是 `open()` 返回的 `warnings: string[]`，不是交互式对话框；完整交互
-（“尝试恢复”/“直接打开” + manifest 备份重建）尚未实现，见 §5 R1。T2.1 必须把这些 warning 呈现给用户
-（HANDOFF §5.4 已列为 T2.1 要求）。
+（“尝试恢复”/“直接打开” + manifest 备份重建）尚未实现，已按 ADR-026 后置到 T5.3（自动保存、恢复与
+最近打开）。T2.1 必须把这些 warning 呈现给用户（HANDOFF §5.4 已列为 T2.1 要求），但不在 T2.1 新增
+恢复 IPC 或静默重建 manifest。
 
 ## 4. 门禁与回归
 
@@ -161,19 +164,19 @@ M0 已记录）。本次在提交前用 `git checkout --` 还原，工作树只�
 
 | # | 问题 | 影响 | 建议处理 |
 |---|---|---|---|
-| R1 | **SPEC §7.5 的恢复交互未实现**：stale/corrupt 锁只有 warning；manifest 损坏时不会扫描 `backups/manifest.*.json.bak` 重建，也没有“尝试恢复/直接打开”选择。演示中备份存在但 `open` 仍返回 `E_WS_INVALID_MANIFEST`。 | 崩溃后用户只能看到警告/错误，无法在应用内选择恢复；不满足 SPEC §7.5 的完整描述。 | 需用户裁决：接受 M1 并把该交互记入 T5.1（崩溃恢复）/T2.3 范围，或要求先补 IPC + 对话框再签字。若现在补，涉及新 IPC/安全边界，超出 M1 任务范围。 |
+| R1 | **SPEC §7.5 的恢复交互未实现**：stale/corrupt 锁只有 warning；manifest 损坏时不会扫描 `backups/manifest.*.json.bak` 重建，也没有“尝试恢复/直接打开”选择。演示中备份存在但 `open` 仍返回 `E_WS_INVALID_MANIFEST`。 | 崩溃后用户只能看到警告/错误，无法在应用内选择恢复；不满足 SPEC §7.5 的完整描述。 | **已裁决（2026-10-21）**：接受 M1，把交互记入 **T5.3**（TASKS 中 T5.3 才是“自动保存、恢复与最近打开”；T5.1 是分栏布局），见 ADR-026。T2.1 只呈现 warning。 |
 | R2 | 演示使用 main 适配器 + 编解码器，未经过 Electron IPC 或 renderer UI。 | 1,000 行的“IPC + UI”链路尚未证明；不过 `e2e/workspace.spec.ts` 已覆盖 IPC 的 create/open/close、损坏 manifest、未来版本。 | T2.1 接 renderer 后，用 100k 基准 + 网格 E2E 补“IPC + UI”证据；本次验收测试保留为持久层回归。 |
 | R3 | `@curve/app-core` 未消费这次 1,000 行工作区：`apps/desktop` 在 T2.1 之前没有 app-core 依赖（HANDOFF §7.4）。 | 打开 use case 对 1,000 行的状态装载未在本次演示中直接验证；T1.5 测试用 `v1-min` 夹具覆盖了同一路径。 | T2.1 接线时把 Worker 解码注入 `openWorkspace`，并复跑 100k 打开预算（SPEC §16.1）。 |
 | R4 | 生产迁移注册表为空（ADR-024）；本次只验证了“未来版本拒绝”，没有真实 v1→v2 迁移。 | 首次真实格式升级前，旧版本仍以 `E_WS_VERSION_UNSUPPORTED` 正确拒绝。 | 按 ADR-024/T2.3 接入迁移、升版本、补夹具与逐行等价测试。 |
 | R5 | `openWorkspace` 在 `WorkspaceStore.open` 成功后若表读取失败，不会自动 `close`，可能残留 `.lock`（HANDOFF §7.4 第 7 条）。 | 本次演示的失败都发生在写锁之前，未触发；真实 renderer 路径可能触发。 | T2.1 适配层或 main 生命周期补 close-on-failure，并加失败路径测试。 |
 | R6 | E2E 截图字节不稳定，每次 `pnpm e2e` 后工作树变脏。 | 提交噪声。 | 沿用 M0 处理：提交前还原；断言不依赖像素。 |
 
-## 6. 待用户确认
+## 6. 验收确认（2026-10-21 已完成）
 
-1. **是否接受 M1** 并进入 `T2.1`（工作区入口、表管理与虚拟化数据网格）？
-2. **R1 如何处置**：建议先把“恢复/直接打开 + manifest 备份重建”记入 T5.1 的崩溃恢复范围，
-   M1 以“警告 + 替换”现状验收；如果要求 M1 前补齐，请确认新增 IPC/对话框的范围与契约。
-3. 是否同意把 `m1-acceptance.test.ts` 作为长期回归测试保留在 `pnpm verify` 中（当前已加入，套件
-   从 66/554 变为 67/557）。
+1. **接受 M1** 并进入 `T2.1`（工作区入口、表管理与虚拟化数据网格）：**已确认**。
+2. **R1 处置**：**已确认**——接受 M1，把“恢复/直接打开 + manifest 备份重建”记入 T5.3 的崩溃恢复
+   范围（ADR-026）；T2.1 不新增恢复 IPC。
+3. **长期回归**：**已确认**——`m1-acceptance.test.ts` 保留在 `pnpm verify` 中（套件从 66/554 变为
+   67/557），T5.3 实现交互后应扩展而不是删除。
 
-在用户确认前不开始 T2.1，也不自动进入 T2.2。
+T2.1 已获授权；开工前仍须确认 HANDOFF §7.5 的 8 个决策。不自动进入 T2.2。

@@ -451,7 +451,7 @@ T0.2 + T5.5 → T6.4
 - 验证：`pnpm exec vitest run packages/app-core`
 
 **M1 验收演示**：脚本/测试创建 `Demo.cstudio` → 写入 1,000 行 → 关闭重开 → 数据逐行相等；篡改 manifest → 报错且原文件不变；伪造 `.lock` → 走恢复提示。输出报告后停下。
-（2026-10-21 已执行，报告：`docs/reports/m1/REPORT.md`；验收测试：`apps/desktop/src/main/workspace/m1-acceptance.test.ts`。三条演示全部通过；待用户确认后进入 T2.1，且 SPEC §7.5 的恢复交互仍待裁决。）
+（2026-10-21 已执行并获用户接受；报告：`docs/reports/m1/REPORT.md`；验收测试：`apps/desktop/src/main/workspace/m1-acceptance.test.ts`。三条演示全部通过；SPEC §7.5 的完整恢复交互按 ADR-026 后置到 T5.3，T2.1 只呈现 warning。T2.1 开工前仍需逐项确认 HANDOFF §7.5 的决策。）
 
 ---
 
@@ -951,16 +951,20 @@ T0.2 + T5.5 → T6.4
   - 保存状态指示；失败重试
   - 退出 flush（3s）；崩溃恢复对话框
   - 手动保存（Ctrl/Cmd+S）立即 flush；最近列表、未保存确认
+  - 启动时 stale/corrupt `.lock` 的“尝试恢复/直接打开”选择；manifest 不可读时列出
+    `backups/manifest.*.json.bak` 并让用户确认重建（SPEC §7.5，ADR-026）
 - 步骤：
   1. 订阅文档状态，标脏；队列合并同表写入。
   2. 写表→写 manifest；失败保留脏标记。
-  3. 启动检测 stale lock，提供恢复/直接打开。
+  3. 启动检测 stale lock，提供恢复/直接打开；manifest 损坏时扫描备份并二次确认后再重建。
 - 验收：
   - [ ] 强杀进程后重开，已提交数据不丢（允许丢最后 <1.5s 的编辑并提示）。
   - [ ] 保存失败可见、可重试，不丢内存数据。
   - [ ] 退出时 flush 成功；超时确认不卡死。
   - [ ] Ctrl/Cmd+S 立即落盘，状态指示从"保存中"回到"已保存"。
   - [ ] 最近列表可打开/移除/清空。
+  - [ ] 伪造 stale/corrupt `.lock` 与损坏 manifest 时出现恢复/直接打开选择；选择恢复后数据逐行
+    相等，拒绝恢复时原文件字节不变（ADR-026）。
 - 验证：`pnpm e2e -- --grep "autosave|recovery"`
 
 <a id="t54"></a>
