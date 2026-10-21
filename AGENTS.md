@@ -5,8 +5,10 @@
 ## 0. 当前状态
 
 - 方案已完成并锁定（v1.0）。
-- 实施进行中：`T0.4` 已完成（设计令牌与 App Shell）；下一个任务是 `T0.5`（CI、E2E 与提交门禁）。
-- 仓库已有 pnpm workspace、9 个包骨架、可运行的 Electron 壳与带主题/i18n 的 App Shell；**续作前先读 `docs/HANDOFF.md`**。
+- 实施进行中：`T1.3` 已完成（表数据 JSONL 读写与 Worker）；下一个任务是 `T1.4`（迁移框架与夹具）。
+- 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
+  `domain`/`persistence`/`table-engine` 的实现、带主题/i18n 的 App Shell，以及 10 个已接线 IPC 通道；
+  **续作前先读 `docs/HANDOFF.md`**。
 - 每个任务的协议与里程碑停点见 §8。
 
 ## 1. 必读顺序

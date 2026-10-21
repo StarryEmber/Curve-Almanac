@@ -556,8 +556,9 @@ pnpm format:check
 
 ## 10. 新会话启动检查清单
 
-- [ ] `git status --short` 干净，`git log --oneline -3` 顶部为本交接提交
-      （`docs: add T1.4 implementation handoff`），其下为 `212aa0b`（T1.3）。
+- [ ] `git status --short` 干净，`git log --oneline -4` 顶部为两个文档提交
+      （`docs: add T1.4 implementation handoff`、`docs(agents): refresh status snapshot`），
+      其下为 `212aa0b`（T1.3）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2），否则先切换。
 - [ ] 已读 `AGENTS.md`、本文件、`docs/TASKS.md` T1.4、`docs/TESTPLAN.md` §1/§2/§3（E2/E8）/§4/§5、
