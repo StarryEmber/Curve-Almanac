@@ -407,7 +407,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t14"></a>
 ### T1.4 迁移框架与夹具
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T1.3
 - 覆盖：FR-WS-04、FR-TBL-08
 - 参考：SPEC §7.6
@@ -421,11 +421,11 @@ T0.2 + T5.5 → T6.4
   3. 失败时恢复备份并返回 `E_MIGRATION_FAILED`。
   4. 用夹具模拟 v1 → 测试迁移（可造一个测试专用 v0）。
 - 验收：
-  - [ ] 夹具打开成功，行数与内容逐行相等。
-  - [ ] `formatVersion: 2` 被拒绝并提示升级。
-  - [ ] 迁移失败后原文件哈希不变。
-  - [ ] 备份目录存在且可回滚。
-- 验证：`pnpm exec vitest run packages/domain -- --grep "migration"`
+  - [x] 夹具打开成功，行数与内容逐行相等。
+  - [x] `formatVersion: 2` 被拒绝并提示升级。
+  - [x] 迁移失败后原文件哈希不变。
+  - [x] 备份目录存在且可回滚。
+- 验证：`pnpm exec vitest run packages/domain --testNamePattern "migration" && pnpm verify`
 
 <a id="t15"></a>
 ### T1.5 app-core 状态与命令总线骨架

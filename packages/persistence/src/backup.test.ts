@@ -9,12 +9,15 @@ import {
   isBackupFileName,
   isExpiredBackup,
   isManifestBackupFileName,
+  isMigrationBackupDirectoryName,
   isTableBackupFileName,
   isTableBackupFor,
   manifestBackupFileName,
+  migrationBackupDirectoryName,
   parseBackupPath,
   parseBackupTimestamp,
   parseManifestBackupFileName,
+  parseMigrationBackupDirectoryName,
   parseTableBackupFileName,
   planBackupRotation,
   tableBackupFileName,
@@ -144,5 +147,33 @@ describe('backup rotation', () => {
       ),
     ).toBe(false);
     expect(isExpiredBackup('notes.txt', now)).toBe(false);
+  });
+});
+
+describe('migration backup directories', () => {
+  it('names a directory after the compact UTC timestamp (SPEC §7.6, ADR-021)', () => {
+    expect(migrationBackupDirectoryName(AT)).toBe('migration-20261020T054500123Z');
+  });
+
+  it('parses a migration directory name back to ISO 8601', () => {
+    expect(parseMigrationBackupDirectoryName('migration-20261020T054500123Z')).toEqual({
+      timestamp: '20261020T054500123Z',
+      createdAt: '2026-10-20T05:45:00.123Z',
+    });
+  });
+
+  it.each([
+    'migration-20261020T054500123',
+    'migration-2026-10-20T05:45:00.123Z',
+    'migration-',
+    'migration-tbl_9a2e.20261020T054500123Z',
+    'backups/migration-20261020T054500123Z',
+  ])('rejects %s as a migration directory name', (name) => {
+    expect(isMigrationBackupDirectoryName(name)).toBe(false);
+  });
+
+  it('accepts only the plain directory name', () => {
+    expect(isMigrationBackupDirectoryName('migration-20261020T054500123Z')).toBe(true);
+    expect(isMigrationBackupDirectoryName('migration-20260231T000000000Z')).toBe(false);
   });
 });

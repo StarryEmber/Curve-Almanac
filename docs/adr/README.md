@@ -53,3 +53,4 @@
 | ADR-021 | 备份文件命名、轮转与恢复路径 | 已接受 | [021-backup-naming.md](021-backup-naming.md) |
 | ADR-022 | 表数据缺文件语义与打开时 `rowCount` 重算 | 已接受 | [022-table-read-missing-file.md](022-table-read-missing-file.md) |
 | ADR-023 | 脏表追踪原语放 `table-engine`，状态接线留 `app-core` | 已接受 | [023-dirty-table-tracking.md](023-dirty-table-tracking.md) |
+| ADR-024 | 迁移框架的归属、备份与接线时点 | 已接受 | [024-migration-framework.md](024-migration-framework.md) |

@@ -15,6 +15,12 @@ const TABLE_BACKUP_EXACT = new RegExp(
 );
 const MANIFEST_BACKUP_EXACT = new RegExp(`^manifest\\.(${TIMESTAMP_PATTERN})\\.json\\.bak$`);
 
+/** Prefix of the pre-migration snapshot directory (SPEC §7.6). */
+export const MIGRATION_BACKUP_DIRECTORY_PREFIX = 'migration-';
+const MIGRATION_DIRECTORY_EXACT = new RegExp(
+  `^${MIGRATION_BACKUP_DIRECTORY_PREFIX}(${TIMESTAMP_PATTERN})$`,
+);
+
 export interface ParsedTableBackup {
   tableId: string;
   timestamp: string;
@@ -23,6 +29,11 @@ export interface ParsedTableBackup {
 }
 
 export interface ParsedManifestBackup {
+  timestamp: string;
+  createdAt: string;
+}
+
+export interface ParsedMigrationBackupDirectory {
   timestamp: string;
   createdAt: string;
 }
@@ -66,6 +77,34 @@ export function tableBackupFileName(tableId: string, date: Date): string {
 
 export function manifestBackupFileName(date: Date): string {
   return `manifest.${formatBackupTimestamp(date)}.json.bak`;
+}
+
+/**
+ * Directory that holds the pre-migration copy of `tables/` (SPEC §7.6).
+ * It reuses the ADR-021 timestamp so names sort chronologically and stay legal
+ * on Windows.
+ */
+export function migrationBackupDirectoryName(date: Date): string {
+  return `${MIGRATION_BACKUP_DIRECTORY_PREFIX}${formatBackupTimestamp(date)}`;
+}
+
+export function parseMigrationBackupDirectoryName(
+  name: string,
+): ParsedMigrationBackupDirectory | null {
+  const match = MIGRATION_DIRECTORY_EXACT.exec(name);
+  if (!match) {
+    return null;
+  }
+  const timestamp = match[1];
+  if (timestamp === undefined) {
+    return null;
+  }
+  const createdAt = parseBackupTimestamp(timestamp);
+  return createdAt === null ? null : { timestamp, createdAt };
+}
+
+export function isMigrationBackupDirectoryName(name: string): boolean {
+  return parseMigrationBackupDirectoryName(name) !== null;
 }
 
 export function parseTableBackupFileName(fileName: string): ParsedTableBackup | null {

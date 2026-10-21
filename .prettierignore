@@ -9,3 +9,7 @@ test-results
 pnpm-lock.yaml
 docs
 *.md
+
+# Intentionally malformed fixtures (SPEC §7.6: a truncated manifest must fail
+# to parse, so prettier must not "fix" it).
+fixtures/workspaces/corrupt-manifest/manifest.json

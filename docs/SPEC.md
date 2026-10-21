@@ -547,6 +547,16 @@ main 进程必须使用 `write-file-atomic`：
 - 迁移失败：回滚备份，返回 `E_MIGRATION_FAILED`，不得改原文件。
 - 打开 `formatVersion > 1`：拒绝，`E_WS_VERSION_UNSUPPORTED`，提示升级应用。
 - 每次新增迁移必须加 `fixtures/workspaces/` 夹具与逐行等价测试。
+- 实现边界（ADR-024）：
+  - 纯执行器与注册表在 `@curve/domain`（`src/migrations/`），备份/回滚在 main 适配器；
+    v1 是唯一已发布格式，生产注册表为空，v0→v1 只在测试中注入。
+  - 备份目录为 `backups/migration-<timestamp>/`（时间戳同 §7.1，ADR-021），逐字节复制 `tables/`
+    下的常规文件；同一毫秒重名则时间戳 +1ms，复制失败删除半成品目录。
+  - 回滚写回快照的原始字节，并删除失败尝试新建的表文件；回滚失败仍返回 `E_MIGRATION_FAILED`，
+    `detail` 同时带迁移与回滚的错误码。
+  - 每步校验输出格式版本与 §6.6 不变量；到达当前版本时再按 §6.5 做一次结构校验。任一步失败
+    都不返回半迁移文档；`manifest.json` 始终最后写，因此 manifest 无需回滚。
+  - 迁移成功后 `rowCount` 仍按 §7.5 由打开流程重算。
 
 ---
 

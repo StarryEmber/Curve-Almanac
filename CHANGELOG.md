@@ -99,6 +99,25 @@
 - T1.3：`scripts/bench.ts` 与 `tsx` devDependency：`pnpm bench -- --table-io` 固定种子生成 100k×10，
   测 `table.encode.100k`/`table.decode.100k`，写 `bench/report.json`（TESTPLAN §5.2 格式）。
 - T1.3：ADR-022（缺文件语义与 `rowCount` 重算）、ADR-023（脏表追踪原语归属）。
+- T1.4：`@curve/domain` 迁移框架：`Migration`/`MigrationResult`/`MigrationTables`/`MigrationRegistry`
+  与结果类型、`createMigrationRegistry`（禁跳版、禁重复 `from`）、`resolveMigrationPath`、
+  `runMigrations`（每步校验输出格式版本、孤儿表、到达当前版本时的 Zod 结构校验与 SPEC §6.6 不变量；
+  失败返回结构化 `E_MIGRATION_FAILED`，绝不返回半迁移文档），以及空生产注册表 `MIGRATIONS`
+  与 `CURRENT_FORMAT_VERSION`（ADR-024）。
+- T1.4：main 迁移前备份与失败回滚 `apps/desktop/src/main/workspace/migration-backup.ts`：
+  `backupTablesForMigration`（逐字节复制 `tables/` → `backups/migration-<ts>/`，同名时间戳 +1ms，
+  复制失败删除半成品）、`restoreMigrationBackup`（copy → `.migration-restore` → rename，写回原字节并
+  删除失败尝试新建的表文件）、`runWithMigrationBackup`（失败回滚并返回 `E_MIGRATION_FAILED`，
+  `detail` 同时带迁移与回滚错误码）。
+- T1.4：`@curve/persistence` 新增迁移快照目录命名纯函数 `migrationBackupDirectoryName`、
+  `parseMigrationBackupDirectoryName`、`isMigrationBackupDirectoryName` 与
+  `MIGRATION_BACKUP_DIRECTORY_PREFIX`（复用 ADR-021 的紧凑 UTC 时间戳）。
+- T1.4：`fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/` 夹具与各自 README
+  （时间固定 UTC；`stale-lock` 的 `.lock` 内容固定并提交；`corrupt-manifest` 为故意截断的 JSON）。
+- T1.4：夹具测试 `apps/desktop/src/main/workspace/workspace-fixtures.test.ts`：v1-min 打开成功且
+  行内容逐行相等、锁写入/删除；future-version 在 Zod 之前以 `E_WS_VERSION_UNSUPPORTED` 拒绝且
+  文件字节不变、不写锁；corrupt-manifest 返回 `E_WS_INVALID_MANIFEST`；stale-lock 触发提示并替换锁。
+- T1.4：ADR-024（迁移框架归属、空生产注册表、备份/回滚语义、接线时点）。
 
 ### Changed
 
@@ -140,3 +159,6 @@
   的 renderer 增加显式 `table-worker` 入口（T1.5 接入客户端后可移除），用于在 E2E 中验证生产 CSP。
 - T1.3：Vitest 覆盖率排除 Worker 入口 `renderer/workers/*.worker.ts`（仅一条转发，行为由 E2E 覆盖）。
 - T1.3：`.gitignore` 增加 `bench/`（`pnpm bench` 产物，CI 以 artifact 保留）。
+- T1.4：SPEC §7.6 补充迁移实现边界（分层、`backups/migration-<ts>/`、每步校验、manifest 最后写）。
+- T1.4：`.prettierignore` 排除故意截断的 `fixtures/workspaces/corrupt-manifest/manifest.json`，
+  避免格式化工具"修好"坏夹具。

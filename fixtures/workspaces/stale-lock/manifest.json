@@ -1,0 +1,59 @@
+{
+  "formatVersion": 1,
+  "id": "ws_stalelock",
+  "name": "Stale Lock",
+  "appVersion": "0.1.0",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:10:00.000Z",
+  "tables": [
+    {
+      "id": "tbl_stalelock",
+      "name": "Sensor readings",
+      "file": "tables/tbl_stalelock.jsonl",
+      "schemaVersion": 1,
+      "columns": [
+        {
+          "id": "col_id",
+          "key": "id",
+          "label": "Sensor",
+          "type": "text",
+          "role": "none"
+        },
+        {
+          "id": "col_time",
+          "key": "time",
+          "label": "Time",
+          "type": "date",
+          "role": "x"
+        },
+        {
+          "id": "col_sensor_a",
+          "key": "sensor_a",
+          "label": "Sensor A",
+          "type": "number",
+          "role": "y",
+          "unit": "°C",
+          "precision": 1
+        }
+      ],
+      "primaryKey": "col_id",
+      "rowCount": 3,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:10:00.000Z"
+    }
+  ],
+  "charts": [],
+  "views": [],
+  "tableStyles": [],
+  "layout": {
+    "type": "pane",
+    "viewIds": [],
+    "activeViewId": null
+  },
+  "settings": {
+    "theme": "system",
+    "locale": "zh-CN",
+    "defaultTableStyleId": "builtin.report-light",
+    "autosave": true
+  }
+}
