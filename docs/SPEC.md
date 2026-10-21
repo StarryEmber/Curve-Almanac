@@ -561,6 +561,9 @@ main 进程必须使用 `write-file-atomic`：
   - 每步校验输出格式版本与 §6.6 不变量；到达当前版本时再按 §6.5 做一次结构校验。任一步失败
     都不返回半迁移文档；`manifest.json` 始终最后写，因此 manifest 无需回滚。
   - 迁移成功后 `rowCount` 仍按 §7.5 由打开流程重算。
+- 实现边界（T2.3，ADR-029）：T2.3 的列结构变更不改变 v1 文件格式，`formatVersion` 与
+  `TableMeta.schemaVersion` 仍为 1，不注册迁移、不接 `FileWorkspaceStore.open`。加列/删列/改类型/重排是
+  运行期行数据转换，失败由命令级回滚保证原文件字节不变；首次真实格式升级仍按 ADR-024 的复核条件接线。
 
 ---
 
@@ -664,6 +667,7 @@ interface ImportResult {
 - 新增行（含粘贴/导入新增）主键为空时，自动生成 `row_<uuid>` 写入（仅 text 主键）；用户显式填值则校验唯一性。
 - 批量清空/粘贴：先整体校验，失败则整批不写入并列出错误。
 - 每次提交是一个命令（见 §13），支持撤销。
+- 列结构变更（加列/删列/改类型/重排/换主键）见 §9.7；不进入单元格编辑历史。
 
 **实现边界（T2.2，ADR-028）**：
 
@@ -717,6 +721,26 @@ interface ImportResult {
 - CSV：UTF-8 BOM（Excel 兼容）；可选"原始值"或"按显示格式"。
 - 导出当前筛选/排序后的行；列顺序按视图顺序。
 - 文件名默认 `<表名>-<yyyyMMdd-HHmm>.csv`。
+
+### 9.7 列管理（T2.3）
+
+- 入口：右侧 Inspector 的活动表列面板；新增/编辑在 Dialog 完成；删除、改类型、换主键以及会使现有值非法的
+  `required`/枚举选项变更共用二次确认对话框，确认框显示受影响行数、需转换单元格数、需清理视图数与将失效
+  图表数。
+- 加列：默认 `text`/`role=none`/非必填，追加到 schema 末尾并为所有旧行补 `null`；表内已有行时不能直接新增
+  `required` 列。所有视图 `columnOrder` 同步插入。
+- 改类型：逐行用 `coerceCell` 转换；任何一行失败则整批取消、列出前 100 行且不改内存/磁盘。改类型会清空
+  `fieldTypeId`（语义类型必须与存储类型匹配，ADR-015）；enum→非 enum 丢弃 `enumOptions`。
+- 删列：主键列禁止删除；从 schema 与所有行删除，并清理所有视图的 `columnOrder`/`widths`/`hiddenColumnIds`/
+  `sort`/`filter`（filter 递归裁剪）与冻结计数。图表 mapping/sort/filter 与样式 `columnOverrides`/
+  `conditionalRules` 保留，图表进入 invalid 错误态（§19）。
+- 换主键：新主键必须是已存在的 text 列，逐行非空且唯一，失败列出前 100 行并整批取消；成功后该列
+  `required: true`，行值不变。
+- 重排：改变 `TableMeta.columns` 与每行 `values`，并同步该表所有视图的 `columnOrder` 为新顺序。
+- 上限：每表 100 列；命令硬拒绝，列面板在达到上限时禁用新增。
+- 实现边界（ADR-029）：结构命令同步执行，不提供进度/取消（T2.7 复核）；只改 schema 的命令只写 manifest，
+  改变行数据的命令走保存队列（表 → manifest）；结构命令只产 patches，不进入 T2.2 的最小历史（T5.2 统一）。
+  图表完整渲染与重映射在 T3.1，T2.3 只提供只读错误占位。
 
 ---
 
@@ -958,6 +982,9 @@ export interface RenderModel {
 - 命令实现为纯函数：`(state, payload) => { nextState, patches, inversePatches }`（Immer `produceWithPatches`）。
 - 异步副作用（磁盘写入）不进入命令；由状态订阅触发自动保存。
 - 命令失败必须返回 `AppError`，不得部分修改状态。
+- **实现边界（T2.3，ADR-029）**：T2.3 落地 `table.column.add/update/delete/reorder` 与
+  `table.meta.update(primaryKey)`；结构命令同步执行、只产 patches，不进入 T2.2 的最小历史。`delete` 禁止
+  删除主键；`reorder` 以 `columnIds` 精确排列重写 schema、每行 `values` 与该表所有视图的 `columnOrder`。
 
 ### 13.2 撤销/重做
 
@@ -968,6 +995,8 @@ export interface RenderModel {
 - UI：Ctrl/Cmd+Z、Ctrl/Cmd+Shift+Z（macOS 也支持 Cmd+Y）；菜单显示可撤销命令名。
 - **实现边界（T2.2，ADR-028）**：本任务先对 `table.cell.set` 实现最小历史栈（800ms 合并、上限 100 条、
   仅内存、打开/关闭工作区清空）；其余命令、菜单与跨命令合并由 T5.2 扩展，T5.2 必须复用该语义。
+- **实现边界（T2.3，ADR-029）**：列结构命令不接入上述最小历史；T5.2 统一消费其
+  `patches`/`inversePatches`，不得另起一套。
 
 ### 13.3 自动保存
 
@@ -980,6 +1009,8 @@ export interface RenderModel {
 - **实现边界（T2.2，ADR-028）**：单元格提交成功后立即异步保存该表并写 manifest（按表串行、失败保留
   dirty 并可重试），关闭工作区前 flush ≤3s。T5.3 的 1.5s 自动保存必须复用/替换该队列，不得并存两条
   写盘路径；状态栏“保存中/已保存/保存失败”在 T2.2 已可用。
+- **实现边界（T2.3，ADR-029）**：改变行数据的结构命令复用该队列（表 → manifest）；只改 schema 的命令
+  （label/key/role、required、枚举选项、换主键、空表增删/重排）只写 manifest，避免空表创建 0 字节文件。
 
 ---
 

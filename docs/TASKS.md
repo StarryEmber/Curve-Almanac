@@ -562,7 +562,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t23"></a>
 ### T2.3 列管理、结构变更与迁移
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T2.1、T1.4
 - 覆盖：FR-TBL-01、FR-TBL-08
 - 参考：SPEC §6.6、§7.6
@@ -576,12 +576,38 @@ T0.2 + T5.5 → T6.4
   3. 删列：确认后从 rows 删除对应下标；图表引用进入错误态。
   4. 改主键：校验唯一非空后提交。
 - 验收：
-  - [ ] 加列后旧行补 `null`，行数不变。
-  - [ ] 改类型成功/失败路径都有测试，失败不改数据。
-  - [ ] 删列后清理 `columnOrder/widths/columnOverrides/sort/filter`，重新加载不变量通过。
-  - [ ] 删列后图表显示"列已删除"错误态，不崩溃。
-  - [ ] 100 列上限生效。
+  - [x] 加列后旧行补 `null`，行数不变。
+  - [x] 改类型成功/失败路径都有测试，失败不改数据。
+  - [x] 删列后清理 `columnOrder/widths/sort/filter`，重新加载不变量通过；`columnOverrides` 按 ADR-029
+        保留（SPEC §6.6.7 允许跨表模板引用缺失列），由单测证明未被改动。
+  - [x] 删列后图表显示"列已删除"错误态，不崩溃。
+  - [x] 100 列上限生效。
 - 验证：`pnpm exec vitest run packages/domain packages/table-engine -- --grep "column" && pnpm e2e -- --grep "schema"`
+- 实现备注（2026-10-21，ADR-029）：
+  - 开工前用户逐项确认 10 项决策：不升 `formatVersion`/不接迁移；改类型失败整批取消并列前 100 行；删列
+    清理视图状态但保留图表/样式引用；图表做到数据层 + 最小只读占位；共用确认框同步执行；100 列命令
+    硬拒绝 + UI 禁用；面板放右侧 Inspector；重排改表结构并同步所有视图；结构命令不接撤销历史；列编辑
+    覆盖完整 `ColumnDef`、宽度仍由视图管理。
+  - domain：`column-ops.ts` 新增 `planColumnAdd/Update/Delete/Reorder/PrimaryKeyChange`；逐行
+    `coerceCell`/`parseCell`、前 100 条 `ColumnChangeFailure`、schema 经 `checkTable` 复核；空值保持
+    `null`，主键列必须 text。
+  - app-core：`commands/columns.ts`、`commands/column-views.ts`（filter 递归裁剪、冻结计数、视图顺序）、
+    `validation/column-draft.ts`（字段级表单校验）、`validation/column-change.ts`（确认框预览与图表失效计数）、
+    `state/chart-validity.ts`；`table.meta.update` 增加 `primaryKey`；actions 增加
+    `inspectColumnChange/addColumn/updateColumn/deleteColumn/reorderColumns/changePrimaryKey`。改变行数据的
+    命令走保存队列（表 → manifest），只改 schema 的命令只写 manifest；保存失败返回 `committed: true`。
+  - renderer：`features/columns/{ColumnsPanel,ColumnFormDialog,ColumnChangeDialog,column-form,column-error-text}`、
+    `features/charts/ChartPlaceholder.tsx`；Inspector 接入列面板；WorkspaceView 接入 chart 占位；文案进
+    zh-CN/en-US；CSS 只用 `--cs-*` 令牌。
+  - 测试：domain 22 条、app-core 命令/视图/校验/预览/actions 共 56 条、renderer 17 条；`e2e/schema.spec.ts`
+    8 条（增列补 null/重开、改类型成功、失败字节不变、删列+图表错误态+重开、换主键成功/失败、100 列禁用、
+    200% 缩放键盘可达）。
+  - 实测：`pnpm verify` **89 files / 733 tests**，depcruise **265 modules / 968 deps / 0 violations**；
+    `pnpm test:coverage` 全局 lines **77.83%** / statements 77.58% / branches 69.49% / functions 78.78%
+    （domain `column-ops.ts` lines 94.76%）；`pnpm format:check` 通过；`pnpm build` exit 0
+    （renderer 1,246.01 kB）；`pnpm e2e` **41 passed**。
+  - 残留：结构变更不可撤销（T5.2 统一历史）；100k 行改类型/重排为同步执行、无进度/取消（T2.7 复核）；
+    图表完整渲染/重映射留 T3.1；视图级自定义列顺序留 T2.6；`.trash`/备份恢复 UI 仍按 T5.3。
 
 <a id="t24"></a>
 ### T2.4 区域粘贴

@@ -163,6 +163,17 @@
   显示冲突行号、滚动并高亮冲突行；编辑行通过虚拟列表 `rangeExtractor` 保留。
 - T2.2：测试新增 `editor-value`、`CellEditor`、`cell-issue-text`、cell validation、edit history、
   save queue、updateCell/close-flush 用例，以及 `e2e/edit.spec.ts` 3 条；ADR-028 记录 8 项决策。
+- T2.3：列管理：右侧 Inspector 列面板（新增/编辑/删除/上移/下移/设为主键）、列表单（完整 `ColumnDef`、
+  enum 选项编辑、key 由 label 派生）与共用破坏性确认对话框（影响行数/转换单元格/视图清理/图表失效）。
+- T2.3：`@curve/domain` 新增纯计划 `planColumnAdd/Update/Delete/Reorder/PrimaryKeyChange`：加列补 `null`、
+  改类型逐行 `coerceCell`、失败前 100 行整批取消、主键非空唯一校验、重排同步行数据；空值保持 `null`。
+- T2.3：`@curve/app-core` 新增 `table.column.add/update/delete/reorder`、`table.meta.update(primaryKey)`、
+  视图状态清理（`columnOrder/widths/hidden/sort/filter`、冻结计数）、`checkColumnDraft`、
+  `inspectColumnChange`、图表缺列判定与 `addColumn/updateColumn/deleteColumn/reorderColumns/
+  changePrimaryKey` actions；结构命令只产 patches、不接撤销历史。
+- T2.3：图表在列被删后进入只读错误占位（“列已删除”+“不自动重映射”），完整图表/重映射留 T3.1；
+  100 列上限由命令硬拒绝 + 面板禁用新增；E2E `schema.spec.ts` 8 条覆盖增列/改类型成败/删列+图表/换主键/
+  上限/200% 缩放键盘可达；ADR-029 记录 10 项决策。
 
 ### Changed
 
@@ -228,4 +239,15 @@
   `createAppCore` 增加 `encodeTable` 注入与 `onCommand` 观察者；`openWorkspace` 成功后清空历史与保存
   状态；`GridCell` 移除 `aria-readonly` 并接入编辑器/错误/冲突状态。
 - T2.2：`docs/TASKS.md` 勾选 T2.2 并记录决策/文件/实测；新增 `docs/reports/t2.2/REPORT.md`、ADR-028；
+  同步 HANDOFF、AGENTS §0 与 `docs/adr/README.md` 索引。
+- T2.3：SPEC §9.7 新增列管理契约；§7.6 记录“T2.3 不升版/不接迁移”；§9.2/§13.1/§13.2/§13.3 增加
+  结构命令、保存时机与撤销边界。
+- T2.3：`Inspector` 由占位改为活动表列面板；`WorkspaceView` 接入 chart 错误占位；新增
+  `features/columns/*`、`features/charts/ChartPlaceholder.tsx`、`e2e/schema.spec.ts` 与 zh-CN/en-US 文案；
+  `styles.css` 只用 `--cs-*` 令牌。
+- T2.3：`table.meta.update` 载荷改为可选 `name`/`primaryKey`（至少一个）；换主键走同一命令，重命名行为
+  不变。
+- T2.3：`@curve/app-core` 的 `ColumnActionOutcome` 在保存失败时带 `committed: true`（内存已变更、
+  状态栏可重试），避免 UI 误判为未执行；行数据变更走 T2.2 保存队列，纯 schema 变更只写 manifest。
+- T2.3：`docs/TASKS.md` 勾选 T2.3 并记录决策/文件/实测；新增 `docs/reports/t2.3/REPORT.md`、ADR-029；
   同步 HANDOFF、AGENTS §0 与 `docs/adr/README.md` 索引。

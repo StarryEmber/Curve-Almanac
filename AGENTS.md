@@ -7,10 +7,10 @@
 - 方案已完成并锁定（v1.0）。
 - 实施进行中：`T1.5` 已完成；M1 验收演示已于 2026-10-21 获用户接受（报告
   `docs/reports/m1/REPORT.md`，恢复交互按 ADR-026 后置 T5.3）。`T2.1`（工作区入口、表管理与
-  虚拟化数据网格）与 `T2.2`（单元格编辑与校验）已完成；下一个任务是 `T2.3`（列管理、结构变更与
-  迁移），开始前仍需用户确认，不要自动推进。
+  虚拟化数据网格）、`T2.2`（单元格编辑与校验）与 `T2.3`（列管理、结构变更与迁移）已完成；下一个
+  任务是 `T2.4`（区域粘贴），开始前仍需用户确认，不要自动推进。
 - 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
-  `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 10 个已接线
+  `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 11 个已接线
   IPC 通道；**续作前先读 `docs/HANDOFF.md`**。
 - 每个任务的协议与里程碑停点见 §8。
 
