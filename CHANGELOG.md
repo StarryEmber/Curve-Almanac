@@ -139,6 +139,21 @@
   不变；伪造 stale/corrupt `.lock` 触发警告与替换，活跃锁返回 `E_WS_LOCKED`。
 - M1：`docs/reports/m1/REPORT.md`（验收演示、真实输出、门禁回归、遗留问题与待确认项）；
   `pnpm verify` 67 files / 557 tests、全局行覆盖 93.62%、`pnpm e2e` 22 passed。
+- T2.1：工作区入口与表管理：欢迎页（新建/打开/最近）、新建/打开工作区对话框、可编辑路径与
+  `dialog:pickDirectory`、表列表（新建/重命名/删除到 `.trash`/打开）、标签栏（激活/关闭/Ctrl+W）、
+  删除被引用表的级联计数确认。文案全部进入 zh-CN/en-US 消息表。
+- T2.1：虚拟化数据网格 `features/grid/`：TanStack Table v8 + Virtual v3、只读单元格、行/列 ARIA、
+  方向键/Tab/Home/End/PageUp/PageDown、矩形选择、冻结列、列宽拖拽与双击自适应（持久化到
+  `view.tableView.widths`）、列宽/冻结列选择器。
+- T2.1：`@curve/app-core` 新增 `table.create`/`table.delete`/`table.meta.update`、
+  `view.create/delete/update/layout` 命令、`WorkspaceActions`（立即写 manifest、删除后 trash、
+  `openWorkspace` 注入 Worker 解码端口）与 `countTableReferences`；新增 22 条单测。
+- T2.1：`apps/desktop` 接入 `@curve/app-core`（Provider/`useSyncExternalStore`、IPC
+  `WorkspaceStore` 适配层、Worker 解码）、`dialog:pickDirectory` handler/preload/api-client/E2E 替身、
+  `app:info.documentsDir`；新增 `e2e/grid.spec.ts` 8 条（欢迎页、表 CRUD/级联、键盘/ARIA/axe、
+  列宽持久化、200% 缩放、100k 首帧与滚动帧率）。
+- T2.1：依赖 `@tanstack/react-table@8.21.3`、`@tanstack/react-virtual@3.14.21`、测试专用
+  `axe-core@4.14.0`；ADR-027 记录命令/保存时机/目录选择/Worker/依赖决定。
 
 ### Changed
 
@@ -191,3 +206,10 @@
 - M1：用户确认接受 M1（2026-10-21）；SPEC §7.5 的完整恢复交互按 ADR-026 后置到 T5.3
   （自动保存、恢复与最近打开），T2.1 只呈现 warning、不新增恢复 IPC；同步 SPEC §7.5、
   TASKS T5.3、HANDOFF 与 AGENTS §0。
+- T2.1：SPEC §13.1 新增 `table.create`/`table.delete`；§15.1/§15.4 的 `app:info` 增加
+  `documentsDir`、`dialog:pickDirectory` 增加 `defaultPath`，并说明 `table:trash` 的删除顺序。
+- T2.1：`FileWorkspaceStore.trash` 改为按 `tableId` 解析文件（manifest 已先删除仍可移动文件）；
+  `electron.vite.config.ts` 删除显式 `table-worker` 入口，Worker 改由 Vite 产出
+  `assets/table.worker-<hash>.js`，E2E 产物断言同步。
+- T2.1：`apps/desktop/tsconfig.web.json` 增加 app-core/persistence 工程引用；`app:info`、
+  `dialog:pickDirectory` 的契约测试与 E2E 桥面同步。

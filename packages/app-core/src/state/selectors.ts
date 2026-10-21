@@ -38,3 +38,29 @@ export function selectActiveView(state: AppState): ViewDef | null {
   }
   return state.views[state.ui.activeViewId] ?? null;
 }
+
+export interface TableReferenceCounts {
+  views: number;
+  charts: number;
+}
+
+/**
+ * Counts the views/charts that a table deletion would cascade (SPEC §9.0).
+ * The delete dialog shows these numbers before dispatching `table.delete`.
+ */
+export function countTableReferences(state: AppState, tableId: string): TableReferenceCounts {
+  const chartIds = new Set(
+    Object.values(state.charts)
+      .filter((chart) => chart.tableId === tableId)
+      .map((chart) => chart.id),
+  );
+  let views = 0;
+  for (const view of Object.values(state.views)) {
+    if (view.kind === 'table' && view.refId === tableId) {
+      views += 1;
+    } else if (view.kind === 'chart' && chartIds.has(view.refId)) {
+      views += 1;
+    }
+  }
+  return { views, charts: chartIds.size };
+}

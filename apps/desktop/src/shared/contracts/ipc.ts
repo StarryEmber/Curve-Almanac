@@ -29,6 +29,19 @@ export interface AppInfo {
   version: string;
   platform: string;
   locale: string;
+  /** OS documents directory; the welcome page derives its default parent from it. */
+  documentsDir: string;
+}
+
+/** `dialog:pickDirectory` request (SPEC §15.1; T2.1 default-path extension). */
+export interface PickDirectoryRequest {
+  title?: string;
+  defaultPath?: string;
+}
+
+/** `dialog:pickDirectory` reply: the chosen directory, or `null` when cancelled. */
+export interface PickDirectoryResult {
+  path: string;
 }
 
 /** Request of `log:write` (SPEC §15.1). `level` is validated in the main process. */
@@ -104,6 +117,9 @@ export interface CurveApi {
   app: {
     info(): Promise<IpcResult<AppInfo>>;
   };
+  dialog: {
+    pickDirectory(request: PickDirectoryRequest): Promise<IpcResult<PickDirectoryResult | null>>;
+  };
   log: {
     write(request: LogWriteRequest): Promise<IpcResult<OkReply>>;
   };
@@ -134,7 +150,19 @@ export const appInfoResponseSchema = z.strictObject({
   version: z.string().min(1),
   platform: z.string().min(1),
   locale: z.string().min(1),
+  documentsDir: z.string().min(1),
 });
+
+export const pickDirectoryRequestSchema: z.ZodType<PickDirectoryRequest, PickDirectoryRequest> =
+  z.strictObject({
+    title: z.string().min(1).max(200).optional(),
+    defaultPath: z.string().min(1).optional(),
+  });
+
+export const pickDirectoryResponseSchema: z.ZodType<PickDirectoryResult | null> = z.union([
+  z.strictObject({ path: z.string().min(1) }),
+  z.null(),
+]);
 
 export const logWriteRequestSchema = z.strictObject({
   level: z.string().min(1),

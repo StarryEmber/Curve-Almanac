@@ -21,7 +21,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session } from 'elec
 
 import { toAppError } from '@curve/domain';
 
-import { resolveE2EUserDataPath } from './e2e-hooks';
+import { resolveE2EDialogStubs, resolveE2EUserDataPath } from './e2e-hooks';
 import { registerIpcHandlers } from './ipc/handlers';
 import { createIpcRegistrar } from './ipc/register';
 import { createConsoleLogger } from './logger';
@@ -36,6 +36,8 @@ import {
   WINDOW_STATE_FILE,
 } from './window-state';
 import { FileWorkspaceStore } from './workspace/file-workspace-store';
+
+import type { OpenDialogOptions } from 'electron';
 
 const APP_NAME = 'Curve Studio';
 
@@ -79,7 +81,26 @@ function registerIpc(workspaceStore: FileWorkspaceStore): void {
       version: app.getVersion(),
       platform: process.platform,
       locale: app.getLocale(),
+      documentsDir: app.getPath('documents'),
     }),
+    pickDirectory: async (request) => {
+      const stubs = resolveE2EDialogStubs({ isPackaged: app.isPackaged, env: process.env });
+      if (stubs !== null) {
+        return stubs.directory === null ? null : { path: stubs.directory };
+      }
+      const options: OpenDialogOptions = {
+        properties: ['openDirectory', 'createDirectory'],
+        ...(request.title === undefined ? {} : { title: request.title }),
+        ...(request.defaultPath === undefined ? {} : { defaultPath: request.defaultPath }),
+      };
+      const focusedWindow = BrowserWindow.getFocusedWindow() ?? mainWindow;
+      const result =
+        focusedWindow === null
+          ? await dialog.showOpenDialog(options)
+          : await dialog.showOpenDialog(focusedWindow, options);
+      const chosen = result.filePaths[0];
+      return result.canceled || chosen === undefined ? null : { path: chosen };
+    },
     workspaceStore,
     listRecentWorkspaces: () => workspaceStore.listRecent(),
   });

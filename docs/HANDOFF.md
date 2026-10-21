@@ -1,12 +1,11 @@
 # HANDOFF — Curve Studio 实施交接
 
-> **更新（2026-10-21，M1 验收会话）**：M1 验收演示已执行，用户已**接受 M1**；报告见
-> `docs/reports/m1/REPORT.md`，可复现测试为 `apps/desktop/src/main/workspace/m1-acceptance.test.ts`。
-> SPEC §7.5 的“尝试恢复/直接打开 + manifest 备份重建”按 ADR-026 后置到 **T5.3**（自动保存、恢复与
-> 最近打开）；T2.1 只呈现 warning。下一步是 `T2.1`，开工前必须逐项确认 §7.5 的待定决策，不要自行选定。
-> 本文其余内容仍是 T1.5 → T2.1 的交接。
-
-> 本文件面向**下一个实现会话**。当前会话已完成 `T1.5`（app-core 状态与命令总线骨架），按用户要求停止。
+> **更新（2026-10-21，T2.1 会话）**：`T2.1`（工作区入口、表管理与虚拟化数据网格）已完成，报告见
+> `docs/reports/t2.1/REPORT.md`，决策记录见 ADR-027。**M2 仍在进行**，下一个任务是 `T2.2`
+> （单元格编辑与校验）；开始前需用户确认，不要自动推进。M1 已由用户接受（ADR-026 把崩溃恢复交互
+> 后置到 T5.3）。本文其余内容仍是 T1.5 → T2.1 的交接，保留为历史背景。
+>
+> 本文件面向**下一个实现会话**。上一会话已完成 `T1.5`（app-core 状态与命令总线骨架）。
 > 最后更新：2026-10-21 · T1.5 提交：`c077cf2` · 分支：`main` · 工作树：T1.5 提交后干净（本文件单独提交）。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 M1 验收与 T2.1 →
 > `docs/TESTPLAN.md` §1、§2、§3（E2/E3）、§4、§5 →
@@ -26,16 +25,16 @@
 | `T1.3` 表数据 JSONL 读写与 Worker | **已完成**（`212aa0b`） |
 | `T1.4` 迁移框架与夹具 | **已完成**（`3eb306e`），migrations 行覆盖 100% |
 | `T1.5` app-core 状态与命令总线骨架 | **已完成**（`c077cf2`）；6 files / 26 tests，app-core 新增代码行覆盖 82–100% |
-| 当前里程碑 | **M1 已验收**（2026-10-21 用户接受；报告 `docs/reports/m1/REPORT.md`；ADR-026） |
-| 下一个任务 | **T2.1**（工作区入口、表管理与虚拟化数据网格）；开工前按 §7.5 逐项确认 8 个决策 |
-| 提交历史（近 7 条） | `c077cf2 feat(app-core): add state slices, command bus and workspace.open (T1.5)`<br>`fc54b27 docs: add T1.5 implementation handoff`<br>`3eb306e feat(domain): add migration registry, executor, backups and fixtures (T1.4)`<br>`af9ba02 docs(agents): refresh status snapshot and handoff pointers`<br>`b435029 docs: add T1.4 implementation handoff`<br>`212aa0b feat(tbl): add JSONL codec, table worker and table IPC (T1.3)`<br>`9c08c0f docs: add T1.3 implementation handoff` |
-| 当前基线 | `pnpm verify` **66 files / 554 tests**；depcruise **187 modules / 548 deps / 0 violations**；`pnpm test:coverage` 全局 lines **93.51%** / branches **84.80%**；`pnpm format:check` 通过 |
-| E2E 基线 | 最近一次完整运行是 T1.4 的 **22 passed**；T1.5 未改 renderer/main/preload，未重跑 E2E |
+| `T2.1` 工作区入口、表管理与网格 | **已完成**（2026-10-21，ADR-027）；报告 `docs/reports/t2.1/REPORT.md` |
+| 当前里程碑 | **M2 进行中**；下一个任务是 `T2.2`（单元格编辑与校验） |
+| 提交历史（近 7 条） | T2.1 提交（见 `git log`）<br>`8559e32 docs(m1): record sign-off and defer crash recovery to T5.3`<br>`228e5ce test(m1): add milestone acceptance demo and report`<br>`fdd6545 docs: add T2.1 implementation handoff`<br>`c077cf2 feat(app-core): add state slices, command bus and workspace.open (T1.5)`<br>`fc54b27 docs: add T1.5 implementation handoff`<br>`3eb306e feat(domain): add migration registry, executor, backups and fixtures (T1.4)` |
+| 当前基线 | `pnpm verify` **72 files / 594 tests**；depcruise **220 modules / 737 deps / 0 violations**；`pnpm test:coverage` 全局 lines **81.57%**；`pnpm format:check` 通过 |
+| E2E 基线 | **30 passed**（T2.1 新增 `apps/desktop/e2e/grid.spec.ts` 8 条） |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`（T1.4） |
 
 **用户明确要求**：一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify`
 与任务指定 e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-**不要自动进入 T2.1**；M1 验收演示与 T2.1 开工前都要先获得用户确认。
+**不要自动进入 T2.2**；T2.1 已完成并报告，T2.2 开工前须获得用户确认。
 
 ---
 
@@ -400,7 +399,10 @@ TASKS 的 M1 条目要求：**脚本/测试创建 `Demo.cstudio` → 写入 1,00
 
 ---
 
-## 7. T2.1 工作交接：工作区入口、表管理与虚拟化数据网格
+## 7. T2.1 工作交接：工作区入口、表管理与虚拟化数据网格（已完成）
+
+> **已完成（2026-10-21）**：本节描述的是 T2.1 开工前的交接背景，实际实现与决策见 ADR-027 与
+> `docs/reports/t2.1/REPORT.md`。§7.5 的 8 个决策已由用户逐项确认，保留为历史记录。
 
 ### 7.1 任务原文摘要（`docs/TASKS.md` T2.1）
 
@@ -490,21 +492,23 @@ apps/desktop/src/renderer/
    `close` 工作区，可能留下 `.lock`。T2.1 接真实 store 时应补 close-on-failure 或明确交给
    main/窗口生命周期处理。
 
-### 7.5 T2.1 开工前需要用户确认的决策（AGENTS §11）
+### 7.5 T2.1 开工前需要用户确认的决策（已确认，见 ADR-027）
 
-不要自行选定。建议逐项问：
+> 2026-10-21 已逐项确认，全部采用推荐方案：新增 `table.create/table.delete` 命令；结构性操作后
+> 立即写 manifest；新表不落 0 字节文件；实现 `dialog:pickDirectory` 且默认
+> `Documents/Curve Studio`；删除用 Dialog 列数量后一条命令级联；`openWorkspace` 注入 Worker
+> 异步解码；TanStack Table v8 + Virtual v3；`workspace:recent:remove/clear` 后置 T5.3。
 
-1. **建表/删表是否新增同步命令**：`table.create`/`table.delete` 不在 SPEC §13.1；新增命令要
-   同步 SPEC/ADR。是否采用？
-2. **持久化时机**：建表/重命名/删除/视图变更后立即 `manifest.write`，还是等 T5.1 自动保存？
-3. **表文件创建**：新表只写 manifest 条目不落 0 字节文件（ADR-022），还是立即写空文件？
-4. **Welcome 目录选择**：是否在 T2.1 实现 `dialog:pickDirectory`，默认父目录如何取得？
-5. **删除级联与二次确认**：级联删除 chart/view/layout 的确认文案/数量如何展示（复用 Dialog？）。
-6. **Worker 接入位置**：给 app-core `openWorkspace` 注入异步解码端口，还是 renderer 先用
-   同步 decode 并在 T2.6 再改？（按性能预算，推荐前者。）
-7. **TanStack 依赖**：`@tanstack/react-table`/`react-virtual` 主版本与 ADR 补充；本机 symlink
-   安装问题先处理。
-8. **最近列表删除/清空**：T2.1 是否实现 `workspace:recent:remove/clear`，还是留 T5.3？
+| # | 决策 | 结果（2026-10-21） |
+|---|---|---|
+| 1 | 建表/删表是否新增同步命令 | 新增 `table.create`/`table.delete`，同步 SPEC §13.1 与 ADR-027 |
+| 2 | 持久化时机 | 结构性操作后立即 `manifest.write`；单元格编辑留 T2.2/T5.3 |
+| 3 | 表文件创建 | 只写 manifest 条目，不落 0 字节文件（ADR-022） |
+| 4 | Welcome 目录选择 | 实现 `dialog:pickDirectory`；`app:info.documentsDir` + 默认 `Documents/Curve Studio` |
+| 5 | 删除级联与二次确认 | Dialog 列视图/图表数量，确认后一条命令级联 |
+| 6 | Worker 接入位置 | `openWorkspace` 注入异步解码端口，删除显式 worker 入口 |
+| 7 | TanStack 依赖 | `@tanstack/react-table@8.21.3` + `@tanstack/react-virtual@3.14.21`；axe-core 测试专用 |
+| 8 | 最近列表删除/清空 | 后置 T5.3，欢迎页只读最近列表 |
 
 ### 7.6 T2.1 关键陷阱
 
@@ -549,11 +553,11 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts --grep "gri
 
 ## 8. 后续里程碑提醒
 
-- M1 已验收（2026-10-21）；T2.1 开工前仍须确认 §7.5 的 8 个决策，不要自动进入 T2.2。
-- T2.1 完成后再进入 T2.2（单元格编辑与校验）；不要跨任务。
+- M1 已验收（2026-10-21）；T2.1 已完成并报告；下一个任务 `T2.2`（单元格编辑与校验）需用户确认，
+  不要自动开始。
 - T2.3 是首个真实迁移落点：届时接 `FileWorkspaceStore.open`、升 `CURRENT_FORMAT_VERSION`、
   补 v1→v2 夹具与逐行等价测试，并补 E2E 锁顺序/失败路径。
-- T5.1 自动保存前，T2.x 的显式保存策略要写清楚，避免“编辑后重开丢失”。
+- T5.3 负责自动保存、崩溃恢复对话框、最近列表移除/清空与 manifest 备份重建（ADR-026）。
 - T5.2 撤销/重做直接消费 `CommandResult.patches/inversePatches`；不要让 dirty 列表进入 patches。
 - T2.6 筛选/排序会改变 `selectVisibleRows` 的语义；保持 O(1) 引用/缓存，不要每次全表遍历。
 - M2 结束运行该里程碑验收演示并停下；不要自动进入 M3。

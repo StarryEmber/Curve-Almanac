@@ -151,10 +151,12 @@ test.describe('T0.4 shell', () => {
       }
     }
 
-    // The empty-state actions remain reachable and clickable.
+    // The welcome actions remain reachable and open the T2.1 dialog.
     await expect(page.getByRole('button', { name: '新建工作区' })).toBeVisible();
     await page.getByRole('button', { name: '新建工作区' }).click();
-    await expect(page.getByRole('status')).toContainText('后续里程碑');
+    await expect(page.getByRole('dialog', { name: '新建工作区' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 
   test('shell: switches light/dark tokens and captures both baselines', async ({ page }) => {

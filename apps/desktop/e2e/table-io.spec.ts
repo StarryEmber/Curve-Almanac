@@ -181,7 +181,7 @@ test.describe('T1.3 table data', () => {
   test('loads the table worker under the production CSP', async ({ page }) => {
     const assetsDirectory = join(desktopAppDir, 'out', 'renderer', 'assets');
     const workerFile = readdirSync(assetsDirectory).find((name) =>
-      /^table-worker-.*\.js$/.test(name),
+      /^table\.worker-.*\.js$/.test(name),
     );
     expect(workerFile).toBeDefined();
     if (workerFile === undefined) {

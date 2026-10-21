@@ -428,8 +428,23 @@ export class FileWorkspaceStore implements WorkspaceStore {
   }
 
   async trash(request: TableRef): Promise<OkReply> {
-    const { workspace, table } = this.requireTable(request);
-    const source = await this.resolveTableFile(workspace, table);
+    // T2.1 deletes by writing the manifest first and moving the file second
+    // (ADR-027), so `trash` must resolve the file by id instead of requiring a
+    // manifest entry that the caller has already removed.
+    if (!isId('tbl', request.tableId)) {
+      throw createAppError('E_PATH_DENIED', 'The table id is not a safe table id.');
+    }
+    const workspace = this.requireWorkspace(request.workspaceId);
+    const tablesDirectory = await resolveWorkspaceRelativePath(
+      workspace.root,
+      WORKSPACE_TABLES_DIR,
+      'tables directory',
+    );
+    const source = await resolveInsideRoot(
+      workspace.root,
+      join(tablesDirectory, tableFileName(request.tableId)),
+      `table ${request.tableId}`,
+    );
     if (!(await pathExists(source))) {
       return { ok: true };
     }
@@ -440,10 +455,10 @@ export class FileWorkspaceStore implements WorkspaceStore {
       'trash directory',
     );
     let date = this.now();
-    let target = join(trashDirectory, `${table.id}.${formatBackupTimestamp(date)}.jsonl`);
+    let target = join(trashDirectory, `${request.tableId}.${formatBackupTimestamp(date)}.jsonl`);
     while (await pathExists(target)) {
       date = new Date(date.getTime() + 1);
-      target = join(trashDirectory, `${table.id}.${formatBackupTimestamp(date)}.jsonl`);
+      target = join(trashDirectory, `${request.tableId}.${formatBackupTimestamp(date)}.jsonl`);
     }
 
     try {

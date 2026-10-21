@@ -460,7 +460,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t21"></a>
 ### T2.1 工作区入口、表管理与虚拟化数据网格
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T1.5、T0.4
 - 覆盖：FR-WS-01、FR-WS-02、FR-TBL-01、FR-TBL-02、FR-TBL-07
 - 参考：SPEC §9.0、§9.1
@@ -478,15 +478,41 @@ T0.2 + T5.5 → T6.4
   4. 键盘状态机：移动/选择/编辑入口；标签栏支持 Ctrl/Cmd+W 关闭。
   5. 大表用 `React.memo` 单元格，避免整表刷新。
 - 验收：
-  - [ ] 无工作区时欢迎页可用；新建/打开/最近三条路径都能进入网格。
-  - [ ] 新建表（默认主键）→ 重命名 → 删除进 `.trash` → 重新打开，行为正确。
-  - [ ] 删除被图表/视图引用的表：确认框列出数量，确认后引用一并删除，无悬挂引用。
-  - [ ] 打开同一张表两次只激活已有标签，不重复创建。
-  - [ ] 100k 行首帧 < 1s；滚动 ≥ 55fps（基准脚本/手工）。
-  - [ ] 方向键/Tab/Home/End/PageUp/PageDown 行为正确。
-  - [ ] 列宽拖拽与双击自适应生效，刷新后保留。
-  - [ ] 屏幕阅读器可读出行列数（axe 无 critical）。
+  - [x] 无工作区时欢迎页可用；新建/打开/最近三条路径都能进入网格。
+  - [x] 新建表（默认主键）→ 重命名 → 删除进 `.trash` → 重新打开，行为正确。
+  - [x] 删除被图表/视图引用的表：确认框列出数量，确认后引用一并删除，无悬挂引用。
+  - [x] 打开同一张表两次只激活已有标签，不重复创建。
+  - [x] 100k 行首帧 < 1s；滚动 ≥ 55fps（基准脚本/手工）。
+  - [x] 方向键/Tab/Home/End/PageUp/PageDown 行为正确。
+  - [x] 列宽拖拽与双击自适应生效，刷新后保留。
+  - [x] 屏幕阅读器可读出行列数（axe 无 critical）。
 - 验证：`pnpm exec vitest run apps/desktop -- --grep "grid|welcome" && pnpm e2e -- --grep "grid|workspace"`
+- 实现备注（2026-10-21，ADR-027）：
+  - 决策（用户逐项确认）：新增 `table.create`/`table.delete` 同步命令；结构性操作后立即写 manifest；
+    新表只写 manifest 条目不落 0 字节文件；实现 `dialog:pickDirectory` 且默认父目录
+    `Documents/Curve Studio`；删除用 Dialog 列数量后一条命令级联；`openWorkspace` 注入 Worker 异步
+    解码端口；TanStack Table v8 + Virtual v3；`workspace:recent:remove/clear` 后置 T5.3。
+  - app-core：`commands/layout.ts`、`commands/tables.ts`、`commands/views.ts`、
+    `usecases/workspace-actions.ts`（`stateToManifest`/`countTableReferences`）、`openWorkspace.decodeTable`；
+    新增 22 条单测（表命令 7、视图命令 7、actions 6；异步解码 2 条并入 open use case 测试）。
+  - renderer：`app-core/{renderer-core,use-app-core,use-workspace-controller,workspace-store}.ts(x)`、
+    `features/workspace/{WelcomePage,NewWorkspaceDialog,OpenWorkspaceDialog,TabBar,WorkspaceView}.tsx`、
+    `features/tables/{TableList,NewTableDialog,RenameTableDialog,DeleteTableDialog}.tsx`、
+    `features/grid/{DataGrid,GridHeader,GridCell,SelectionLayer,grid-navigation,grid-sizing}.ts(x)`；
+    全部文案进 zh-CN/en-US 消息表。
+  - main/IPC：`dialog:pickDirectory` handler/preload/api-client/E2E 替身；`app:info.documentsDir`；
+    `table:trash` 改为按 id 解析文件（支持“manifest 先写、文件后移”的删除顺序）；
+    `electron.vite.config.ts` 删除显式 `table-worker` 入口，Vite 产出
+    `assets/table.worker-<hash>.js`（E2E 断言同步）。
+  - E2E：`apps/desktop/e2e/grid.spec.ts` 8 条（欢迎页新建/打开/最近、表 CRUD+`.trash`+重开、
+    目录选择与错误路径、级联计数、警告提示、ARIA/键盘/矩形选择 + axe、列宽拖拽/自适应/重开、
+    200% 缩放、100k 首帧与滚动帧率）。
+  - 实测：100k 首帧 **405ms**；滚动采样 **165.7fps**（Electron rAF 采样，未锁定显示器刷新率）；
+    `pnpm verify` **72 files / 594 tests**；depcruise **220 modules / 737 deps / 0 violations**；
+    `pnpm test:coverage` 全局 lines **81.57%**（新增 UI 代码拉低，阈值 70% 仍满足）；
+    `pnpm e2e` **30 passed**。
+  - 残留：`workspace:recent:remove/clear` 与恢复对话框按 ADR-026/027 后置 T5.3；100k 滚动帧率仍是
+    合成 rAF 采样，T2.7 用正式 bench 固化；Grid 只读，编辑在 T2.2。
 
 <a id="t22"></a>
 ### T2.2 单元格编辑与校验

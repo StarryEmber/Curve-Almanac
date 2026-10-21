@@ -165,11 +165,25 @@ describe('createCurveApi', () => {
     await expect(api.app.info()).rejects.toThrow('IPC channel closed');
   });
 
+  it('forwards dialog:pickDirectory over its channel', async () => {
+    const invoke = vi.fn(async () => ({ ok: true, data: { path: 'C:\\picked' } }));
+    const api = createCurveApi(invoke);
+
+    await expect(
+      api.dialog.pickDirectory({ title: 'Choose', defaultPath: 'C:\\start' }),
+    ).resolves.toEqual({ ok: true, data: { path: 'C:\\picked' } });
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.dialogPickDirectory, {
+      title: 'Choose',
+      defaultPath: 'C:\\start',
+    });
+  });
+
   it('exposes no generic invoke/send escape hatch', () => {
     const api = createCurveApi(async () => ({ ok: true, data: null }));
 
-    expect(Object.keys(api)).toEqual(['app', 'log', 'workspace', 'manifest', 'table']);
+    expect(Object.keys(api)).toEqual(['app', 'dialog', 'log', 'workspace', 'manifest', 'table']);
     expect(Object.keys(api.app)).toEqual(['info']);
+    expect(Object.keys(api.dialog)).toEqual(['pickDirectory']);
     expect(Object.keys(api.log)).toEqual(['write']);
     expect(Object.keys(api.workspace)).toEqual(['create', 'open', 'close', 'recent']);
     expect(Object.keys(api.manifest)).toEqual(['write']);

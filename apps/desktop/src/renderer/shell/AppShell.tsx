@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { ToastHost, useToasts } from '@curve/ui';
 
+import { useAppState } from '../app-core/use-app-core';
 import { describeAppError } from '../error-text';
+import { WelcomePage } from '../features/workspace/WelcomePage';
+import { WorkspaceView } from '../features/workspace/WorkspaceView';
 import { useI18n } from '../i18n';
 
 import { HelpDialog } from './HelpDialog';
@@ -11,37 +14,46 @@ import { Sidebar } from './Sidebar';
 import { StatusBar } from './StatusBar';
 import { TitleBar } from './TitleBar';
 import { useRuntimeInfo } from './use-runtime-info';
-import { WorkspaceEmptyState } from './WorkspaceEmptyState';
 
 import type { AppError } from '../../shared/contracts/ipc';
 import type { ReactElement } from 'react';
 
 /**
- * App Shell (TASKS T0.4): title bar, collapsible sidebar, main area, inspector,
- * status bar and the toast/dialog layers. Layout is a CSS grid so the keyboard
- * order matches the visual order: skip link → title bar → sidebar → main →
- * inspector → status bar.
+ * App Shell: title bar, collapsible sidebar, main area, inspector, status bar
+ * and the toast/dialog layers. T2.1 swaps the T0.4 empty state for the welcome
+ * page and the workspace view.
  */
 export function AppShell(): ReactElement {
   const { t } = useI18n();
   const runtime = useRuntimeInfo();
   const { toasts, push, dismiss } = useToasts();
+  const workspace = useAppState((state) => state.workspace);
+  const appError = useAppState((state) => state.ui.error);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
-  const reportedError = useRef<AppError | null>(null);
+  const reportedRuntimeError = useRef<AppError | null>(null);
+  const reportedAppError = useRef<AppError | null>(null);
 
   useEffect(() => {
-    if (runtime.status !== 'error' || reportedError.current === runtime.error) {
+    if (runtime.status !== 'error' || reportedRuntimeError.current === runtime.error) {
       return;
     }
-    reportedError.current = runtime.error;
+    reportedRuntimeError.current = runtime.error;
     push('error', describeAppError(runtime.error, t));
   }, [runtime, push, t]);
 
-  const notifyUnavailable = useCallback((): void => {
-    push('info', t('shell.empty.unavailable'));
-  }, [push, t]);
+  useEffect(() => {
+    if (appError === null) {
+      reportedAppError.current = null;
+      return;
+    }
+    if (reportedAppError.current === appError) {
+      return;
+    }
+    reportedAppError.current = appError;
+    push('error', describeAppError(appError, t));
+  }, [appError, push, t]);
 
   return (
     <div
@@ -71,7 +83,13 @@ export function AppShell(): ReactElement {
       {sidebarOpen ? <Sidebar /> : null}
 
       <main className="cs-app__main" id="cs-main" data-testid="main" tabIndex={-1}>
-        <WorkspaceEmptyState onUnavailable={notifyUnavailable} />
+        {workspace === null ? (
+          <WelcomePage
+            documentsDir={runtime.status === 'ready' ? runtime.info.documentsDir : undefined}
+          />
+        ) : (
+          <WorkspaceView />
+        )}
       </main>
 
       {inspectorOpen ? <Inspector /> : null}

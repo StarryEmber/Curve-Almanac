@@ -95,12 +95,6 @@ export default defineConfig({
       rolldownOptions: {
         input: {
           index: fromConfigDir('src/renderer/index.html'),
-          // T1.3 builds the table Worker explicitly: no renderer code imports
-          // the client until T1.5, yet the E2E must prove the production CSP
-          // (`default-src 'self'`, no `worker-src`) allows it. When T1.5 wires
-          // `createTableIoClient` into the app, Vite starts emitting the Worker
-          // itself and this entry can be dropped.
-          'table-worker': fromConfigDir('src/renderer/workers/table.worker.ts'),
         },
       },
     },

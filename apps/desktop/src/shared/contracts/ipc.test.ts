@@ -7,6 +7,8 @@ import {
   logWriteResponseSchema,
   manifestWriteRequestSchema,
   manifestWriteResponseSchema,
+  pickDirectoryRequestSchema,
+  pickDirectoryResponseSchema,
   workspaceCloseRequestSchema,
   workspaceCloseResponseSchema,
   workspaceCreateRequestSchema,
@@ -43,6 +45,7 @@ describe('app:info contract', () => {
       version: '0.1.0',
       platform: 'win32',
       locale: 'zh-CN',
+      documentsDir: 'C:\\Users\\test\\Documents',
     });
 
     expect(parsed.success).toBe(true);
@@ -55,6 +58,14 @@ describe('app:info contract', () => {
     expect(
       appInfoResponseSchema.safeParse({ version: '', platform: 'win32', locale: 'zh-CN' }).success,
     ).toBe(false);
+    expect(
+      appInfoResponseSchema.safeParse({
+        version: '0.1.0',
+        platform: 'win32',
+        locale: 'zh-CN',
+        documentsDir: '',
+      }).success,
+    ).toBe(false);
   });
 
   it('rejects a response with fields outside the contract', () => {
@@ -63,6 +74,7 @@ describe('app:info contract', () => {
         version: '0.1.0',
         platform: 'win32',
         locale: 'zh-CN',
+        documentsDir: 'C:\\Users\\test\\Documents',
         extra: 1,
       }).success,
     ).toBe(false);
@@ -73,6 +85,27 @@ describe('app:info contract', () => {
     expect(appInfoRequestSchema.safeParse({}).success).toBe(true);
     expect(appInfoRequestSchema.safeParse({ dir: 'C:/elsewhere' }).success).toBe(false);
     expect(appInfoRequestSchema.safeParse('app:info').success).toBe(false);
+  });
+});
+
+describe('dialog:pickDirectory contract', () => {
+  it('accepts an optional title and defaultPath', () => {
+    expect(pickDirectoryRequestSchema.safeParse({}).success).toBe(true);
+    expect(
+      pickDirectoryRequestSchema.safeParse({
+        title: 'Choose',
+        defaultPath: 'C:\\Users\\test\\Documents\\Curve Studio',
+      }).success,
+    ).toBe(true);
+    expect(pickDirectoryRequestSchema.safeParse({ defaultPath: '' }).success).toBe(false);
+    expect(pickDirectoryRequestSchema.safeParse({ extra: 1 }).success).toBe(false);
+  });
+
+  it('accepts a path or null and rejects malformed replies', () => {
+    expect(pickDirectoryResponseSchema.safeParse({ path: 'C:\\picked' }).success).toBe(true);
+    expect(pickDirectoryResponseSchema.safeParse(null).success).toBe(true);
+    expect(pickDirectoryResponseSchema.safeParse({ path: '' }).success).toBe(false);
+    expect(pickDirectoryResponseSchema.safeParse({}).success).toBe(false);
   });
 });
 

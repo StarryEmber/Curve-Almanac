@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createAppError, parseManifest } from '@curve/domain';
-import type { AppError, ViewDef, WorkspaceManifest } from '@curve/domain';
+import type { AppError, TableMeta, ViewDef, WorkspaceManifest } from '@curve/domain';
 import type {
   BackupEntry,
   CloseWorkspaceRequest,
@@ -21,7 +21,7 @@ import type {
   WriteTableRequest,
   WriteTableResult,
 } from '@curve/persistence';
-import { utf8ByteLength } from '@curve/table-engine';
+import { utf8ByteLength, decodeJsonl } from '@curve/table-engine';
 
 import { createAppCore } from '../app-core';
 import { selectActiveView, selectCurrentTable, selectVisibleRows } from '../state/selectors';
@@ -260,6 +260,46 @@ describe('workspace.open use case', () => {
       return;
     }
     expect(outcome.error.code).toBe('E_TABLE_NOT_FOUND');
+    expect(appStore.getState().tables).toBe(before.tables);
+    expect(appStore.getState().ui.error).toEqual(outcome.error);
+  });
+
+  it('uses the injected async decoder (T2.1 Worker port) instead of inline decode', async () => {
+    const fixture = loadFixture();
+    const appStore = createAppStore();
+    const decodeTable = vi.fn(async (jsonl: string, table: TableMeta) => decodeJsonl(jsonl, table));
+    const open = createOpenWorkspace({
+      store: makeStore(fixture),
+      appStore,
+      logger: makeLogger(),
+      decodeTable,
+    });
+
+    const outcome = await open({ dir: 'C:\\tmp\\V1 Min.cstudio' });
+    expect(outcome.ok).toBe(true);
+    expect(decodeTable).toHaveBeenCalledTimes(1);
+    expect(appStore.getState().tables['tbl_v1min']?.rows).toEqual(EXPECTED_ROWS);
+  });
+
+  it('fails atomically when the injected decoder rejects', async () => {
+    const fixture = loadFixture();
+    const appStore = createAppStore();
+    const before = appStore.getState();
+    const open = createOpenWorkspace({
+      store: makeStore(fixture),
+      appStore,
+      logger: makeLogger(),
+      decodeTable: async () => {
+        throw createAppError('E_TABLE_PARSE', 'worker failed');
+      },
+    });
+
+    const outcome = await open({ dir: 'C:\\tmp\\V1 Min.cstudio' });
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) {
+      return;
+    }
+    expect(outcome.error.code).toBe('E_TABLE_PARSE');
     expect(appStore.getState().tables).toBe(before.tables);
     expect(appStore.getState().ui.error).toEqual(outcome.error);
   });

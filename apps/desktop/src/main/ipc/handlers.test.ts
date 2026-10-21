@@ -48,7 +48,13 @@ function wire(): { ipcMain: FakeIpcMain; lines: string[] } {
   registerIpcHandlers({
     registrar,
     logger,
-    getAppInfo: () => ({ version: '0.1.0', platform: 'win32', locale: 'en-US' }),
+    getAppInfo: () => ({
+      version: '0.1.0',
+      platform: 'win32',
+      locale: 'en-US',
+      documentsDir: 'C:\\Users\\test\\Documents',
+    }),
+    pickDirectory: async () => ({ path: 'C:\\picked' }),
     workspaceStore: new MemoryWorkspaceStore({ appVersion: '0.1.0', uuid: () => 'test' }),
     listRecentWorkspaces: async () => [],
   });
@@ -68,8 +74,24 @@ describe('registerIpcHandlers', () => {
 
     await expect(ipcMain.invoke(IPC_CHANNELS.appInfo)).resolves.toEqual({
       ok: true,
-      data: { version: '0.1.0', platform: 'win32', locale: 'en-US' },
+      data: {
+        version: '0.1.0',
+        platform: 'win32',
+        locale: 'en-US',
+        documentsDir: 'C:\\Users\\test\\Documents',
+      },
     });
+  });
+
+  it('answers dialog:pickDirectory from the injected picker', async () => {
+    const { ipcMain } = wire();
+
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.dialogPickDirectory, {
+        title: 'Choose',
+        defaultPath: 'C:\\Users\\test\\Documents\\Curve Studio',
+      }),
+    ).resolves.toEqual({ ok: true, data: { path: 'C:\\picked' } });
   });
 
   it('accepts an empty object payload for app:info', async () => {

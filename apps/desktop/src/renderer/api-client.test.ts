@@ -4,7 +4,12 @@ import { createApiClient } from './api-client';
 
 import type { CurveApi, WorkspaceManifest } from '../shared/contracts/ipc';
 
-const INFO = { version: '0.1.0', platform: 'win32', locale: 'en-US' };
+const INFO = {
+  version: '0.1.0',
+  platform: 'win32',
+  locale: 'en-US',
+  documentsDir: 'C:\\Users\\test\\Documents',
+};
 
 const MANIFEST: WorkspaceManifest = {
   formatVersion: 1,
@@ -29,6 +34,7 @@ const MANIFEST: WorkspaceManifest = {
 function bridge(overrides: Partial<CurveApi> = {}): CurveApi {
   const base: CurveApi = {
     app: { info: async () => ({ ok: true, data: INFO }) },
+    dialog: { pickDirectory: async () => ({ ok: true, data: null }) },
     log: { write: async () => ({ ok: true, data: { ok: true } }) },
     workspace: {
       create: async () => ({ ok: true, data: MANIFEST }),
@@ -241,7 +247,7 @@ describe('createApiClient', () => {
   it('exposes no generic invoke/send escape hatch', () => {
     const client = createApiClient(bridge());
 
-    expect(Object.keys(client)).toEqual(['app', 'log', 'workspace', 'manifest', 'table']);
+    expect(Object.keys(client)).toEqual(['app', 'dialog', 'log', 'workspace', 'manifest', 'table']);
     expect(client).not.toHaveProperty('invoke');
     expect(client).not.toHaveProperty('send');
   });

@@ -930,6 +930,8 @@ export interface RenderModel {
 | 命令 | 载荷 | 可撤销 |
 |---|---|---|
 | `table.cell.set` | tableId, rowId, columnId, value | 是 |
+| `table.create` | table, view | 是 |
+| `table.delete` | tableId | 是（级联需二次确认） |
 | `table.rows.insert` | tableId, index, rows | 是 |
 | `table.rows.delete` | tableId, rowIds | 是 |
 | `table.paste` | tableId, anchor, matrix | 是 |
@@ -1086,8 +1088,8 @@ export interface PluginCommandContext {
 
 | 通道 | 方向 | 请求 | 响应 |
 |---|---|---|---|
-| `app:info` | R→M | `{}` | `{ version, platform, locale }` |
-| `dialog:pickDirectory` | R→M | `{ title? }` | `{ path } \| null` |
+| `app:info` | R→M | `{}` | `{ version, platform, locale, documentsDir }` |
+| `dialog:pickDirectory` | R→M | `{ title?, defaultPath? }` | `{ path } \| null` |
 | `dialog:saveFile` | R→M | `{ suggestedName, filters }` | `{ path } \| null` |
 | `workspace:create` | R→M | `{ dir, name }` | `WorkspaceManifest` |
 | `workspace:open` | R→M | `{ dir }` | `{ manifest, warnings }` |
@@ -1113,6 +1115,8 @@ export interface PluginCommandContext {
 - `table:read/write` 不接受绝对路径，只接受 `workspaceId + tableId`；main 从内部映射解析路径。
 - `table:read` 在表文件缺失时的语义见 §7.5 与 ADR-022：`rowCount === 0` 返回空表，否则
   `E_TABLE_NOT_FOUND`。
+- `table:trash` 只按 `workspaceId + tableId` 移动文件；T2.1 的删除顺序是“写 manifest → trash”，
+  因此该通道不要求表条目仍在 manifest 中（ADR-027）。
 - `table:write` 在写盘前校验 §2.2 的行数（200,000）与字节（256 MB）上限，超限返回 `E_TABLE_LIMIT`，
   不落盘、不备份。
 - 单次 IPC 载荷上限 256MB；超过返回 `E_PAYLOAD_TOO_LARGE`。
@@ -1162,18 +1166,25 @@ new BrowserWindow({
 // window.api（只暴露这些）
 export type IpcResult<T> = { ok: true; data: T } | { ok: false; error: AppError }; // AppError 见 §18
 
-export interface AppInfo { version: string; platform: string; locale: string }
+export interface AppInfo {
+  version: string;
+  platform: string;
+  locale: string;
+  /** OS documents directory; the welcome page derives its default parent from it. */
+  documentsDir: string;
+}
 export interface RecentEntry { path: string; name: string; lastOpenedAt: string }
 export interface BackupEntry { path: string; createdAt: string; bytes: number }
 export interface FileFilter { name: string; extensions: string[] }
 export interface SaveFileReq { suggestedName: string; filters: FileFilter[] }
 export interface ImportTextReq { filters: FileFilter[] }
 export interface ExportTextReq { suggestedName: string; content: string; filters: FileFilter[] }
+export interface PickDirectoryReq { title?: string; defaultPath?: string }
 
 interface CurveApi {
   app: { info(): Promise<IpcResult<AppInfo>> };
   dialog: {
-    pickDirectory(req: { title?: string }): Promise<IpcResult<{ path: string } | null>>;
+    pickDirectory(req: PickDirectoryReq): Promise<IpcResult<{ path: string } | null>>;
     saveFile(req: SaveFileReq): Promise<IpcResult<{ path: string } | null>>;
   };
   workspace: {

@@ -1,5 +1,6 @@
 import { Select } from '@curve/ui';
 
+import { useAppState } from '../app-core/use-app-core';
 import { LOCALES, isLocale, useI18n } from '../i18n';
 
 import type { RuntimeState } from './use-runtime-info';
@@ -11,6 +12,7 @@ export interface StatusBarProps {
 
 export function StatusBar({ runtime }: StatusBarProps): ReactElement {
   const { t, locale, setLocale } = useI18n();
+  const workspace = useAppState((state) => state.workspace);
 
   const runtimeText =
     runtime.status === 'ready'
@@ -32,10 +34,14 @@ export function StatusBar({ runtime }: StatusBarProps): ReactElement {
         {runtimeText}
       </span>
       <span className="cs-statusbar__item" data-testid="workspace-status">
-        {`${t('shell.status.workspace')}: ${t('shell.status.workspaceNone')}`}
+        {`${t('shell.status.workspace')}: ${
+          workspace === null ? t('shell.status.workspaceNone') : workspace.name
+        }`}
       </span>
       <span className="cs-statusbar__item" data-testid="autosave-status">
-        {`${t('shell.status.autosave')}: ${t('shell.status.autosaveIdle')}`}
+        {`${t('shell.status.autosave')}: ${
+          workspace === null ? t('shell.status.autosaveIdle') : t('shell.status.saved')
+        }`}
       </span>
       <Select
         className="cs-statusbar__language"

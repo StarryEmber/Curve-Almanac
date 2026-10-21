@@ -19,6 +19,8 @@ import type {
   LogWriteRequest,
   ManifestWriteRequest,
   OkReply,
+  PickDirectoryRequest,
+  PickDirectoryResult,
   RecentEntry,
   TableReadReply,
   TableRefRequest,
@@ -55,6 +57,12 @@ export function createCurveApi(invoke: InvokeFn): CurveApi {
   return {
     app: {
       info: (): Promise<IpcResult<AppInfo>> => call<AppInfo>(invoke, IPC_CHANNELS.appInfo),
+    },
+    dialog: {
+      pickDirectory: (
+        request: PickDirectoryRequest,
+      ): Promise<IpcResult<PickDirectoryResult | null>> =>
+        call<PickDirectoryResult | null>(invoke, IPC_CHANNELS.dialogPickDirectory, request),
     },
     log: {
       write: (request: LogWriteRequest): Promise<IpcResult<OkReply>> =>

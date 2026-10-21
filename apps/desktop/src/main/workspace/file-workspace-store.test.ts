@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -339,6 +347,27 @@ describe('FileWorkspaceStore tables and backups', () => {
     await expect(
       harness.store.trash({ workspaceId: created.id, tableId: 'tbl_1' }),
     ).resolves.toEqual({ ok: true });
+  });
+
+  it('moves a file after the manifest no longer lists the table (T2.1 delete order)', async () => {
+    const harness = createHarness();
+    const { parent, root } = workspacePath(harness);
+    const created = await harness.store.create({ dir: parent, name: 'Demo' });
+    const withTable = await addTable(harness.store, created);
+    await harness.store.writeTable({ workspaceId: created.id, tableId: 'tbl_1', jsonl: 'v1\n' });
+
+    // `deleteTable` writes the manifest first, then calls `table:trash`.
+    await harness.store.writeManifest({
+      workspaceId: created.id,
+      manifest: { ...withTable, tables: [] },
+    });
+    await expect(
+      harness.store.trash({ workspaceId: created.id, tableId: 'tbl_1' }),
+    ).resolves.toEqual({ ok: true });
+
+    expect(existsSync(join(root, 'tables', 'tbl_1.jsonl'))).toBe(false);
+    const trashed = readdirSync(join(root, '.trash'));
+    expect(trashed.some((name) => name.startsWith('tbl_1.'))).toBe(true);
   });
 
   it('treats a missing file as empty only while the rowCount hint is zero (ADR-022)', async () => {

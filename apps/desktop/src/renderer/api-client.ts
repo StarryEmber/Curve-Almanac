@@ -13,6 +13,8 @@ import {
   logWriteResponseSchema,
   manifestWriteRequestSchema,
   manifestWriteResponseSchema,
+  pickDirectoryRequestSchema,
+  pickDirectoryResponseSchema,
   tableReadRequestSchema,
   tableReadResponseSchema,
   tableTrashRequestSchema,
@@ -34,6 +36,8 @@ import type {
   LogWriteRequest,
   ManifestWriteRequest,
   OkReply,
+  PickDirectoryRequest,
+  PickDirectoryResult,
   RecentEntry,
   TableReadReply,
   TableRefRequest,
@@ -98,6 +102,7 @@ export function createApiClient(bridge: CurveApi | undefined): CurveApi {
   if (!bridge) {
     return {
       app: { info: unavailable },
+      dialog: { pickDirectory: unavailable },
       log: { write: unavailable },
       workspace: {
         create: unavailable,
@@ -113,6 +118,17 @@ export function createApiClient(bridge: CurveApi | undefined): CurveApi {
   return {
     app: {
       info: () => call(appInfoResponseSchema, () => bridge.app.info()),
+    },
+    dialog: {
+      pickDirectory: (
+        request: PickDirectoryRequest,
+      ): Promise<IpcResult<PickDirectoryResult | null>> => {
+        const parsed = pickDirectoryRequestSchema.safeParse(request);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(pickDirectoryResponseSchema, () => bridge.dialog.pickDirectory(parsed.data));
+      },
     },
     log: {
       write: (request: LogWriteRequest): Promise<IpcResult<OkReply>> => {

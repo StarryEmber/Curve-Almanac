@@ -18,6 +18,8 @@ import {
   logWriteResponseSchema,
   manifestWriteRequestSchema,
   manifestWriteResponseSchema,
+  pickDirectoryRequestSchema,
+  pickDirectoryResponseSchema,
   tableReadRequestSchema,
   tableReadResponseSchema,
   tableTrashRequestSchema,
@@ -35,7 +37,13 @@ import {
 } from '../../shared/contracts/ipc';
 import { normalizeLogLevel } from '../logger';
 
-import type { AppInfo, OkReply, RecentEntry } from '../../shared/contracts/ipc';
+import type {
+  AppInfo,
+  OkReply,
+  PickDirectoryRequest,
+  PickDirectoryResult,
+  RecentEntry,
+} from '../../shared/contracts/ipc';
 import type { Logger } from '../logger';
 import type { IpcRegistrar } from './register';
 
@@ -44,6 +52,8 @@ export interface RegisterIpcHandlersOptions {
   logger: Logger;
   /** Injected so tests can answer without an Electron `app` module. */
   getAppInfo: () => AppInfo;
+  /** Injected so tests can answer without Electron's native dialog. */
+  pickDirectory: (request: PickDirectoryRequest) => Promise<PickDirectoryResult | null>;
   workspaceStore: WorkspaceStore;
   listRecentWorkspaces: () => Promise<RecentEntry[]>;
 }
@@ -55,6 +65,12 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     IPC_CHANNELS.appInfo,
     { request: appInfoRequestSchema, response: appInfoResponseSchema },
     () => options.getAppInfo(),
+  );
+
+  registrar.handle(
+    IPC_CHANNELS.dialogPickDirectory,
+    { request: pickDirectoryRequestSchema, response: pickDirectoryResponseSchema },
+    (request) => options.pickDirectory(request),
   );
 
   registrar.handle(

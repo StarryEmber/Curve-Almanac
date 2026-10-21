@@ -37,9 +37,10 @@ describe('IPC channels', () => {
     expect(names).toEqual(Object.values(SPEC_CHANNELS));
   });
 
-  it('wires app/log, the T1.2 workspace lifecycle, manifest:write and the T1.3 table channels', () => {
+  it('wires app/log, workspace, manifest, table and the T2.1 directory picker', () => {
     expect([...IMPLEMENTED_IPC_CHANNELS]).toEqual([
       IPC_CHANNELS.appInfo,
+      IPC_CHANNELS.dialogPickDirectory,
       IPC_CHANNELS.logWrite,
       IPC_CHANNELS.workspaceCreate,
       IPC_CHANNELS.workspaceOpen,

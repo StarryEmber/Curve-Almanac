@@ -13,6 +13,8 @@
   "references": [
     { "path": "../../packages/domain" },
     { "path": "../../packages/table-engine" },
+    { "path": "../../packages/persistence" },
+    { "path": "../../packages/app-core" },
     { "path": "../../packages/ui" }
   ],
   "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx", "src/shared/**/*.ts"]

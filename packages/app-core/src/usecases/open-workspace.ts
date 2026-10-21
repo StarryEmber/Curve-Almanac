@@ -3,13 +3,14 @@ import type {
   AppError,
   ChartSpec,
   LayoutNode,
+  TableMeta,
   TableStyle,
   ViewDef,
   WorkspaceManifest,
 } from '@curve/domain';
 import type { OpenWorkspaceRequest, WorkspaceStore } from '@curve/persistence';
 import { decodeJsonl, toJsonlAppError } from '@curve/table-engine';
-import type { TableData } from '@curve/table-engine';
+import type { JsonlDecodeResult, TableData } from '@curve/table-engine';
 
 import { defaultAppLogger } from '../logging';
 
@@ -28,6 +29,11 @@ export interface OpenWorkspaceDependencies {
   store: WorkspaceStore;
   appStore: AppStore;
   logger?: AppLogger;
+  /**
+   * Async table decoder (T2.1: the renderer Worker). When omitted the pure
+   * `decodeJsonl` runs inline, which keeps app-core tests and T1.5 simple.
+   */
+  decodeTable?: (jsonl: string, table: TableMeta) => Promise<JsonlDecodeResult>;
 }
 
 export type OpenWorkspace = (request: OpenWorkspaceRequest) => Promise<OpenWorkspaceOutcome>;
@@ -120,7 +126,10 @@ export function createOpenWorkspace(deps: OpenWorkspaceDependencies): OpenWorksp
           workspaceId: opened.manifest.id,
           tableId: table.id,
         });
-        const decoded = decodeJsonl(read.jsonl, table);
+        const decoded =
+          deps.decodeTable === undefined
+            ? decodeJsonl(read.jsonl, table)
+            : await deps.decodeTable(read.jsonl, table);
         recordWarnings(table.id, table.name, decoded, warnings, logger);
         tables[table.id] = { table, rows: decoded.rows };
       }

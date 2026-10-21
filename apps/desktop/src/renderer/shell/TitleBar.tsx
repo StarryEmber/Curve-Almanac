@@ -1,6 +1,8 @@
 import { Button, Menu, THEME_MODES } from '@curve/ui';
 import type { MenuItemDefinition } from '@curve/ui';
 
+import { useAppState } from '../app-core/use-app-core';
+import { useWorkspaceController } from '../app-core/use-workspace-controller';
 import { useI18n } from '../i18n';
 import { useTheme } from '../theme/ThemeProvider';
 
@@ -25,6 +27,8 @@ export function TitleBar({
 }: TitleBarProps): ReactElement {
   const { t } = useI18n();
   const { mode, setMode } = useTheme();
+  const workspace = useAppState((state) => state.workspace);
+  const workspaceController = useWorkspaceController();
 
   const themeItems: MenuItemDefinition[] = THEME_MODES.map((option) => ({
     id: option,
@@ -41,11 +45,22 @@ export function TitleBar({
         <AppMark className="cs-titlebar__mark" />
         <h1 className="cs-titlebar__product">{t('app.name')}</h1>
         <span className="cs-titlebar__workspace" data-testid="workspace-label">
-          {t('shell.titleBar.workspaceEmpty')}
+          {workspace === null ? t('shell.titleBar.workspaceEmpty') : workspace.name}
         </span>
       </div>
 
       <div className="cs-titlebar__actions">
+        {workspace === null ? null : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              void workspaceController.closeWorkspace();
+            }}
+          >
+            {t('workspace.close')}
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"

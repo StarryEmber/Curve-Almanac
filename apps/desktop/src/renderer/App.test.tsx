@@ -16,7 +16,12 @@ function stubApi(info: () => Promise<unknown>): void {
 
 const readyInfo = {
   ok: true,
-  data: { version: '0.1.0', platform: 'win32', locale: 'en-US' },
+  data: {
+    version: '0.1.0',
+    platform: 'win32',
+    locale: 'en-US',
+    documentsDir: 'C:\\Users\\test\\Documents',
+  },
 };
 
 beforeEach(() => {
@@ -163,13 +168,16 @@ describe('App shell', () => {
     expect(document.activeElement).toBe(help);
   });
 
-  it('explains that workspace actions are not available yet', async () => {
+  it('opens the new-workspace dialog and validates the name', async () => {
     stubApi(async () => readyInfo);
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: '新建工作区' }));
 
-    const toast = await screen.findByRole('status');
-    expect(toast.textContent).toContain('后续里程碑');
+    expect(screen.getByRole('dialog', { name: '新建工作区' })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: '创建工作区' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('请输入工作区名称');
   });
 });

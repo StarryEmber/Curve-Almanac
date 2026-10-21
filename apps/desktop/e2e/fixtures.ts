@@ -90,6 +90,10 @@ export const test = base.extend<AppFixtures>({
     delete env['ELECTRON_RUN_AS_NODE'];
     env['CURVE_E2E'] = '1';
     env['CURVE_E2E_USER_DATA'] = userDataDir;
+    // T2.1 dialog stand-in: a per-test directory the welcome page can "pick".
+    const dialogDirectory = join(userDataDir, 'dialog-directory');
+    mkdirSync(dialogDirectory, { recursive: true });
+    env['CURVE_E2E_DIR'] = dialogDirectory;
 
     const args = [desktopAppDir];
     if (DISABLE_CHROMIUM_SANDBOX) {
