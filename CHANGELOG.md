@@ -133,6 +133,12 @@
   100k 行测试断言重复调用返回同一行数组引用，手动实测首调约 0.03–0.05ms。
 - T1.5：新增 `zustand@5.0.15`/`immer@10.2.0` 运行时依赖与 ADR-025；app-core 新增 25 条测试
   （含 v1-min 夹具、可逆 patches、失败不改文档、打开布局恢复与 100k 选择器）。
+- M1：新增 `apps/desktop/src/main/workspace/m1-acceptance.test.ts`（3 条验收演示，驱动生产
+  `FileWorkspaceStore` + `table-engine`）：创建 `Demo.cstudio` 写入 1,000 行、关闭后用新实例重开并
+  逐行相等；篡改 manifest（截断 JSON / 悬空主键 / `formatVersion: 2`）均返回类型化错误且原文件字节
+  不变；伪造 stale/corrupt `.lock` 触发警告与替换，活跃锁返回 `E_WS_LOCKED`。
+- M1：`docs/reports/m1/REPORT.md`（验收演示、真实输出、门禁回归、遗留问题与待确认项）；
+  `pnpm verify` 67 files / 557 tests、全局行覆盖 93.62%、`pnpm e2e` 22 passed。
 
 ### Changed
 

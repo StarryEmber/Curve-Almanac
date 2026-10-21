@@ -451,6 +451,7 @@ T0.2 + T5.5 → T6.4
 - 验证：`pnpm exec vitest run packages/app-core`
 
 **M1 验收演示**：脚本/测试创建 `Demo.cstudio` → 写入 1,000 行 → 关闭重开 → 数据逐行相等；篡改 manifest → 报错且原文件不变；伪造 `.lock` → 走恢复提示。输出报告后停下。
+（2026-10-21 已执行，报告：`docs/reports/m1/REPORT.md`；验收测试：`apps/desktop/src/main/workspace/m1-acceptance.test.ts`。三条演示全部通过；待用户确认后进入 T2.1，且 SPEC §7.5 的恢复交互仍待裁决。）
 
 ---
 
