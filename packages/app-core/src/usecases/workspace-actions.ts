@@ -7,7 +7,7 @@
  */
 
 import { createAppError, toAppError } from '@curve/domain';
-import type { AppError, LayoutNode, UuidFactory, WorkspaceManifest } from '@curve/domain';
+import type { AppError, Cell, LayoutNode, UuidFactory } from '@curve/domain';
 import type { WorkspaceStore } from '@curve/persistence';
 
 import { activateViewInLayout } from '../commands/layout';
@@ -17,19 +17,39 @@ import {
   type TableCreatePayload,
 } from '../commands/tables';
 import { defaultAppLogger } from '../logging';
+import { stateToManifest } from '../state/manifest';
+import { createIdleSaveState } from '../state/store';
+import {
+  cellIssueToAppError,
+  checkTableCellSet,
+  unknownCellIssue,
+} from '../validation/cell-validation';
 
 import type { CommandBus } from '../commands/types';
 import type { ViewPatch } from '../commands/views';
+import type { EditHistory } from '../history/edit-history';
 import type { AppLogger } from '../logging';
-import type { AppState, AppStore } from '../state/types';
+import type { SaveQueue } from './save-queue';
+import type { AppStore } from '../state/types';
+import type { CellIssue } from '../validation/cell-validation';
+
+export { stateToManifest } from '../state/manifest';
 
 export type ActionOutcome<T = undefined> =
-  { readonly ok: true; readonly data: T } | { readonly ok: false; readonly error: AppError };
+  | { readonly ok: true; readonly data: T }
+  | { readonly ok: false; readonly error: AppError; readonly issue?: CellIssue };
+
+export interface CellUpdateResult {
+  changed: boolean;
+  value: Cell;
+}
 
 export interface WorkspaceActionsOptions {
   store: AppStore;
   commands: CommandBus;
   workspaceStore: WorkspaceStore;
+  history: EditHistory;
+  saveQueue: SaveQueue;
   logger?: AppLogger;
   now?: () => Date;
   uuid?: UuidFactory;
@@ -43,34 +63,22 @@ export interface WorkspaceActions {
   activateView(viewId: string): Promise<ActionOutcome>;
   closeView(viewId: string): Promise<ActionOutcome>;
   updateView(viewId: string, patch: ViewPatch): Promise<ActionOutcome>;
+  updateCell(
+    tableId: string,
+    rowId: string,
+    columnId: string,
+    value: unknown,
+  ): Promise<ActionOutcome<CellUpdateResult>>;
+  undo(): Promise<ActionOutcome>;
+  redo(): Promise<ActionOutcome>;
+  retrySave(): Promise<ActionOutcome>;
+  flushSaves(): Promise<ActionOutcome>;
   saveManifest(): Promise<ActionOutcome>;
   closeWorkspace(): Promise<ActionOutcome>;
 }
 
 function emptyLayout(): LayoutNode {
   return { type: 'pane', viewIds: [], activeViewId: null };
-}
-
-/** Builds the manifest that should be written for the current document state. */
-export function stateToManifest(state: AppState): WorkspaceManifest | null {
-  const workspace = state.workspace;
-  if (workspace === null) {
-    return null;
-  }
-  return {
-    formatVersion: workspace.formatVersion,
-    id: workspace.id,
-    name: workspace.name,
-    appVersion: workspace.appVersion,
-    createdAt: workspace.createdAt,
-    updatedAt: workspace.updatedAt,
-    tables: Object.values(state.tables).map((data) => data.table),
-    charts: Object.values(state.charts),
-    views: Object.values(state.views),
-    tableStyles: Object.values(state.tableStyles),
-    layout: state.layout,
-    settings: workspace.settings,
-  };
 }
 
 function cloneLayout(layout: LayoutNode): LayoutNode {
@@ -85,7 +93,7 @@ function fail(error: AppError): ActionOutcome<never> {
 }
 
 export function createWorkspaceActions(options: WorkspaceActionsOptions): WorkspaceActions {
-  const { store, commands, workspaceStore } = options;
+  const { store, commands, workspaceStore, history, saveQueue } = options;
   const logger = options.logger ?? defaultAppLogger;
   const now = options.now ?? ((): Date => new Date());
   const uuid = options.uuid;
@@ -158,6 +166,7 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     if (!dispatched.ok) {
       return fail(dispatched.error);
     }
+    saveQueue.cancel(tableId);
     // Manifest first: an orphaned table file is harmless, a manifest that still
     // references a trashed file is data loss (ADR-027).
     const saved = await saveManifest();
@@ -246,16 +255,77 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     return saveManifest();
   }
 
+  async function updateCell(
+    tableId: string,
+    rowId: string,
+    columnId: string,
+    value: unknown,
+  ): Promise<ActionOutcome<CellUpdateResult>> {
+    const check = checkTableCellSet(store.getState(), { tableId, rowId, columnId, value });
+    if (!check.ok) {
+      store.getState().actions.setEditIssue(check.issue);
+      return { ok: false, error: cellIssueToAppError(check.issue), issue: check.issue };
+    }
+    if (!check.changed) {
+      store.getState().actions.setEditIssue(null);
+      return { ok: true, data: { changed: false, value: check.value } };
+    }
+
+    const dispatched = commands.dispatch('table.cell.set', {
+      tableId,
+      rowId,
+      columnId,
+      value,
+    });
+    if (!dispatched.ok) {
+      const issue = unknownCellIssue(dispatched.error);
+      store.getState().actions.setEditIssue(issue);
+      return { ok: false, error: dispatched.error, issue };
+    }
+    store.getState().actions.setEditIssue(null);
+    return { ok: true, data: { changed: check.changed, value: check.value } };
+  }
+
+  async function undo(): Promise<ActionOutcome> {
+    if (!history.undo()) {
+      return fail(createAppError('E_VALIDATION', 'There is nothing to undo.'));
+    }
+    return { ok: true, data: undefined };
+  }
+
+  async function redo(): Promise<ActionOutcome> {
+    if (!history.redo()) {
+      return fail(createAppError('E_VALIDATION', 'There is nothing to redo.'));
+    }
+    return { ok: true, data: undefined };
+  }
+
+  async function retrySave(): Promise<ActionOutcome> {
+    saveQueue.retry();
+    return { ok: true, data: undefined };
+  }
+
+  async function flushSaves(): Promise<ActionOutcome> {
+    const outcome = await saveQueue.flush();
+    return outcome.ok ? { ok: true, data: undefined } : fail(outcome.error);
+  }
+
   async function closeWorkspace(): Promise<ActionOutcome> {
     const state = store.getState();
     if (state.workspace === null) {
       return { ok: true, data: undefined };
+    }
+    const flushed = await flushSaves();
+    if (!flushed.ok) {
+      return fail(flushed.error);
     }
     try {
       await workspaceStore.close({ workspaceId: state.workspace.id });
     } catch (thrown) {
       return fail(report('failed to close the workspace', thrown));
     }
+    history.clear();
+    saveQueue.reset();
     store.setState({
       workspace: null,
       tables: {},
@@ -263,7 +333,14 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
       charts: {},
       tableStyles: {},
       layout: emptyLayout(),
-      ui: { activeTableId: null, activeViewId: null, error: null, dirtyTables: [] },
+      ui: {
+        activeTableId: null,
+        activeViewId: null,
+        error: null,
+        dirtyTables: [],
+        save: createIdleSaveState(),
+        editIssue: null,
+      },
     });
     store.getState().actions.clearAllDirty();
     return { ok: true, data: undefined };
@@ -277,6 +354,11 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     activateView,
     closeView,
     updateView,
+    updateCell,
+    undo,
+    redo,
+    retrySave,
+    flushSaves,
     saveManifest,
     closeWorkspace,
   };

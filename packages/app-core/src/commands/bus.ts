@@ -120,6 +120,13 @@ export function createCommandBus(store: AppStore, options: CommandBusOptions = {
         inversePatches,
         ...(mergeKey === undefined ? {} : { mergeKey }),
       };
+      if (options.onCommand !== undefined) {
+        try {
+          options.onCommand(result);
+        } catch (thrown) {
+          logger.error('command observer failed', toAppError(thrown));
+        }
+      }
       return { ok: true, result };
     },
 

@@ -1,39 +1,48 @@
 /**
- * Virtualised data grid (T2.1, SPEC §9.1).
+ * Virtualised data grid (T2.1/T2.2, SPEC §9.1/§9.2).
  *
  * TanStack Table owns column definitions, sizing and header groups; TanStack
- * Virtual renders only the visible rows. Cells are read-only in T2.1 (editing is
- * T2.2); keyboard navigation, rectangular selection, frozen columns, column
- * resizing and ARIA live here.
+ * Virtual renders only the visible rows. Only the active cell renders an editor,
+ * so a 100k-row table never creates one input per cell.
  */
 
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { ViewPatch } from '@curve/app-core';
+import type { CellIssue, ViewPatch } from '@curve/app-core';
 import { formatCellValue } from '@curve/domain';
 import type { Cell, ColumnDef as DomainColumn, Row, TableMeta, ViewDef } from '@curve/domain';
 import { Select } from '@curve/ui';
 
 import { useI18n } from '../../i18n';
 
+import { describeCellIssue } from './cell-issue-text';
+import { CellEditor } from './editors/CellEditor';
 import { isGridNavigationKey, isInRect, moveGridPosition, selectionRect } from './grid-navigation';
 import { DEFAULT_COLUMN_WIDTH, frozenOffsets, measureColumnWidth } from './grid-sizing';
 import { GridCell } from './GridCell';
 import { GridHeader } from './GridHeader';
 import { SelectionLayer } from './SelectionLayer';
+import { useCellEditing } from './use-cell-editing';
 
+import type { GridPosition } from './grid-navigation';
+import type { CellCommitOutcome } from './use-cell-editing';
 import type { ColumnDef as TanStackColumnDef } from '@tanstack/react-table';
+import type { Range } from '@tanstack/react-virtual';
 import type { CSSProperties, KeyboardEvent, ReactElement } from 'react';
 
 const ROW_HEIGHT = 32;
+const CONFLICT_HIGHLIGHT_MS = 2_500;
+const CONFLICT_RETURN_MS = 1_200;
 
 export interface DataGridProps {
   tableMeta: TableMeta;
   rows: readonly Row[];
   view: ViewDef;
   onViewUpdate: (patch: ViewPatch) => void | Promise<void>;
+  onCellCommit: (row: Row, column: DomainColumn, raw: unknown) => Promise<CellCommitOutcome>;
+  onEditIssue: (issue: CellIssue | null) => void;
 }
 
 function sameSizing(left: Record<string, number>, right: Record<string, number>): boolean {
@@ -42,14 +51,43 @@ function sameSizing(left: Record<string, number>, right: Record<string, number>)
   return leftKeys.length === rightKeys.length && leftKeys.every((key) => right[key] === left[key]);
 }
 
-export function DataGrid({ tableMeta, rows, view, onViewUpdate }: DataGridProps): ReactElement {
+function isDirectEditKey(event: KeyboardEvent<HTMLDivElement>): boolean {
+  return (
+    event.key.length === 1 &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey &&
+    !event.nativeEvent.isComposing
+  );
+}
+
+export function DataGrid({
+  tableMeta,
+  rows,
+  view,
+  onViewUpdate,
+  onCellCommit,
+  onEditIssue,
+}: DataGridProps): ReactElement {
   const { t } = useI18n();
   const tableView = view.tableView;
   const scrollRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
   const focusPending = useRef(false);
   const lastPersisted = useRef<Record<string, number>>({});
+  const editingRowRef = useRef<number | null>(null);
   const [active, setActive] = useState({ row: 0, col: 0 });
   const [anchor, setAnchor] = useState({ row: 0, col: 0 });
+  const [conflictRow, setConflictRow] = useState<number | null>(null);
+  const rangeExtractor = useCallback((range: Range): number[] => {
+    const indexes = defaultRangeExtractor(range);
+    const editingIndex = editingRowRef.current;
+    if (editingIndex !== null && !indexes.includes(editingIndex)) {
+      indexes.push(editingIndex);
+      indexes.sort((left, right) => left - right);
+    }
+    return indexes;
+  }, []);
 
   const visibleColumns = useMemo(() => {
     if (tableView === undefined) {
@@ -114,6 +152,7 @@ export function DataGrid({ tableMeta, rows, view, onViewUpdate }: DataGridProps)
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: 8,
+    rangeExtractor,
   });
 
   useEffect(() => {
@@ -132,6 +171,16 @@ export function DataGrid({ tableMeta, rows, view, onViewUpdate }: DataGridProps)
     element?.focus({ preventScroll: true });
   }, []);
 
+  const focusEditor = useCallback((): void => {
+    requestAnimationFrame(() => {
+      editorRef.current?.focus();
+    });
+  }, []);
+
+  const registerEditorRef = useCallback((element: HTMLInputElement | HTMLSelectElement | null) => {
+    editorRef.current = element;
+  }, []);
+
   useEffect(() => {
     if (!focusPending.current) {
       return;
@@ -143,13 +192,99 @@ export function DataGrid({ tableMeta, rows, view, onViewUpdate }: DataGridProps)
     };
   }, [active, focusActiveCell]);
 
-  const activate = useCallback((rowIndex: number, colIndex: number, extend: boolean): void => {
-    setActive({ row: rowIndex, col: colIndex });
-    if (!extend) {
+  const handleFinish = useCallback(
+    (position: GridPosition, options: { refocus: boolean }): void => {
+      setActive(position);
+      setAnchor(position);
+      if (options.refocus) {
+        focusPending.current = true;
+      }
+      virtualizer.scrollToIndex(position.row, { align: 'auto' });
+    },
+    [virtualizer],
+  );
+
+  const { editing, busy, begin, change, cancel, commit, clear } = useCellEditing({
+    rows,
+    columns: visibleColumns,
+    tableMeta,
+    onCommit: onCellCommit,
+    onEditIssue,
+    onFinish: handleFinish,
+    focusEditor,
+  });
+  // Keeps the edited row mounted when the user scrolls a virtualised table.
+  editingRowRef.current = editing?.row ?? null;
+
+  const beginEdit = useCallback(
+    (rowIndex: number, colIndex: number, seed?: string): void => {
+      if (editing !== null) {
+        return;
+      }
+      if (rows[rowIndex] === undefined || visibleColumns[colIndex] === undefined) {
+        return;
+      }
+      setActive({ row: rowIndex, col: colIndex });
       setAnchor({ row: rowIndex, col: colIndex });
+      focusPending.current = false;
+      begin({ row: rowIndex, col: colIndex }, seed);
+      virtualizer.scrollToIndex(rowIndex, { align: 'auto' });
+    },
+    [begin, editing, rows, virtualizer, visibleColumns],
+  );
+
+  const activate = useCallback(
+    (rowIndex: number, colIndex: number, extend: boolean): void => {
+      const target = { row: rowIndex, col: colIndex };
+      if (editing !== null) {
+        void commit(null).then((ok) => {
+          if (!ok) {
+            return;
+          }
+          setActive(target);
+          if (!extend) {
+            setAnchor(target);
+          }
+          focusPending.current = true;
+          virtualizer.scrollToIndex(target.row, { align: 'auto' });
+        });
+        return;
+      }
+      setActive(target);
+      if (!extend) {
+        setAnchor(target);
+      }
+      focusPending.current = true;
+      virtualizer.scrollToIndex(target.row, { align: 'auto' });
+    },
+    [commit, editing, virtualizer],
+  );
+
+  const conflict = editing?.issue?.conflictRowNumber;
+  const editingRow = editing?.row;
+  useEffect(() => {
+    if (conflict === undefined || editingRow === undefined) {
+      setConflictRow(null);
+      return;
     }
-    focusPending.current = true;
-  }, []);
+    const index = conflict - 1;
+    if (index < 0 || index >= rows.length) {
+      return;
+    }
+    setConflictRow(index);
+    virtualizer.scrollToIndex(index, { align: 'center' });
+    const back = window.setTimeout(() => {
+      virtualizer.scrollToIndex(editingRow, { align: 'auto' });
+      requestAnimationFrame(focusEditor);
+    }, CONFLICT_RETURN_MS);
+    const clearHighlight = window.setTimeout(() => {
+      setConflictRow(null);
+    }, CONFLICT_HIGHLIGHT_MS);
+    return () => {
+      window.clearTimeout(back);
+      window.clearTimeout(clearHighlight);
+    };
+  }, [conflict, editingRow, focusEditor, rows.length, virtualizer]);
 
   const commitWidths = useCallback(
     (next: Record<string, number>): void => {
@@ -178,7 +313,29 @@ export function DataGrid({ tableMeta, rows, view, onViewUpdate }: DataGridProps)
   );
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    if (editing !== null) {
+      return;
+    }
+    if (
+      (event.key === 'F2' || event.key === 'Enter') &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey
+    ) {
+      event.preventDefault();
+      beginEdit(active.row, active.col);
+      return;
+    }
+    if (event.key === 'Delete') {
+      event.preventDefault();
+      void clear(active);
+      return;
+    }
     if (!isGridNavigationKey(event.key)) {
+      if (isDirectEditKey(event)) {
+        event.preventDefault();
+        beginEdit(active.row, active.col, event.key);
+      }
       return;
     }
     event.preventDefault();
@@ -212,6 +369,14 @@ export function DataGrid({ tableMeta, rows, view, onViewUpdate }: DataGridProps)
     rows: selectedRows,
     columns: selectedColumns,
   });
+  const issue = editing?.issue ?? null;
+  const issueColumn =
+    issue === null
+      ? undefined
+      : (tableMeta.columns.find((column) => column.id === issue.columnId) ??
+        visibleColumns[editing?.col ?? -1]);
+  const errorText =
+    issue === null ? null : describeCellIssue(issue, t, issueColumn?.label ?? issue.columnId);
 
   if (tableView === undefined) {
     return <p className="cs-grid__empty">{t('grid.empty')}</p>;
@@ -306,6 +471,9 @@ export function DataGrid({ tableMeta, rows, view, onViewUpdate }: DataGridProps)
                       );
                       const value: Cell = row.values[valueIndex] ?? null;
                       const isFrozen = colIndex < frozenCount;
+                      const isEditing =
+                        editing?.row === virtualRow.index && editing.col === colIndex;
+                      const cellError = isEditing ? errorText : null;
                       return (
                         <GridCell
                           key={column.id}
@@ -317,7 +485,30 @@ export function DataGrid({ tableMeta, rows, view, onViewUpdate }: DataGridProps)
                           stickyLeft={isFrozen ? (offsets[colIndex] ?? 0) : null}
                           active={active.row === virtualRow.index && active.col === colIndex}
                           selected={isInRect(virtualRow.index, colIndex, rect)}
+                          editing={isEditing}
+                          editor={
+                            isEditing && editing !== null ? (
+                              <CellEditor
+                                column={column}
+                                value={editing.draft}
+                                error={errorText}
+                                busy={busy}
+                                onChange={change}
+                                onCommit={(direction) => {
+                                  void commit(direction);
+                                }}
+                                onCancel={cancel}
+                                onBlur={() => {
+                                  void commit(null);
+                                }}
+                                registerRef={registerEditorRef}
+                              />
+                            ) : null
+                          }
+                          errorText={cellError}
+                          conflict={conflictRow === virtualRow.index}
                           onActivate={activate}
+                          onBeginEdit={beginEdit}
                         />
                       );
                     })}

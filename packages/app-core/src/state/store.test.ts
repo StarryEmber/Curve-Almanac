@@ -82,6 +82,8 @@ describe('app-core store actions', () => {
       activeViewId: null,
       error: null,
       dirtyTables: [],
+      save: { status: 'idle', pending: 0, error: null },
+      editIssue: null,
     });
     expect(selectCurrentTable(store.getState())).toBeNull();
 
@@ -163,5 +165,26 @@ describe('app-core store actions', () => {
     // Clearing twice is a no-op and must not throw.
     actions.clearError();
     expect(store.getState().ui.error).toBeNull();
+  });
+
+  it('stores save and edit issues as UI-only state', () => {
+    const store = createAppStore();
+    const actions = store.getState().actions;
+    const error = createAppError('E_FS_WRITE', 'disk full');
+
+    actions.setSaveState({ status: 'error', pending: 0, error });
+    expect(store.getState().ui.save).toEqual({ status: 'error', pending: 0, error });
+
+    actions.setEditIssue({
+      reason: 'type',
+      code: 'E_TYPE',
+      columnId: 'col_value',
+      rowNumber: 2,
+      message: 'expects a number',
+    });
+    expect(store.getState().ui.editIssue?.rowNumber).toBe(2);
+
+    actions.setEditIssue(null);
+    expect(store.getState().ui.editIssue).toBeNull();
   });
 });

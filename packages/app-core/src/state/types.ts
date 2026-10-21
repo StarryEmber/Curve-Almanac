@@ -8,7 +8,18 @@ import type {
 } from '@curve/domain';
 import type { DirtyTableEntry, TableData } from '@curve/table-engine';
 
+import type { CellIssue } from '../validation/cell-issue';
 import type { StoreApi } from 'zustand/vanilla';
+
+export type SavePhase = 'idle' | 'saving' | 'saved' | 'error';
+
+/** Status bar state for the T2.2 save queue (SPEC §13.3). */
+export interface SaveState {
+  status: SavePhase;
+  /** Tables waiting to be written, including the one currently in flight. */
+  pending: number;
+  error: AppError | null;
+}
 
 /** The open workspace's immutable identity, settings and open-time warnings. */
 export interface WorkspaceInfo {
@@ -43,6 +54,10 @@ export interface UiState {
   error: AppError | null;
   /** Snapshot of the dirty-table tracker, in first-mark order (ADR-023). */
   dirtyTables: DirtyTableEntry[];
+  /** Save queue status consumed by the status bar. */
+  save: SaveState;
+  /** The cell validation issue currently shown in the editor/status bar. */
+  editIssue: CellIssue | null;
 }
 
 export interface AppActions {
@@ -53,6 +68,8 @@ export interface AppActions {
   markDirty(tableId: string): void;
   clearDirty(tableId: string): void;
   clearAllDirty(): void;
+  setSaveState(save: SaveState): void;
+  setEditIssue(issue: CellIssue | null): void;
 }
 
 /**

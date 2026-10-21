@@ -154,6 +154,15 @@
   列宽持久化、200% 缩放、100k 首帧与滚动帧率）。
 - T2.1：依赖 `@tanstack/react-table@8.21.3`、`@tanstack/react-virtual@3.14.21`、测试专用
   `axe-core@4.14.0`；ADR-027 记录命令/保存时机/目录选择/Worker/依赖决定。
+- T2.2：单元格编辑与校验：text/number/date/boolean/enum 原生编辑器、F2/双击/直接输入、Enter 下移、
+  Tab/Shift+Tab、失焦提交、Esc 取消、IME composition 保护；只给 active cell 渲染编辑器。
+- T2.2：`@curve/app-core` 新增结构化 `CellIssue`、共享 `checkTableCellSet`、`validateCellBatch`、
+  `updateCell/undo/redo/retrySave/flushSaves`、`table.cell.set` 最小历史栈（800ms 合并、上限 100）
+  与按表串行的保存队列（Worker encode → `table:write` → `manifest:write`，失败保留 dirty 可重试）。
+- T2.2：状态栏保存三态（保存中/已保存/保存失败 + 重试）与错误定位“第 N 行 · 列 X：原因”；主键冲突
+  显示冲突行号、滚动并高亮冲突行；编辑行通过虚拟列表 `rangeExtractor` 保留。
+- T2.2：测试新增 `editor-value`、`CellEditor`、`cell-issue-text`、cell validation、edit history、
+  save queue、updateCell/close-flush 用例，以及 `e2e/edit.spec.ts` 3 条；ADR-028 记录 8 项决策。
 
 ### Changed
 
@@ -213,3 +222,10 @@
   `assets/table.worker-<hash>.js`，E2E 产物断言同步。
 - T2.1：`apps/desktop/tsconfig.web.json` 增加 app-core/persistence 工程引用；`app:info`、
   `dialog:pickDirectory` 的契约测试与 E2E 桥面同步。
+- T2.2：SPEC §9.2 增加结构化 `CellIssue`、主键冲突定位、日期/布尔/枚举编辑器与批量校验实现边界；
+  §13.2 记录最小历史栈（T5.2 复用）；§13.3 记录“提交后立即异步保存”及 T5.3 的替换约束。
+- T2.2：`stateToManifest` 从 `workspace-actions` 迁移到 `state/manifest.ts`（保存队列与 actions 共用）；
+  `createAppCore` 增加 `encodeTable` 注入与 `onCommand` 观察者；`openWorkspace` 成功后清空历史与保存
+  状态；`GridCell` 移除 `aria-readonly` 并接入编辑器/错误/冲突状态。
+- T2.2：`docs/TASKS.md` 勾选 T2.2 并记录决策/文件/实测；新增 `docs/reports/t2.2/REPORT.md`、ADR-028；
+  同步 HANDOFF、AGENTS §0 与 `docs/adr/README.md` 索引。

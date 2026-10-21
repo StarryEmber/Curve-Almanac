@@ -1,8 +1,8 @@
-/** One read-only grid cell; memoised so scrolling does not re-render the grid. */
+/** One grid cell; memoised so scrolling does not re-render the grid. */
 
 import { memo } from 'react';
 
-import type { CSSProperties, ReactElement } from 'react';
+import type { CSSProperties, ReactElement, ReactNode } from 'react';
 
 export interface GridCellProps {
   rowIndex: number;
@@ -14,7 +14,15 @@ export interface GridCellProps {
   stickyLeft: number | null;
   active: boolean;
   selected: boolean;
+  editing: boolean;
+  /** Rendered instead of `text` for the single cell being edited. */
+  editor?: ReactNode;
+  /** Full localised issue text, used as the tooltip and red-outline trigger. */
+  errorText?: string | null;
+  /** Temporary highlight for a primary-key conflict row. */
+  conflict?: boolean;
   onActivate: (rowIndex: number, colIndex: number, extend: boolean) => void;
+  onBeginEdit: (rowIndex: number, colIndex: number) => void;
 }
 
 function GridCellComponent({
@@ -26,7 +34,12 @@ function GridCellComponent({
   stickyLeft,
   active,
   selected,
+  editing,
+  editor,
+  errorText,
+  conflict = false,
   onActivate,
+  onBeginEdit,
 }: GridCellProps): ReactElement {
   const style: CSSProperties = { width, minWidth: width, maxWidth: width };
   if (stickyLeft !== null) {
@@ -39,29 +52,43 @@ function GridCellComponent({
     <div
       role="gridcell"
       aria-colindex={colIndex + 1}
-      aria-readonly="true"
       aria-selected={selected}
-      tabIndex={active ? 0 : -1}
+      tabIndex={active && !editing ? 0 : -1}
       data-active={active ? 'true' : undefined}
+      data-editing={editing ? 'true' : undefined}
       data-row={rowIndex}
       data-col={colIndex}
       data-row-id={rowId}
       data-testid={`grid-cell-${rowIndex}-${colIndex}`}
+      title={errorText ?? undefined}
       className={[
         'cs-grid__cell',
         active && 'cs-grid__cell--active',
         selected && 'cs-grid__cell--selected',
         stickyLeft !== null && 'cs-grid__cell--frozen',
+        editing && 'cs-grid__cell--editing',
+        errorText !== null && errorText !== undefined && 'cs-grid__cell--error',
+        conflict && 'cs-grid__cell--conflict',
       ]
         .filter(Boolean)
         .join(' ')}
       style={style}
       onMouseDown={(event) => {
+        if (editing) {
+          return;
+        }
         event.preventDefault();
         onActivate(rowIndex, colIndex, event.shiftKey);
       }}
+      onDoubleClick={(event) => {
+        if (editing) {
+          return;
+        }
+        event.preventDefault();
+        onBeginEdit(rowIndex, colIndex);
+      }}
     >
-      {text.length === 0 ? '\u00a0' : text}
+      {editor ?? (text.length === 0 ? '\u00a0' : text)}
     </div>
   );
 }

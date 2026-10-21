@@ -516,7 +516,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t22"></a>
 ### T2.2 单元格编辑与校验
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T2.1
 - 覆盖：FR-TBL-02
 - 参考：SPEC §9.2、§8.1
@@ -531,11 +531,34 @@ T0.2 + T5.5 → T6.4
   3. Enter 提交下移、Tab 提交右移、Esc 取消。
   4. 批量操作先整体校验。
 - 验收：
-  - [ ] 5 种类型均可编辑；非法值不落库且错误可读。
-  - [ ] 主键重复被阻止并定位冲突行。
-  - [ ] 编辑一次 = 一条撤销记录（800ms 合并）。
-  - [ ] 纯键盘可完成"改一格"。
-- 验证：`pnpm exec vitest run apps/desktop -- --grep "cell" && pnpm e2e -- --grep "edit"`
+  - [x] 5 种类型均可编辑；非法值不落库且错误可读。
+  - [x] 主键重复被阻止并定位冲突行。
+  - [x] 编辑一次 = 一条撤销记录（800ms 合并）。
+  - [x] 纯键盘可完成"改一格"。
+- 验证：`pnpm verify && pnpm test:coverage && pnpm e2e`（E2E 包含 `edit.spec.ts`）
+- 实现备注（2026-10-21，ADR-028）：
+  - 开工前用户逐项确认 8 个决策：每次提交后异步保存；`table.cell.set` 最小撤销栈（800ms 合并、
+    Ctrl/Cmd+Z、Shift+Z/Cmd+Y、上限 100）；新增行留给 T2.4/T2.5；结构化 `CellIssue` + `t(key)`；
+    主键冲突显示行号并滚动/高亮；F2 + 双击 + 直接输入；date/boolean/enum 用原生控件；状态栏三态 +
+    `validateCellBatch` 纯函数。
+  - app-core：`validation/cell-issue.ts`、`validation/cell-validation.ts`、`history/edit-history.ts`、
+    `usecases/save-queue.ts`、`state/manifest.ts`；`ui` 增加 `save`/`editIssue`；`WorkspaceActions`
+    增加 `updateCell/undo/redo/retrySave/flushSaves`；`CommandBusOptions.onCommand`；renderer 注入
+    `encodeTable`；打开/关闭工作区清理历史与保存状态。
+  - renderer：`features/grid/editors/*`（Text/Number/Date/Boolean/Enum + `CellEditor`）、
+    `use-cell-editing.ts`、`cell-issue-text.ts`；`GridCell` 支持编辑器/错误/冲突高亮，`DataGrid` 用
+    `rangeExtractor` 保留编辑行；`WorkspaceView` 接入 Ctrl/Cmd+Z/Y/S；`StatusBar` 增加保存三态、
+    错误定位与重试；全部文案进 zh-CN/en-US。
+  - 保存：每次成功提交后 Worker encode → `table:write` → `manifest:write`，按表串行并合并待写；
+    失败保留 dirty 并显示可重试错误；关闭工作区前 flush ≤3s。
+  - 测试：app-core 新增 cell-validation/edit-history/save-queue/updateCell/close-flush 用例；renderer
+    新增 editor-value、CellEditor、cell-issue-text 组件测试；`e2e/edit.spec.ts` 3 条（五类型 + 重开、
+    非法值/必填/主键冲突定位、F2/Enter/Tab/Esc + 撤销重做）。
+  - 实测：`pnpm verify` **78 files / 638 tests**，depcruise **242 modules / 851 deps / 0 violations**；
+    `pnpm test:coverage` 全局 lines **77.73%**（新增 UI 拉低，阈值 70/60 未下调）；`pnpm format:check`
+    通过；`pnpm e2e` **33 passed**；`pnpm build` exit 0（renderer 1,163.90 kB）。
+  - 残留：新增行/空主键自动生成留 T2.4/T2.5；完整撤销栈与菜单留 T5.2；1.5s 自动保存/崩溃恢复留
+    T5.3；日期编辑器只编辑日期，带时刻值提交后归一为本地午夜（ADR-028）；批量校验暂无 UI。
 
 <a id="t23"></a>
 ### T2.3 列管理、结构变更与迁移

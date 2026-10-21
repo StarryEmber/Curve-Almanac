@@ -1,12 +1,12 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T2.1`（工作区入口、表管理与虚拟化数据网格），
-> 按用户要求停止，`T2.2` 尚未开始。
-> 最后更新：2026-10-21 · `T2.1` 提交：`07c4763` · 分支：`main` · 工作树：干净。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.2 →
+> 本文件面向**下一个实现会话**。当前会话已完成 `T2.2`（单元格编辑与校验），
+> 按用户要求停止，`T2.3` 尚未开始。
+> 最后更新：2026-10-21 · `T2.2` 已完成 · 分支：`main` · 工作树：干净（本次提交后）。
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.3 →
 > `docs/TESTPLAN.md` §1、§2、§3（E3）、§4、§5 →
-> `docs/SPEC.md` §8.1、§9.1、§9.2、§13.1、§13.2、§15.1、§16.1 →
-> `docs/DECISIONS.md` 的 ADR-005/006/007/014，再读 `docs/adr/025`、`026`、`027`。
+> `docs/SPEC.md` §6.6、§7.6、§9.0、§13.1、§15.1、§16.1 →
+> `docs/DECISIONS.md` 的 ADR-005/006/007/014，再读 `docs/adr/028`、`027`、`026`、`025`。
 
 ---
 
@@ -17,24 +17,24 @@
 | 方案文档 | v1.0 已锁定（SPEC / TASKS / TESTPLAN / DECISIONS） |
 | M0 基建（T0.1–T0.5） | **已完成**；验收报告 `docs/reports/m0/REPORT.md` |
 | M1 领域与持久化（T1.1–T1.5） | **已完成并经用户验收**（2026-10-21）；报告 `docs/reports/m1/REPORT.md` |
-| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1 扩展了命令与 actions |
+| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1/T2.2 扩展了命令、actions、历史与保存 |
 | `T2.1` 工作区入口、表管理、网格 | **已完成**（`07c4763`）；报告 `docs/reports/t2.1/REPORT.md`；决策 ADR-027 |
-| 当前里程碑 | **M2 表格数据进行中**（T2.1 完成，T2.2–T2.7 未开始） |
-| 下一个任务 | **T2.2 单元格编辑与校验**；开工前必须确认 §6.5 的待定决策，不要自行选定 |
-| 提交历史（近 8 条） | `07c4763 feat(tbl): ... (T2.1)`<br>`8559e32 docs(m1): record sign-off and defer crash recovery to T5.3`<br>`228e5ce test(m1): add milestone acceptance demo and report`<br>`fdd6545 docs: add T2.1 implementation handoff`<br>`c077cf2 feat(app-core): add state slices, command bus and workspace.open (T1.5)`<br>`fc54b27 docs: add T1.5 implementation handoff`<br>`3eb306e feat(domain): add migration registry, executor, backups and fixtures (T1.4)`<br>`af9ba02 docs(agents): refresh status snapshot and handoff pointers` |
-| `pnpm verify` 基线 | **72 files / 594 tests**；ESLint 0；depcruise **220 modules / 737 deps / 0 violations** |
-| `pnpm test:coverage` 基线 | 全局 lines **81.57%** / statements 81.12% / branches 72.95% / functions 80.76%；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **30 passed**（原 22 + T2.1 `e2e/grid.spec.ts` 8 条），约 45s |
+| `T2.2` 单元格编辑与校验 | **已完成**（2026-10-21）；报告 `docs/reports/t2.2/REPORT.md`；决策 ADR-028 |
+| 当前里程碑 | **M2 表格数据进行中**（T2.1、T2.2 完成，T2.3–T2.7 未开始） |
+| 下一个任务 | **T2.3 列管理、结构变更与迁移**；开工前必须按 AGENTS §11 确认歧义，不要自行选定 |
+| 提交历史（近 8 条） | `T2.2 feat(tbl): add cell editing, validation, undo and saving`<br>`b8597e6 docs: add T2.2 implementation handoff`<br>`07c4763 feat(tbl): ... (T2.1)`<br>`8559e32 docs(m1): record sign-off and defer crash recovery to T5.3`<br>`228e5ce test(m1): add milestone acceptance demo and report`<br>`fdd6545 docs: add T2.1 implementation handoff`<br>`c077cf2 feat(app-core): add state slices, command bus and workspace.open (T1.5)`<br>`fc54b27 docs: add T1.5 implementation handoff` |
+| `pnpm verify` 基线 | **78 files / 638 tests**；ESLint 0；depcruise **242 modules / 851 deps / 0 violations** |
+| `pnpm test:coverage` 基线 | 全局 lines **77.73%** / statements 77.42% / branches 68.82% / functions 78.42%；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **33 passed**（原 30 + T2.2 `e2e/edit.spec.ts` 3 条），约 51s |
 | `pnpm format:check` | 通过 |
-| 构建 | `pnpm build` exit 0；renderer 约 **1.12 MB**（含 TanStack），Worker 产物 `assets/table.worker-<hash>.js` |
+| 构建 | `pnpm build` exit 0；renderer 约 **1.16 MB**；Worker 产物 `assets/table.worker-<hash>.js` |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`（T1.4） |
 
 **用户明确要求**：
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **T2.2 尚未开始**；开工前先按 AGENTS §11 确认 §6.5 的待定决策，不要自行选定。
-- **不要自动进入 T2.3**；每个任务完成后停下报告，等用户确认。
+- **T2.2 已完成**；**不要自动进入 T2.3**，先停下等用户确认。
 - M2 全部任务完成后再运行 M2 验收演示，不得跨里程碑。
 
 ---
@@ -44,21 +44,21 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T2.2、
+先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T2.3、
 docs/TESTPLAN.md §1/§2/§3（E3）/§4/§5、
-docs/SPEC.md §8.1/§9.1/§9.2/§13.1/§13.2/§15.1/§16.1、
-docs/DECISIONS.md 的 ADR-005/006/007/014，再读 ADR-025/026/027。
+docs/SPEC.md §6.6/§7.6/§9.0/§13.1/§15.1/§16.1、
+docs/DECISIONS.md 的 ADR-005/006/007/014/015/024，再读 ADR-028/027/025。
 
-现状：M0、M1（已验收）、T1.1–T1.5、T2.1 已完成（T2.1 提交 07c4763），工作树干净；
-pnpm verify 72 files / 594 tests、test:coverage 全局 lines 81.57%、format:check、
-pnpm e2e 30 passed 全绿。T2.1 报告见 docs/reports/t2.1/REPORT.md。
+现状：M0、M1（已验收）、T1.1–T1.5、T2.1、T2.2 已完成；工作树状态以 git status 为准；
+pnpm verify 78 files / 638 tests、test:coverage 全局 lines 77.73%、format:check、
+pnpm e2e 33 passed 全绿。T2.2 报告见 docs/reports/t2.2/REPORT.md，决策见 ADR-028。
 
-下一步是 T2.2（单元格编辑与校验），但不要直接开工：
-先按 AGENTS §11 逐项确认 HANDOFF §6.5 的待定决策（撤销范围、落盘时机、
-新增行范围、错误文案/主键行号、编辑入口、日期/布尔/枚举编辑器、保存状态、批量校验），
-不要自行选定；确认后先复述目标/文件/验收命令，再写测试与实现。
+下一步是 T2.3（列管理、结构变更与迁移），但不要直接开工：
+先按 AGENTS §11 查 SPEC §19 与既有 ADR，逐项确认 T2.3 的歧义（尤其是迁移版本、
+破坏性操作确认、改类型失败阈值、删列/改主键的引用清理），不要自行选定；
+确认后先复述目标/文件/验收命令，再写测试与实现。
 
-不要自动进入 T2.3；T2.2 完成后停下等确认。
+不要自动进入 T2.4；T2.3 完成后停下等确认。
 ```
 
 ---
@@ -140,8 +140,10 @@ T2.1 全程 `danger-full-access`，审批提示已关闭——**不要使用 `sa
 - `apps/desktop/src/main/workspace/recent-list.test.ts` 的 “caps the list” 用例在 66 个 worker 并行、
   机器繁忙时偶发 5s 超时；重跑即过，不要放宽全局超时。
 - Vitest 过滤用 `--testNamePattern`，不要用 `-- --grep`。
-- T2.1 的 E2E 用例在 UI 更新后等 manifest 落盘时使用 `expect.poll`；新增编辑/保存测试也要这样等磁盘，
-  不要直接读文件后立刻断言（渲染状态先于异步写盘）。
+- T2.1/T2.2 的 E2E 在 UI 更新后等 manifest/JSONL 落盘时使用 `expect.poll`；新增编辑/保存测试也要这样等
+  磁盘，不要直接读文件后立刻断言（渲染状态先于异步写盘）。
+- T2.2 的保存是“提交后异步写”，编辑成功的断言不要假设 `updateCell` 返回时磁盘已更新；用
+  `expect.poll` 或状态栏“已保存”。
 - E2E 截图证据字节不稳定；断言不依赖像素。
 - `apps/desktop/test-results/`、`playwright-report/`、`coverage/`、`bench/` 均已 gitignore。
 - Worker 产物名现在是 `table.worker-<hash>.js`（不是 T1.3 的 `table-worker-*.js`）。
@@ -227,11 +229,12 @@ table:read/write/trash
 ### 4.6 `@curve/app-core`（T1.5 + T2.1）
 
 ```ts
-createAppCore({ workspaceStore, logger?, now?, uuid?, decodeTable? }): {
+createAppCore({ workspaceStore, logger?, now?, uuid?, decodeTable?, encodeTable? }): {
   store: AppStore;
   commands: CommandBus;
   openWorkspace(request): Promise<OpenWorkspaceOutcome>;
   actions: WorkspaceActions;
+  history: EditHistory;
 }
 ```
 
@@ -239,7 +242,7 @@ createAppCore({ workspaceStore, logger?, now?, uuid?, decodeTable? }): {
 
 | 命令 | 载荷 | 说明 |
 |---|---|---|
-| `table.cell.set` | `{ tableId, rowId, columnId, value }` | `coerceCell`、主键非空/唯一、只替换目标行、更新 `updatedAt`；`mergeKey = table.cell.set:<t>:<r>:<c>` |
+| `table.cell.set` | `{ tableId, rowId, columnId, value }` | `checkTableCellSet` + `coerceCell`、主键非空/唯一、只替换目标行、更新 `updatedAt`；`mergeKey = table.cell.set:<t>:<r>:<c>` |
 | `table.create` | `{ table, view }` | 新表 + 表视图 + 标签；`rowCount: 0`，不落文件 |
 | `table.delete` | `{ tableId }` | 级联删除 chart/view/layout 引用，活动标签回退 |
 | `table.meta.update` | `{ tableId, name }` | 重命名表与该表所有视图标题 |
@@ -248,67 +251,79 @@ createAppCore({ workspaceStore, logger?, now?, uuid?, decodeTable? }): {
 | `view.update` | `{ viewId, patch }` | 列宽、冻结列数、列顺序、隐藏列、排序、标题等 |
 | `view.layout` | `{ layout }` | 校验引用后替换布局并同步活动视图 |
 
-`WorkspaceActions`（T2.1）：
+`WorkspaceActions`（T2.1 + T2.2）：
 
 ```ts
 createTable(name, primaryKey?): Promise<ActionOutcome<TableCreatePayload>>
 renameTable(tableId, name): Promise<ActionOutcome>
-deleteTable(tableId): Promise<ActionOutcome>   // dispatch → writeManifest → trash
+deleteTable(tableId): Promise<ActionOutcome>   // dispatch → 取消待写 → writeManifest → trash
 openTable(tableId): Promise<ActionOutcome<{ viewId, created }>>
 activateView(viewId): Promise<ActionOutcome>
 closeView(viewId): Promise<ActionOutcome>
 updateView(viewId, patch): Promise<ActionOutcome>
+updateCell(tableId, rowId, columnId, value): Promise<ActionOutcome<CellUpdateResult>>
+  // 失败时 ActionOutcome 额外带 issue?: CellIssue；不写文档
+undo(): Promise<ActionOutcome>                 // table.cell.set 最小历史
+redo(): Promise<ActionOutcome>
+retrySave(): Promise<ActionOutcome>            // 保存失败后重试 dirty 表
+flushSaves(): Promise<ActionOutcome>           // 等待保存队列（≤3s）
 saveManifest(): Promise<ActionOutcome>
-closeWorkspace(): Promise<ActionOutcome>
+closeWorkspace(): Promise<ActionOutcome>       // 先 flush；失败保持工作区打开
 ```
 
-其他导出：`createNewTablePayload`、`createOpenTableView`、`stateToManifest`、
-`countTableReferences`、`findActivePane`/`listPanes`/`addViewToLayout`/`activateViewInLayout`/
-`removeViewFromLayout`、选择器。
+其他导出：`checkTableCellSet`、`validateCellBatch`、`CellIssue`、`cellIssueToAppError`、
+`createEditHistory`、`createSaveQueue`、`createNewTablePayload`、`createOpenTableView`、
+`stateToManifest`（已迁到 `state/manifest.ts`）、`countTableReferences`、layout helpers、选择器。
 
-**T2.2 起点**：
+**T2.2 后的关键事实**：
 
-- `table.cell.set` 已有全部校验与 patches，但没有撤销历史栈；`CommandResult` 有
-  `patches/inversePatches/mergeKey`。
-- 命令成功后 `ui.dirtyTables` 通过 `DirtyTableTracker` 标记；没有保存队列/保存指示。
-- `openWorkspace` 支持注入异步 `decodeTable`；解码失败整体失败并写 `ui.error`。
-- **没有任何编辑器、没有 `table.write` 的编辑保存路径**；网格是只读的。
+- 命令总线新增 `CommandBusOptions.onCommand` 观察者；app-core 用它记录历史并入队保存。命令本身仍无 IO。
+- `ui` 新增 `save: { status, pending, error }` 与 `editIssue: CellIssue | null`；`setSaveState`/
+  `setEditIssue` 只改 UI 切片，不进入 Immer 文档 patches。
+- 每次 `table.cell.set` 成功产生 patches 后，保存队列异步写表 + manifest；失败保留 dirty，
+  状态栏可重试；关闭工作区前 flush ≤3s。
+- 历史栈仅覆盖 `table.cell.set`：800ms 合并、上限 100、打开/关闭工作区清空；其他命令留给 T5.2。
+- `openWorkspace` 成功后会清空历史与保存状态；解码/打开失败仍保持旧文档不变。
+- 新增行/空主键自动生成**尚未实现**，按 T2.4/T2.5；`table.rows.insert` 仍只有 SPEC 名称。
 
-### 4.7 renderer 结构（T2.1）
+### 4.7 renderer 结构（T2.2）
 
 ```text
 apps/desktop/src/renderer/
 ├─ app-core/
-│  ├─ renderer-core.ts          # 单一组合根（api-client + WorkspaceStore + Worker + app-core）
+│  ├─ renderer-core.ts          # 组合根；注入 Worker decode + encode
 │  ├─ use-app-core.tsx          # AppCoreProvider / useRendererCore / useAppState
 │  ├─ use-workspace-controller.ts
 │  └─ workspace-store.ts        # IpcResult → WorkspaceStore（抛 AppError）
 ├─ features/workspace/          # WelcomePage/NewWorkspaceDialog/OpenWorkspaceDialog/TabBar/WorkspaceView
 ├─ features/tables/             # TableList/NewTableDialog/RenameTableDialog/DeleteTableDialog
-├─ features/grid/               # DataGrid/GridHeader/GridCell/SelectionLayer/grid-navigation/grid-sizing
+├─ features/grid/
+│  ├─ DataGrid.tsx              # 虚拟网格 + 编辑入口 + 冲突定位
+│  ├─ GridCell.tsx              # 编辑/错误/冲突状态
+│  ├─ editors/                  # Text/Number/Date/Boolean/Enum + CellEditor + editor-value
+│  ├─ use-cell-editing.ts       # 草稿/提交/取消/失焦/IME
+│  ├─ cell-issue-text.ts        # CellIssue → t(key)
+│  └─ GridHeader/SelectionLayer/grid-navigation/grid-sizing
 └─ shell/                       # AppShell/TitleBar/Sidebar/StatusBar/Inspector/HelpDialog
 ```
 
 - `AppShell` 在 `workspace === null` 时渲染 `WelcomePage`，否则 `WorkspaceView`；错误经
-  `ui.error` → Toast，`workspace.warnings` 以横幅显示。
-- `DataGrid` 是**只读**的：TanStack Table v8 + Virtual v3、32px 行高、`aria-rowcount/colcount`、
-  方向键/Tab/Home/End/PageUp/PageDown、矩形选择、冻结列、列宽拖拽/双击自适应（写入
-  `view.tableView.widths`）、axe 无 critical、200% 缩放可用。
-- 网格没有编辑入口/编辑器；`GridCell` 有 `aria-readonly="true"`。
+  `ui.error` → Toast，`workspace.warnings` 以横幅显示；保存错误与单元格 issue 走状态栏，不走 Toast。
+- `DataGrid` 现在是可编辑的：F2/双击/直接输入进入编辑；Enter 提交下移、Tab/Shift+Tab、失焦提交、
+  Esc 取消；Delete 清空；只给 active cell 渲染一个编辑器；`rangeExtractor` 保留正在编辑的行。
+- 主键冲突：状态栏“第 N 行 · 列 X：与第 M 行冲突”，滚动并高亮冲突行 2.5s，1.2s 后滚回编辑行。
+- `StatusBar` 显示保存三态（保存中/已保存/保存失败 + 重试）与单元格错误定位。
 - 所有文案走 `i18n/messages/{zh-CN,en-US}.ts`；`apps/desktop/test/ui-conventions.test.ts` 会拦硬编码中文。
 
-### 4.8 T2.1 的 E2E 证据
+### 4.8 T2.2 的 E2E 证据
 
-`apps/desktop/e2e/grid.spec.ts` 8 条：
+`apps/desktop/e2e/edit.spec.ts` 3 条：
 
-1. 欢迎页 → 新建工作区 → 建表 → 重命名 → 删除到 `.trash` → 最近重开；
-2. picker 替身 + 可编辑路径成功打开工作区；
-3. 被引用表的级联数量确认 + manifest 清理；
-4. 打开警告横幅与 dismiss；
-5. 50 行网格 ARIA/键盘/矩形选择 + axe；
-6. 列宽拖拽/双击自适应 + 重开保留；
-7. 200% 缩放仍可键盘操作；
-8. 100k 首帧（实测 **405ms**）+ 滚动采样（**165.7fps**，合成 rAF）。
+1. 五类型单元格编辑 + 非法值不落库 + 关闭/重开持久化；
+2. 非法数字、必填空主键、主键重复（冲突行号 + 高亮）；
+3. 点击聚焦后纯键盘 F2/Enter/Tab/Esc + Ctrl+Z / Ctrl+Shift+Z。
+
+完整 E2E 现为 **33 passed**（T2.1 的 8 条 grid + T2.2 3 条 + 既有 22 条）。
 
 ---
 
@@ -364,12 +379,16 @@ apps/desktop/src/
 - `table:trash` 改为按 id 解析文件；支持“manifest 先写、文件后移”的删除顺序。
 - 显式 `table-worker` 入口删除，Worker 产物命名变化；`table-io.spec.ts` 已同步。
 - 全局覆盖率从 93.62% 降到 **81.57%**（新增 UI 由 E2E 覆盖，Vitest 不计）；阈值仍满足。
-- 未实现：`workspace:recent:remove/clear`、恢复对话框/备份重建（T5.3）、迁移接线（T2.3）、
-  单元格编辑（T2.2）。
+- T2.1 时未实现：`workspace:recent:remove/clear`、恢复对话框/备份重建（T5.3）、迁移接线（T2.3）、
+  单元格编辑（T2.2 已完成）。
 
 ---
 
-## 6. T2.2 工作交接：单元格编辑与校验
+## 6. T2.2 实施记录（已完成 2026-10-21）
+
+> **状态：已完成。** 完整交付清单、验收映射与实测输出见
+> `docs/reports/t2.2/REPORT.md`，决策与后续约束见 ADR-028。下面 §6.1–§6.9 保留开工时
+> 的任务摘要、计划与陷阱，作为历史上下文；以 §6.10 的完成记录为准。
 
 ### 6.1 任务原文摘要（`docs/TASKS.md` T2.2）
 
@@ -392,7 +411,7 @@ apps/desktop/src/
   - [ ] 编辑一次 = 一条撤销记录（800ms 合并）。
   - [ ] 纯键盘可完成“改一格”。
 
-### 6.2 T2.2 起点（重要）
+### 6.2 开工时快照（历史）
 
 已经存在：
 
@@ -424,7 +443,7 @@ apps/desktop/src/
 - 键盘入口：F2 编辑、Enter 提交并下移、Esc 取消；方向键移动、Tab 下一格、
   Delete 清空（SPEC §9.1）。
 
-### 6.4 建议实现结构（待确认后实施）
+### 6.4 实现结构（已完成）
 
 ```text
 apps/desktop/src/renderer/features/grid/
@@ -457,7 +476,9 @@ packages/app-core/src/
 - 中文输入法：`compositionstart/end` 期间不要用 Enter 提交；Esc 取消仍可用。
 - 编辑中切换活动单元格/滚动虚拟列表时，先提交或取消（决定见 §6.5），不要留下失焦编辑器。
 
-### 6.5 T2.2 开工前必须向用户确认的决策（AGENTS §11）
+### 6.5 开工前已确认的决策（2026-10-21）
+
+> 以下问题已于 2026-10-21 由用户逐项确认，全部采用推荐方案；实现与代价见 ADR-028。
 
 > 不要自行选定。建议用 `ask_user_question` 逐项确认，并记录到 ADR（建议 ADR-028）。
 
@@ -481,7 +502,7 @@ packages/app-core/src/
 8. **保存状态/批量校验范围**：T2.2 是否加状态栏“保存中/已保存/失败”？“批量操作先整体校验”
    在 T2.2 只提供 app-core 的批量校验入口，还是等 T2.4 粘贴/T2.5 导入时一起做？
 
-### 6.6 推荐实现步骤（确认决策后）
+### 6.6 实际实现步骤（已完成）
 
 1. 先写 app-core 测试：`table.cell.set` 各类型归一、必填/枚举/范围、主键重复（含行号）、
    失败不改文档、patches 可逆、mergeKey；补 `updateCell`（如采用）与保存顺序测试。
@@ -527,7 +548,7 @@ packages/app-core/src/
 | 状态栏硬编码中文 | 全部走 `t(key)`，补 `en-US` |
 | E2E 读盘早于异步写 | `expect.poll` 等 JSONL/manifest |
 
-### 6.9 验证命令（PowerShell）
+### 6.9 验证命令与结果（已完成）
 
 ```powershell
 $env:PATH = "D:\DSH_Work_Space\tools\bin;C:\Users\MECHREVO\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin;$env:PATH"
@@ -547,13 +568,30 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts
 
 提交前还原被 E2E 重写的 `docs/reports/m0/*.png`。
 
+### 6.10 完成记录（2026-10-21）
+
+- 交付：app-core 的 `CellIssue`/`checkTableCellSet`/`validateCellBatch`、`edit-history`、`save-queue`、
+  `stateToManifest`、`updateCell/undo/redo/retrySave/flushSaves`；renderer 的 5 类原生编辑器、
+  `use-cell-editing`、`cell-issue-text`、DataGrid/GridCell 编辑接线、StatusBar 保存三态与错误定位。
+- 决策：8 项全部按 §6.5 推荐方案，ADR-028 记录；新增行留 T2.4/T2.5。
+- 门禁：`pnpm verify` **78 files / 638 tests**、depcruise **242 modules / 851 deps / 0 violations**；
+  `pnpm test:coverage` 全局 lines **77.73%**；`pnpm format:check` 通过；`pnpm e2e` **33 passed**；
+  `pnpm build` exit 0（renderer 1,163.90 kB）。
+- E2E：`apps/desktop/e2e/edit.spec.ts` 3 条，覆盖五类型编辑/重开、非法值/必填/主键冲突定位、
+  F2/Enter/Tab/Esc + 撤销重做。
+- 残留：新增行/空主键自动生成（T2.4/T2.5）；完整撤销栈/菜单（T5.2）；1.5s 自动保存/崩溃恢复（T5.3）；
+  日期编辑器只编辑日期（带时刻值提交后归一为本地午夜）；批量校验暂无 UI。
+- 下一步：**T2.3 列管理、结构变更与迁移**；开工前按 AGENTS §11 确认歧义，完成后停下等确认，
+  不要自动进入 T2.4。
+
 ---
 
 ## 7. 后续里程碑提醒
 
 - `T2.3` 是首个真实迁移落点：接 `FileWorkspaceStore.open`、升 `CURRENT_FORMAT_VERSION`、
-  补 v1→v2 夹具与逐行等价测试；不要顺手接进 T2.2。
-- `T2.4` 区域粘贴：TSV/CSV、引号/换行、超列确认、整批校验与撤销一条。
+  补 v1→v2 夹具与逐行等价测试；T2.2 已完成，但不要顺手把迁移接进编辑保存路径。
+- `T2.4` 区域粘贴：TSV/CSV、引号/换行、超列确认、整批校验与撤销一条；同时落地
+  `table.rows.insert`、空主键自动 `row_<uuid>` 与 E3 的“键盘新增一行”。
 - `T2.5` CSV/JSON 导入：编码/分隔符嗅探、类型推断、Worker、进度/取消、错误 CSV。
 - `T2.6` 筛选/排序：`selectVisibleRows` 语义改变，保持 O(1) 引用/缓存，不要每次全表遍历。
 - `T2.7` 10 万行性能与 M2 验收演示：`pnpm bench`、首帧/滚动/编辑 P95、内存预算。
@@ -570,15 +608,16 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts
 |---|---|---|
 | 会话策略回到 `workspace-write` | `verify`/E2E 报 EPERM | 切 `danger-full-access`，不改项目配置 |
 | Windows 无 symlink 权限 | `pnpm install` 失败 | 按 §3.4 用 junction 补齐；不要删 node_modules/切 linker |
-| 覆盖率从 93.62% 降到 81.57% | 新增 UI 未被 Vitest 覆盖 | 阈值 70% 满足；T2.2 补组件测试，M2 报告给趋势 |
-| renderer bundle 约 1.12MB | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
+| 覆盖率从 93.62% 降到 77.73% | 新增编辑 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；M2 报告给趋势 |
+| renderer bundle 约 1.16MB | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock`（HANDOFF 旧 §7.4.7） | T2.3/T5.3 补 close-on-failure |
 | 100k 滚动帧率为合成 rAF | 非正式性能门禁 | T2.7 `pnpm bench` 固化 |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 保存/落盘晚于 UI | 重开可能丢编辑 | T2.2 按 §6.5 明确保存时机；T5.3 前不承诺自动保存 |
-| 撤销范围与 T5.2 重叠 | 返工 | §6.5 决策 + ADR-028；T5.2 复用 |
-| 主键冲突错误只有 rowId | 无法定位行号 | T2.2 扩展 detail 带 1-based 行号 |
-| 日期输入时区 | 跨时区漂移 | 按 SPEC §8.1 本地午夜；测试固定时区/本地日期 |
+| 每次提交都写表+manifest | I/O 频率高于 1.5s 自动保存 | 按表串行/合并；T5.3 合并进 1.5s 队列，不能并存两条路径 |
+| 撤销只覆盖 `table.cell.set` | 其他命令暂不可撤销 | T5.2 复用 800ms/100 条语义扩展，不另起一套 |
+| 主键冲突滚动到远处行 | 编辑位置短暂离开视口 | `rangeExtractor` 保留编辑行；1.2s 后滚回并恢复焦点 |
+| 日期编辑器只编辑日期 | 带时刻值提交后时刻被归一 | ADR-028 明确；需要时改日期时间编辑器并写新 ADR |
+| 新增行/空主键自动生成未实现 | E3 的“键盘新增一行”未闭环 | T2.4/T2.5 落地，不得视为已验收 |
 | `workspace:recent:remove/clear` 未实现 | 欢迎页不能移除 | T5.3 |
 | 恢复对话框/备份重建未实现 | 崩溃后应用内无法恢复 | T5.3（ADR-026） |
 
@@ -594,24 +633,24 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts
 - 不绕过命令总线直接改 store（撤销会坏）；不在组件里写业务逻辑。
 - 不加未经 ADR 的运行时依赖；不跳过测试、不放宽 ESLint/覆盖率规则、不用 `--no-verify`。
 - 不未经 ADR/用户确认升级 `formatVersion`、改数据格式、IPC 通道或公共 API。
-- 不把迁移接进 `FileWorkspaceStore.open`（T2.3）。
+- 不把迁移接进 `FileWorkspaceStore.open` 之外的路径；T2.3 才接线，且保留备份/回滚。
 - 不把 10 万行整体放进 React state 并逐单元格触发全局重渲染；编辑器只给 active cell。
-- 不自动跨任务/跨里程碑；T2.2 报告后停下等确认，不进入 T2.3。
+- 不自动跨任务/跨里程碑；T2.2 已完成，停下等确认，不进入 T2.3。
 
 ---
 
 ## 10. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.1 提交 `07c4763`。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.2 提交。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 T2.2、TESTPLAN §1/§2/§3（E3）/§4/§5、
-      SPEC §8.1/§9.1/§9.2/§13.1/§13.2/§15.1/§16.1、ADR-005/006/007/014、ADR-025/026/027。
-- [ ] 已确认 `pnpm verify` 基线（72 files / 594 tests）、coverage lines 81.57%、e2e 30 passed。
+- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 T2.3、TESTPLAN §1/§2/§3（E3）/§4/§5、
+      SPEC §6.6/§7.6/§9.0/§13.1/§15.1/§16.1、ADR-005/006/007/014/015/024、
+      ADR-028/027/025。
+- [ ] 已确认 `pnpm verify` 基线（78 files / 638 tests）、coverage lines 77.73%、e2e 33 passed。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 T2.2 尚未开始，**先按 §6.5 逐项确认决策**，未自行选定。
-- [ ] 已确认保存时机、撤销范围、新增行、错误本地化、主键行号等问题已问用户。
-- [ ] 已确认网格是只读的、`table.cell.set` 已存在但没有编辑器/历史/编辑保存路径。
+- [ ] 已确认 T2.3 尚未开始，**先按 AGENTS §11 确认歧义**，未自行选定。
+- [ ] 已确认 T2.2 的保存队列/最小历史/结构化 issue 形状；T2.3 的列结构变更不能绕过命令总线。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`，截图提交前还原。
-- [ ] 复述 T2.2 目标/产出/验收/风险后再动手；完成后停下报告，不进入 T2.3。
+- [ ] 复述 T2.3 目标/产出/验收/风险后再动手；完成后停下报告，不进入 T2.4。

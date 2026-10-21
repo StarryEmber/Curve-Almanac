@@ -57,3 +57,4 @@
 | ADR-025 | app-core 的 Zustand/Immer 边界、状态切片与同步命令总线 | 已接受 | [025-app-core-state-and-command-bus.md](025-app-core-state-and-command-bus.md) |
 | ADR-026 | 工作区崩溃恢复交互后置到 T5.3 | 已接受 | [026-lock-recovery-deferral.md](026-lock-recovery-deferral.md) |
 | ADR-027 | T2.1 的命令、保存时机、目录选择与网格接线 | 已接受 | [027-t21-workspace-commands-and-grid.md](027-t21-workspace-commands-and-grid.md) |
+| ADR-028 | T2.2 的单元格编辑、结构化校验、最小撤销与即时保存 | 已接受 | [028-t22-cell-editing-and-save.md](028-t22-cell-editing-and-save.md) |

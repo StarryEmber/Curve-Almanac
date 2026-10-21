@@ -36,6 +36,7 @@ export function createRendererCore(bridge: CurveApi | undefined): RendererCore {
       }
       return decoded.result;
     },
+    encodeTable: (rows) => tableIo.encode(rows),
   });
 
   return { api, workspaceStore, core, tableIo };

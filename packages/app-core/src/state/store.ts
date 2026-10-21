@@ -3,7 +3,7 @@ import { createStore } from 'zustand/vanilla';
 import type { LayoutNode } from '@curve/domain';
 import { DirtyTableTracker } from '@curve/table-engine';
 
-import type { AppActions, AppState, AppStore, UiState } from './types';
+import type { AppActions, AppState, AppStore, SaveState, UiState } from './types';
 
 export interface InitialAppState extends Partial<Omit<AppState, 'actions' | 'ui'>> {
   ui?: Partial<UiState>;
@@ -17,12 +17,23 @@ export interface CreateAppStoreOptions {
   dirtyTracker?: DirtyTableTracker;
 }
 
+export function createIdleSaveState(): SaveState {
+  return { status: 'idle', pending: 0, error: null };
+}
+
 function createEmptyLayout(): LayoutNode {
   return { type: 'pane', viewIds: [], activeViewId: null };
 }
 
 function createInitialUi(): UiState {
-  return { activeTableId: null, activeViewId: null, error: null, dirtyTables: [] };
+  return {
+    activeTableId: null,
+    activeViewId: null,
+    error: null,
+    dirtyTables: [],
+    save: createIdleSaveState(),
+    editIssue: null,
+  };
 }
 
 /**
@@ -103,6 +114,14 @@ export function createAppStore(options: CreateAppStoreOptions = {}): AppStore {
       clearAllDirty(): void {
         tracker.clearAll();
         setUi({ dirtyTables: [] });
+      },
+      setSaveState(save): void {
+        setUi({ save });
+      },
+      setEditIssue(issue): void {
+        if (get().ui.editIssue !== issue) {
+          setUi({ editIssue: issue });
+        }
       },
     };
 

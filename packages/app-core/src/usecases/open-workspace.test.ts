@@ -84,7 +84,7 @@ class FixtureStore implements WorkspaceStore {
   }
 
   async writeTable(_request: WriteTableRequest): Promise<WriteTableResult> {
-    throw new Error('FixtureStore.writeTable is not used by T1.5 tests.');
+    return { bytes: 0 };
   }
 
   async writeManifest(_request: WriteManifestRequest): Promise<OkReply> {
@@ -331,6 +331,8 @@ describe('createAppCore composition', () => {
     expect(core.store.getState().ui.dirtyTables.map((entry) => entry.tableId)).toEqual([
       'tbl_v1min',
     ]);
+    expect((await core.actions.flushSaves()).ok).toBe(true);
+    expect(core.store.getState().ui.save.status).toBe('saved');
     expect(logger.error).not.toHaveBeenCalled();
   });
 });

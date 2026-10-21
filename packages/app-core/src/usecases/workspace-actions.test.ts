@@ -30,9 +30,11 @@ const logger: AppLogger = { error: () => undefined, warn: () => undefined };
 class RecordingStore implements WorkspaceStore {
   readonly calls: string[] = [];
   readonly manifests: WorkspaceManifest[] = [];
+  readonly writtenTables: Array<{ tableId: string; jsonl: string }> = [];
   readonly trashed: string[] = [];
   readonly closed: string[] = [];
   failManifest = false;
+  failTable = false;
 
   async create(_request: CreateWorkspaceRequest): Promise<WorkspaceManifest> {
     throw new Error('not used');
@@ -48,9 +50,13 @@ class RecordingStore implements WorkspaceStore {
   async readTable(_request: TableRef): Promise<TableReadResult> {
     throw new Error('not used');
   }
-  async writeTable(_request: WriteTableRequest): Promise<WriteTableResult> {
+  async writeTable(request: WriteTableRequest): Promise<WriteTableResult> {
     this.calls.push('writeTable');
-    return { bytes: 0 };
+    if (this.failTable) {
+      throw createAppError('E_FS_WRITE', 'disk full');
+    }
+    this.writtenTables.push({ tableId: request.tableId, jsonl: request.jsonl });
+    return { bytes: request.jsonl.length };
   }
   async writeManifest(request: WriteManifestRequest): Promise<OkReply> {
     this.calls.push('manifest');
@@ -211,6 +217,180 @@ describe('workspace actions', () => {
     expect(core.store.getState().ui.error?.code).toBe('E_FS_WRITE');
     // The document change stays in memory so the next explicit save can retry.
     expect(Object.keys(core.store.getState().tables)).toHaveLength(1);
+  });
+
+  it('updates a cell, persists the table and manifest, and clears the dirty marker', async () => {
+    const { store, core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const tableId = created.data.table.id;
+    const columnId = created.data.table.columns[0]?.id ?? '';
+    core.store.setState({
+      tables: {
+        [tableId]: {
+          table: { ...created.data.table, rowCount: 2 },
+          rows: [
+            { id: 'row_1', values: ['alpha'] },
+            { id: 'row_2', values: ['beta'] },
+          ],
+        },
+      },
+    });
+    store.calls.length = 0;
+    store.manifests.length = 0;
+    store.writtenTables.length = 0;
+
+    const outcome = await core.actions.updateCell(tableId, 'row_2', columnId, 'gamma');
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.data.changed).toBe(true);
+      expect(outcome.data.value).toBe('gamma');
+    }
+    expect((await core.actions.flushSaves()).ok).toBe(true);
+
+    expect(store.calls).toEqual(['writeTable', 'manifest']);
+    expect(store.writtenTables[0]?.jsonl).toContain('"v":["gamma"]');
+    expect(store.manifests.at(-1)?.tables[0]?.updatedAt).toBe(NOW.toISOString());
+    expect(core.store.getState().ui.dirtyTables).toEqual([]);
+    expect(core.store.getState().ui.editIssue).toBeNull();
+  });
+
+  it('does not dispatch or save when the submitted value is unchanged', async () => {
+    const { store, core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const tableId = created.data.table.id;
+    const columnId = created.data.table.columns[0]?.id ?? '';
+    core.store.setState({
+      tables: {
+        [tableId]: {
+          table: { ...created.data.table, rowCount: 1 },
+          rows: [{ id: 'row_1', values: ['alpha'] }],
+        },
+      },
+    });
+    store.calls.length = 0;
+
+    const outcome = await core.actions.updateCell(tableId, 'row_1', columnId, 'alpha');
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.data.changed).toBe(false);
+    }
+    expect(store.calls).toEqual([]);
+    expect(core.history.canUndo()).toBe(false);
+    expect(core.store.getState().ui.dirtyTables).toEqual([]);
+  });
+
+  it('rejects an invalid or duplicate cell without writing or changing the document', async () => {
+    const { store, core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const tableId = created.data.table.id;
+    const columnId = created.data.table.columns[0]?.id ?? '';
+    core.store.setState({
+      tables: {
+        [tableId]: {
+          table: { ...created.data.table, rowCount: 2 },
+          rows: [
+            { id: 'row_1', values: ['alpha'] },
+            { id: 'row_2', values: ['beta'] },
+          ],
+        },
+      },
+    });
+    store.calls.length = 0;
+
+    const outcome = await core.actions.updateCell(tableId, 'row_2', columnId, 'alpha');
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) {
+      expect(outcome.issue?.reason).toBe('duplicate-key');
+      expect(outcome.issue?.conflictRowNumber).toBe(1);
+    }
+    expect(core.store.getState().ui.editIssue?.reason).toBe('duplicate-key');
+    expect(core.store.getState().tables[tableId]?.rows[1]?.values[0]).toBe('beta');
+    expect(store.calls).toEqual([]);
+    expect(core.store.getState().ui.dirtyTables).toEqual([]);
+  });
+
+  it('undoes and redoes a cell edit, persisting the restored document', async () => {
+    const { store, core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const tableId = created.data.table.id;
+    const columnId = created.data.table.columns[0]?.id ?? '';
+    core.store.setState({
+      tables: {
+        [tableId]: {
+          table: { ...created.data.table, rowCount: 1 },
+          rows: [{ id: 'row_1', values: ['alpha'] }],
+        },
+      },
+    });
+
+    await core.actions.updateCell(tableId, 'row_1', columnId, 'gamma');
+    expect((await core.actions.flushSaves()).ok).toBe(true);
+    expect(core.history.canUndo()).toBe(true);
+    store.calls.length = 0;
+    store.writtenTables.length = 0;
+
+    const undone = await core.actions.undo();
+    expect(undone.ok).toBe(true);
+    expect(core.store.getState().tables[tableId]?.rows[0]?.values[0]).toBe('alpha');
+    expect((await core.actions.flushSaves()).ok).toBe(true);
+    expect(store.writtenTables.at(-1)?.jsonl).toContain('"v":["alpha"]');
+
+    const redone = await core.actions.redo();
+    expect(redone.ok).toBe(true);
+    expect(core.store.getState().tables[tableId]?.rows[0]?.values[0]).toBe('gamma');
+    expect((await core.actions.flushSaves()).ok).toBe(true);
+    expect(store.writtenTables.at(-1)?.jsonl).toContain('"v":["gamma"]');
+  });
+
+  it('keeps the workspace open when the close flush fails and succeeds after retry', async () => {
+    const { store, core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const tableId = created.data.table.id;
+    const columnId = created.data.table.columns[0]?.id ?? '';
+    core.store.setState({
+      tables: {
+        [tableId]: {
+          table: { ...created.data.table, rowCount: 1 },
+          rows: [{ id: 'row_1', values: ['alpha'] }],
+        },
+      },
+    });
+
+    store.failTable = true;
+    await core.actions.updateCell(tableId, 'row_1', columnId, 'gamma');
+    const failed = await core.actions.closeWorkspace();
+    expect(failed.ok).toBe(false);
+    if (!failed.ok) {
+      expect(failed.error.code).toBe('E_FS_WRITE');
+    }
+    expect(core.store.getState().workspace).not.toBeNull();
+    expect(core.store.getState().ui.save.status).toBe('error');
+
+    store.failTable = false;
+    expect((await core.actions.retrySave()).ok).toBe(true);
+    expect((await core.actions.flushSaves()).ok).toBe(true);
+    expect((await core.actions.closeWorkspace()).ok).toBe(true);
+    expect(core.store.getState().workspace).toBeNull();
   });
 
   it('closes the workspace and resets the document slices', async () => {

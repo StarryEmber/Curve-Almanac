@@ -161,6 +161,8 @@ export function createOpenWorkspace(deps: OpenWorkspaceDependencies): OpenWorksp
             activeViewId: selection.activeViewId,
             error: null,
             dirtyTables: [],
+            save: { status: 'idle', pending: 0, error: null },
+            editIssue: null,
           },
         },
         true,

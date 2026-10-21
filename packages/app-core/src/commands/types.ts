@@ -45,4 +45,6 @@ export interface CommandBus {
 
 export interface CommandBusOptions {
   logger?: AppLogger;
+  /** Observer for committed commands (history, autosave). Never changes state. */
+  onCommand?: (result: CommandResult) => void;
 }

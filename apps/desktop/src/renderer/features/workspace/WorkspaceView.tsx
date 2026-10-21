@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { findActivePane } from '@curve/app-core';
+import type { CellIssue } from '@curve/app-core';
 import { Button } from '@curve/ui';
 
 import { useAppState, useRendererCore } from '../../app-core/use-app-core';
@@ -9,7 +10,15 @@ import { DataGrid } from '../grid/DataGrid';
 
 import { TabBar } from './TabBar';
 
+import type { CellCommitOutcome } from '../grid/use-cell-editing';
 import type { ReactElement } from 'react';
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]') !== null
+  );
+}
 
 /** Main area for an open workspace: warnings, tabs and the active grid. */
 export function WorkspaceView(): ReactElement {
@@ -28,22 +37,40 @@ export function WorkspaceView(): ReactElement {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'w') {
+      if (isEditableTarget(event.target)) {
         return;
       }
-      if (activeViewId === null) {
+      const modifier = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+      if (!modifier) {
         return;
       }
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]') !==
-          null
-      ) {
+      if (key === 'w') {
+        if (activeViewId === null) {
+          return;
+        }
+        event.preventDefault();
+        void core.actions.closeView(activeViewId);
         return;
       }
-      event.preventDefault();
-      void core.actions.closeView(activeViewId);
+      if (key === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) {
+          void core.actions.redo();
+        } else {
+          void core.actions.undo();
+        }
+        return;
+      }
+      if (key === 'y') {
+        event.preventDefault();
+        void core.actions.redo();
+        return;
+      }
+      if (key === 's') {
+        event.preventDefault();
+        void core.actions.flushSaves();
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
@@ -131,6 +158,24 @@ export function WorkspaceView(): ReactElement {
             view={view}
             onViewUpdate={(patch) => {
               void core.actions.updateView(view.id, patch);
+            }}
+            onCellCommit={async (row, column, raw): Promise<CellCommitOutcome> => {
+              const outcome = await core.actions.updateCell(
+                tableData.table.id,
+                row.id,
+                column.id,
+                raw,
+              );
+              if (outcome.ok) {
+                return { ok: true };
+              }
+              return {
+                ok: false,
+                ...(outcome.issue === undefined ? {} : { issue: outcome.issue }),
+              };
+            }}
+            onEditIssue={(issue: CellIssue | null) => {
+              core.store.getState().actions.setEditIssue(issue);
             }}
           />
         )}
