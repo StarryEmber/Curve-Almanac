@@ -429,7 +429,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t15"></a>
 ### T1.5 app-core 状态与命令总线骨架
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T1.1、T1.2、T1.3、T0.2
 - 覆盖：FR-WS-01、FR-TBL-02
 - 参考：SPEC §13.1
@@ -444,10 +444,10 @@ T0.2 + T5.5 → T6.4
   3. 先实现 `table.cell.set`、`workspace.open` 两个命令验证链路。
   4. 错误统一进 `ui.error` + 日志。
 - 验收：
-  - [ ] 打开夹具工作区，表数据进入 store，选择器正确。
-  - [ ] 命令 dispatch 产生可逆 patches；失败不改状态。
-  - [ ] `app-core` 无 React/Electron import。
-  - [ ] 100k 行加载后首屏选择器调用 < 16ms（memo 命中）。
+  - [x] 打开夹具工作区，表数据进入 store，选择器正确。
+  - [x] 命令 dispatch 产生可逆 patches；失败不改状态。
+  - [x] `app-core` 无 React/Electron import。
+  - [x] 100k 行加载后首屏选择器调用 < 16ms（memo 命中）。
 - 验证：`pnpm exec vitest run packages/app-core`
 
 **M1 验收演示**：脚本/测试创建 `Demo.cstudio` → 写入 1,000 行 → 关闭重开 → 数据逐行相等；篡改 manifest → 报错且原文件不变；伪造 `.lock` → 走恢复提示。输出报告后停下。

@@ -118,6 +118,21 @@
   行内容逐行相等、锁写入/删除；future-version 在 Zod 之前以 `E_WS_VERSION_UNSUPPORTED` 拒绝且
   文件字节不变、不写锁；corrupt-manifest 返回 `E_WS_INVALID_MANIFEST`；stale-lock 触发提示并替换锁。
 - T1.4：ADR-024（迁移框架归属、空生产注册表、备份/回滚语义、接线时点）。
+- T1.5：`@curve/app-core` 的 vanilla Zustand store 与 `AppState` 切片（workspace/tables/views/ui）：
+  表数据用 `Record<tableId, TableData>` 普通对象/数组保存，`actions` 提供选择、错误与脏表标记；
+  10 万行不会整表深拷贝（ADR-025）。
+- T1.5：同步命令总线 `createCommandBus`：命令注册/重复名校验、未知名与非法载荷统一返回 `AppError`、
+  Immer `produceWithPatches` 生成 `patches`/`inversePatches`，失败不发布半成品状态；
+  成功命令通过 `DirtyTableTracker` 刷新 `ui.dirtyTables`，并清空旧错误。
+- T1.5：首个文档命令 `table.cell.set`：按列类型 `coerceCell`、主键非空/唯一校验、只替换目标行、
+  更新表/工作区 `updatedAt`、提供 T5.2 用的 `mergeKey`；数值/文本/主键错误均映射为 SPEC §18 错误。
+- T1.5：`workspace.open` 异步 use case（不是命令）：经 `WorkspaceStore` 读取 manifest 与各表 JSONL，
+  `decodeJsonl` 后一次替换文档状态，按 layout 恢复活动视图/表；解码坏行不阻塞打开并进入 warnings，
+  打开失败保持旧文档不变（ADR-025）。
+- T1.5：选择器 `selectCurrentTable`/`selectVisibleRows`/`selectActiveView`/`selectDirtyTables`；
+  100k 行测试断言重复调用返回同一行数组引用，手动实测首调约 0.03–0.05ms。
+- T1.5：新增 `zustand@5.0.15`/`immer@10.2.0` 运行时依赖与 ADR-025；app-core 新增 25 条测试
+  （含 v1-min 夹具、可逆 patches、失败不改文档、打开布局恢复与 100k 选择器）。
 
 ### Changed
 
@@ -162,3 +177,8 @@
 - T1.4：SPEC §7.6 补充迁移实现边界（分层、`backups/migration-<ts>/`、每步校验、manifest 最后写）。
 - T1.4：`.prettierignore` 排除故意截断的 `fixtures/workspaces/corrupt-manifest/manifest.json`，
   避免格式化工具"修好"坏夹具。
+- T1.5：`@curve/app-core` 的 `tsconfig` 为测试读取 v1-min 夹具启用 Node 类型（生产代码仍不导入
+  Node 内置）；Vitest 覆盖率排除 app-core 的两个纯类型模块。
+- T1.5：dependency-cruiser 新增 app-core 禁止 React/Electron/ECharts 的边界规则；命令 bus 在模块入口
+  `enablePatches()` 并按 ADR-025 关闭 Immer auto-freeze，避免首次编辑深冻结 10 万行表。
+- T1.5：`docs/TASKS.md` 勾选 T1.5；ADR 索引登记 ADR-025。

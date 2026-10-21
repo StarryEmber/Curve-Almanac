@@ -5,10 +5,11 @@
 ## 0. 当前状态
 
 - 方案已完成并锁定（v1.0）。
-- 实施进行中：`T1.3` 已完成（表数据 JSONL 读写与 Worker）；下一个任务是 `T1.4`（迁移框架与夹具）。
+- 实施进行中：`T1.5` 已完成（app-core 状态与命令总线骨架）；下一个任务是 `T2.1`
+  （工作区入口、表管理与虚拟化数据网格），开始前仍需用户确认。
 - 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
-  `domain`/`persistence`/`table-engine` 的实现、带主题/i18n 的 App Shell，以及 10 个已接线 IPC 通道；
-  **续作前先读 `docs/HANDOFF.md`**。
+  `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 10 个已接线
+  IPC 通道；**续作前先读 `docs/HANDOFF.md`**。
 - 每个任务的协议与里程碑停点见 §8。
 
 ## 1. 必读顺序

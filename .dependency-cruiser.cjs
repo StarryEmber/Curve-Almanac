@@ -55,6 +55,14 @@ module.exports = {
       to: { path: '(^|/)electron(/|$)' },
     },
     {
+      name: 'app-core-no-react-electron-echarts',
+      severity: 'error',
+      comment:
+        'app-core uses the vanilla Zustand store and may not import React, Electron or ECharts (SPEC §4.2).',
+      from: { path: '^packages/app-core/' },
+      to: { path: '(^|/)(react|react-dom|electron|echarts)(/|$)' },
+    },
+    {
       name: 'ui-no-app-core-or-persistence',
       severity: 'error',
       comment: 'ui only renders; use cases live in app-core (SPEC §4.3.5).',

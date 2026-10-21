@@ -28,6 +28,8 @@ export default defineConfig({
         // reports them as 0% and distorts their package's line coverage.
         'packages/domain/src/types.ts',
         'packages/persistence/src/types.ts',
+        'packages/app-core/src/commands/types.ts',
+        'packages/app-core/src/state/types.ts',
         'apps/desktop/src/main/index.ts',
         'apps/desktop/src/preload/index.ts',
         'apps/desktop/src/renderer/main.tsx',

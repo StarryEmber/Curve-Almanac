@@ -4,7 +4,11 @@
     "composite": true,
     "rootDir": "src",
     "outDir": "dist-types",
-    "tsBuildInfoFile": "dist-types/tsconfig.tsbuildinfo"
+    "tsBuildInfoFile": "dist-types/tsconfig.tsbuildinfo",
+    // Tests read the v1-min fixture with node:fs/url; production app-core code
+    // still imports no Node builtins (the dependency-cruiser boundary applies
+    // to runtime imports, and the fixture access lives in *.test.ts only).
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "references": [

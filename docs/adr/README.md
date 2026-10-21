@@ -54,3 +54,4 @@
 | ADR-022 | 表数据缺文件语义与打开时 `rowCount` 重算 | 已接受 | [022-table-read-missing-file.md](022-table-read-missing-file.md) |
 | ADR-023 | 脏表追踪原语放 `table-engine`，状态接线留 `app-core` | 已接受 | [023-dirty-table-tracking.md](023-dirty-table-tracking.md) |
 | ADR-024 | 迁移框架的归属、备份与接线时点 | 已接受 | [024-migration-framework.md](024-migration-framework.md) |
+| ADR-025 | app-core 的 Zustand/Immer 边界、状态切片与同步命令总线 | 已接受 | [025-app-core-state-and-command-bus.md](025-app-core-state-and-command-bus.md) |
