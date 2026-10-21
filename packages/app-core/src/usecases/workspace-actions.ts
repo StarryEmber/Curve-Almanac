@@ -6,8 +6,15 @@
  * dispatch → write `manifest.json` → move the table file to `.trash/`.
  */
 
-import { createAppError, toAppError } from '@curve/domain';
-import type { AppError, Cell, LayoutNode, UuidFactory } from '@curve/domain';
+import { createAppError, createColumnId, toAppError } from '@curve/domain';
+import type {
+  AppError,
+  Cell,
+  ColumnChangeFailure,
+  ColumnDef,
+  LayoutNode,
+  UuidFactory,
+} from '@curve/domain';
 import type { WorkspaceStore } from '@curve/persistence';
 
 import { activateViewInLayout } from '../commands/layout';
@@ -24,20 +31,47 @@ import {
   checkTableCellSet,
   unknownCellIssue,
 } from '../validation/cell-validation';
+import { inspectColumnChange as inspectColumnChangeForState } from '../validation/column-change';
+import { checkColumnDraft } from '../validation/column-draft';
 
+import type { SaveQueue } from './save-queue';
 import type { CommandBus } from '../commands/types';
 import type { ViewPatch } from '../commands/views';
 import type { EditHistory } from '../history/edit-history';
 import type { AppLogger } from '../logging';
-import type { SaveQueue } from './save-queue';
 import type { AppStore } from '../state/types';
 import type { CellIssue } from '../validation/cell-validation';
+import type {
+  ColumnChange,
+  ColumnChangeInspection,
+  ColumnChangeSummary,
+} from '../validation/column-change';
+import type { ColumnDraft, ColumnDraftIssue } from '../validation/column-draft';
 
 export { stateToManifest } from '../state/manifest';
 
 export type ActionOutcome<T = undefined> =
   | { readonly ok: true; readonly data: T }
   | { readonly ok: false; readonly error: AppError; readonly issue?: CellIssue };
+
+/**
+ * Outcome of a structural column action (T2.3).
+ *
+ * Failures carry the form issues from `checkColumnDraft` and/or the row-level
+ * conversions from the domain plan, so the dialog can explain exactly which
+ * rows blocked the change. In every failure case the document is unchanged.
+ */
+export type ColumnActionOutcome =
+  | { readonly ok: true; readonly data: ColumnChangeSummary }
+  | {
+      readonly ok: false;
+      readonly error: AppError;
+      readonly issues?: readonly ColumnDraftIssue[];
+      readonly failures?: readonly ColumnChangeFailure[];
+      readonly totalFailures?: number;
+      /** True when the document changed but the follow-up save failed. */
+      readonly committed?: boolean;
+    };
 
 export interface CellUpdateResult {
   changed: boolean;
@@ -69,6 +103,13 @@ export interface WorkspaceActions {
     columnId: string,
     value: unknown,
   ): Promise<ActionOutcome<CellUpdateResult>>;
+  /** Pure preview used by the destructive-confirmation dialogs. */
+  inspectColumnChange(change: ColumnChange): ColumnChangeInspection;
+  addColumn(tableId: string, draft: ColumnDraft): Promise<ColumnActionOutcome>;
+  updateColumn(tableId: string, columnId: string, draft: ColumnDraft): Promise<ColumnActionOutcome>;
+  deleteColumn(tableId: string, columnId: string): Promise<ColumnActionOutcome>;
+  reorderColumns(tableId: string, columnIds: readonly string[]): Promise<ColumnActionOutcome>;
+  changePrimaryKey(tableId: string, columnId: string): Promise<ColumnActionOutcome>;
   undo(): Promise<ActionOutcome>;
   redo(): Promise<ActionOutcome>;
   retrySave(): Promise<ActionOutcome>;
@@ -286,6 +327,223 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     return { ok: true, data: { changed: check.changed, value: check.value } };
   }
 
+  function failColumn(
+    error: AppError,
+    issues?: readonly ColumnDraftIssue[],
+    failures?: readonly ColumnChangeFailure[],
+    totalFailures?: number,
+  ): ColumnActionOutcome {
+    return {
+      ok: false,
+      error,
+      ...(issues === undefined ? {} : { issues }),
+      ...(failures === undefined ? {} : { failures }),
+      ...(totalFailures === undefined ? {} : { totalFailures }),
+    };
+  }
+
+  function failDraft(issues: readonly ColumnDraftIssue[]): ColumnActionOutcome {
+    return failColumn(createAppError('E_VALIDATION', 'The column definition is invalid.'), issues);
+  }
+
+  function failInspection(inspection: ColumnChangeInspection): ColumnActionOutcome {
+    if (inspection.ok) {
+      return failColumn(createAppError('E_UNKNOWN', 'The column change preview was invalid.'));
+    }
+    return failColumn(inspection.error, undefined, inspection.failures, inspection.totalFailures);
+  }
+
+  /**
+   * Persists a structural change: row-affecting commands go through the T2.2
+   * save queue (table first, manifest last); schema-only changes write just the
+   * manifest, so an empty table never creates a 0-byte JSONL file (ADR-027).
+   */
+  async function persistColumnChange(
+    tableId: string,
+    tableRowsChanged: boolean,
+    summary: ColumnChangeSummary,
+  ): Promise<ColumnActionOutcome> {
+    if (!tableRowsChanged) {
+      const saved = await saveManifest();
+      return saved.ok
+        ? { ok: true, data: summary }
+        : { ok: false, error: saved.error, committed: true };
+    }
+    saveQueue.enqueue(tableId);
+    const flushed = await saveQueue.flush();
+    return flushed.ok
+      ? { ok: true, data: summary }
+      : { ok: false, error: flushed.error, committed: true };
+  }
+
+  function preserveFieldType(column: ColumnDef, current: ColumnDef | undefined): ColumnDef {
+    if (
+      current !== undefined &&
+      current.fieldTypeId !== undefined &&
+      current.type === column.type
+    ) {
+      return { ...column, fieldTypeId: current.fieldTypeId };
+    }
+    return column;
+  }
+
+  function inspectColumnChange(change: ColumnChange): ColumnChangeInspection {
+    return inspectColumnChangeForState(store.getState(), change);
+  }
+
+  async function addColumn(tableId: string, draft: ColumnDraft): Promise<ColumnActionOutcome> {
+    const state = store.getState();
+    const tableData = state.tables[tableId];
+    if (tableData === undefined) {
+      return failColumn(
+        createAppError('E_TABLE_NOT_FOUND', 'The table does not exist.', {
+          detail: `table=${tableId}`,
+        }),
+      );
+    }
+
+    const columnId = createColumnId(uuid);
+    const checked = checkColumnDraft(tableData.table, draft, columnId);
+    if (!checked.ok) {
+      return failDraft(checked.issues);
+    }
+    const change: ColumnChange = { kind: 'add', tableId, column: checked.column };
+    const inspection = inspectColumnChange(change);
+    if (!inspection.ok) {
+      return failInspection(inspection);
+    }
+
+    const dispatched = commands.dispatch('table.column.add', {
+      tableId,
+      column: checked.column,
+    });
+    if (!dispatched.ok) {
+      return failColumn(dispatched.error);
+    }
+    return persistColumnChange(tableId, tableData.rows.length > 0, inspection.summary);
+  }
+
+  async function updateColumn(
+    tableId: string,
+    columnId: string,
+    draft: ColumnDraft,
+  ): Promise<ColumnActionOutcome> {
+    const state = store.getState();
+    const tableData = state.tables[tableId];
+    if (tableData === undefined) {
+      return failColumn(
+        createAppError('E_TABLE_NOT_FOUND', 'The table does not exist.', {
+          detail: `table=${tableId}`,
+        }),
+      );
+    }
+    const current = tableData.table.columns.find((column) => column.id === columnId);
+    if (current === undefined) {
+      return failColumn(
+        createAppError('E_VALIDATION', 'The column does not exist.', {
+          detail: `column=${columnId}`,
+        }),
+      );
+    }
+
+    const checked = checkColumnDraft(tableData.table, draft, columnId);
+    if (!checked.ok) {
+      return failDraft(checked.issues);
+    }
+    const column = preserveFieldType(checked.column, current);
+    const change: ColumnChange = { kind: 'update', tableId, column };
+    const inspection = inspectColumnChange(change);
+    if (!inspection.ok) {
+      return failInspection(inspection);
+    }
+
+    const dispatched = commands.dispatch('table.column.update', { tableId, column });
+    if (!dispatched.ok) {
+      return failColumn(dispatched.error);
+    }
+    return persistColumnChange(tableId, inspection.summary.convertedCells > 0, inspection.summary);
+  }
+
+  async function deleteColumn(tableId: string, columnId: string): Promise<ColumnActionOutcome> {
+    const state = store.getState();
+    const tableData = state.tables[tableId];
+    if (tableData === undefined) {
+      return failColumn(
+        createAppError('E_TABLE_NOT_FOUND', 'The table does not exist.', {
+          detail: `table=${tableId}`,
+        }),
+      );
+    }
+    const inspection = inspectColumnChange({ kind: 'delete', tableId, columnId });
+    if (!inspection.ok) {
+      return failInspection(inspection);
+    }
+
+    const dispatched = commands.dispatch('table.column.delete', { tableId, columnId });
+    if (!dispatched.ok) {
+      return failColumn(dispatched.error);
+    }
+    return persistColumnChange(tableId, tableData.rows.length > 0, inspection.summary);
+  }
+
+  async function reorderColumns(
+    tableId: string,
+    columnIds: readonly string[],
+  ): Promise<ColumnActionOutcome> {
+    const state = store.getState();
+    const tableData = state.tables[tableId];
+    if (tableData === undefined) {
+      return failColumn(
+        createAppError('E_TABLE_NOT_FOUND', 'The table does not exist.', {
+          detail: `table=${tableId}`,
+        }),
+      );
+    }
+    const inspection = inspectColumnChange({ kind: 'reorder', tableId, columnIds });
+    if (!inspection.ok) {
+      return failInspection(inspection);
+    }
+
+    const currentOrder = tableData.table.columns.map((column) => column.id);
+    const orderChanged =
+      columnIds.length !== currentOrder.length ||
+      columnIds.some((columnId, index) => columnId !== currentOrder[index]);
+
+    const dispatched = commands.dispatch('table.column.reorder', { tableId, columnIds });
+    if (!dispatched.ok) {
+      return failColumn(dispatched.error);
+    }
+    return persistColumnChange(
+      tableId,
+      tableData.rows.length > 0 && orderChanged,
+      inspection.summary,
+    );
+  }
+
+  async function changePrimaryKey(tableId: string, columnId: string): Promise<ColumnActionOutcome> {
+    const state = store.getState();
+    if (state.tables[tableId] === undefined) {
+      return failColumn(
+        createAppError('E_TABLE_NOT_FOUND', 'The table does not exist.', {
+          detail: `table=${tableId}`,
+        }),
+      );
+    }
+    const inspection = inspectColumnChange({ kind: 'primary-key', tableId, columnId });
+    if (!inspection.ok) {
+      return failInspection(inspection);
+    }
+
+    const dispatched = commands.dispatch('table.meta.update', { tableId, primaryKey: columnId });
+    if (!dispatched.ok) {
+      return failColumn(dispatched.error);
+    }
+    const saved = await saveManifest();
+    return saved.ok
+      ? { ok: true, data: inspection.summary }
+      : { ok: false, error: saved.error, committed: true };
+  }
+
   async function undo(): Promise<ActionOutcome> {
     if (!history.undo()) {
       return fail(createAppError('E_VALIDATION', 'There is nothing to undo.'));
@@ -355,6 +613,12 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     closeView,
     updateView,
     updateCell,
+    inspectColumnChange,
+    addColumn,
+    updateColumn,
+    deleteColumn,
+    reorderColumns,
+    changePrimaryKey,
     undo,
     redo,
     retrySave,

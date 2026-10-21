@@ -5,6 +5,7 @@
 
 export const PACKAGE_NAME = '@curve/domain' as const;
 
+export * from './column-ops';
 export * from './errors';
 export * from './invariants';
 export * from './limits';

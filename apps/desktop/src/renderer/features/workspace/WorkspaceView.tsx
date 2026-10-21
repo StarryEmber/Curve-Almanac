@@ -6,6 +6,7 @@ import { Button } from '@curve/ui';
 
 import { useAppState, useRendererCore } from '../../app-core/use-app-core';
 import { useI18n } from '../../i18n';
+import { ChartPlaceholder } from '../charts/ChartPlaceholder';
 import { DataGrid } from '../grid/DataGrid';
 
 import { TabBar } from './TabBar';
@@ -135,7 +136,9 @@ export function WorkspaceView(): ReactElement {
         role="tabpanel"
         aria-label={view?.title ?? t('tabs.label')}
       >
-        {tableData === undefined || view === undefined || view.kind !== 'table' ? (
+        {view?.kind === 'chart' ? (
+          <ChartPlaceholder view={view} />
+        ) : view === undefined || tableData === undefined ? (
           <div className="cs-workspace__empty" data-testid="workspace-empty">
             <h2 className="cs-workspace__empty-title">{t('tabs.empty.title')}</h2>
             <p className="cs-workspace__empty-body">{t('tabs.empty.body')}</p>

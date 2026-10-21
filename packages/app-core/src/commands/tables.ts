@@ -15,6 +15,7 @@ import {
   createViewId,
   isId,
   parseTableMeta,
+  planPrimaryKeyChange,
   viewDefSchema,
 } from '@curve/domain';
 import type {
@@ -47,7 +48,8 @@ export interface TableDeletePayload {
 
 export interface TableMetaUpdatePayload {
   tableId: string;
-  name: string;
+  name?: string;
+  primaryKey?: string;
 }
 
 export interface TableCommandOptions {
@@ -136,14 +138,40 @@ function parseTableDeletePayload(payload: unknown): TableDeletePayload {
 
 function parseMetaUpdate(payload: unknown): TableMetaUpdatePayload {
   const tableId = parseTableId(payload, 'table.meta.update');
-  if (!isRecord(payload) || typeof payload['name'] !== 'string') {
-    invalid('table.meta.update expects { tableId, name }.');
+  if (!isRecord(payload)) {
+    invalid('table.meta.update expects { tableId, name?, primaryKey? }.');
   }
-  const name = payload['name'].trim();
-  if (name.length === 0 || name.length > 80) {
-    invalid('The table name must contain 1 to 80 characters.');
+  const rawName = payload['name'];
+  const rawPrimaryKey = payload['primaryKey'];
+  if (rawName === undefined && rawPrimaryKey === undefined) {
+    invalid('table.meta.update expects at least one of name or primaryKey.');
   }
-  return { tableId, name };
+
+  let name: string | undefined;
+  if (rawName !== undefined) {
+    if (typeof rawName !== 'string') {
+      invalid('The table name must be a string.');
+    }
+    const trimmed = rawName.trim();
+    if (trimmed.length === 0 || trimmed.length > 80) {
+      invalid('The table name must contain 1 to 80 characters.');
+    }
+    name = trimmed;
+  }
+
+  let primaryKey: string | undefined;
+  if (rawPrimaryKey !== undefined) {
+    if (typeof rawPrimaryKey !== 'string' || !isId('col', rawPrimaryKey)) {
+      invalid('"primaryKey" must be a valid col id.');
+    }
+    primaryKey = rawPrimaryKey;
+  }
+
+  return {
+    tableId,
+    ...(name === undefined ? {} : { name }),
+    ...(primaryKey === undefined ? {} : { primaryKey }),
+  };
 }
 
 /** Builds the default table/view pair for the new-table wizard (T2.1). */
@@ -344,13 +372,24 @@ export function createTableMetaUpdateCommand(
         throw createAppError('E_TABLE_NOT_FOUND', 'The table does not exist.');
       }
       const timestamp = createTimestamp(now());
-      data.table.name = payload.name;
-      data.table.updatedAt = timestamp;
-      for (const view of Object.values(draft.views)) {
-        if (view.kind === 'table' && view.refId === payload.tableId) {
-          view.title = payload.name;
+      let nextTable = data.table;
+      if (payload.name !== undefined) {
+        nextTable = { ...nextTable, name: payload.name };
+        for (const view of Object.values(draft.views)) {
+          if (view.kind === 'table' && view.refId === payload.tableId) {
+            view.title = payload.name;
+          }
         }
       }
+      if (payload.primaryKey !== undefined) {
+        const plan = planPrimaryKeyChange(nextTable, data.rows, payload.primaryKey);
+        if (!plan.ok) {
+          throw plan.error;
+        }
+        nextTable = plan.table;
+        data.rows = [...plan.rows];
+      }
+      data.table = { ...nextTable, updatedAt: timestamp };
       touchWorkspace(draft, timestamp);
     },
   };

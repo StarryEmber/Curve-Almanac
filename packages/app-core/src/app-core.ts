@@ -3,6 +3,12 @@ import type { WorkspaceStore } from '@curve/persistence';
 import type { JsonlDecodeResult } from '@curve/table-engine';
 
 import { createCommandBus } from './commands/bus';
+import {
+  createColumnAddCommand,
+  createColumnDeleteCommand,
+  createColumnReorderCommand,
+  createColumnUpdateCommand,
+} from './commands/columns';
 import { createTableCellSetCommand } from './commands/table-cell-set';
 import {
   createTableCreateCommand,
@@ -113,6 +119,10 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
   };
 
   commands.register(createTableCellSetCommand({ now }));
+  commands.register(createColumnAddCommand({ now }));
+  commands.register(createColumnUpdateCommand({ now }));
+  commands.register(createColumnDeleteCommand({ now }));
+  commands.register(createColumnReorderCommand({ now }));
   commands.register(createTableCreateCommand(commandOptions));
   commands.register(createTableDeleteCommand(commandOptions));
   commands.register(createTableMetaUpdateCommand(commandOptions));
