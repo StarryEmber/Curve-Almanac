@@ -2,11 +2,29 @@
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T2.3`（列管理、结构变更与迁移），
 > 按用户要求停止，`T2.4` 尚未开始。
-> 最后更新：2026-10-21 · `T2.3` 代码提交 `213fab4`、文档更新见本提交 · 分支 `main`。
+> 最后更新：2026-10-21 · `T2.3` 代码提交 `213fab4`、文档提交 `4177ade`（交接定稿为其后的 docs
+> 提交）· 分支 `main` · 工作树干净。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.4 →
 > `docs/TESTPLAN.md` §1、§2、§3（E3）、§4、§5 →
 > `docs/SPEC.md` §9.3、§8.1、§13.1、§16.1 →
 > `docs/DECISIONS.md` 的 ADR-005/006/007/014/024，再读 ADR-028/029。
+
+---
+
+## 0. 一页摘要（给下一个会话）
+
+- **当前状态**：`T2.3`（列管理、结构变更与迁移）已完成并提交；`T2.4`（区域粘贴）未开始；
+  M2 仍在进行，M2 验收演示要等 T2.4–T2.7 全部完成。
+- **本次交付**：列管理 Inspector 面板、`table.column.add/update/delete/reorder`、换主键、
+  运行期行数据转换/失败回滚、共用破坏性确认、100 列上限、图表“列已删除”最小占位；
+  未升 `formatVersion`、未接迁移、结构命令未接撤销历史（ADR-029）。
+- **基线**：`pnpm verify` 89 files / 733 tests；coverage lines 77.83%；`format:check` 通过；
+  `pnpm build` exit 0；`pnpm e2e` 41 passed。
+- **下一步**：读 TASKS T2.4 与 SPEC §9.3，先逐项确认本文件 §6 的 10 个歧义，**不要自行选定**；
+  确认后复述目标/文件/验收命令，再写测试与实现。
+- **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API；
+  不跳过验收项；不自动跨任务。
+- **停点**：T2.4 完成后停下报告，不进入 T2.5。
 
 ---
 
@@ -23,7 +41,7 @@
 | `T2.3` 列管理、结构变更与迁移 | **已完成**（`213fab4`）；报告 `docs/reports/t2.3/REPORT.md`；ADR-029 |
 | 当前里程碑 | **M2 表格数据进行中**（T2.1–T2.3 完成，T2.4–T2.7 未开始） |
 | 下一个任务 | **T2.4 区域粘贴**；开工前必须按 AGENTS §11 确认歧义，不要自行选定 |
-| 提交历史（近 6 条） | `213fab4 feat(tbl): add column management and structure changes (T2.3)`<br>`ba7d74a docs(t2.2): rewrite handoff for T2.3`<br>`d46bc8f docs(t2.2): record final verification numbers`<br>`641cd86 feat(tbl): add cell editing, validation, undo and saving (T2.2)`<br>`b8597e6 docs: add T2.2 implementation handoff`<br>`07c4763 feat(tbl): add workspace entry, table management and virtual grid (T2.1)` |
+| 提交历史（近 7 条） | `4177ade docs(t2.3): record column-management decisions and handoff`<br>`213fab4 feat(tbl): add column management and structure changes (T2.3)`<br>`ba7d74a docs(t2.2): rewrite handoff for T2.3`<br>`d46bc8f docs(t2.2): record final verification numbers`<br>`641cd86 feat(tbl): add cell editing, validation, undo and saving (T2.2)`<br>`b8597e6 docs: add T2.2 implementation handoff`<br>`07c4763 feat(tbl): add workspace entry, table management and virtual grid (T2.1)` |
 | `pnpm verify` 基线 | **89 files / 733 tests**；ESLint 0；depcruise **265 modules / 968 deps / 0 violations** |
 | `pnpm test:coverage` 基线 | 全局 lines **77.83%** / statements 77.58% / branches 69.49% / functions 78.78%；阈值 70/60 未下调 |
 | `pnpm e2e` 基线 | **41 passed**（33 + T2.3 `e2e/schema.spec.ts` 8 条），约 1.1min |
@@ -430,7 +448,8 @@ T2.4 完成后停下报告，**不要自动进入 T2.5**。
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.3 代码提交 `213fab4` 或其后的 docs 提交。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.3 文档提交 `4177ade` 或其后的交接
+      docs 提交（不早于代码提交 `213fab4`）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
 - [ ] 已读 `AGENTS.md`、本文件、TASKS 的 T2.4、TESTPLAN §1/§2/§3（E3）/§4/§5、
