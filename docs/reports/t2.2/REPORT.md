@@ -79,7 +79,7 @@
 | `pnpm verify` | exit 0；**78 files / 638 tests**；ESLint 0；depcruise **242 modules / 851 deps / 0 violations** |
 | `pnpm test:coverage` | exit 0；全局 lines **77.73%** / statements 77.42% / branches 68.82% / functions 78.42%；阈值 70/60 未下调 |
 | `pnpm format:check` | exit 0 |
-| `pnpm build` | exit 0；renderer 1,163.90 kB；Worker `assets/table.worker-*.js` |
+| `pnpm build` | exit 0；renderer 1,164.07 kB；Worker `assets/table.worker-*.js` |
 | `pnpm e2e` | **33 passed**（原 30 + `edit.spec.ts` 3），约 51.1s |
 
 T2.2 专属 E2E：

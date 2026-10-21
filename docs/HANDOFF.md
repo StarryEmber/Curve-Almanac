@@ -2,7 +2,7 @@
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T2.2`（单元格编辑与校验），
 > 按用户要求停止，`T2.3` 尚未开始。
-> 最后更新：2026-10-21 · `T2.2` 已完成 · 分支：`main` · 工作树：干净（本次提交后）。
+> 最后更新：2026-10-21 · `T2.2` 已完成（提交 `641cd86`） · 分支：`main` · 工作树：干净。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.3 →
 > `docs/TESTPLAN.md` §1、§2、§3（E3）、§4、§5 →
 > `docs/SPEC.md` §6.6、§7.6、§9.0、§13.1、§15.1、§16.1 →
@@ -22,7 +22,7 @@
 | `T2.2` 单元格编辑与校验 | **已完成**（2026-10-21）；报告 `docs/reports/t2.2/REPORT.md`；决策 ADR-028 |
 | 当前里程碑 | **M2 表格数据进行中**（T2.1、T2.2 完成，T2.3–T2.7 未开始） |
 | 下一个任务 | **T2.3 列管理、结构变更与迁移**；开工前必须按 AGENTS §11 确认歧义，不要自行选定 |
-| 提交历史（近 8 条） | `T2.2 feat(tbl): add cell editing, validation, undo and saving`<br>`b8597e6 docs: add T2.2 implementation handoff`<br>`07c4763 feat(tbl): ... (T2.1)`<br>`8559e32 docs(m1): record sign-off and defer crash recovery to T5.3`<br>`228e5ce test(m1): add milestone acceptance demo and report`<br>`fdd6545 docs: add T2.1 implementation handoff`<br>`c077cf2 feat(app-core): add state slices, command bus and workspace.open (T1.5)`<br>`fc54b27 docs: add T1.5 implementation handoff` |
+| 提交历史（近 8 条） | `641cd86 feat(tbl): add cell editing, validation, undo and saving (T2.2)`<br>`b8597e6 docs: add T2.2 implementation handoff`<br>`07c4763 feat(tbl): ... (T2.1)`<br>`8559e32 docs(m1): record sign-off and defer crash recovery to T5.3`<br>`228e5ce test(m1): add milestone acceptance demo and report`<br>`fdd6545 docs: add T2.1 implementation handoff`<br>`c077cf2 feat(app-core): add state slices, command bus and workspace.open (T1.5)`<br>`fc54b27 docs: add T1.5 implementation handoff` |
 | `pnpm verify` 基线 | **78 files / 638 tests**；ESLint 0；depcruise **242 modules / 851 deps / 0 violations** |
 | `pnpm test:coverage` 基线 | 全局 lines **77.73%** / statements 77.42% / branches 68.82% / functions 78.42%；阈值 70/60 未下调 |
 | `pnpm e2e` 基线 | **33 passed**（原 30 + T2.2 `e2e/edit.spec.ts` 3 条），约 51s |
@@ -576,7 +576,7 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts
 - 决策：8 项全部按 §6.5 推荐方案，ADR-028 记录；新增行留 T2.4/T2.5。
 - 门禁：`pnpm verify` **78 files / 638 tests**、depcruise **242 modules / 851 deps / 0 violations**；
   `pnpm test:coverage` 全局 lines **77.73%**；`pnpm format:check` 通过；`pnpm e2e` **33 passed**；
-  `pnpm build` exit 0（renderer 1,163.90 kB）。
+  `pnpm build` exit 0（renderer 1,164.07 kB）。
 - E2E：`apps/desktop/e2e/edit.spec.ts` 3 条，覆盖五类型编辑/重开、非法值/必填/主键冲突定位、
   F2/Enter/Tab/Esc + 撤销重做。
 - 残留：新增行/空主键自动生成（T2.4/T2.5）；完整撤销栈/菜单（T5.2）；1.5s 自动保存/崩溃恢复（T5.3）；
@@ -641,7 +641,7 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts
 
 ## 10. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.2 提交。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.2 提交 `641cd86` 或其后的 docs 提交。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
 - [ ] 已读 `AGENTS.md`、本文件、TASKS 的 T2.3、TESTPLAN §1/§2/§3（E3）/§4/§5、

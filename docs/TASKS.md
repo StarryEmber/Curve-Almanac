@@ -556,7 +556,7 @@ T0.2 + T5.5 → T6.4
     非法值/必填/主键冲突定位、F2/Enter/Tab/Esc + 撤销重做）。
   - 实测：`pnpm verify` **78 files / 638 tests**，depcruise **242 modules / 851 deps / 0 violations**；
     `pnpm test:coverage` 全局 lines **77.73%**（新增 UI 拉低，阈值 70/60 未下调）；`pnpm format:check`
-    通过；`pnpm e2e` **33 passed**；`pnpm build` exit 0（renderer 1,163.90 kB）。
+    通过；`pnpm e2e` **33 passed**；`pnpm build` exit 0（renderer 1,164.07 kB）。
   - 残留：新增行/空主键自动生成留 T2.4/T2.5；完整撤销栈与菜单留 T5.2；1.5s 自动保存/崩溃恢复留
     T5.3；日期编辑器只编辑日期，带时刻值提交后归一为本地午夜（ADR-028）；批量校验暂无 UI。
 
