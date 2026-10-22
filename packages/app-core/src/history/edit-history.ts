@@ -1,11 +1,12 @@
 /**
- * Minimal undo/redo for cell edits (T2.2, SPEC §13.2).
+ * Minimal undo/redo for cell edits and pastes (T2.2/T2.4, SPEC §13.2).
  *
  * The command bus already produces reversible Immer patches. This stack owns
- * only the document history for `table.cell.set`: one entry per commit, edits
- * to the same cell within 800ms merge into one entry, and a new command drops
- * the redo branch. T5.2 replaces this with the full command history while
- * consuming the same `CommandResult` patches.
+ * only the document history for `table.cell.set` and `table.paste`: one entry
+ * per commit, edits to the same cell within 800ms merge into one entry, and a
+ * new command drops the redo branch. A paste is always one entry (never merged),
+ * even when it added rows or columns. T5.2 replaces this with the full command
+ * history while consuming the same `CommandResult` patches.
  */
 
 import { applyPatches } from 'immer';
@@ -64,7 +65,8 @@ export function createEditHistory(options: EditHistoryOptions): EditHistory {
   const redoStack: EditHistoryEntry[] = [];
 
   const record = (result: CommandResult): void => {
-    if (result.name !== 'table.cell.set') {
+    const recordable = result.name === 'table.cell.set' || result.name === 'table.paste';
+    if (!recordable) {
       if (result.patches.length > 0) {
         redoStack.length = 0;
       }
@@ -89,6 +91,7 @@ export function createEditHistory(options: EditHistoryOptions): EditHistory {
 
     const previous = undoStack.at(-1);
     if (
+      result.name === 'table.cell.set' &&
       previous !== undefined &&
       previous.mergeKey !== undefined &&
       previous.mergeKey === entry.mergeKey &&

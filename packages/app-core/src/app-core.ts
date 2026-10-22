@@ -9,6 +9,8 @@ import {
   createColumnReorderCommand,
   createColumnUpdateCommand,
 } from './commands/columns';
+import { createPasteCommand } from './commands/paste';
+import { createRowInsertCommand } from './commands/rows';
 import { createTableCellSetCommand } from './commands/table-cell-set';
 import {
   createTableCreateCommand,
@@ -59,15 +61,18 @@ export interface AppCore {
 }
 
 /**
- * The table a committed `table.cell.set` changed, used to enqueue its save.
- * Other commands either write the manifest themselves or do not touch rows.
+ * The table a committed row command changed, used to enqueue its save.
+ * Cell edits, pastes and explicit row inserts write table data; structural
+ * commands either write the manifest themselves or do not touch rows.
  */
+const ROW_SAVING_COMMANDS = new Set(['table.cell.set', 'table.paste', 'table.rows.insert']);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function changedTableId(result: CommandResult): string | null {
-  if (result.name !== 'table.cell.set' || result.patches.length === 0) {
+  if (!ROW_SAVING_COMMANDS.has(result.name) || result.patches.length === 0) {
     return null;
   }
   const payload = result.payload;
@@ -119,6 +124,8 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
   };
 
   commands.register(createTableCellSetCommand({ now }));
+  commands.register(createPasteCommand(commandOptions));
+  commands.register(createRowInsertCommand(commandOptions));
   commands.register(createColumnAddCommand({ now }));
   commands.register(createColumnUpdateCommand({ now }));
   commands.register(createColumnDeleteCommand({ now }));

@@ -8,9 +8,11 @@ import { useAppState, useRendererCore } from '../../app-core/use-app-core';
 import { useI18n } from '../../i18n';
 import { ChartPlaceholder } from '../charts/ChartPlaceholder';
 import { DataGrid } from '../grid/DataGrid';
+import { usePaste } from '../paste/use-paste';
 
 import { TabBar } from './TabBar';
 
+import type { GridLocateTarget } from '../grid/DataGrid';
 import type { CellCommitOutcome } from '../grid/use-cell-editing';
 import type { ReactElement } from 'react';
 
@@ -85,6 +87,23 @@ export function WorkspaceView(): ReactElement {
   const tableData = view?.kind === 'table' ? tables[view.refId] : undefined;
   const warnings = workspace?.warnings ?? [];
   const firstTableId = Object.keys(tables)[0];
+
+  const [locateTarget, setLocateTarget] = useState<GridLocateTarget | null>(null);
+  useEffect(() => {
+    setLocateTarget(null);
+  }, [view?.id]);
+
+  const paste = usePaste({
+    tableId: tableData?.table.id ?? '',
+    viewId: view?.id ?? '',
+    onLocate: (rowIndex, colIndex) => {
+      setLocateTarget((current) => ({
+        rowIndex,
+        colIndex,
+        nonce: (current?.nonce ?? 0) + 1,
+      }));
+    },
+  });
 
   return (
     <div className="cs-workspace" data-testid="workspace-view">
@@ -180,9 +199,12 @@ export function WorkspaceView(): ReactElement {
             onEditIssue={(issue: CellIssue | null) => {
               core.store.getState().actions.setEditIssue(issue);
             }}
+            onPasteText={paste.handlePaste}
+            locate={locateTarget}
           />
         )}
       </div>
+      {paste.dialogs}
     </div>
   );
 }

@@ -21,6 +21,8 @@ export interface GridCellProps {
   errorText?: string | null;
   /** Temporary highlight for a primary-key conflict row. */
   conflict?: boolean;
+  /** Temporary highlight after locating the first paste error. */
+  pasteError?: boolean;
   onActivate: (rowIndex: number, colIndex: number, extend: boolean) => void;
   onBeginEdit: (rowIndex: number, colIndex: number) => void;
 }
@@ -38,6 +40,7 @@ function GridCellComponent({
   editor,
   errorText,
   conflict = false,
+  pasteError = false,
   onActivate,
   onBeginEdit,
 }: GridCellProps): ReactElement {
@@ -69,6 +72,7 @@ function GridCellComponent({
         editing && 'cs-grid__cell--editing',
         errorText !== null && errorText !== undefined && 'cs-grid__cell--error',
         conflict && 'cs-grid__cell--conflict',
+        pasteError && 'cs-grid__cell--paste-error',
       ]
         .filter(Boolean)
         .join(' ')}

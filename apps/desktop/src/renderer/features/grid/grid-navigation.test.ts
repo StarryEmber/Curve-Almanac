@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { isGridNavigationKey, isInRect, moveGridPosition, selectionRect } from './grid-navigation';
+import {
+  isGridNavigationKey,
+  isInRect,
+  moveGridPosition,
+  pasteTarget,
+  selectionRect,
+} from './grid-navigation';
 
 const bounds = { rowCount: 10, colCount: 4, pageRows: 5 };
 
@@ -84,6 +90,35 @@ describe('moveGridPosition', () => {
         { key: 'ArrowDown', bounds: { rowCount: 0, colCount: 0, pageRows: 5 } },
       ),
     ).toEqual({ row: 1, col: 1 });
+  });
+});
+
+describe('pasteTarget', () => {
+  it('anchors at the top-left of the selection regardless of drag direction', () => {
+    const rowIds = ['row_0', 'row_1', 'row_2', 'row_3', 'row_4'];
+    const columnIds = ['col_a', 'col_b', 'col_c'];
+    expect(pasteTarget({ row: 4, col: 2 }, { row: 1, col: 0 }, rowIds, columnIds)).toEqual({
+      rowIndex: 1,
+      colIndex: 0,
+      rowId: 'row_1',
+      columnId: 'col_a',
+    });
+    expect(pasteTarget({ row: 1, col: 0 }, { row: 4, col: 2 }, rowIds, columnIds)).toEqual({
+      rowIndex: 1,
+      colIndex: 0,
+      rowId: 'row_1',
+      columnId: 'col_a',
+    });
+  });
+
+  it('returns a null row id for an empty table and null for an empty column list', () => {
+    expect(pasteTarget({ row: 0, col: 0 }, { row: 0, col: 0 }, [], ['col_a'])).toEqual({
+      rowIndex: 0,
+      colIndex: 0,
+      rowId: null,
+      columnId: 'col_a',
+    });
+    expect(pasteTarget({ row: 0, col: 0 }, { row: 0, col: 0 }, ['row_0'], [])).toBeNull();
   });
 });
 

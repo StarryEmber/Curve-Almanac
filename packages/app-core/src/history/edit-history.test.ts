@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Row, TableMeta } from '@curve/domain';
 
 import { createCommandBus } from '../commands/bus';
+import { createPasteCommand } from '../commands/paste';
 import { createTableCellSetCommand } from '../commands/table-cell-set';
 import { createEditHistory } from '../history/edit-history';
 import { createAppStore } from '../state/store';
@@ -52,6 +53,7 @@ const logger: AppLogger = { error: () => undefined, warn: () => undefined };
 function setup(): {
   store: ReturnType<typeof createAppStore>;
   dispatch: (value: number) => CommandResult;
+  dispatchPaste: (matrix: string[][], newColumns?: TableMeta['columns']) => CommandResult;
   history: ReturnType<typeof createEditHistory>;
   onChanged: ReturnType<typeof vi.fn>;
   advance: (ms: number) => void;
@@ -79,6 +81,12 @@ function setup(): {
     },
   });
   bus.register(createTableCellSetCommand({ now: () => new Date('2026-01-01T12:00:00.000Z') }));
+  bus.register(
+    createPasteCommand({
+      now: () => new Date('2026-01-01T12:00:00.000Z'),
+      uuid: () => 'pasted',
+    }),
+  );
 
   const dispatch = (value: number): CommandResult => {
     const outcome = bus.dispatch('table.cell.set', {
@@ -93,9 +101,24 @@ function setup(): {
     return outcome.result;
   };
 
+  const dispatchPaste = (matrix: string[][], newColumns?: TableMeta['columns']): CommandResult => {
+    const outcome = bus.dispatch('table.paste', {
+      tableId: 'tbl_test',
+      anchor: { rowId: 'row_1', columnId: 'col_id' },
+      columnIds: TABLE.columns.map((column) => column.id),
+      matrix,
+      ...(newColumns === undefined ? {} : { newColumns }),
+    });
+    if (!outcome.ok) {
+      throw outcome.error;
+    }
+    return outcome.result;
+  };
+
   return {
     store,
     dispatch,
+    dispatchPaste,
     history,
     onChanged,
     advance: (ms) => {
@@ -164,6 +187,56 @@ describe('edit history', () => {
     expect(onChanged).toHaveBeenCalledWith('tbl_test');
     history.redo();
     expect(onChanged).toHaveBeenCalledTimes(2);
+  });
+
+  it('records a paste as one entry and undoes updated and appended rows together', () => {
+    const { store, dispatchPaste, history } = setup();
+    dispatchPaste([
+      ['alpha', '10'],
+      ['beta', '20'],
+    ]);
+    expect(history.size()).toBe(1);
+    expect(store.getState().tables['tbl_test']?.rows).toHaveLength(2);
+
+    history.undo();
+    expect(store.getState().tables['tbl_test']?.rows).toHaveLength(1);
+    expect(store.getState().tables['tbl_test']?.rows[0]?.values).toEqual(['alpha', 1]);
+    expect(store.getState().tables['tbl_test']?.table.rowCount).toBe(1);
+
+    history.redo();
+    expect(store.getState().tables['tbl_test']?.rows).toHaveLength(2);
+    expect(store.getState().tables['tbl_test']?.rows[1]?.values).toEqual(['beta', 20]);
+  });
+
+  it('undoes a paste that added a column, including the schema change', () => {
+    const { store, dispatchPaste, history } = setup();
+    dispatchPaste(
+      [['alpha', '5', 'x']],
+      [{ id: 'col_extra', key: 'extra', label: 'Extra', type: 'text', role: 'none' }],
+    );
+    expect(store.getState().tables['tbl_test']?.table.columns).toHaveLength(3);
+    expect(store.getState().tables['tbl_test']?.rows[0]?.values).toEqual(['alpha', 5, 'x']);
+
+    history.undo();
+    expect(store.getState().tables['tbl_test']?.table.columns).toHaveLength(2);
+    expect(store.getState().tables['tbl_test']?.rows[0]?.values).toEqual(['alpha', 1]);
+  });
+
+  it('does not merge a paste with an adjacent cell edit', () => {
+    const { dispatch, dispatchPaste, history, advance } = setup();
+    dispatch(10);
+    advance(100);
+    dispatchPaste([['alpha', '20']]);
+    advance(100);
+    dispatch(30);
+    expect(history.size()).toBe(3);
+
+    history.undo();
+    expect(history.size()).toBe(2);
+    history.undo();
+    expect(history.size()).toBe(1);
+    history.undo();
+    expect(history.size()).toBe(0);
   });
 
   it('clears both stacks', () => {

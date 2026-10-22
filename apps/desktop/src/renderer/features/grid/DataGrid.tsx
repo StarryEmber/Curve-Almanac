@@ -19,22 +19,49 @@ import { useI18n } from '../../i18n';
 
 import { describeCellIssue } from './cell-issue-text';
 import { CellEditor } from './editors/CellEditor';
-import { isGridNavigationKey, isInRect, moveGridPosition, selectionRect } from './grid-navigation';
+import {
+  isGridNavigationKey,
+  isInRect,
+  moveGridPosition,
+  pasteTarget,
+  selectionRect,
+} from './grid-navigation';
 import { DEFAULT_COLUMN_WIDTH, frozenOffsets, measureColumnWidth } from './grid-sizing';
 import { GridCell } from './GridCell';
 import { GridHeader } from './GridHeader';
 import { SelectionLayer } from './SelectionLayer';
 import { useCellEditing } from './use-cell-editing';
 
-import type { GridPosition } from './grid-navigation';
+import type { GridPosition, PasteTarget } from './grid-navigation';
 import type { CellCommitOutcome } from './use-cell-editing';
 import type { ColumnDef as TanStackColumnDef } from '@tanstack/react-table';
 import type { Range } from '@tanstack/react-virtual';
-import type { CSSProperties, KeyboardEvent, ReactElement } from 'react';
+import type { ClipboardEvent, CSSProperties, KeyboardEvent, ReactElement } from 'react';
 
 const ROW_HEIGHT = 32;
 const CONFLICT_HIGHLIGHT_MS = 2_500;
 const CONFLICT_RETURN_MS = 1_200;
+const PASTE_ERROR_HIGHLIGHT_MS = 2_500;
+
+export interface GridLocateTarget {
+  rowIndex: number;
+  colIndex: number;
+  /** Changes on every locate request so repeated clicks re-run the effect. */
+  nonce: number;
+}
+
+export interface DataGridProps {
+  tableMeta: TableMeta;
+  rows: readonly Row[];
+  view: ViewDef;
+  onViewUpdate: (patch: ViewPatch) => void | Promise<void>;
+  onCellCommit: (row: Row, column: DomainColumn, raw: unknown) => Promise<CellCommitOutcome>;
+  onEditIssue: (issue: CellIssue | null) => void;
+  /** Receives `text/plain` when the grid (not an editor) handles a paste. */
+  onPasteText?: (text: string, target: PasteTarget, columnIds: readonly string[]) => void;
+  /** Set by the paste error dialog to focus and flash the offending cell. */
+  locate?: GridLocateTarget | null;
+}
 
 export interface DataGridProps {
   tableMeta: TableMeta;
@@ -68,6 +95,8 @@ export function DataGrid({
   onViewUpdate,
   onCellCommit,
   onEditIssue,
+  onPasteText,
+  locate = null,
 }: DataGridProps): ReactElement {
   const { t } = useI18n();
   const tableView = view.tableView;
@@ -186,9 +215,29 @@ export function DataGrid({
       return;
     }
     focusPending.current = false;
-    const frame = requestAnimationFrame(focusActiveCell);
+    const focusIfSafe = (): void => {
+      // Never pull focus out of an open cell editor: a click schedules this
+      // retry, and F2 can open the editor before the retry fires.
+      if (scrollRef.current?.querySelector('[data-editing="true"]') !== null) {
+        return;
+      }
+      const current = document.activeElement;
+      if (
+        current === null ||
+        current === document.body ||
+        scrollRef.current?.contains(current) === true
+      ) {
+        focusActiveCell();
+      }
+    };
+    // The virtualizer may not have mounted the new active row when the first
+    // animation frame runs (especially after PageDown/End under load). Retry
+    // once; never steal focus if the user already moved it outside the grid.
+    const frame = requestAnimationFrame(focusIfSafe);
+    const retry = window.setTimeout(focusIfSafe, 100);
     return () => {
       cancelAnimationFrame(frame);
+      window.clearTimeout(retry);
     };
   }, [active, focusActiveCell]);
 
@@ -285,6 +334,59 @@ export function DataGrid({
       window.clearTimeout(clearHighlight);
     };
   }, [conflict, editingRow, focusEditor, rows.length, virtualizer]);
+
+  const [pasteError, setPasteError] = useState<{ row: number; col: number } | null>(null);
+  const locateRow = locate?.rowIndex ?? -1;
+  const locateCol = locate?.colIndex ?? -1;
+  const locateNonce = locate?.nonce ?? 0;
+  useEffect(() => {
+    if (locateNonce === 0 || rows.length === 0 || visibleColumns.length === 0) {
+      return undefined;
+    }
+    const row = Math.min(Math.max(locateRow, 0), rows.length - 1);
+    const col = Math.min(Math.max(locateCol, 0), visibleColumns.length - 1);
+    setActive({ row, col });
+    setAnchor({ row, col });
+    focusPending.current = true;
+    setPasteError({ row, col });
+    virtualizer.scrollToIndex(row, { align: 'center' });
+    const clearHighlight = window.setTimeout(() => {
+      setPasteError(null);
+    }, PASTE_ERROR_HIGHLIGHT_MS);
+    return () => {
+      window.clearTimeout(clearHighlight);
+    };
+  }, [locateNonce, locateRow, locateCol, rows.length, visibleColumns.length, virtualizer]);
+
+  const handlePaste = (event: ClipboardEvent<HTMLDivElement>): void => {
+    if (editing !== null || onPasteText === undefined) {
+      return;
+    }
+    const eventTarget = event.target;
+    if (
+      eventTarget instanceof HTMLElement &&
+      eventTarget.closest('input, textarea, select, [contenteditable="true"]') !== null
+    ) {
+      // The native editor owns its own paste (including multi-line text).
+      return;
+    }
+    const text = event.clipboardData?.getData('text/plain') ?? '';
+    if (text.length === 0) {
+      return;
+    }
+    const columnIds = visibleColumns.map((column) => column.id);
+    const target = pasteTarget(
+      anchor,
+      active,
+      rows.map((row) => row.id),
+      columnIds,
+    );
+    if (target === null) {
+      return;
+    }
+    event.preventDefault();
+    onPasteText(text, target, columnIds);
+  };
 
   const commitWidths = useCallback(
     (next: Record<string, number>): void => {
@@ -420,6 +522,7 @@ export function DataGrid({
         aria-colcount={visibleColumns.length}
         aria-multiselectable="true"
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         onPointerUp={() => {
           commitWidths(columnSizing);
         }}
@@ -507,6 +610,9 @@ export function DataGrid({
                           }
                           errorText={cellError}
                           conflict={conflictRow === virtualRow.index}
+                          pasteError={
+                            pasteError?.row === virtualRow.index && pasteError.col === colIndex
+                          }
                           onActivate={activate}
                           onBeginEdit={beginEdit}
                         />

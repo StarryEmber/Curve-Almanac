@@ -16,6 +16,8 @@ import type {
   UuidFactory,
 } from '@curve/domain';
 import type { WorkspaceStore } from '@curve/persistence';
+import { parseClipboardText } from '@curve/table-engine';
+import type { ClipboardMatrix } from '@curve/table-engine';
 
 import { activateViewInLayout } from '../commands/layout';
 import {
@@ -33,6 +35,7 @@ import {
 } from '../validation/cell-validation';
 import { inspectColumnChange as inspectColumnChangeForState } from '../validation/column-change';
 import { checkColumnDraft } from '../validation/column-draft';
+import { createPastePlanner, planPaste } from '../validation/paste-plan';
 
 import type { SaveQueue } from './save-queue';
 import type { CommandBus } from '../commands/types';
@@ -47,6 +50,7 @@ import type {
   ColumnChangeSummary,
 } from '../validation/column-change';
 import type { ColumnDraft, ColumnDraftIssue } from '../validation/column-draft';
+import type { PasteIssue, PastePlanSuccess } from '../validation/paste-plan';
 
 export { stateToManifest } from '../state/manifest';
 
@@ -78,6 +82,95 @@ export interface CellUpdateResult {
   value: Cell;
 }
 
+/** Matrices at or above this many cells show the cancellable progress dialog. */
+export const PASTE_PROGRESS_THRESHOLD = 10_000;
+
+/** Cells processed between event-loop yields in the paste preview. */
+export const DEFAULT_PASTE_CHUNK_CELLS = 2_000;
+
+export interface PasteRequestBase {
+  tableId: string;
+  viewId: string;
+  /** Visible column ids in view order; the matrix maps from the anchor inside it. */
+  columnIds: readonly string[];
+  anchor: { rowId: string | null; columnId: string };
+}
+
+export interface PastePrepareRequest extends PasteRequestBase {
+  text: string;
+  /** Definitions for columns the matrix needs beyond `columnIds`. */
+  newColumns?: readonly ColumnDef[];
+}
+
+export interface PasteApplyRequest extends PasteRequestBase {
+  matrix: readonly (readonly string[])[];
+  newColumns?: readonly ColumnDef[];
+}
+
+export interface PasteProgress {
+  processedRows: number;
+  totalRows: number;
+  /** Cells processed so far and in total, for the progress dialog. */
+  done: number;
+  total: number;
+}
+
+export interface PastePrepareOptions {
+  signal?: AbortSignal;
+  onProgress?: (progress: PasteProgress) => void;
+  /** Internal/test hook: cells per chunk (default 2,000). */
+  chunkCells?: number;
+  /** Internal/test hook: yield between chunks (default `setTimeout(0)`). */
+  yieldControl?: () => Promise<void>;
+}
+
+export type PasteBlockReason = 'filter-active';
+
+export type PastePrepareOutcome =
+  | {
+      readonly ok: true;
+      readonly data: {
+        readonly matrix: ClipboardMatrix;
+        readonly plan: PastePlanSuccess;
+        readonly large: boolean;
+      };
+    }
+  | {
+      readonly ok: false;
+      readonly kind: 'needs-columns';
+      readonly matrix: ClipboardMatrix;
+      readonly newColumnsRequired: number;
+      readonly large: boolean;
+    }
+  | { readonly ok: false; readonly kind: 'empty' }
+  | { readonly ok: false; readonly kind: 'cancelled' }
+  | {
+      readonly ok: false;
+      readonly kind: 'blocked';
+      readonly error: AppError;
+      readonly reason: PasteBlockReason;
+    }
+  | {
+      readonly ok: false;
+      readonly kind: 'invalid';
+      readonly error: AppError;
+      readonly issues: readonly PasteIssue[];
+      readonly totalIssues: number;
+      readonly matrix?: ClipboardMatrix;
+      readonly large: boolean;
+    };
+
+export type PasteApplyOutcome =
+  | { readonly ok: true; readonly data: undefined }
+  | {
+      readonly ok: false;
+      readonly error: AppError;
+      readonly issues?: readonly PasteIssue[];
+      readonly totalIssues?: number;
+      /** True when the document changed but the follow-up save failed. */
+      readonly committed?: boolean;
+    };
+
 export interface WorkspaceActionsOptions {
   store: AppStore;
   commands: CommandBus;
@@ -103,6 +196,13 @@ export interface WorkspaceActions {
     columnId: string,
     value: unknown,
   ): Promise<ActionOutcome<CellUpdateResult>>;
+  /** Parses and validates a clipboard matrix without touching the document. */
+  preparePaste(
+    request: PastePrepareRequest,
+    options?: PastePrepareOptions,
+  ): Promise<PastePrepareOutcome>;
+  /** Applies one `table.paste` command and flushes the save queue. */
+  applyPaste(request: PasteApplyRequest): Promise<PasteApplyOutcome>;
   /** Pure preview used by the destructive-confirmation dialogs. */
   inspectColumnChange(change: ColumnChange): ColumnChangeInspection;
   addColumn(tableId: string, draft: ColumnDraft): Promise<ColumnActionOutcome>;
@@ -325,6 +425,238 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     }
     store.getState().actions.setEditIssue(null);
     return { ok: true, data: { changed: check.changed, value: check.value } };
+  }
+
+  function invalidPaste(
+    error: AppError,
+    details: {
+      issues?: readonly PasteIssue[];
+      totalIssues?: number;
+      matrix?: ClipboardMatrix;
+      large?: boolean;
+    } = {},
+  ): PastePrepareOutcome {
+    return {
+      ok: false,
+      kind: 'invalid',
+      error,
+      issues: details.issues ?? [],
+      totalIssues: details.totalIssues ?? 0,
+      ...(details.matrix === undefined ? {} : { matrix: details.matrix }),
+      large: details.large ?? false,
+    };
+  }
+
+  /**
+   * Parses and validates a clipboard matrix without touching the document.
+   *
+   * T2.6 owns filters; until then any view with an active filter blocks paste
+   * entirely rather than risking a write to a hidden row (SPEC §9.3, ADR-030).
+   * Matrices at or above `PASTE_PROGRESS_THRESHOLD` are processed in chunks and
+   * can be cancelled between them; a cancelled preview never dispatches.
+   */
+  async function preparePaste(
+    request: PastePrepareRequest,
+    options: PastePrepareOptions = {},
+  ): Promise<PastePrepareOutcome> {
+    const state = store.getState();
+    const tableData = state.tables[request.tableId];
+    if (tableData === undefined) {
+      return invalidPaste(
+        createAppError('E_TABLE_NOT_FOUND', 'The table does not exist.', {
+          detail: `table=${request.tableId}`,
+        }),
+      );
+    }
+    const view = state.views[request.viewId];
+    if (
+      view === undefined ||
+      view.kind !== 'table' ||
+      view.refId !== request.tableId ||
+      view.tableView === undefined
+    ) {
+      return invalidPaste(
+        createAppError('E_VALIDATION', 'The table view does not exist.', {
+          detail: `view=${request.viewId}`,
+        }),
+      );
+    }
+    if (view.tableView.filter !== undefined) {
+      return {
+        ok: false,
+        kind: 'blocked',
+        reason: 'filter-active',
+        error: createAppError(
+          'E_VALIDATION',
+          'Pasting is unavailable while the view has an active filter.',
+          { detail: 'filter-active' },
+        ),
+      };
+    }
+
+    const parsed = parseClipboardText(request.text);
+    if (!parsed.ok) {
+      return invalidPaste(parsed.error);
+    }
+    const matrix = parsed.data;
+    if (matrix.rows === 0 || matrix.columns === 0) {
+      return { ok: false, kind: 'empty' };
+    }
+    const large = matrix.rows * matrix.columns >= PASTE_PROGRESS_THRESHOLD;
+
+    let planner: ReturnType<typeof createPastePlanner>;
+    try {
+      planner = createPastePlanner({
+        table: tableData.table,
+        rows: tableData.rows,
+        anchor: request.anchor,
+        columnIds: request.columnIds,
+        matrix: matrix.cells,
+        ...(request.newColumns === undefined ? {} : { newColumns: request.newColumns }),
+        ...(uuid === undefined ? {} : { uuid }),
+      });
+    } catch (thrown) {
+      return invalidPaste(toAppError(thrown), { matrix, large });
+    }
+
+    const total = matrix.rows * matrix.columns;
+    const chunkRows = Math.max(
+      1,
+      Math.floor((options.chunkCells ?? DEFAULT_PASTE_CHUNK_CELLS) / Math.max(1, matrix.columns)),
+    );
+    const yieldControl =
+      options.yieldControl ??
+      ((): Promise<void> =>
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, 0);
+        }));
+    // Production yields only for large matrices; tests can inject yieldControl
+    // to exercise cancellation on a small fixture without a 10k-cell setup.
+    const shouldYield = large || options.yieldControl !== undefined;
+
+    try {
+      options.onProgress?.({
+        processedRows: 0,
+        totalRows: planner.totalRows,
+        done: 0,
+        total,
+      });
+      if (!planner.blocked) {
+        while (planner.processedRows < planner.totalRows) {
+          if (options.signal?.aborted === true) {
+            return { ok: false, kind: 'cancelled' };
+          }
+          planner.step(chunkRows);
+          options.onProgress?.({
+            processedRows: planner.processedRows,
+            totalRows: planner.totalRows,
+            done: planner.processedRows * matrix.columns,
+            total,
+          });
+          if (shouldYield && planner.processedRows < planner.totalRows) {
+            await yieldControl();
+          }
+        }
+      }
+      if (options.signal?.aborted === true) {
+        return { ok: false, kind: 'cancelled' };
+      }
+
+      const plan = planner.finish();
+      if (!plan.ok) {
+        if (plan.needsColumns !== undefined) {
+          return {
+            ok: false,
+            kind: 'needs-columns',
+            matrix,
+            newColumnsRequired: plan.needsColumns,
+            large,
+          };
+        }
+        return invalidPaste(plan.error, {
+          issues: plan.issues,
+          totalIssues: plan.totalIssues,
+          matrix,
+          large,
+        });
+      }
+      return { ok: true, data: { matrix, plan, large } };
+    } catch (thrown) {
+      return invalidPaste(toAppError(thrown), { matrix, large });
+    }
+  }
+
+  function collectPasteIssues(request: PasteApplyRequest): {
+    issues: readonly PasteIssue[];
+    totalIssues: number;
+  } {
+    const state = store.getState();
+    const tableData = state.tables[request.tableId];
+    if (tableData === undefined) {
+      return { issues: [], totalIssues: 0 };
+    }
+    try {
+      const plan = planPaste({
+        table: tableData.table,
+        rows: tableData.rows,
+        anchor: request.anchor,
+        columnIds: request.columnIds,
+        matrix: request.matrix,
+        ...(request.newColumns === undefined ? {} : { newColumns: request.newColumns }),
+        ...(uuid === undefined ? {} : { uuid }),
+      });
+      return plan.ok
+        ? { issues: [], totalIssues: 0 }
+        : { issues: plan.issues, totalIssues: plan.totalIssues };
+    } catch {
+      return { issues: [], totalIssues: 0 };
+    }
+  }
+
+  /**
+   * Applies one `table.paste` command and waits for the T2.2 save queue.
+   *
+   * The command re-plans from current state inside its Immer transaction, so a
+   * stale preview cannot commit a half-valid matrix. A save failure keeps the
+   * committed document dirty (`committed: true`) and lets the status bar retry;
+   * the paste is never executed twice.
+   */
+  async function applyPaste(request: PasteApplyRequest): Promise<PasteApplyOutcome> {
+    const state = store.getState();
+    const view = state.views[request.viewId];
+    if (view?.tableView?.filter !== undefined) {
+      return {
+        ok: false,
+        error: createAppError(
+          'E_VALIDATION',
+          'Pasting is unavailable while the view has an active filter.',
+          { detail: 'filter-active' },
+        ),
+      };
+    }
+
+    const dispatched = commands.dispatch('table.paste', {
+      tableId: request.tableId,
+      anchor: { ...request.anchor },
+      columnIds: [...request.columnIds],
+      matrix: request.matrix.map((row) => [...row]),
+      ...(request.newColumns === undefined ? {} : { newColumns: [...request.newColumns] }),
+    });
+    if (!dispatched.ok) {
+      const error = report('failed to paste the clipboard matrix', dispatched.error);
+      const collected = collectPasteIssues(request);
+      return {
+        ok: false,
+        error,
+        ...(collected.issues.length === 0 ? {} : { issues: collected.issues }),
+        ...(collected.totalIssues === 0 ? {} : { totalIssues: collected.totalIssues }),
+      };
+    }
+
+    const flushed = await saveQueue.flush();
+    return flushed.ok
+      ? { ok: true, data: undefined }
+      : { ok: false, error: flushed.error, committed: true };
   }
 
   function failColumn(
@@ -613,6 +945,8 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     closeView,
     updateView,
     updateCell,
+    preparePaste,
+    applyPaste,
     inspectColumnChange,
     addColumn,
     updateColumn,

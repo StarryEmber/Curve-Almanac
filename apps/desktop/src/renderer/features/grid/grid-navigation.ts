@@ -105,3 +105,41 @@ export function selectionRect(anchor: GridPosition, active: GridPosition): GridR
 export function isInRect(row: number, col: number, rect: GridRect): boolean {
   return row >= rect.top && row <= rect.bottom && col >= rect.left && col <= rect.right;
 }
+
+export interface PasteTarget {
+  /** 0-based row of the selection's top-left corner. */
+  rowIndex: number;
+  /** 0-based visible-column index of the selection's top-left corner. */
+  colIndex: number;
+  /** `null` only when the table has no rows. */
+  rowId: string | null;
+  columnId: string;
+}
+
+/**
+ * The paste anchor is the top-left of the selection rectangle, not the active
+ * cell (SPEC §9.3). Row ids keep the target stable if a later view sort reorders
+ * the grid; an empty table uses `null` so the planner appends from row 1.
+ */
+export function pasteTarget(
+  anchor: GridPosition,
+  active: GridPosition,
+  rowIds: readonly string[],
+  columnIds: readonly string[],
+): PasteTarget | null {
+  const rect = selectionRect(anchor, active);
+  const columnId = columnIds[rect.left];
+  if (columnId === undefined) {
+    return null;
+  }
+  const rowId = rowIds[rect.top];
+  if (rowId === undefined && rowIds.length > 0) {
+    return null;
+  }
+  return {
+    rowIndex: rect.top,
+    colIndex: rect.left,
+    rowId: rowId ?? null,
+    columnId,
+  };
+}

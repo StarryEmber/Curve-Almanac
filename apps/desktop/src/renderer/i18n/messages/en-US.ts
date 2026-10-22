@@ -254,6 +254,37 @@ export const enUS: Record<MessageKey, string> = {
   'columns.failure.duplicate': 'duplicate',
   'columns.failure.invalid': 'invalid value',
 
+  'paste.columns.title': 'Paste needs {count} new columns',
+  'paste.columns.body':
+    'The matrix is wider than the table. Confirm the display name and storage type of each new column; new columns are optional.',
+  'paste.columns.name': 'Display name',
+  'paste.columns.type': 'Storage type',
+  'paste.columns.defaultLabel': 'Column {index}',
+  'paste.columns.limit':
+    'This would exceed the 100-column limit: {columns} existing + {added} new.',
+  'paste.columns.confirm': 'Add columns and paste',
+  'paste.columns.error.required': 'Enter a display name.',
+  'paste.columns.error.limit': 'A table may have at most 100 columns.',
+  'paste.columns.error.invalid': 'The column definition is invalid.',
+  'paste.error.title': 'Paste failed',
+  'paste.error.body': 'Nothing was committed; the data is unchanged.',
+  'paste.error.failuresTitle': 'Problem cells (showing {shown} of {total})',
+  'paste.error.issue': 'Row {row} · {column}: {reason} (value: {value})',
+  'paste.error.requiredColumn': 'Row {row}: {column} was not provided (required)',
+  'paste.error.locate': 'Locate first error',
+  'paste.error.locateUnavailable':
+    'This error is on a row or column that does not exist yet, so it cannot be located in the grid.',
+  'paste.filter.title': 'Paste is unavailable while a filter is active',
+  'paste.filter.body':
+    'This view has a filter. T2.6 will support writing only visible rows; until then the whole paste is rejected so hidden rows are never modified.',
+  'paste.progress.title': 'Pasting',
+  'paste.progress.validating': 'Validating {done} of {total} cells…',
+  'paste.progress.saving': 'Saving…',
+  'paste.progress.percent': '{percent}%',
+  'paste.progress.cancel': 'Cancel',
+  'paste.savedButNotPersisted.title': 'Pasted, but not saved',
+  'paste.savedButNotPersisted.body': 'The data is in memory. Use the status bar to retry saving.',
+
   'chart.placeholder.title': 'Chart',
   'chart.placeholder.pending': 'Chart rendering and remapping arrive in a later milestone.',
   'chart.placeholder.missingTable': 'The table this chart referenced no longer exists.',

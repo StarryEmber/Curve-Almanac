@@ -45,7 +45,8 @@
 | `table-engine/jsonl` | 编解码、坏行、空表 | 截断 JSON、超长行、UTF-8 |
 | `table-engine/filter` | 12 种操作符、all/any | null、类型不匹配、嵌套 |
 | `table-engine/sort` | 多级排序、空值最后 | 数字/文本/日期/布尔 |
-| `table-engine/paste` | TSV/CSV、引号、换行 | 5×4 矩阵、超列、10k 取消 |
+| `table-engine/paste` | TSV/CSV、引号、换行、BOM、矩形化 | 5×4 矩阵、CSV 回退、未闭合引号、10k 拒绝 |
+| `app-core/paste` | 锚点、coerce、空主键、超列、100 列、取消、撤销 | 整批失败、定位首错、新增列、10k 分块取消 |
 | `table-engine/import` | 编码/分隔符/表头/类型推断 | GBK、分号、坏行、JSON 数组 |
 | `chart-model/resolve` | 宽/长映射、系列 id、warning | 缺列、非数值 Y、重复 X、>20 系列 |
 | `chart-model/sample` | LTTB、首尾、null | 100k→2k、单调性、关闭采样 |
@@ -85,6 +86,10 @@
 3. 从剪贴板粘贴 5×4 TSV（含引号与换行）。
 4. 断言内容逐格正确；超列弹确认；类型错误整批不提交。
 5. 撤销一次，整批粘贴回滚。
+
+> T2.4 已覆盖第 3–5 步（`apps/desktop/e2e/paste.spec.ts` 7 条，含筛选守卫与 200% 缩放）。
+> 第 2 步的“键盘新增一行”：T2.4 只提供 `table.rows.insert` 命令与粘贴追加，**尚无独立 UI**，
+> 仍待后续任务闭环，不能当作已验收。
 
 ### E4 导入 100k CSV（GBK + 坏行）
 
@@ -176,6 +181,7 @@
 | 图表渲染 2k 点 | ≤ 200ms | adapter 计时 |
 | 自动保存 100k | ≤ 500ms | main 写盘计时（异步不阻塞） |
 | 导入 100k CSV | ≤ 8s | E2E 计时 |
+| 粘贴 10k 单元格 | ≤ 1s（P95，软预算） | 单元基准/任务报告；T2.7 硬化 |
 | 内存峰值 | ≤ 600MB | `process.memoryUsage().heapUsed` + 手工核对 |
 
 ### 5.2 基准脚本输出

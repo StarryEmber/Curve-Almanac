@@ -251,3 +251,13 @@
   状态栏可重试），避免 UI 误判为未执行；行数据变更走 T2.2 保存队列，纯 schema 变更只写 manifest。
 - T2.3：`docs/TASKS.md` 勾选 T2.3 并记录决策/文件/实测；新增 `docs/reports/t2.3/REPORT.md`、ADR-029；
   同步 HANDOFF、AGENTS §0 与 `docs/adr/README.md` 索引。
+- T2.4：`@curve/table-engine` 新增 `parseClipboardText`（TSV 优先、单列含逗号回退 CSV、引号/`""`/
+  内嵌换行/CRLF/BOM、矩形化、未闭合引号报错）。
+- T2.4：`@curve/app-core` 新增 `table.paste` 与 `table.rows.insert` 命令；`PastePlanner`/`planPaste`
+  整批预检（锚点、coerce、必填/枚举/主键唯一、空 text 主键生成、追加行、新增列、100 列上限）、
+  `createPasteColumns`、`preparePaste/applyPaste`（筛选守卫、10k 分块取消、flush ≤3s）。
+- T2.4：粘贴接入 T2.2 最小历史（一次一条，撤销回滚新增行/列与覆盖单元格）；`table.paste`/
+  `table.rows.insert` 纳入保存队列。renderer 新增 `features/paste/*` 三个对话框与 `use-paste`，
+  `DataGrid` 监听 `paste`、按选择矩形左上角锚定并高亮定位错误；`e2e/paste.spec.ts` 7 条。
+- T2.4：SPEC §9.2/§9.3/§13.1/§13.2/§13.3/§16.1、TESTPLAN §2/§3/§5、TASKS T2.4/T2.6 同步；
+  新增 ADR-030、`docs/reports/t2.4/REPORT.md` 与 ADR 索引；不新增依赖、IPC、`formatVersion`。

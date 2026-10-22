@@ -827,6 +827,11 @@ body {
   box-shadow: inset 0 0 0 2px var(--cs-color-danger-default);
 }
 
+.cs-grid__cell--paste-error {
+  background: var(--cs-color-danger-soft);
+  box-shadow: inset 0 0 0 2px var(--cs-color-danger-default);
+}
+
 .cs-grid__editor {
   width: 100%;
   height: 100%;
@@ -1090,6 +1095,87 @@ body {
 
 .cs-column-change__failures li {
   overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------ Paste */
+
+.cs-dialog.cs-paste-columns-dialog {
+  max-width: 560px;
+}
+
+.cs-dialog.cs-paste-error-dialog {
+  max-width: 640px;
+}
+
+.cs-paste-columns {
+  display: grid;
+  gap: var(--cs-space-3);
+}
+
+.cs-paste-columns__list {
+  display: grid;
+  gap: var(--cs-space-2);
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.cs-paste-columns__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 170px);
+  align-items: end;
+  gap: var(--cs-space-2);
+}
+
+.cs-paste-errors {
+  display: grid;
+  gap: var(--cs-space-2);
+}
+
+.cs-paste-errors__title {
+  margin: 0;
+  color: var(--cs-color-danger-default);
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-paste-errors__list {
+  display: grid;
+  gap: 2px;
+  max-height: 280px;
+  margin: 0;
+  padding-left: var(--cs-space-4);
+  overflow: auto;
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-xs);
+}
+
+.cs-paste-errors__list li {
+  overflow-wrap: anywhere;
+}
+
+.cs-paste-progress {
+  display: grid;
+  gap: var(--cs-space-2);
+}
+
+.cs-paste-progress__bar {
+  width: 100%;
+  height: 10px;
+  accent-color: var(--cs-color-accent-default);
+}
+
+.cs-paste-progress__text,
+.cs-paste-progress__percent {
+  margin: 0;
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-paste-progress__percent {
+  font-family: var(--cs-font-mono);
+  font-size: var(--cs-font-size-xs);
 }
 
 /* -------------------------------------------------------- Chart placeholder */

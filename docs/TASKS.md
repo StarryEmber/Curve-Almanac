@@ -611,26 +611,57 @@ T0.2 + T5.5 → T6.4
 
 <a id="t24"></a>
 ### T2.4 区域粘贴
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T2.2
 - 覆盖：FR-TBL-03
 - 参考：SPEC §9.3
 - 产出：
   - 剪贴板 TSV/CSV 解析器（引号、换行、制表符）
   - 矩阵应用：扩容行、列确认、批量校验
-  - 进度与取消（>10k 单元格）
+  - 进度与取消（≥10k 单元格）
 - 步骤：
   1. 单格文本 vs 多格矩阵判定。
   2. 解析为 `Cell[][]`，按目标列类型 coerce。
   3. 超出列数弹确认；超出行数自动追加。
   4. 整批校验通过才提交，作为一条命令。
 - 验收：
-  - [ ] Excel 5×4 粘贴内容逐格正确，含引号与换行。
-  - [ ] 类型错误整批不提交，错误定位到单元格。
-  - [ ] 10k 单元格粘贴可取消，取消后数据不变。
-  - [ ] 筛选激活时粘贴只写可见行；超出可见行数整批拒绝，隐藏行不被修改。
-  - [ ] 粘贴可一次撤销。
-- 验证：`pnpm exec vitest run packages/table-engine -- --grep "paste" && pnpm e2e -- --grep "paste"`
+  - [x] Excel 5×4 粘贴内容逐格正确，含引号与换行。
+  - [x] 类型错误整批不提交，错误定位到单元格（前 100 条 + 定位首个错误）。
+  - [x] 10k 单元格粘贴可取消，取消后数据不变。
+  - [x] 筛选激活时粘贴整批拒绝，隐藏行不被修改；完整“只写可见行/超出可见行整批拒绝”
+        语义按 ADR-030 延后 T2.6（用户已确认，T2.6 必须闭环）。
+  - [x] 粘贴可一次撤销。
+- 验证：`pnpm exec vitest run packages/table-engine packages/app-core --testNamePattern "paste"`；
+  `pnpm verify`；`pnpm test:coverage`；`pnpm format:check`；`pnpm build`；
+  `pnpm exec playwright test --config apps/desktop/playwright.config.ts e2e/paste.spec.ts`；`pnpm e2e`。
+- 实现备注（2026-10-22，ADR-030）：
+  - 开工前用户逐项确认 11 项决策：TSV 优先/单列含逗号回退 CSV 且无新 IPC；选择矩形左上角锚点、
+    rowId 定位；筛选存在时保守整批拒绝并把可见行语义延后 T2.6；实现 `table.rows.insert` 与空
+    text 主键生成、不加独立新增行 UI；单条原子 `table.paste` 携带 `newColumns`，100 列硬上限；
+    整批预检前 100 条 + 定位首错、不支持对话框内编辑；≥10,000 格可取消进度、async 分块、不引入
+    Worker；粘贴接入最小历史一次一条；保存走 T2.2 队列并 flush ≤3s；10k 端到端 P95 ≤1s 软预算；
+    不做区域复制。
+  - table-engine：`src/paste.ts` 的 `parseClipboardText`（TSV/CSV、引号/`""`/内嵌换行、CRLF、BOM、
+    单尾随换行、矩形化、未闭合引号 `E_IMPORT_FORMAT`）。
+  - app-core：`commands/{paste,rows}.ts`、`validation/{paste-plan,paste-columns}.ts`；`PastePlanner`
+    分块 + `planPaste` 同步；新增 `PasteIssue`（矩阵坐标）、`PasteSummary`、`createPasteColumns`；
+    `WorkspaceActions.preparePaste/applyPaste`；`EditHistory` 记录 `table.paste`（一次一条）；
+    `changedTableId` 把 `table.paste`/`table.rows.insert` 纳入保存队列。
+  - renderer：`features/paste/{PasteColumnsDialog,PasteErrorDialog,PasteProgressDialog,use-paste,
+    paste-issue-text}.tsx`；`DataGrid` 增加 `onPaste`、选择矩形锚点与 locate 高亮，并修复虚拟行
+    未挂载时键盘焦点丢失（100ms 安全重试，编辑器打开时不抢焦点）；`GridCell` 增加
+    `--paste-error` 高亮；i18n zh-CN/en-US 与 `styles.css` 同步。
+  - 测试：table-engine 14 条、app-core paste-plan 18 条 + paste-columns 6 条 + rows 3 条 + paste
+    6 条 + history 3 条 + actions 12 条、renderer 17 条、`e2e/paste.spec.ts` 7 条（5×4 引号/换行+
+    重开、类型错误+定位+磁盘不变、超列确认+新列+重开、10k 格取消、撤销/重做、筛选守卫、200%
+    缩放键盘可达）。
+  - 实测：`pnpm verify` **99 files / 813 tests**；depcruise **286 modules / 1073 deps / 0 violations**；
+    `pnpm test:coverage` 全局 lines **76.34%** / statements 76.17% / branches 68.45% / functions 77.92%
+    （阈值 70/60 未下调）；`pnpm format:check` 通过；`pnpm build` exit 0（renderer **1,308.67 kB**）；
+    `pnpm e2e` **48 passed**；`e2e/paste.spec.ts` **7 passed**；10k parse+plan 本机 P95 **7.75ms**。
+  - 残留：筛选视图只能整批拒绝，完整可见行语义 T2.6；独立“新增行”按钮/快捷键仍未实现（E3 的
+    键盘新增一行留给后续任务）；10 万级矩阵命令阶段仍同步，T2.7 评估 Worker/预算；256MB 写盘上限
+    在保存时强制（`committed: true`），未在 dispatch 前编码整表；区域复制未实现。
 
 <a id="t25"></a>
 ### T2.5 CSV/JSON 导入向导
@@ -676,6 +707,8 @@ T0.2 + T5.5 → T6.4
   - [ ] 100k 行筛选+排序 ≤ 400ms。
   - [ ] 重启后筛选/排序/列宽/隐藏/冻结恢复。
   - [ ] 同一张表两个视图互不影响。
+  - [ ] 承接 T2.4 延后项：筛选激活时粘贴只写可见行，矩阵超出可见行数整批拒绝，隐藏行不被修改
+        （ADR-030）。
 - 验证：`pnpm exec vitest run packages/table-engine -- --grep "filter|sort" && pnpm bench -- --query`
 
 <a id="t27"></a>

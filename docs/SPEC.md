@@ -669,6 +669,11 @@ interface ImportResult {
 - 每次提交是一个命令（见 §13），支持撤销。
 - 列结构变更（加列/删列/改类型/重排/换主键）见 §9.7；不进入单元格编辑历史。
 
+**实现边界（T2.4，ADR-030）**：
+
+- `table.rows.insert` 已提供“插入整行 + 空 text 主键生成”；粘贴自动追加行。T2.4 仍不提供
+  独立的“新增行”按钮/快捷键，TESTPLAN E3 的键盘新增一行留给后续任务。
+
 **实现边界（T2.2，ADR-028）**：
 
 - 校验结果以结构化 `CellIssue`（reason/code/columnId/rowNumber/conflictRowNumber）返回；renderer 用
@@ -689,6 +694,27 @@ interface ImportResult {
 - 粘贴 10,000 单元格以上时显示进度，超过 1s 必须可取消。
 - 锚点与筛选：以选择区域左上角为锚点，按当前视图顺序写入可见行；筛选激活时只允许写入可见行，矩阵行数超出可见行数则整批拒绝并提示（不得写入隐藏行）。
 - 排序激活时按行 ID 定位，粘贴不受排序影响。
+
+**实现边界（T2.4，ADR-030）**：
+
+- 解析器在 `@curve/table-engine`：TSV 优先，单列含逗号时回退 CSV；支持引号、`""` 转义、
+  引号内换行/制表符、CRLF、BOM；恰好去掉一个尾随换行；未闭合引号返回 `E_IMPORT_FORMAT`。
+  网格监听 `paste` 事件读 `text/plain`，编辑器打开时走原生粘贴；不新增 IPC。
+- 锚点为选择矩形左上角，矩阵向右下覆盖并扩容；命令载荷用 `rowId` 定位，空表 `rowId: null`。
+  T2.4 不实现排序/筛选 UI；排序不影响写入目标。
+- 超列时弹“新增 N 列”确认：默认 text、非必填，可改 label 与 text/number/date/boolean 类型；
+  一条原子 `table.paste` 同时提交新增列、行值与视图 `columnOrder`。表级 100 列上限在命令层
+  硬拒绝；新增必填列被拒绝（粘贴矩形之外的既有行无法补值）。
+- 整批预检失败返回前 100 个结构化 `PasteIssue`（含矩阵行列坐标），错误对话框显示并支持
+  “定位第一个错误”；不提供对话框内编辑，修正后重新粘贴。
+- 筛选未实现前，检测到 `view.tableView.filter` 即整批拒绝并提示，隐藏行绝不被修改；
+  “只写可见行/超出可见行整批拒绝”的完整语义由 T2.6 按本节实现并验收（ADR-030 明确延后）。
+- ≥10,000 单元格显示可取消进度；校验在事件循环分块，取消不 dispatch、不写盘；命令仍同步
+  重规划一次（10k parse+plan 实测 P95 远低于 1s，见 §16.1）。
+- 粘贴接入 T2.2 最小历史：一次粘贴一条、不合并，撤销同时回滚新增行/列与覆盖单元格。
+- 保存复用 T2.2 队列（表 → manifest），等待 flush ≤3s；保存失败返回 `committed: true`。
+  200k 行上限由计划器预检，256MB 文件上限仍由 `table:write` 写盘守卫强制。
+- 不实现区域复制（Ctrl/Cmd+C）；不改变 `formatVersion`、JSONL、IPC 或 preload。
 
 ### 9.4 CSV/JSON 导入向导
 
@@ -985,6 +1011,11 @@ export interface RenderModel {
 - **实现边界（T2.3，ADR-029）**：T2.3 落地 `table.column.add/update/delete/reorder` 与
   `table.meta.update(primaryKey)`；结构命令同步执行、只产 patches，不进入 T2.2 的最小历史。`delete` 禁止
   删除主键；`reorder` 以 `columnIds` 精确排列重写 schema、每行 `values` 与该表所有视图的 `columnOrder`。
+- **实现边界（T2.4，ADR-030）**：T2.4 落地 `table.paste { tableId, anchor, columnIds, matrix,
+  newColumns? }` 与 `table.rows.insert { tableId, index, rows }`。`table.paste` 是唯一文档变更：
+  同一条命令内完成覆盖/追加行、可选新增列、视图 `columnOrder` 同步；失败整批不发布。
+  `table.rows.insert` 复用 `coerceCell` 与空 text 主键生成。两者都只产 patches，不进入
+  `table.cell.set` 的 800ms 合并；粘贴用独立历史条目。
 
 ### 13.2 撤销/重做
 
@@ -997,6 +1028,9 @@ export interface RenderModel {
   仅内存、打开/关闭工作区清空）；其余命令、菜单与跨命令合并由 T5.2 扩展，T5.2 必须复用该语义。
 - **实现边界（T2.3，ADR-029）**：列结构命令不接入上述最小历史；T5.2 统一消费其
   `patches`/`inversePatches`，不得另起一套。
+- **实现边界（T2.4，ADR-030）**：`table.paste` 接入最小历史，一次粘贴一条、不参与 800ms 合并；
+  撤销/重做同时回滚新增行、新增列与所有覆盖单元格，并复用保存队列落盘。`table.rows.insert`
+  仍不进入历史，T5.2 统一。
 
 ### 13.3 自动保存
 
@@ -1011,6 +1045,9 @@ export interface RenderModel {
   写盘路径；状态栏“保存中/已保存/保存失败”在 T2.2 已可用。
 - **实现边界（T2.3，ADR-029）**：改变行数据的结构命令复用该队列（表 → manifest）；只改 schema 的命令
   （label/key/role、required、枚举选项、换主键、空表增删/重排）只写 manifest，避免空表创建 0 字节文件。
+- **实现边界（T2.4，ADR-030）**：`table.paste` 与 `table.rows.insert` 属于行数据命令，成功后按表
+  入队（表 → manifest）；粘贴 action 等待 flush ≤3s，失败返回 `committed: true` 并可重试。
+  dispatch 前预检 200k 行上限；256MB 文件上限仍由写盘守卫在编码后强制。
 
 ---
 
@@ -1281,6 +1318,7 @@ interface CurveApi {
 | 自动保存 100k | ≤ 500ms，且不阻塞 UI | main 写盘打点 |
 | 样式预览更新 | ≤ 100ms | 组件测试 |
 | 导入 100k CSV | ≤ 8s | E2E 计时 |
+| 粘贴 10k 单元格 | ≤ 1s（P95，软预算） | 单元基准/报告；T2.7 硬化 |
 | 内存峰值 | ≤ 600MB | 任务管理器/`process.memoryUsage` |
 
 超预算：先优化；优化不了必须在任务报告里记录实测值、原因与后续计划，不得静默放过。
