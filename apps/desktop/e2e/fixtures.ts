@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 import { _electron as electron, test as base } from '@playwright/test';
 
+import { IMPORT_FIXTURE_DIR } from './import-fixtures';
+
 import type { ElectronApplication, Page, TestInfo } from '@playwright/test';
 
 const e2eDirectory = dirname(fileURLToPath(import.meta.url));
@@ -44,6 +46,11 @@ export interface AppFixtures {
   page: Page;
 }
 
+export interface WorkerFixtures {
+  /** Generated import files shared by every test in this worker. */
+  importDir: string;
+}
+
 type StopTracing = (path?: string) => Promise<void>;
 
 /**
@@ -72,7 +79,16 @@ async function captureFailureTrace(testInfo: TestInfo, stopTracing: StopTracing)
  * named `provide` instead of Playwright's `use` to avoid tripping
  * react-hooks/rules-of-hooks in this non-React package.
  */
-export const test = base.extend<AppFixtures>({
+export const test = base.extend<AppFixtures & { importFile: string }, WorkerFixtures>({
+  importFile: ['points.json', { option: true }],
+
+  importDir: [
+    async ({}, provide) => {
+      await provide(IMPORT_FIXTURE_DIR);
+    },
+    { scope: 'worker' },
+  ],
+
   userDataDir: async ({}, provide) => {
     mkdirSync(E2E_SCRATCH_DIR, { recursive: true });
     const directory = mkdtempSync(join(E2E_SCRATCH_DIR, 'run-'));
@@ -80,7 +96,7 @@ export const test = base.extend<AppFixtures>({
     rmSync(directory, { recursive: true, force: true });
   },
 
-  electronApp: async ({ userDataDir }, provide, testInfo) => {
+  electronApp: async ({ userDataDir, importDir, importFile }, provide, testInfo) => {
     const env: Record<string, string> = {};
     for (const [key, value] of Object.entries(process.env)) {
       if (typeof value === 'string') {
@@ -94,6 +110,9 @@ export const test = base.extend<AppFixtures>({
     const dialogDirectory = join(userDataDir, 'dialog-directory');
     mkdirSync(dialogDirectory, { recursive: true });
     env['CURVE_E2E_DIR'] = dialogDirectory;
+    // T2.5 file stand-ins: one selected import file and one export target.
+    env['CURVE_E2E_IMPORT'] = join(importDir, importFile);
+    env['CURVE_E2E_SAVE'] = join(userDataDir, 'import-errors.csv');
 
     const args = [desktopAppDir];
     if (DISABLE_CHROMIUM_SANDBOX) {

@@ -9,7 +9,7 @@ import type { AppCore } from '@curve/app-core';
 import { createApiClient } from '../api-client';
 import { createTableIoClient } from '../table-io/client';
 
-import { createRendererWorkspaceStore } from './workspace-store';
+import { createRendererWorkspaceStore, unwrapIpc } from './workspace-store';
 
 import type { RendererWorkspaceStore } from './workspace-store';
 import type { CurveApi } from '../../shared/contracts/ipc';
@@ -37,6 +37,7 @@ export function createRendererCore(bridge: CurveApi | undefined): RendererCore {
       return decoded.result;
     },
     encodeTable: (rows) => tableIo.encode(rows),
+    archiveImport: async (request) => unwrapIpc(await api.file.archiveImport(request)),
   });
 
   return { api, workspaceStore, core, tableIo };

@@ -261,3 +261,20 @@
   `DataGrid` 监听 `paste`、按选择矩形左上角锚定并高亮定位错误；`e2e/paste.spec.ts` 7 条。
 - T2.4：SPEC §9.2/§9.3/§13.1/§13.2/§13.3/§16.1、TESTPLAN §2/§3/§5、TASKS T2.4/T2.6 同步；
   新增 ADR-030、`docs/reports/t2.4/REPORT.md` 与 ADR 索引；不新增依赖、IPC、`formatVersion`。
+- T2.5：`@curve/table-engine` 新增 `import.ts`（CSV/JSON 嗅探、Papa Parse、类型推断、
+  `planImport` 整批校验、前 100 issue、200k 上限）与 `papaparse` 运行时依赖。
+- T2.5：`@curve/app-core` 新增 `table.import` 原子命令、`applyImport` action、
+  `createImportColumns`/`autoMapImportColumns`；导入接入最小历史与保存队列，
+  支持追加/替换、可选新列、一条撤销。
+- T2.5：desktop 新增 `file:importText`（原始字节 + token）、`file:exportText`、
+  `file:archiveImport` 三个已实现通道；main 的 100MB 限制、token 白名单、SHA-256、
+  `imports/` 原文复制 + sidecar；preload/api-client 双向 Zod。
+- T2.5：专用 import Worker（严格 UTF-8 → GB18030、Papa Parse、取消即 terminate）与
+  5 步导入向导（编码/分隔符/表头覆盖、20 行预览、列映射、坏行跳过、追加/替换）；
+  `e2e/import.spec.ts` 6 条。
+- T2.5：夹具 `fixtures/csv/{small,quoted,types,bad-rows}.csv`、`fixtures/json/points.json`；
+  `scripts/gen-100k.ts` 生成 gitignored 的 GBK 100k 文件；`pnpm bench -- --import` 增加
+  8s 预算 case。
+- T2.5：SPEC §4.2/§9.4/§13.1/§13.2/§13.3/§15.1/§15.4/§16.1、TESTPLAN E4/§4、TASKS T2.5、
+  HANDOFF、AGENTS §0 同步；新增 ADR-031 与 `docs/reports/t2.5/REPORT.md`。
+- T2.5：`formatVersion`、JSONL 形态、manifest 字段、CSP、沙箱与 preload 白名单不变。

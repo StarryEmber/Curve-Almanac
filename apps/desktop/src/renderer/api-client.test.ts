@@ -48,6 +48,14 @@ function bridge(overrides: Partial<CurveApi> = {}): CurveApi {
       write: async () => ({ ok: true, data: { bytes: 0 } }),
       trash: async () => ({ ok: true, data: { ok: true } }),
     },
+    file: {
+      importText: async () => ({ ok: true, data: null }),
+      exportText: async () => ({ ok: true, data: null }),
+      archiveImport: async () => ({
+        ok: true,
+        data: { copied: true, archivePath: 'imports/a.csv', sidecarPath: 'imports/a.json' },
+      }),
+    },
   };
   return { ...base, ...overrides };
 }
@@ -242,12 +250,43 @@ describe('createApiClient', () => {
     await expect(
       client.table.trash({ workspaceId: 'ws_1', tableId: 'tbl_1' }),
     ).resolves.toMatchObject({ ok: false });
+    await expect(
+      client.file.importText({ filters: [{ name: 'Data', extensions: ['csv'] }] }),
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      client.file.exportText({
+        suggestedName: 'errors.csv',
+        content: 'a\n',
+        filters: [{ name: 'Data', extensions: ['csv'] }],
+      }),
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      client.file.archiveImport({
+        workspaceId: 'ws_1',
+        token: 'tok_1',
+        tableId: 'tbl_1',
+        mode: 'append',
+        name: 'a.csv',
+        sha256: 'a'.repeat(64),
+        size: 1,
+        encoding: 'utf-8',
+        format: 'csv',
+      }),
+    ).resolves.toMatchObject({ ok: false });
   });
 
   it('exposes no generic invoke/send escape hatch', () => {
     const client = createApiClient(bridge());
 
-    expect(Object.keys(client)).toEqual(['app', 'dialog', 'log', 'workspace', 'manifest', 'table']);
+    expect(Object.keys(client)).toEqual([
+      'app',
+      'dialog',
+      'log',
+      'workspace',
+      'manifest',
+      'table',
+      'file',
+    ]);
     expect(client).not.toHaveProperty('invoke');
     expect(client).not.toHaveProperty('send');
   });

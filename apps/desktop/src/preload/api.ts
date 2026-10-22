@@ -15,7 +15,13 @@ import { isIpcResult } from '../shared/contracts/envelope';
 import type { IpcResult } from '../shared/contracts/envelope';
 import type {
   AppInfo,
+  ArchiveImportReply,
+  ArchiveImportRequest,
   CurveApi,
+  ExportTextReply,
+  ExportTextRequest,
+  ImportTextReply,
+  ImportTextRequest,
   LogWriteRequest,
   ManifestWriteRequest,
   OkReply,
@@ -89,6 +95,14 @@ export function createCurveApi(invoke: InvokeFn): CurveApi {
         call<TableWriteReply>(invoke, IPC_CHANNELS.tableWrite, request),
       trash: (request: TableRefRequest): Promise<IpcResult<OkReply>> =>
         call<OkReply>(invoke, IPC_CHANNELS.tableTrash, request),
+    },
+    file: {
+      importText: (request: ImportTextRequest): Promise<IpcResult<ImportTextReply | null>> =>
+        call<ImportTextReply | null>(invoke, IPC_CHANNELS.fileImportText, request),
+      exportText: (request: ExportTextRequest): Promise<IpcResult<ExportTextReply | null>> =>
+        call<ExportTextReply | null>(invoke, IPC_CHANNELS.fileExportText, request),
+      archiveImport: (request: ArchiveImportRequest): Promise<IpcResult<ArchiveImportReply>> =>
+        call<ArchiveImportReply>(invoke, IPC_CHANNELS.fileArchiveImport, request),
     },
   };
 }

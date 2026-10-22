@@ -100,6 +100,10 @@
 5. 计时：从确认到表格可交互 ≤ 8s；UI 全程可点击。
 6. 导出错误 CSV，断言 3 行且行号正确。
 
+> T2.5 覆盖：`apps/desktop/e2e/import.spec.ts` 6 条（100k GBK + 3 坏行 + 错误 CSV、错编码
+> 覆盖、150k 取消/100k 提示、JSON 替换 + 备份 + 原文归档 + 撤销、200k 拒绝、200% 缩放键盘）。
+> `pnpm bench -- --import` 的 100k 核心管线 P95 1,072ms；E2E 计时断言 <8s。
+
 ### E5 表格外观与模板
 
 1. 应用 `builtin.finance`，断言数字右对齐、斑马纹、等宽数字。
@@ -149,7 +153,7 @@
 | `fixtures/csv/small.csv` | 5×4 基础导入、粘贴对照 |
 | `fixtures/csv/quoted.csv` | 引号、逗号、内嵌换行 |
 | `fixtures/csv/types.csv` | 数字/日期/布尔/枚举/空值混合 |
-| `fixtures/csv/gbk-100k.csv` | 编码、性能、坏行（脚本生成，不提交大文件） |
+| `fixtures/csv/gbk-100k.csv` | 编码、性能、坏行（`scripts/gen-100k.ts` 生成，不提交大文件） |
 | `fixtures/csv/bad-rows.csv` | 截断、超长、非法类型 |
 | `fixtures/json/points.json` | 示例插件导入器 |
 | `fixtures/workspaces/v1-min/` | 最小合法工作区（1 表 3 行） |

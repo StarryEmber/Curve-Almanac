@@ -9,6 +9,7 @@ import {
   createColumnReorderCommand,
   createColumnUpdateCommand,
 } from './commands/columns';
+import { createImportCommand } from './commands/import';
 import { createPasteCommand } from './commands/paste';
 import { createRowInsertCommand } from './commands/rows';
 import { createTableCellSetCommand } from './commands/table-cell-set';
@@ -36,7 +37,11 @@ import type { AppLogger } from './logging';
 import type { AppStore } from './state/types';
 import type { OpenWorkspace } from './usecases/open-workspace';
 import type { EncodeTable } from './usecases/save-queue';
-import type { WorkspaceActions } from './usecases/workspace-actions';
+import type {
+  ImportArchiveRequest,
+  ImportArchiveResult,
+  WorkspaceActions,
+} from './usecases/workspace-actions';
 
 export interface CreateAppCoreOptions {
   /** Injected persistence port (FileWorkspaceStore or MemoryWorkspaceStore). */
@@ -50,6 +55,8 @@ export interface CreateAppCoreOptions {
   decodeTable?: (jsonl: string, table: TableMeta) => Promise<JsonlDecodeResult>;
   /** Async table encoder (renderer Worker); omitted means inline encode. */
   encodeTable?: EncodeTable;
+  /** Archive writer for imported source files (main-process IPC adapter). */
+  archiveImport?: (request: ImportArchiveRequest) => Promise<ImportArchiveResult>;
 }
 
 export interface AppCore {
@@ -65,7 +72,12 @@ export interface AppCore {
  * Cell edits, pastes and explicit row inserts write table data; structural
  * commands either write the manifest themselves or do not touch rows.
  */
-const ROW_SAVING_COMMANDS = new Set(['table.cell.set', 'table.paste', 'table.rows.insert']);
+const ROW_SAVING_COMMANDS = new Set([
+  'table.cell.set',
+  'table.paste',
+  'table.import',
+  'table.rows.insert',
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -125,6 +137,7 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
 
   commands.register(createTableCellSetCommand({ now }));
   commands.register(createPasteCommand(commandOptions));
+  commands.register(createImportCommand(commandOptions));
   commands.register(createRowInsertCommand(commandOptions));
   commands.register(createColumnAddCommand({ now }));
   commands.register(createColumnUpdateCommand({ now }));
@@ -162,6 +175,7 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
     logger,
     now,
     ...(options.uuid === undefined ? {} : { uuid: options.uuid }),
+    ...(options.archiveImport === undefined ? {} : { archiveImport: options.archiveImport }),
   });
 
   return { store, commands, openWorkspace, actions, history };

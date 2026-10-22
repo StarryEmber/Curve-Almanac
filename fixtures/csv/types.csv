@@ -1,0 +1,5 @@
+id,amount,day,active,site
+t1,"1,234.5",2026-01-01,true,north
+t2,2,2026-01-02,false,south
+t3,,2026-01-03,是,north
+t4,4.25,2026-01-04,否,south

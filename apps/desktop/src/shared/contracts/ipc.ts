@@ -107,6 +107,57 @@ export interface TableWriteReply {
   bytes: number;
 }
 
+/** Native file dialog filter (SPEC §15.4). */
+export interface FileFilter {
+  name: string;
+  extensions: string[];
+}
+
+/** `file:importText` request: the dialog filters for the import source. */
+export interface ImportTextRequest {
+  filters: FileFilter[];
+}
+
+/** Raw import bytes; the renderer Worker decodes them without losing GBK. */
+export interface ImportTextReply {
+  token: string;
+  name: string;
+  bytes: Uint8Array;
+  sha256: string;
+  size: number;
+  format: 'csv' | 'json';
+}
+
+/** `file:exportText` request (SPEC §15.1). */
+export interface ExportTextRequest {
+  suggestedName: string;
+  content: string;
+  filters: FileFilter[];
+}
+
+export interface ExportTextReply {
+  path: string;
+}
+
+/** `file:archiveImport` request: commits the selected source to `imports/`. */
+export interface ArchiveImportRequest {
+  workspaceId: string;
+  token: string;
+  tableId: string;
+  mode: 'append' | 'replace';
+  name: string;
+  sha256: string;
+  size: number;
+  encoding: string;
+  format: 'csv' | 'json';
+}
+
+export interface ArchiveImportReply {
+  copied: boolean;
+  archivePath: string | null;
+  sidecarPath: string;
+}
+
 /**
  * `window.api` surface. SPEC §15.4 lists the full interface; this milestone
  * ships `app`, `log`, `workspace`, `manifest` and `table`. The remaining
@@ -136,6 +187,11 @@ export interface CurveApi {
     read(request: TableRefRequest): Promise<IpcResult<TableReadReply>>;
     write(request: TableWriteRequest): Promise<IpcResult<TableWriteReply>>;
     trash(request: TableRefRequest): Promise<IpcResult<OkReply>>;
+  };
+  file: {
+    importText(request: ImportTextRequest): Promise<IpcResult<ImportTextReply | null>>;
+    exportText(request: ExportTextRequest): Promise<IpcResult<ExportTextReply | null>>;
+    archiveImport(request: ArchiveImportRequest): Promise<IpcResult<ArchiveImportReply>>;
   };
 }
 
@@ -244,3 +300,61 @@ export const tableWriteResponseSchema: z.ZodType<TableWriteReply> = z.strictObje
 export const tableTrashRequestSchema = tableRefRequestSchema;
 
 export const tableTrashResponseSchema = okReplySchema;
+
+export const fileFilterSchema: z.ZodType<FileFilter, FileFilter> = z.strictObject({
+  name: z.string().min(1).max(80),
+  extensions: z.array(z.string().min(1).max(16)).min(1).max(20),
+});
+
+export const importTextRequestSchema: z.ZodType<ImportTextRequest, ImportTextRequest> =
+  z.strictObject({
+    filters: z.array(fileFilterSchema).min(1).max(10),
+  });
+
+const rawBytesSchema = z.custom<Uint8Array>(
+  (value) => value instanceof Uint8Array,
+  'Expected raw import bytes.',
+);
+
+export const importTextResponseSchema: z.ZodType<ImportTextReply | null> = z.union([
+  z.strictObject({
+    token: z.string().min(1),
+    name: z.string().min(1),
+    bytes: rawBytesSchema,
+    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    size: z.number().int().nonnegative(),
+    format: z.enum(['csv', 'json']),
+  }),
+  z.null(),
+]);
+
+export const exportTextRequestSchema: z.ZodType<ExportTextRequest, ExportTextRequest> =
+  z.strictObject({
+    suggestedName: z.string().min(1).max(200),
+    content: z.string(),
+    filters: z.array(fileFilterSchema).min(1).max(10),
+  });
+
+export const exportTextResponseSchema: z.ZodType<ExportTextReply | null> = z.union([
+  z.strictObject({ path: z.string().min(1) }),
+  z.null(),
+]);
+
+export const archiveImportRequestSchema: z.ZodType<ArchiveImportRequest, ArchiveImportRequest> =
+  z.strictObject({
+    workspaceId: workspaceIdSchema,
+    token: z.string().min(1),
+    tableId: tableIdSchema,
+    mode: z.enum(['append', 'replace']),
+    name: z.string().min(1),
+    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    size: z.number().int().nonnegative(),
+    encoding: z.string().min(1).max(32),
+    format: z.enum(['csv', 'json']),
+  });
+
+export const archiveImportResponseSchema: z.ZodType<ArchiveImportReply> = z.strictObject({
+  copied: z.boolean(),
+  archivePath: z.string().min(1).nullable(),
+  sidecarPath: z.string().min(1),
+});

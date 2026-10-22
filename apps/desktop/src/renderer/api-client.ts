@@ -9,6 +9,12 @@
 
 import {
   appInfoResponseSchema,
+  archiveImportRequestSchema,
+  archiveImportResponseSchema,
+  exportTextRequestSchema,
+  exportTextResponseSchema,
+  importTextRequestSchema,
+  importTextResponseSchema,
   logWriteRequestSchema,
   logWriteResponseSchema,
   manifestWriteRequestSchema,
@@ -32,7 +38,13 @@ import {
 
 import type { IpcResult } from '../shared/contracts/envelope';
 import type {
+  ArchiveImportReply,
+  ArchiveImportRequest,
   CurveApi,
+  ExportTextReply,
+  ExportTextRequest,
+  ImportTextReply,
+  ImportTextRequest,
   LogWriteRequest,
   ManifestWriteRequest,
   OkReply,
@@ -112,6 +124,7 @@ export function createApiClient(bridge: CurveApi | undefined): CurveApi {
       },
       manifest: { write: unavailable },
       table: { read: unavailable, write: unavailable, trash: unavailable },
+      file: { importText: unavailable, exportText: unavailable, archiveImport: unavailable },
     };
   }
 
@@ -194,6 +207,29 @@ export function createApiClient(bridge: CurveApi | undefined): CurveApi {
           return Promise.resolve(INVALID_REQUEST);
         }
         return call(tableTrashResponseSchema, () => bridge.table.trash(parsed.data));
+      },
+    },
+    file: {
+      importText: (request: ImportTextRequest): Promise<IpcResult<ImportTextReply | null>> => {
+        const parsed = importTextRequestSchema.safeParse(request);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(importTextResponseSchema, () => bridge.file.importText(parsed.data));
+      },
+      exportText: (request: ExportTextRequest): Promise<IpcResult<ExportTextReply | null>> => {
+        const parsed = exportTextRequestSchema.safeParse(request);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(exportTextResponseSchema, () => bridge.file.exportText(parsed.data));
+      },
+      archiveImport: (request: ArchiveImportRequest): Promise<IpcResult<ArchiveImportReply>> => {
+        const parsed = archiveImportRequestSchema.safeParse(request);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(archiveImportResponseSchema, () => bridge.file.archiveImport(parsed.data));
       },
     },
   };

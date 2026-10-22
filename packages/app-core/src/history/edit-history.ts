@@ -65,7 +65,10 @@ export function createEditHistory(options: EditHistoryOptions): EditHistory {
   const redoStack: EditHistoryEntry[] = [];
 
   const record = (result: CommandResult): void => {
-    const recordable = result.name === 'table.cell.set' || result.name === 'table.paste';
+    const recordable =
+      result.name === 'table.cell.set' ||
+      result.name === 'table.paste' ||
+      result.name === 'table.import';
     if (!recordable) {
       if (result.patches.length > 0) {
         redoStack.length = 0;

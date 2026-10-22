@@ -19,6 +19,7 @@ const SPEC_CHANNELS = {
   manifestWrite: 'manifest:write',
   fileImportText: 'file:importText',
   fileExportText: 'file:exportText',
+  fileArchiveImport: 'file:archiveImport',
   backupList: 'backup:list',
   backupRestore: 'backup:restore',
   logWrite: 'log:write',
@@ -37,7 +38,7 @@ describe('IPC channels', () => {
     expect(names).toEqual(Object.values(SPEC_CHANNELS));
   });
 
-  it('wires app/log, workspace, manifest, table and the T2.1 directory picker', () => {
+  it('wires app/log, workspace, manifest, table, directory picker and import files', () => {
     expect([...IMPLEMENTED_IPC_CHANNELS]).toEqual([
       IPC_CHANNELS.appInfo,
       IPC_CHANNELS.dialogPickDirectory,
@@ -50,6 +51,9 @@ describe('IPC channels', () => {
       IPC_CHANNELS.tableRead,
       IPC_CHANNELS.tableWrite,
       IPC_CHANNELS.tableTrash,
+      IPC_CHANNELS.fileImportText,
+      IPC_CHANNELS.fileExportText,
+      IPC_CHANNELS.fileArchiveImport,
     ]);
   });
 

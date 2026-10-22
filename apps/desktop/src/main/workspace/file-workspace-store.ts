@@ -9,8 +9,19 @@
  * replace it. `manifest.json` is written last by the caller (SPEC §7.4.4).
  */
 
-import { mkdir, readFile, readdir, realpath, rename, rm, stat, unlink } from 'node:fs/promises';
-import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import {
+  copyFile,
+  mkdir,
+  readFile,
+  readdir,
+  realpath,
+  rename,
+  rm,
+  stat,
+  unlink,
+} from 'node:fs/promises';
+import { basename, join } from 'node:path';
 
 import { createAppError, isAppError, isId, toAppError } from '@curve/domain';
 import type { TableMeta, UuidFactory } from '@curve/domain';
@@ -97,6 +108,28 @@ interface OpenWorkspace {
   warnings: string[];
 }
 
+/** Files at or below this size are copied into `imports/`; larger ones only get metadata. */
+export const MAX_ARCHIVE_COPY_BYTES = 50 * 1024 * 1024;
+
+export interface ArchiveImportFileRequest {
+  workspaceId: string;
+  sourcePath: string;
+  name: string;
+  sha256: string;
+  size: number;
+  encoding: string;
+  format: 'csv' | 'json';
+  tableId: string;
+  mode: 'append' | 'replace';
+}
+
+export interface ArchiveImportFileResult {
+  copied: boolean;
+  /** Workspace-relative path, or null when the file exceeded the copy limit. */
+  archivePath: string | null;
+  sidecarPath: string;
+}
+
 function workspaceRootKey(root: string): string {
   const key = rootKey(root);
   return process.platform === 'win32' ? key.toLowerCase() : key;
@@ -112,6 +145,14 @@ async function pathExists(path: string): Promise<boolean> {
     }
     throw error;
   }
+}
+
+function safeImportFileName(name: string): string {
+  const cleaned = basename(name)
+    .replace(/[^A-Za-z0-9._-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 80);
+  return cleaned.length === 0 ? 'import' : cleaned;
 }
 
 export class FileWorkspaceStore implements WorkspaceStore {
@@ -557,6 +598,98 @@ export class FileWorkspaceStore implements WorkspaceStore {
     }
     await this.writeAtomic(tablePath, content, 'Cannot restore the table backup.');
     return { ok: true };
+  }
+
+  /**
+   * Records an import source in `imports/` (T2.5).
+   *
+   * Files up to 50 MB are copied byte-for-byte next to a JSON sidecar; larger
+   * files keep only the original path and SHA-256. The source hash is verified
+   * again here because the renderer selected it earlier and the file could have
+   * changed before the commit click.
+   */
+  async archiveImport(request: ArchiveImportFileRequest): Promise<ArchiveImportFileResult> {
+    if (!isId('tbl', request.tableId)) {
+      throw createAppError('E_PATH_DENIED', 'The table id is not a safe table id.');
+    }
+    const workspace = this.requireWorkspace(request.workspaceId);
+
+    let sourcePath: string;
+    let sourceBytes: Buffer;
+    try {
+      sourcePath = await realpath(request.sourcePath);
+      sourceBytes = await readFile(sourcePath);
+    } catch (error) {
+      throw toFsError('E_FS_READ', 'Cannot read the import source file.', error);
+    }
+    const sha256 = createHash('sha256').update(sourceBytes).digest('hex');
+    if (sourceBytes.byteLength !== request.size || sha256 !== request.sha256) {
+      throw createAppError(
+        'E_IMPORT_FORMAT',
+        'The import source changed after it was selected; choose it again.',
+        { detail: `bytes=${String(sourceBytes.byteLength)}` },
+      );
+    }
+
+    const importsDirectory = await resolveWorkspaceRelativePath(
+      workspace.root,
+      WORKSPACE_IMPORTS_DIR,
+      'imports directory',
+    );
+    try {
+      await mkdir(importsDirectory, { recursive: true });
+    } catch (error) {
+      throw toFsError('E_FS_WRITE', 'Cannot create the imports directory.', error);
+    }
+
+    const safeName = safeImportFileName(request.name);
+    let date = this.now();
+    let baseName = `${formatBackupTimestamp(date)}-${safeName}`;
+    let archiveFile = join(importsDirectory, baseName);
+    let sidecarFile = join(importsDirectory, `${baseName}.json`);
+    while ((await pathExists(archiveFile)) || (await pathExists(sidecarFile))) {
+      date = new Date(date.getTime() + 1);
+      baseName = `${formatBackupTimestamp(date)}-${safeName}`;
+      archiveFile = join(importsDirectory, baseName);
+      sidecarFile = join(importsDirectory, `${baseName}.json`);
+    }
+
+    const copied = sourceBytes.byteLength <= MAX_ARCHIVE_COPY_BYTES;
+    if (copied) {
+      const temporary = `${archiveFile}.tmp`;
+      try {
+        await copyFile(sourcePath, temporary);
+        await rename(temporary, archiveFile);
+      } catch (error) {
+        await rm(temporary, { force: true }).catch(() => undefined);
+        throw toFsError('E_FS_WRITE', 'Cannot copy the import source into the workspace.', error);
+      }
+    }
+
+    const sidecar = {
+      name: request.name,
+      originalPath: sourcePath,
+      sha256,
+      bytes: sourceBytes.byteLength,
+      encoding: request.encoding,
+      format: request.format,
+      tableId: request.tableId,
+      mode: request.mode,
+      importedAt: this.now().toISOString(),
+      copied,
+      archivePath: copied ? `${WORKSPACE_IMPORTS_DIR}/${baseName}` : null,
+    };
+    await this.writeAtomic(
+      sidecarFile,
+      `${JSON.stringify(sidecar, null, 2)}\n`,
+      'Cannot write the import metadata file.',
+    );
+
+    return {
+      copied,
+      archivePath: copied ? `${WORKSPACE_IMPORTS_DIR}/${baseName}` : null,
+      sidecarPath: `${WORKSPACE_IMPORTS_DIR}/${baseName}.json`,
+    };
   }
 
   /** Reads `userData/recent.json`; corrupt files degrade to an empty list. */

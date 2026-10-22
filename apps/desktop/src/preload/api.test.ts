@@ -178,16 +178,77 @@ describe('createCurveApi', () => {
     });
   });
 
+  it('forwards import/export file methods over their channels', async () => {
+    const invoke = vi.fn(async (channel: string) => {
+      if (channel === IPC_CHANNELS.fileImportText) {
+        return {
+          ok: true,
+          data: {
+            token: 'tok_1',
+            name: 'a.csv',
+            bytes: new Uint8Array([1]),
+            sha256: 'a'.repeat(64),
+            size: 1,
+            format: 'csv',
+          },
+        };
+      }
+      if (channel === IPC_CHANNELS.fileExportText) {
+        return { ok: true, data: { path: 'C:/tmp/errors.csv' } };
+      }
+      return {
+        ok: true,
+        data: { copied: true, archivePath: 'imports/a.csv', sidecarPath: 'imports/a.json' },
+      };
+    });
+    const api = createCurveApi(invoke);
+    const filters = [{ name: 'Data', extensions: ['csv'] }];
+
+    await expect(api.file.importText({ filters })).resolves.toMatchObject({ ok: true });
+    await expect(
+      api.file.exportText({ suggestedName: 'errors.csv', content: 'a\n', filters }),
+    ).resolves.toEqual({ ok: true, data: { path: 'C:/tmp/errors.csv' } });
+    await expect(
+      api.file.archiveImport({
+        workspaceId: 'ws_1',
+        token: 'tok_1',
+        tableId: 'tbl_1',
+        mode: 'append',
+        name: 'a.csv',
+        sha256: 'a'.repeat(64),
+        size: 1,
+        encoding: 'utf-8',
+        format: 'csv',
+      }),
+    ).resolves.toMatchObject({ ok: true });
+
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.fileImportText, { filters });
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.fileExportText, {
+      suggestedName: 'errors.csv',
+      content: 'a\n',
+      filters,
+    });
+  });
+
   it('exposes no generic invoke/send escape hatch', () => {
     const api = createCurveApi(async () => ({ ok: true, data: null }));
 
-    expect(Object.keys(api)).toEqual(['app', 'dialog', 'log', 'workspace', 'manifest', 'table']);
+    expect(Object.keys(api)).toEqual([
+      'app',
+      'dialog',
+      'log',
+      'workspace',
+      'manifest',
+      'table',
+      'file',
+    ]);
     expect(Object.keys(api.app)).toEqual(['info']);
     expect(Object.keys(api.dialog)).toEqual(['pickDirectory']);
     expect(Object.keys(api.log)).toEqual(['write']);
     expect(Object.keys(api.workspace)).toEqual(['create', 'open', 'close', 'recent']);
     expect(Object.keys(api.manifest)).toEqual(['write']);
     expect(Object.keys(api.table)).toEqual(['read', 'write', 'trash']);
+    expect(Object.keys(api.file)).toEqual(['importText', 'exportText', 'archiveImport']);
     expect(api).not.toHaveProperty('invoke');
     expect(api).not.toHaveProperty('send');
     expect(api).not.toHaveProperty('ipcRenderer');

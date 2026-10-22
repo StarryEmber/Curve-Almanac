@@ -60,3 +60,4 @@
 | ADR-028 | T2.2 的单元格编辑、结构化校验、最小撤销与即时保存 | 已接受 | [028-t22-cell-editing-and-save.md](028-t22-cell-editing-and-save.md) |
 | ADR-029 | T2.3 的列管理、结构变更、运行期迁移与破坏性确认 | 已接受 | [029-t23-column-management-and-structure.md](029-t23-column-management-and-structure.md) |
 | ADR-030 | T2.4 的区域粘贴、批量命令、取消与新增列 | 已接受 | [030-t24-region-paste.md](030-t24-region-paste.md) |
+| ADR-031 | T2.5 的 CSV/JSON 导入、字节传输、工作线程与原始文件归档 | 已接受 | [031-t25-csv-json-import.md](031-t25-csv-json-import.md) |

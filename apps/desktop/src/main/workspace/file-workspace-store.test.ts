@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -461,5 +462,54 @@ describe('FileWorkspaceStore tables and backups', () => {
   it('closes an unknown workspace idempotently', async () => {
     const harness = createHarness();
     await expect(harness.store.close({ workspaceId: 'ws_unknown' })).resolves.toEqual({ ok: true });
+  });
+
+  it('archives an import source with a hash sidecar and rejects changed bytes', async () => {
+    const harness = createHarness();
+    const { parent, root } = workspacePath(harness);
+    const created = await harness.store.create({ dir: parent, name: 'Demo' });
+    await addTable(harness.store, created);
+
+    const sourcePath = join(harness.temp, 'gbk.csv');
+    const bytes = Buffer.from([0xc4, 0xe3, 0xba, 0xc3, 0x0a]);
+    writeFileSync(sourcePath, bytes);
+    const actualHash = createHash('sha256').update(bytes).digest('hex');
+
+    const result = await harness.store.archiveImport({
+      workspaceId: created.id,
+      sourcePath,
+      name: 'gbk.csv',
+      sha256: actualHash,
+      size: bytes.byteLength,
+      encoding: 'gb18030',
+      format: 'csv',
+      tableId: 'tbl_1',
+      mode: 'append',
+    });
+
+    expect(result.copied).toBe(true);
+    expect(result.archivePath).toMatch(/^imports\//);
+    expect(result.sidecarPath).toMatch(/^imports\/.+\.json$/);
+    expect(readFileSync(join(root, result.archivePath ?? ''))).toEqual(bytes);
+    const sidecar = JSON.parse(readFileSync(join(root, result.sidecarPath), 'utf8')) as {
+      sha256: string;
+      encoding: string;
+      copied: boolean;
+    };
+    expect(sidecar).toMatchObject({ sha256: actualHash, encoding: 'gb18030', copied: true });
+
+    await expect(
+      harness.store.archiveImport({
+        workspaceId: created.id,
+        sourcePath,
+        name: 'gbk.csv',
+        sha256: actualHash.replace(/^./, (character) => (character === 'a' ? 'b' : 'a')),
+        size: bytes.byteLength,
+        encoding: 'gb18030',
+        format: 'csv',
+        tableId: 'tbl_1',
+        mode: 'append',
+      }),
+    ).rejects.toMatchObject({ code: 'E_IMPORT_FORMAT' });
   });
 });

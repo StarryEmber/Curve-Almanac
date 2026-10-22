@@ -23,6 +23,7 @@ test.describe('T0.3 typed IPC', () => {
         workspaceMethods: Object.keys(api['workspace'] as Record<string, unknown>).sort(),
         manifestMethods: Object.keys(api['manifest'] as Record<string, unknown>),
         tableMethods: Object.keys(api['table'] as Record<string, unknown>).sort(),
+        fileMethods: Object.keys(api['file'] as Record<string, unknown>).sort(),
         invoke: typeof (api as { invoke?: unknown }).invoke,
         send: typeof (api as { send?: unknown }).send,
         ipcRenderer: typeof (globalThis as { ipcRenderer?: unknown }).ipcRenderer,
@@ -30,13 +31,14 @@ test.describe('T0.3 typed IPC', () => {
     });
 
     expect(surface).toEqual({
-      namespaces: ['app', 'dialog', 'log', 'manifest', 'table', 'workspace'],
+      namespaces: ['app', 'dialog', 'file', 'log', 'manifest', 'table', 'workspace'],
       appMethods: ['info'],
       dialogMethods: ['pickDirectory'],
       logMethods: ['write'],
       workspaceMethods: ['close', 'create', 'open', 'recent'],
       manifestMethods: ['write'],
       tableMethods: ['read', 'trash', 'write'],
+      fileMethods: ['archiveImport', 'exportText', 'importText'],
       invoke: 'undefined',
       send: 'undefined',
       ipcRenderer: 'undefined',

@@ -119,7 +119,7 @@ Curve Studio 是一个**本地优先、单机离线**的桌面数据可视化工
 | 包 | 可以依赖 | 禁止依赖 |
 |---|---|---|
 | `@curve/domain` | `zod` | React、Electron、ECharts、Zustand、fs、任何其他 `@curve/*` |
-| `@curve/table-engine` | domain、papaparse、iconv-lite/jschardet（Worker 侧） | React、Electron、ECharts |
+| `@curve/table-engine` | domain、papaparse（Worker 侧的编码/文件读写在上层） | React、Electron、ECharts |
 | `@curve/chart-model` | domain、table-engine | ECharts、React、Electron |
 | `@curve/chart-echarts` | chart-model、echarts | app-core、React、Electron |
 | `@curve/persistence` | domain | Electron、React、app-core |
@@ -128,6 +128,10 @@ Curve Studio 是一个**本地优先、单机离线**的桌面数据可视化工
 | `@curve/ui` | React、domain 类型 | app-core、persistence、Electron |
 | `@curve/desktop` | 全部 | — |
 | `plugins/*` | plugin-sdk、domain 公开类型 | 任何应用内部路径 |
+
+> T2.5 实现边界（ADR-031）：`@curve/table-engine` 只新增 `papaparse` 运行时依赖；GBK/
+> GB18030 解码使用 renderer Worker 的平台 `TextDecoder`，不引入 `jschardet`/`iconv-lite`
+> 运行时依赖。`iconv-lite` 仅作为 devDependency 供 `scripts/gen-100k.ts` 生成 GBK 夹具。
 
 ### 4.3 强制边界（T0.1 写入 dependency-cruiser）
 
@@ -735,6 +739,34 @@ interface ImportResult {
 - 导入在 Worker 执行，主线程不阻塞；可取消。
 - 原始文件复制到 `imports/`（≤ 50MB 才复制，否则只记录路径与哈希）。
 
+**实现边界（T2.5，ADR-031）**：
+
+- `file:importText` 返回 `{ token, name, bytes, sha256, size, format }`；main 只做文件选择、
+  100MB 检查和字节读取，Worker 用 `TextDecoder` 严格 UTF-8 → GB18030 解码。UI 可覆盖
+  `自动 / UTF-8 / GB18030（兼容 GBK）`；错编码保留替换字符并提示，不重读文件。
+- CSV 解析使用 Papa Parse；前 20 条记录对 `, ; \t |` 做稳定性评分。表头启发式：首行唯一、
+  非空、全文本，且后续样本存在非文本列时判为表头；全文本歧义默认 true。两者都可覆盖。
+- JSON 接受对象数组或 `{ rows: [...] }`；键取所有对象键的并集，缺失键填 `null`，嵌套
+  对象/数组报 `E_IMPORT_FORMAT`。
+- 类型推断抽样前 1,000 个非空值，boolean/date/number 置信度 <80% 回退 text；新列限
+  text/number/date/boolean、始终非必填。映射复用 T2.3 列校验与 100 列上限；一个目标列
+  只能接收一个源列，required 列未映射时阻止提交。
+- 专用 import Worker 持有原始字节/完整解析结果；renderer 只接收 20 行预览、统计和最终
+  rows。取消/关闭调用 `terminate()`，不 dispatch、不写盘；Worker 内不提供 chunk 级进度。
+- 全量校验返回前 100 条 issue + `total/accepted/skipped`；坏行整行跳过，错误 CSV 为
+  UTF-8 BOM + CRLF，一行一个坏数据行（同一行的多个 issue 合并），行号 1-based 且不含表头。
+- 默认追加；替换二次确认。替换复用保存队列的 `writeTable` 旧表备份；原始文件在提交前归档到
+  `imports/`：≤50MB 逐字节复制 + SHA-256 sidecar，>50MB 只写 sidecar。复制/哈希失败在
+  dispatch 前中止，sidecar 不进入 `manifest.json`。
+- `table.import`（`{ tableId, mode, rows, newColumns? }`）在一条命令内完成追加/替换、可选
+  新列、所有表视图 `columnOrder` 同步与 `rowCount/updatedAt` 更新；失败不发布半成品。
+  成功后走保存队列（表 → manifest），等待 flush ≤3s，失败返回 `committed: true`。一次导入
+  进入最小历史一条、不合并。
+- 最终行数 >200,000 在 dispatch 前拒绝；100,001–200,000 在提交步显式确认。256MB 仍由
+  `table:write` 写盘守卫强制。100MB 源文件上限由 main 在读取前检查。
+- 不改变 `formatVersion`、JSONL 形态或 manifest 字段；新增 `file:archiveImport` 通道，
+  `ALL_IPC_CHANNELS` 18 → 19，已实现通道 11 → 14。
+
 ### 9.5 筛选与排序
 
 - 筛选器 UI：列 + 操作符 + 值；支持 all/any 组合，最多 20 条。
@@ -1016,6 +1048,10 @@ export interface RenderModel {
   同一条命令内完成覆盖/追加行、可选新增列、视图 `columnOrder` 同步；失败整批不发布。
   `table.rows.insert` 复用 `coerceCell` 与空 text 主键生成。两者都只产 patches，不进入
   `table.cell.set` 的 800ms 合并；粘贴用独立历史条目。
+- **实现边界（T2.5，ADR-031）**：T2.5 落地 `table.import { tableId, mode, rows, newColumns? }`。
+  命令在同一 Immer 事务内校验物理 Cell/行 ID/主键唯一性，追加或替换行、追加可选列、同步
+  所有表视图 `columnOrder`，并更新 `rowCount/updatedAt`；失败返回 `AppError` 且不发布半成品。
+  导入不参与 800ms 合并，一次导入一条历史；保存队列与 `committed: true` 语义同 T2.4。
 
 ### 13.2 撤销/重做
 
@@ -1031,6 +1067,9 @@ export interface RenderModel {
 - **实现边界（T2.4，ADR-030）**：`table.paste` 接入最小历史，一次粘贴一条、不参与 800ms 合并；
   撤销/重做同时回滚新增行、新增列与所有覆盖单元格，并复用保存队列落盘。`table.rows.insert`
   仍不进入历史，T5.2 统一。
+- **实现边界（T2.5，ADR-031）**：`table.import` 接入最小历史，一次导入一条、不参与 800ms
+  合并；撤销/重做同时回滚追加/替换行与新增列，并复用保存队列。100k 逆补丁的内存上限由
+  T5.2 统一评估，T2.5 不另起历史栈。
 
 ### 13.3 自动保存
 
@@ -1048,6 +1087,9 @@ export interface RenderModel {
 - **实现边界（T2.4，ADR-030）**：`table.paste` 与 `table.rows.insert` 属于行数据命令，成功后按表
   入队（表 → manifest）；粘贴 action 等待 flush ≤3s，失败返回 `committed: true` 并可重试。
   dispatch 前预检 200k 行上限；256MB 文件上限仍由写盘守卫在编码后强制。
+- **实现边界（T2.5，ADR-031）**：`table.import` 成功后按表入队（表 → manifest），action 等待
+  flush ≤3s；失败返回 `committed: true`。dispatch 前由 `planImport`/命令检查 200k 行上限；
+  100,001–200,000 行在提交前显式确认。256MB 仍由 `table:write` 写盘守卫强制。
 
 ---
 
@@ -1185,8 +1227,9 @@ export interface PluginCommandContext {
 | `table:write` | R→M | `{ workspaceId, tableId, jsonl }` | `{ bytes }` |
 | `table:trash` | R→M | `{ workspaceId, tableId }` | `{ ok: true }` |
 | `manifest:write` | R→M | `{ workspaceId, manifest }` | `{ ok: true }` |
-| `file:importText` | R→M | `{ filters }` | `{ path, name, text } \| null` |
+| `file:importText` | R→M | `{ filters }` | `{ token, name, bytes, sha256, size, format } \| null` |
 | `file:exportText` | R→M | `{ suggestedName, content, filters }` | `{ path } \| null` |
+| `file:archiveImport` | R→M | `{ workspaceId, token, tableId, mode, name, sha256, size, encoding, format }` | `{ copied, archivePath, sidecarPath }` |
 | `backup:list` | R→M | `{ workspaceId, tableId }` | `BackupEntry[]` |
 | `backup:restore` | R→M | `{ workspaceId, tableId, backupPath }` | `{ ok: true }` |
 | `log:write` | R→M | `{ level, message, detail? }` | `{ ok: true }` |
@@ -1204,6 +1247,11 @@ export interface PluginCommandContext {
 - `table:write` 在写盘前校验 §2.2 的行数（200,000）与字节（256 MB）上限，超限返回 `E_TABLE_LIMIT`，
   不落盘、不备份。
 - 单次 IPC 载荷上限 256MB；超过返回 `E_PAYLOAD_TOO_LARGE`。
+- `file:importText` 只返回用户通过原生对话框选择的文件；main 在读取前检查 `.csv/.tsv/.json`
+  扩展名与 100MB 上限。`token` 是不透明随机值，`file:archiveImport` 只能使用该 token 对应的
+  路径，不能读取任意路径。`bytes` 为原始字节（T2.5，ADR-031）。
+- `file:archiveImport` 在提交前把源文件归档到工作区 `imports/`；≤50MB 复制并写 sidecar，
+  >50MB 只写 sidecar（原始路径 + SHA-256）。路径/工作区由 main 校验，renderer 不传绝对路径。
 
 ### 15.2 路径白名单
 
@@ -1262,7 +1310,31 @@ export interface BackupEntry { path: string; createdAt: string; bytes: number }
 export interface FileFilter { name: string; extensions: string[] }
 export interface SaveFileReq { suggestedName: string; filters: FileFilter[] }
 export interface ImportTextReq { filters: FileFilter[] }
+export interface ImportTextReply {
+  token: string;
+  name: string;
+  bytes: Uint8Array;
+  sha256: string;
+  size: number;
+  format: 'csv' | 'json';
+}
 export interface ExportTextReq { suggestedName: string; content: string; filters: FileFilter[] }
+export interface ArchiveImportReq {
+  workspaceId: string;
+  token: string;
+  tableId: string;
+  mode: 'append' | 'replace';
+  name: string;
+  sha256: string;
+  size: number;
+  encoding: string;
+  format: 'csv' | 'json';
+}
+export interface ArchiveImportReply {
+  copied: boolean;
+  archivePath: string | null;
+  sidecarPath: string;
+}
 export interface PickDirectoryReq { title?: string; defaultPath?: string }
 
 interface CurveApi {
@@ -1286,8 +1358,9 @@ interface CurveApi {
   };
   manifest: { write(req: { workspaceId: string; manifest: WorkspaceManifest }): Promise<IpcResult<{ ok: true }>> };
   file: {
-    importText(req: ImportTextReq): Promise<IpcResult<{ path: string; name: string; text: string } | null>>;
+    importText(req: ImportTextReq): Promise<IpcResult<ImportTextReply | null>>;
     exportText(req: ExportTextReq): Promise<IpcResult<{ path: string } | null>>;
+    archiveImport(req: ArchiveImportReq): Promise<IpcResult<ArchiveImportReply>>;
   };
   backup: {
     list(req: { workspaceId: string; tableId: string }): Promise<IpcResult<BackupEntry[]>>;
@@ -1298,6 +1371,10 @@ interface CurveApi {
 ```
 
 `sandbox: true` 下 preload 只允许 `require('electron')` 与有限 Node 模块；不得扩大。
+
+T2.5 实现边界（ADR-031）：`file.importText` 返回原始 `Uint8Array` 与不透明 `token`；
+`file.archiveImport` 只接受该 token，main 解析出用户已选择的源路径后才写入 `imports/`。
+`window.api` 仍不暴露 `ipcRenderer`、泛 `invoke` 或任意路径读写。
 
 ---
 
@@ -1322,6 +1399,10 @@ interface CurveApi {
 | 内存峰值 | ≤ 600MB | 任务管理器/`process.memoryUsage` |
 
 超预算：先优化；优化不了必须在任务报告里记录实测值、原因与后续计划，不得静默放过。
+
+T2.5 实测（2026-10-22，本机）：`pnpm bench -- --import` 的 100k GBK 分号 CSV
+（parse + validate + rows + JSONL 编码）P50 645ms / P95 659ms，预算 8s；100k E2E
+从确认到网格可交互的断言 <8s 通过。命令阶段仍同步，硬门禁与内存峰值留 T2.7。
 
 ### 16.2 安全
 

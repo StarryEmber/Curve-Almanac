@@ -13,6 +13,7 @@ import type {
   ColumnChangeFailure,
   ColumnDef,
   LayoutNode,
+  Row,
   UuidFactory,
 } from '@curve/domain';
 import type { WorkspaceStore } from '@curve/persistence';
@@ -171,12 +172,54 @@ export type PasteApplyOutcome =
       readonly committed?: boolean;
     };
 
+/** Source metadata returned by `file:importText` and archived at commit time. */
+export interface ImportSource {
+  token: string;
+  name: string;
+  sha256: string;
+  size: number;
+  encoding: string;
+  format: 'csv' | 'json';
+}
+
+export interface ImportArchiveRequest extends ImportSource {
+  workspaceId: string;
+  tableId: string;
+  mode: 'append' | 'replace';
+}
+
+export interface ImportArchiveResult {
+  copied: boolean;
+  /** Workspace-relative path, or null when the file exceeded the copy limit. */
+  archivePath: string | null;
+  sidecarPath: string;
+}
+
+export interface ImportApplyRequest {
+  tableId: string;
+  mode: 'append' | 'replace';
+  rows: readonly Row[];
+  newColumns?: readonly ColumnDef[];
+  source: ImportSource;
+}
+
+export type ImportApplyOutcome =
+  | { readonly ok: true; readonly data: ImportArchiveResult }
+  | {
+      readonly ok: false;
+      readonly error: AppError;
+      /** True when the document changed but the follow-up save failed. */
+      readonly committed?: boolean;
+    };
+
 export interface WorkspaceActionsOptions {
   store: AppStore;
   commands: CommandBus;
   workspaceStore: WorkspaceStore;
   history: EditHistory;
   saveQueue: SaveQueue;
+  /** Main-process archive writer; omitted in tests that do not import files. */
+  archiveImport?: (request: ImportArchiveRequest) => Promise<ImportArchiveResult>;
   logger?: AppLogger;
   now?: () => Date;
   uuid?: UuidFactory;
@@ -203,6 +246,11 @@ export interface WorkspaceActions {
   ): Promise<PastePrepareOutcome>;
   /** Applies one `table.paste` command and flushes the save queue. */
   applyPaste(request: PasteApplyRequest): Promise<PasteApplyOutcome>;
+  /**
+   * Archives the original import file, applies one `table.import` command and
+   * waits for the save queue. Archive failures abort before dispatch.
+   */
+  applyImport(request: ImportApplyRequest): Promise<ImportApplyOutcome>;
   /** Pure preview used by the destructive-confirmation dialogs. */
   inspectColumnChange(change: ColumnChange): ColumnChangeInspection;
   addColumn(tableId: string, draft: ColumnDraft): Promise<ColumnActionOutcome>;
@@ -234,7 +282,7 @@ function fail(error: AppError): ActionOutcome<never> {
 }
 
 export function createWorkspaceActions(options: WorkspaceActionsOptions): WorkspaceActions {
-  const { store, commands, workspaceStore, history, saveQueue } = options;
+  const { store, commands, workspaceStore, history, saveQueue, archiveImport } = options;
   const logger = options.logger ?? defaultAppLogger;
   const now = options.now ?? ((): Date => new Date());
   const uuid = options.uuid;
@@ -659,6 +707,63 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
       : { ok: false, error: flushed.error, committed: true };
   }
 
+  /**
+   * Archives the selected source file before touching the document, then applies
+   * one all-or-nothing `table.import` command. The archive step is deliberately
+   * first: a copy/hash failure must leave memory and workspace data unchanged.
+   * Once the command succeeds, a save failure is reported as `committed: true`.
+   */
+  async function applyImport(request: ImportApplyRequest): Promise<ImportApplyOutcome> {
+    const state = store.getState();
+    const workspace = state.workspace;
+    if (workspace === null) {
+      return { ok: false, error: createAppError('E_WS_NOT_FOUND', 'No workspace is open.') };
+    }
+    if (state.tables[request.tableId] === undefined) {
+      return {
+        ok: false,
+        error: createAppError('E_TABLE_NOT_FOUND', 'The table does not exist.', {
+          detail: `table=${request.tableId}`,
+        }),
+      };
+    }
+    if (archiveImport === undefined) {
+      return {
+        ok: false,
+        error: createAppError('E_UNKNOWN', 'Import archiving is not available.', {
+          detail: 'archiveImport',
+        }),
+      };
+    }
+
+    let archived: ImportArchiveResult;
+    try {
+      archived = await archiveImport({
+        workspaceId: workspace.id,
+        tableId: request.tableId,
+        mode: request.mode,
+        ...request.source,
+      });
+    } catch (thrown) {
+      return { ok: false, error: report('failed to archive the import source', thrown) };
+    }
+
+    const dispatched = commands.dispatch('table.import', {
+      tableId: request.tableId,
+      mode: request.mode,
+      rows: request.rows.map((row) => ({ id: row.id, values: [...row.values] })),
+      ...(request.newColumns === undefined ? {} : { newColumns: [...request.newColumns] }),
+    });
+    if (!dispatched.ok) {
+      return { ok: false, error: report('failed to import table rows', dispatched.error) };
+    }
+
+    const flushed = await saveQueue.flush();
+    return flushed.ok
+      ? { ok: true, data: archived }
+      : { ok: false, error: flushed.error, committed: true };
+  }
+
   function failColumn(
     error: AppError,
     issues?: readonly ColumnDraftIssue[],
@@ -947,6 +1052,7 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     updateCell,
     preparePaste,
     applyPaste,
+    applyImport,
     inspectColumnChange,
     addColumn,
     updateColumn,

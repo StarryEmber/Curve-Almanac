@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 
 import { Button } from '@curve/ui';
 
@@ -10,6 +10,11 @@ import { NewTableDialog } from './NewTableDialog';
 import { RenameTableDialog } from './RenameTableDialog';
 
 import type { ReactElement } from 'react';
+
+const ImportSession = lazy(async () => {
+  const module = await import('../import/ImportSession');
+  return { default: module.ImportSession };
+});
 
 type DialogState =
   | { kind: 'none' }
@@ -23,6 +28,7 @@ export function TableList(): ReactElement {
   const { core } = useRendererCore();
   const tables = useAppState((state) => state.tables);
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
+  const [importTableId, setImportTableId] = useState<string | null>(null);
 
   const tableData = Object.values(tables);
 
@@ -61,6 +67,16 @@ export function TableList(): ReactElement {
                 </span>
               </button>
               <div className="cs-tables__actions">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={t('tables.import', { name: table.name })}
+                  onClick={() => {
+                    setImportTableId(table.id);
+                  }}
+                >
+                  {t('common.import')}
+                </Button>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -109,6 +125,16 @@ export function TableList(): ReactElement {
           setDialog({ kind: 'none' });
         }}
       />
+      {importTableId === null ? null : (
+        <Suspense fallback={null}>
+          <ImportSession
+            tableId={importTableId}
+            onDone={() => {
+              setImportTableId(null);
+            }}
+          />
+        </Suspense>
+      )}
     </section>
   );
 }

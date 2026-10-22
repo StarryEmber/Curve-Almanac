@@ -665,13 +665,13 @@ T0.2 + T5.5 → T6.4
 
 <a id="t25"></a>
 ### T2.5 CSV/JSON 导入向导
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T2.2、T1.3
 - 覆盖：FR-TBL-04、FR-TBL-06
 - 参考：SPEC §9.4
 - 产出：
   - 导入向导 5 步 UI；编码/分隔符/表头覆盖
-  - Worker 解析（Papa Parse + jschardet/iconv-lite）
+  - Worker 解析（Papa Parse + 平台 TextDecoder；不引入 jschardet/iconv-lite 运行时依赖）
   - 列映射与类型推断；错误报告导出
   - 追加/替换（替换前备份）；原始文件副本
 - 步骤：
@@ -680,12 +680,39 @@ T0.2 + T5.5 → T6.4
   3. 全量解析 + 校验；展示 stats/issues。
   4. 提交：构建新 rows + JSONL，原子替换；替换前备份。
 - 验收：
-  - [ ] 100k 行 CSV ≤ 8s，UI 不冻结。
-  - [ ] GBK 文件正确解码；错编码有提示可覆盖。
-  - [ ] 坏行报告行号；跳过/取消行为符合 SPEC。
-  - [ ] 取消后内存与磁盘数据完全不变。
-  - [ ] 导入后单表超过 200,000 行被拒绝；100k–200k 先提示再继续。
+  - [x] 100k 行 CSV ≤ 8s，UI 不冻结。
+  - [x] GBK 文件正确解码；错编码有提示可覆盖。
+  - [x] 坏行报告行号；跳过/取消行为符合 SPEC。
+  - [x] 取消后内存与磁盘数据完全不变。
+  - [x] 导入后单表超过 200,000 行被拒绝；100k–200k 先提示再继续。
 - 验证：`pnpm e2e -- --grep "import" && pnpm bench -- --import`
+- 实现备注（2026-10-22，ADR-031）：
+  - 12 项决策全部由用户确认，详见 ADR-031：`file:importText` 返回 bytes + token；Worker
+    严格 UTF-8 → GB18030 + 手动覆盖；Papa Parse；自动嗅探/表头启发式；当前表内映射；1000 行
+    抽样推断（<80% text）；坏行整行跳过/取消 + 按坏行聚合的错误 CSV；替换二次确认 + 现有
+    旧表备份 + `imports/` 原文/sidecar hash；专用 Worker、取消即 terminate；最终行数
+    >200k 拒绝、>100k 确认；保存队列 flush ≤3s；导入一条撤销；小夹具提交、100k 脚本生成。
+  - table-engine：`src/import.ts`（`sniffCsv`/`parseCsv`/`parseJson`/`buildImportColumns`/
+    `inferColumnType`/`planImport`/`ImportIssue`/`ImportPlan`）与 22 条测试；新增
+    `papaparse` 运行时依赖。
+  - app-core：`table.import` 命令、`applyImport` action、`import-planning.ts`（
+    `createImportColumns`/`autoMapImportColumns`）、历史与保存队列接入；命令 7 条、planning
+    5 条、actions 3 条测试。
+  - desktop：`main/import/*`、`FileWorkspaceStore.archiveImport`、`file:importText`/
+    `file:exportText`/`file:archiveImport` 通道、renderer `import/*` Worker/client/encoding、
+    `features/import/*` 五步向导、TableList 入口、i18n/CSS；`e2e/import.spec.ts` 6 条。
+  - 夹具：`fixtures/csv/{small,quoted,types,bad-rows}.csv`、`fixtures/json/points.json` 与
+    README；`fixtures/csv/gbk-100k.csv` 由 `scripts/gen-100k.ts` 生成并 gitignore。
+  - 实测：`pnpm verify` **111 files / 880 tests**；depcruise **319 modules / 1213 deps /
+    0 violations**；`pnpm test:coverage` 全局 lines **74.12%** / statements 74.06% / branches
+    66.03% / functions 76.11%（阈值未下调）；`pnpm format:check` 通过；`pnpm build` exit 0
+    （renderer **1,339.13 kB** + 懒加载 ImportSession 42.82 kB；import worker 266.08 kB）；
+    `pnpm e2e` **54 passed**；`e2e/import.spec.ts` **6 passed**；`pnpm bench -- --import`
+    P50 **645ms** / P95 **659ms**（预算 8s）。
+  - 残留：命令阶段仍同步执行 100k 行校验/行构建；100k 逆补丁内存上限留 T5.2；>50MB 原文只
+    记录路径/hash、不复制；替换备份复用 `writeTable`，没有独立快照；错误 CSV 按坏行聚合，
+    机器消费需拆分 `codes/messages`；JSON 嵌套对象/数组不支持；`file:archiveImport` 为 T2.5
+    新增通道（18→19 声明、11→14 已实现）。
 
 <a id="t26"></a>
 ### T2.6 筛选、排序与视图状态

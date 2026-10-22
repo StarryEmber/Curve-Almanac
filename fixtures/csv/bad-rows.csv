@@ -1,0 +1,6 @@
+id;name;value;day;active;site
+ok-1;Good;1;2026-01-01;true;north
+bad-1;;oops;not-a-date;maybe;north
+bad-2;Missing;2;2026-01-02;false
+ok-2;Good;3;2026-01-03;true;south
+bad-3;Extra;4;2026-01-04;true;south;extra

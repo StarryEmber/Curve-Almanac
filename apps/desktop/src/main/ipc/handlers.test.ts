@@ -55,6 +55,20 @@ function wire(): { ipcMain: FakeIpcMain; lines: string[] } {
       documentsDir: 'C:\\Users\\test\\Documents',
     }),
     pickDirectory: async () => ({ path: 'C:\\picked' }),
+    readImportFile: async () => ({
+      token: 'tok_1',
+      name: 'data.csv',
+      bytes: new Uint8Array([1, 2, 3]),
+      sha256: 'a'.repeat(64),
+      size: 3,
+      format: 'csv',
+    }),
+    exportTextFile: async () => ({ path: 'C:\\export.csv' }),
+    archiveImport: async () => ({
+      copied: true,
+      archivePath: 'imports/20260101T000000000Z-data.csv',
+      sidecarPath: 'imports/20260101T000000000Z-data.csv.json',
+    }),
     workspaceStore: new MemoryWorkspaceStore({ appVersion: '0.1.0', uuid: () => 'test' }),
     listRecentWorkspaces: async () => [],
   });
@@ -256,6 +270,40 @@ describe('registerIpcHandlers', () => {
     // Only ids cross the boundary; an absolute path in the payload is rejected.
     await expect(
       ipcMain.invoke(IPC_CHANNELS.tableRead, { workspaceId: created.data.id, path: '/tmp/x' }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'E_IPC_INVALID_PAYLOAD' } });
+  });
+
+  it('routes the import file channels through their injected adapters', async () => {
+    const { ipcMain } = wire();
+    const filters = [{ name: 'Data', extensions: ['csv', 'json'] }];
+
+    await expect(ipcMain.invoke(IPC_CHANNELS.fileImportText, { filters })).resolves.toMatchObject({
+      ok: true,
+      data: { token: 'tok_1', name: 'data.csv', size: 3, format: 'csv' },
+    });
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.fileExportText, {
+        suggestedName: 'errors.csv',
+        content: 'a\n',
+        filters,
+      }),
+    ).resolves.toEqual({ ok: true, data: { path: 'C:\\export.csv' } });
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.fileArchiveImport, {
+        workspaceId: 'ws_1',
+        token: 'tok_1',
+        tableId: 'tbl_1',
+        mode: 'append',
+        name: 'data.csv',
+        sha256: 'a'.repeat(64),
+        size: 3,
+        encoding: 'utf-8',
+        format: 'csv',
+      }),
+    ).resolves.toMatchObject({ ok: true, data: { copied: true } });
+
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.fileImportText, { filters: [] }),
     ).resolves.toMatchObject({ ok: false, error: { code: 'E_IPC_INVALID_PAYLOAD' } });
   });
 });

@@ -14,6 +14,12 @@ import { IPC_CHANNELS } from '../../shared/contracts/channels';
 import {
   appInfoRequestSchema,
   appInfoResponseSchema,
+  archiveImportRequestSchema,
+  archiveImportResponseSchema,
+  exportTextRequestSchema,
+  exportTextResponseSchema,
+  importTextRequestSchema,
+  importTextResponseSchema,
   logWriteRequestSchema,
   logWriteResponseSchema,
   manifestWriteRequestSchema,
@@ -39,6 +45,12 @@ import { normalizeLogLevel } from '../logger';
 
 import type {
   AppInfo,
+  ArchiveImportReply,
+  ArchiveImportRequest,
+  ExportTextReply,
+  ExportTextRequest,
+  ImportTextReply,
+  ImportTextRequest,
   OkReply,
   PickDirectoryRequest,
   PickDirectoryResult,
@@ -54,6 +66,9 @@ export interface RegisterIpcHandlersOptions {
   getAppInfo: () => AppInfo;
   /** Injected so tests can answer without Electron's native dialog. */
   pickDirectory: (request: PickDirectoryRequest) => Promise<PickDirectoryResult | null>;
+  readImportFile: (request: ImportTextRequest) => Promise<ImportTextReply | null>;
+  exportTextFile: (request: ExportTextRequest) => Promise<ExportTextReply | null>;
+  archiveImport: (request: ArchiveImportRequest) => Promise<ArchiveImportReply>;
   workspaceStore: WorkspaceStore;
   listRecentWorkspaces: () => Promise<RecentEntry[]>;
 }
@@ -133,5 +148,23 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     IPC_CHANNELS.tableTrash,
     { request: tableTrashRequestSchema, response: tableTrashResponseSchema },
     (request) => workspaceStore.trash(request),
+  );
+
+  registrar.handle(
+    IPC_CHANNELS.fileImportText,
+    { request: importTextRequestSchema, response: importTextResponseSchema },
+    (request) => options.readImportFile(request),
+  );
+
+  registrar.handle(
+    IPC_CHANNELS.fileExportText,
+    { request: exportTextRequestSchema, response: exportTextResponseSchema },
+    (request) => options.exportTextFile(request),
+  );
+
+  registrar.handle(
+    IPC_CHANNELS.fileArchiveImport,
+    { request: archiveImportRequestSchema, response: archiveImportResponseSchema },
+    (request) => options.archiveImport(request),
   );
 }

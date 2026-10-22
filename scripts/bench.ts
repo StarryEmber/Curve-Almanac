@@ -14,8 +14,10 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import iconv from 'iconv-lite';
+
 import type { ColumnDef, Row, TableMeta } from '@curve/domain';
-import { decodeJsonl, encodeJsonlWithStats } from '@curve/table-engine';
+import { decodeJsonl, encodeJsonlWithStats, parseCsv, planImport } from '@curve/table-engine';
 
 /** TESTPLAN §5.2: fixed seed so two runs are comparable. */
 const SEED = 42;
@@ -27,6 +29,8 @@ const MEASURED_RUNS = 3;
 /** SPEC §16.1: opening 100k x 10 must stay under 3.0s end to end. */
 const OPEN_BUDGET_MS = 3_000;
 const ENCODE_BUDGET_MS = 1_500;
+/** SPEC §16.1: a 100k CSV import (parse + validate + row build) stays under 8s. */
+const IMPORT_BUDGET_MS = 8_000;
 /** SPEC §16.1 memory ceiling for the whole app, used here as a hard ceiling. */
 const MEMORY_BUDGET_MB = 600;
 
@@ -176,48 +180,160 @@ function runTableIo(): { cases: Sample[]; memoryPeakMB: number; rows: number; by
   };
 }
 
+function importTable(): TableMeta {
+  const columns: ColumnDef[] = [
+    column({ id: 'col_id', key: 'id', label: 'ID', type: 'text', required: true, role: 'label' }),
+    column({ id: 'col_name', key: 'name', label: 'Name', type: 'text' }),
+    column({ id: 'col_value', key: 'value', label: 'Value', type: 'number', role: 'y' }),
+    column({ id: 'col_day', key: 'day', label: 'Day', type: 'date', role: 'x' }),
+    column({ id: 'col_active', key: 'active', label: 'Active', type: 'boolean' }),
+    column({ id: 'col_site', key: 'site', label: 'Site', type: 'text', role: 'series' }),
+  ];
+  return {
+    id: 'tbl_import_bench',
+    name: 'Import Bench',
+    file: 'tables/tbl_import_bench.jsonl',
+    schemaVersion: 1,
+    columns,
+    primaryKey: 'col_id',
+    rowCount: 0,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+function buildImportCsv(rows = 100_000): string {
+  const lines = ['id;name;value;day;active;site'];
+  for (let index = 0; index < rows; index += 1) {
+    if (index === 25_000) {
+      lines.push('bad-1;;oops;not-a-date;maybe;site-x');
+      continue;
+    }
+    if (index === 50_000) {
+      lines.push('bad-2;Name 50000;12;2026-01-01;true');
+      continue;
+    }
+    if (index === 75_000) {
+      lines.push('bad-3;Name 75000;12;2026-01-01;true;site-x;extra');
+      continue;
+    }
+    lines.push(
+      [
+        `id-${String(index + 1).padStart(6, '0')}`,
+        `Name ${String(index + 1)}`,
+        String((index % 1000) / 10),
+        '2026-01-01',
+        index % 2 === 0 ? 'true' : 'false',
+        `站点-${String(index % 7)}`,
+      ].join(';'),
+    );
+  }
+  return `${lines.join('\r\n')}\r\n`;
+}
+
+function runImportBench(): {
+  cases: Sample[];
+  memoryPeakMB: number;
+  rows: number;
+  bytes: number;
+} {
+  const csv = buildImportCsv();
+  const encoded = iconv.encode(csv, 'gb18030');
+  const text = new TextDecoder('gb18030').decode(encoded);
+  const table = importTable();
+  const mappings = table.columns.map((column, index) => ({
+    sourceIndex: index,
+    target: { kind: 'existing' as const, columnId: column.id },
+  }));
+
+  const parsed = parseCsv(text);
+  if (parsed.totalRows !== ROWS) {
+    throw new Error(`Import fixture sanity check failed: ${parsed.totalRows} rows`);
+  }
+
+  const cases = [
+    measure('import.100k', IMPORT_BUDGET_MS, () => {
+      const dataset = parseCsv(text);
+      const plan = planImport({
+        table,
+        rows: [],
+        dataset,
+        mappings,
+        mode: 'append',
+        skipInvalid: true,
+      });
+      if (!plan.ok) {
+        throw new Error(`Import benchmark failed: ${plan.error.code}`);
+      }
+      encodeJsonlWithStats(plan.rows);
+    }),
+  ];
+
+  return {
+    cases,
+    memoryPeakMB: memoryPeakMB(),
+    rows: parsed.totalRows,
+    bytes: encoded.byteLength,
+  };
+}
+
 function main(argv: readonly string[]): number {
-  const tableIo = argv.includes('--table-io');
+  const wantTableIo = argv.includes('--table-io');
+  const wantImport = argv.includes('--import');
   if (argv.includes('--help')) {
-    console.log('Usage: pnpm bench [-- --table-io]');
+    console.log('Usage: pnpm bench [-- --table-io] [-- --import]');
     return 0;
   }
+  const runTableIoSuite = wantTableIo || (!wantTableIo && !wantImport);
+  const runImportSuite = wantImport || (!wantTableIo && !wantImport);
 
   const startedAt = Date.now();
   process.stdout.write(
-    `[bench] seed=${SEED} rows=${ROWS} columns=${COLUMNS} suite=${tableIo ? 'table-io' : 'all'}\n`,
+    `[bench] seed=${SEED} rows=${ROWS} columns=${COLUMNS} ` +
+      `suite=${runTableIoSuite && runImportSuite ? 'all' : runTableIoSuite ? 'table-io' : 'import'}\n`,
   );
 
-  const result = runTableIo();
+  const tableIoResult = runTableIoSuite ? runTableIo() : null;
+  const importResult = runImportSuite ? runImportBench() : null;
+  const cases = [...(tableIoResult?.cases ?? []), ...(importResult?.cases ?? [])];
+  const suites = [
+    ...(tableIoResult === null ? [] : ['table-io']),
+    ...(importResult === null ? [] : ['import']),
+  ];
+  const memoryPeakMB = Math.max(tableIoResult?.memoryPeakMB ?? 0, importResult?.memoryPeakMB ?? 0);
+  const dataset =
+    importResult === null
+      ? { rows: tableIoResult?.rows ?? 0, columns: COLUMNS, bytes: tableIoResult?.bytes ?? 0 }
+      : { rows: importResult.rows, columns: 6, bytes: importResult.bytes };
   const generatedAt = new Date().toISOString();
-  const failures = result.cases.filter((entry) => entry.p95 > entry.budget);
+  const failures = cases.filter((entry) => entry.p95 > entry.budget);
 
   const report = {
     generatedAt,
     seed: SEED,
-    suites: ['table-io'],
-    dataset: { rows: result.rows, columns: COLUMNS, bytes: result.bytes },
-    cases: result.cases,
-    memoryPeakMB: result.memoryPeakMB,
+    suites,
+    dataset,
+    cases,
+    memoryPeakMB,
     memoryBudgetMB: MEMORY_BUDGET_MB,
   };
 
   mkdirSync(dirname(reportPath), { recursive: true });
   writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 
-  for (const entry of result.cases) {
+  for (const entry of cases) {
     const status = entry.p95 > entry.budget ? 'OVER BUDGET' : 'ok';
     process.stdout.write(
       `[bench] ${entry.name} p50=${entry.p50}ms p95=${entry.p95}ms budget=${entry.budget}ms ${status}\n`,
     );
   }
   process.stdout.write(
-    `[bench] memoryPeakMB=${result.memoryPeakMB} budget=${MEMORY_BUDGET_MB} ` +
+    `[bench] memoryPeakMB=${memoryPeakMB} budget=${MEMORY_BUDGET_MB} ` +
       `(${Date.now() - startedAt}ms total)\n`,
   );
   process.stdout.write(`[bench] report written to ${reportPath}\n`);
 
-  if (failures.length > 0 || result.memoryPeakMB > MEMORY_BUDGET_MB) {
+  if (failures.length > 0 || memoryPeakMB > MEMORY_BUDGET_MB) {
     process.stderr.write('[bench] budgets exceeded (see bench/report.json)\n');
     return 1;
   }

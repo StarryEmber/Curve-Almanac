@@ -19,9 +19,11 @@ import { pathToFileURL } from 'node:url';
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session } from 'electron';
 
-import { toAppError } from '@curve/domain';
+import { toAppError, createAppError } from '@curve/domain';
 
 import { resolveE2EDialogStubs, resolveE2EUserDataPath } from './e2e-hooks';
+import { exportTextFile, readImportSource } from './import/import-files';
+import { createImportTokenStore } from './import/import-token-store';
 import { registerIpcHandlers } from './ipc/handlers';
 import { createIpcRegistrar } from './ipc/register';
 import { createConsoleLogger } from './logger';
@@ -37,7 +39,8 @@ import {
 } from './window-state';
 import { FileWorkspaceStore } from './workspace/file-workspace-store';
 
-import type { OpenDialogOptions } from 'electron';
+import type { ImportTextRequest } from '../shared/contracts/ipc';
+import type { OpenDialogOptions, SaveDialogOptions } from 'electron';
 
 const APP_NAME = 'Curve Studio';
 
@@ -74,6 +77,30 @@ function applyE2EUserDataOverride(): void {
 
 function registerIpc(workspaceStore: FileWorkspaceStore): void {
   const registrar = createIpcRegistrar({ ipcMain, logger });
+  const importTokens = createImportTokenStore();
+  const pickerWindow = (): BrowserWindow | null => BrowserWindow.getFocusedWindow() ?? mainWindow;
+
+  const pickImportPath = async (request: ImportTextRequest): Promise<string | null> => {
+    const stubs = resolveE2EDialogStubs({ isPackaged: app.isPackaged, env: process.env });
+    if (stubs !== null) {
+      return stubs.importPath;
+    }
+    const options: OpenDialogOptions = {
+      properties: ['openFile'],
+      filters: request.filters.map((filter) => ({
+        name: filter.name,
+        extensions: filter.extensions,
+      })),
+    };
+    const focusedWindow = pickerWindow();
+    const result =
+      focusedWindow === null
+        ? await dialog.showOpenDialog(options)
+        : await dialog.showOpenDialog(focusedWindow, options);
+    const chosen = result.filePaths[0];
+    return result.canceled || chosen === undefined ? null : chosen;
+  };
+
   registerIpcHandlers({
     registrar,
     logger,
@@ -93,13 +120,88 @@ function registerIpc(workspaceStore: FileWorkspaceStore): void {
         ...(request.title === undefined ? {} : { title: request.title }),
         ...(request.defaultPath === undefined ? {} : { defaultPath: request.defaultPath }),
       };
-      const focusedWindow = BrowserWindow.getFocusedWindow() ?? mainWindow;
+      const focusedWindow = pickerWindow();
       const result =
         focusedWindow === null
           ? await dialog.showOpenDialog(options)
           : await dialog.showOpenDialog(focusedWindow, options);
       const chosen = result.filePaths[0];
       return result.canceled || chosen === undefined ? null : { path: chosen };
+    },
+    readImportFile: async (request) => {
+      const path = await pickImportPath(request);
+      if (path === null) {
+        return null;
+      }
+      const source = await readImportSource(path);
+      const token = importTokens.issue({
+        path,
+        name: source.name,
+        size: source.size,
+        sha256: source.sha256,
+        format: source.format,
+      });
+      return {
+        token,
+        name: source.name,
+        bytes: source.bytes,
+        sha256: source.sha256,
+        size: source.size,
+        format: source.format,
+      };
+    },
+    exportTextFile: async (request) => {
+      const stubs = resolveE2EDialogStubs({ isPackaged: app.isPackaged, env: process.env });
+      let path: string | null;
+      if (stubs !== null) {
+        path = stubs.savePath;
+      } else {
+        const options: SaveDialogOptions = {
+          defaultPath: request.suggestedName,
+          filters: request.filters.map((filter) => ({
+            name: filter.name,
+            extensions: filter.extensions,
+          })),
+        };
+        const focusedWindow = pickerWindow();
+        const result =
+          focusedWindow === null
+            ? await dialog.showSaveDialog(options)
+            : await dialog.showSaveDialog(focusedWindow, options);
+        path = result.canceled || result.filePath.length === 0 ? null : result.filePath;
+      }
+      if (path === null) {
+        return null;
+      }
+      await exportTextFile(path, request.content);
+      return { path };
+    },
+    archiveImport: async (request) => {
+      const entry = importTokens.get(request.token);
+      if (
+        entry.name !== request.name ||
+        entry.size !== request.size ||
+        entry.sha256 !== request.sha256 ||
+        entry.format !== request.format
+      ) {
+        throw createAppError(
+          'E_IMPORT_FORMAT',
+          'The import source metadata changed before commit; choose the file again.',
+        );
+      }
+      const archived = await workspaceStore.archiveImport({
+        workspaceId: request.workspaceId,
+        sourcePath: entry.path,
+        name: request.name,
+        sha256: request.sha256,
+        size: request.size,
+        encoding: request.encoding,
+        format: request.format,
+        tableId: request.tableId,
+        mode: request.mode,
+      });
+      importTokens.consume(request.token);
+      return archived;
     },
     workspaceStore,
     listRecentWorkspaces: () => workspaceStore.listRecent(),

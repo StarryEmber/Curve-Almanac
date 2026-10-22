@@ -1,29 +1,32 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T2.4`（区域粘贴），按用户要求停止，`T2.5` 尚未开始。
-> 最后更新：2026-10-22 · `T2.4` 提交见 `git log -1`（本次代码+文档提交）· 分支 `main` · 工作树在提交前应干净。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.5 →
+> 本文件面向**下一个实现会话**。当前会话已完成 `T2.5`（CSV/JSON 导入向导），按用户要求停止，
+> `T2.6` 尚未开始。最后更新：2026-10-22 · `T2.5` 提交见 `git log -1`（本次代码+文档提交）·
+> 分支 `main` · 工作树在提交前应干净。
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.6 →
 > `docs/TESTPLAN.md` §1、§2、§3（E3/E4）、§4、§5 →
-> `docs/SPEC.md` §9.4、§8.1、§13.1、§16.1 →
-> `docs/DECISIONS.md` 的 ADR-005/006/007/014/024，再读 ADR-028/029/030。
+> `docs/SPEC.md` §9.5、§6.2、§16.1 →
+> `docs/DECISIONS.md` 的 ADR-005/006/007/014/024，再读 ADR-028/029/030/031。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
-- **当前状态**：`T2.4`（区域粘贴）已完成并提交；`T2.5`（CSV/JSON 导入向导）未开始；M2 仍在进行，
-  M2 验收演示要等 T2.5–T2.7 全部完成。
-- **本次交付**：TSV/CSV 剪贴板解析器；选择矩形左上角锚点的矩阵粘贴；`table.paste` 原子命令；
-  `table.rows.insert` 与空 text 主键生成；超列“新增 N 列”确认（默认 text、非必填）；整批预检/
-  前 100 条错误/定位首错；≥10k 可取消进度；粘贴一次撤销；保存队列 flush ≤3s；筛选存在时保守
-  整批拒绝（完整可见行语义显式延后 T2.6）。
-- **基线**：`pnpm verify` **99 files / 813 tests**；coverage lines **76.34%**；`format:check` 通过；
-  `pnpm build` exit 0（renderer **1,308.67 kB**）；`pnpm e2e` **48 passed**；`e2e/paste.spec.ts` **7 passed**。
-- **下一步**：先读 TASKS T2.5、SPEC §9.4 与 TESTPLAN E4，按 AGENTS §11 逐项确认导入向导的歧义，
-  **不要自行选定**；确认后复述目标/文件/验收命令，再写测试与实现。
-- **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API；
-  不跳过验收项；不自动跨任务。
-- **停点**：T2.5 尚未开始；完成 T2.5 后仍需停下报告，不自动进入 T2.6。
+- **当前状态**：`T2.5`（CSV/JSON 导入向导）已完成并提交；`T2.6`（筛选、排序与视图状态）未开始；
+  M2 仍在进行，M2 验收演示要等 T2.6–T2.7 全部完成。
+- **本次交付**：5 步导入向导；`file:importText` 原始字节 + token；专用 import Worker
+  （UTF-8→GB18030、Papa Parse、取消即 terminate）；列映射/类型推断；坏行跳过/取消与错误 CSV；
+  追加/替换、旧表备份、`imports/` 原文 + SHA-256 sidecar；`table.import` 原子命令；200k 上限与
+  100k 提示；保存队列与一条撤销记录。
+- **基线**：`pnpm verify` **111 files / 880 tests**；coverage lines **74.12%**；`format:check`
+  通过；`pnpm build` exit 0（renderer **1,339.13 kB** + 懒加载 ImportSession 42.82 kB；
+  import worker 266.08 kB）；`pnpm e2e` **54 passed**；`e2e/import.spec.ts` **6 passed**；
+  `pnpm bench -- --import` P50 **645ms** / P95 **659ms**。
+- **下一步**：先读 TASKS T2.6、SPEC §9.5/§6.2、TESTPLAN E3/E4，按 AGENTS §11 逐项确认
+  T2.6 的待定决策，**不要自行选定**；确认后先复述目标/文件/验收命令，再写测试与实现。
+- **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
+  而不更新 SPEC/ADR；不跳过验收项；不自动跨任务。
+- **停点**：T2.5 已完成；完成 T2.6 后仍需停下报告，不自动进入 T2.7。
 
 ---
 
@@ -38,21 +41,22 @@
 | `T2.1` 工作区入口、表管理与网格 | **已完成**（`07c4763`）；报告 `docs/reports/t2.1/REPORT.md`；ADR-027 |
 | `T2.2` 单元格编辑与校验 | **已完成**（`641cd86`）；报告 `docs/reports/t2.2/REPORT.md`；ADR-028 |
 | `T2.3` 列管理、结构变更与迁移 | **已完成**（`213fab4`）；报告 `docs/reports/t2.3/REPORT.md`；ADR-029 |
-| `T2.4` 区域粘贴 | **已完成**（提交见 `git log -1`）；报告 `docs/reports/t2.4/REPORT.md`；ADR-030 |
-| 当前里程碑 | **M2 表格数据进行中**（T2.1–T2.4 完成，T2.5–T2.7 未开始） |
-| 下一个任务 | **T2.5 CSV/JSON 导入向导**；开工前必须按 AGENTS §11 确认歧义，不要自行选定 |
-| `pnpm verify` 基线 | **99 files / 813 tests**；ESLint 0；depcruise **286 modules / 1073 deps / 0 violations** |
-| `pnpm test:coverage` 基线 | 全局 lines **76.34%** / statements **76.17%** / branches **68.45%** / functions **77.92%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **48 passed**（41 + T2.4 `e2e/paste.spec.ts` 7 条），约 1.5min |
+| `T2.4` 区域粘贴 | **已完成**（`14c4816`）；报告 `docs/reports/t2.4/REPORT.md`；ADR-030 |
+| `T2.5` CSV/JSON 导入向导 | **已完成**（提交见 `git log -1`）；报告 `docs/reports/t2.5/REPORT.md`；ADR-031 |
+| 当前里程碑 | **M2 表格数据进行中**（T2.1–T2.5 完成，T2.6–T2.7 未开始） |
+| 下一个任务 | **T2.6 筛选、排序与视图状态**；开工前必须按 AGENTS §11 确认歧义，不要自行选定 |
+| `pnpm verify` 基线 | **111 files / 880 tests**；ESLint 0；depcruise **319 modules / 1213 deps / 0 violations** |
+| `pnpm test:coverage` 基线 | 全局 lines **74.12%** / statements **74.06%** / branches **66.03%** / functions **76.11%**；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **54 passed**（48 + T2.5 `e2e/import.spec.ts` 6 条），约 1.9min |
 | `pnpm format:check` | 通过 |
-| 构建 | `pnpm build` exit 0；renderer **1,308.67 kB**；Worker `assets/table.worker-<hash>.js` |
-| 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`（T1.4）；T2.4 未新增格式夹具 |
+| 构建 | `pnpm build` exit 0；renderer **1,339.13 kB** + 懒加载 ImportSession 42.82 kB；Worker `assets/table.worker-<hash>.js`、`assets/import.worker-<hash>.js` |
+| 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 脚本生成、gitignore |
 
 **用户明确要求**：
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **T2.4 已完成**；**T2.5 尚未开始**，开工前先确认歧义，不要自行选定。
+- **T2.5 已完成**；**T2.6 尚未开始**，开工前先确认歧义，不要自行选定。
 - M2 全部任务完成后再运行 M2 验收演示，不得跨里程碑。
 
 ---
@@ -62,21 +66,21 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T2.5、
+先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T2.6、
 docs/TESTPLAN.md §1/§2/§3（E3/E4）/§4/§5、
-docs/SPEC.md §9.4/§8.1/§13.1/§16.1、
-docs/DECISIONS.md 的 ADR-005/006/007/014/024，再读 ADR-028/029/030。
+docs/SPEC.md §9.5/§6.2/§16.1、
+docs/DECISIONS.md 的 ADR-005/006/007/014/024，再读 ADR-028/029/030/031。
 
-现状：M0、M1（已验收）、T1.1–T1.5、T2.1–T2.4 已完成；T2.4 提交见 git log -1，工作树应干净；
-pnpm verify 99 files / 813 tests、test:coverage 全局 lines 76.34%、format:check、
-pnpm e2e 48 passed 全绿。T2.4 报告见 docs/reports/t2.4/REPORT.md，决策见 ADR-030。
+现状：M0、M1（已验收）、T1.1–T1.5、T2.1–T2.5 已完成；T2.5 提交见 git log -1，工作树应干净；
+pnpm verify 111 files / 880 tests、test:coverage 全局 lines 74.12%、format:check、
+pnpm e2e 54 passed 全绿。T2.5 报告见 docs/reports/t2.5/REPORT.md，决策见 ADR-031。
 
-下一步是 T2.5（CSV/JSON 导入向导），但不要直接开工：
-先按 AGENTS §11 逐项确认导入向导的待定决策（编码/分隔符/表头覆盖、列映射与类型推断、
-坏行跳过/取消、替换前备份、Worker/取消、200k 上限、保存时机、撤销、夹具与性能），不要自行选定；
+下一步是 T2.6（筛选、排序与视图状态），但不要直接开工：
+先按 AGENTS §11 逐项确认 T2.6 的待定决策（筛选 UI/操作符、排序层级、视图状态持久化、
+大表 Worker、与 T2.4 粘贴筛选语义的衔接、撤销/保存），不要自行选定；
 确认后先复述目标/文件/验收命令，再写测试与实现。
 
-不要自动进入 T2.6；T2.5 完成后停下等确认。
+不要自动进入 T2.7；T2.6 完成后停下等确认。
 ```
 
 ---
@@ -132,8 +136,9 @@ T2.1–T2.4 全程 `danger-full-access`，审批提示已关闭——**不要使
 3. 重跑 `pnpm install`，直到退出码为 0；
 4. 若报错是直接依赖链接（`apps/desktop/node_modules/...`），同样用 junction 补齐。
 
-T2.2–T2.4 未新增依赖。若 T2.5 需要新依赖（Papa Parse、jschardet、iconv-lite 等），先按 AGENTS §4
-写 ADR；能复用已有依赖就不要新增。
+T2.5 新增 papaparse 运行时依赖（@curve/table-engine）与 iconv-lite devDependency（仅
+scripts/gen-100k.ts 与 E2E 夹具生成）；不引入 jschardet/iconv-lite 运行时依赖。后续新增依赖仍先按
+AGENTS §4 写 ADR；能复用已有依赖就不要新增。
 
 ### 3.5 文本编码与路径陷阱
 
@@ -152,7 +157,7 @@ T2.2–T2.4 未新增依赖。若 T2.5 需要新依赖（Papa Parse、jschardet�
 - `apps/desktop/src/main/workspace/recent-list.test.ts` 的 “caps the list” 用例在 66 个 worker 并行、
   机器繁忙时偶发 5s 超时；重跑即过，不要放宽全局超时。
 - 全量 E2E 若偶发 `grid.spec.ts` 的 `Control+End` 或 `edit.spec.ts` 的 F2 编辑器超时：先单跑确认；
-  T2.4 已修复虚拟行未挂载时焦点丢失（100ms 安全重试，编辑器打开时不抢焦点），当前全量 48 passed。
+  T2.4 已修复虚拟行未挂载时焦点丢失（100ms 安全重试，编辑器打开时不抢焦点），当前全量 54 passed。
   不要放宽超时或删除断言。
 - Vitest 过滤用 `--testNamePattern`，不要用 `-- --grep`。
 - E2E 在 UI 更新后等 manifest/JSONL 落盘时使用 `expect.poll`；新增编辑/保存测试也要这样等
@@ -160,6 +165,9 @@ T2.2–T2.4 未新增依赖。若 T2.5 需要新依赖（Papa Parse、jschardet�
 - E2E 粘贴用 `page.evaluate` 派发带 `DataTransfer` 的合成 `ClipboardEvent`（`e2e/paste.spec.ts`
   的 `pasteText`），不依赖 OS 剪贴板；10k 取消用例通过临时放慢页面 `setTimeout(0)` 制造确定
   的可取消窗口，不修改生产代码。
+- T2.5 的 E2E 文件替身由 `e2e/fixtures.ts` 设置：`CURVE_E2E_IMPORT` 指向按用例选择的夹具，
+  `CURVE_E2E_SAVE` 指向 `userDataDir/import-errors.csv`；`gbk-100k.csv` 在导入用例内按需生成
+  （不在 worker fixture 生成，避免影响 100k grid 首帧预算），不提交。
 - 结构变更保存：行数据命令走保存队列（表 → manifest），纯 schema 命令只写 manifest；E2E 断言前用
   `expect.poll` 读 manifest。
 - E2E 截图证据字节不稳定；断言不依赖像素。
@@ -197,6 +205,26 @@ planPrimaryKeyChange(table, rows, columnId): ColumnChangePlan
 
 - `coerceCell` 覆盖 SPEC §8.1 的全部归一规则；T2.4 粘贴、T2.5 导入必须复用它，不要另写解析。
 - 列计划全有或全无：失败返回前 100 条 `ColumnChangeFailure` + `totalFailures`，不返回半迁移行集。
+
+### 4.1a `@curve/table-engine` import（T2.5）
+
+```ts
+sniffCsv(text): { delimiter, hasHeader }
+parseCsv(text, { delimiter?, hasHeader?, sampleSize? }): ParsedImportData
+parseJson(text): ParsedImportData
+buildImportColumns(headers, rows, sampleSize?): ImportedColumn[]
+inferColumnType(values, sampleSize?): { type, confidence, sampleSize }
+planImport(request): ImportPlan
+ImportDelimiter, ImportFormat, ImportMode, ImportColumnType, ImportCellValue,
+ParsedImportData, ImportedColumn, ImportDataset, ImportTarget, ImportColumnMapping,
+ImportIssue, ImportStats, ImportPlanRequest, ImportPlanSuccess, ImportPlanFailure
+```
+
+- 编码解码不在 table-engine；在 `apps/desktop/src/renderer/import/encoding.ts`，使用平台
+  `TextDecoder`（严格 UTF-8 → GB18030）。`Papaparse` 是 table-engine 唯一新增运行时依赖。
+- `planImport` 整批校验；`skipInvalid=false` 时有 issue 返回 failure；`true` 时只返回合法行。
+  统计口径 `total/accepted/skipped`，issue 的 `row` 是 1-based 数据行（不含表头）。
+- 100k 行 `parse+plan+encode` bench P95 **659ms**（本机）。
 
 ### 4.2 `@curve/table-engine`
 
@@ -243,16 +271,19 @@ parseClipboardText(text): { ok: true; data: ClipboardMatrix } | { ok: false; err
 
 ### 4.5 IPC / preload / renderer
 
-`IMPLEMENTED_IPC_CHANNELS` 共 **11** 个：`app:info`、`dialog:pickDirectory`、`log:write`、
-`workspace:create/open/close/recent`、`manifest:write`、`table:read/write/trash`。
+`IMPLEMENTED_IPC_CHANNELS` 共 **14** 个：`app:info`、`dialog:pickDirectory`、`log:write`、
+`workspace:create/open/close/recent`、`manifest:write`、`table:read/write/trash`、
+`file:importText`、`file:exportText`、`file:archiveImport`。
 
-- `dialog:saveFile` / `file:*` / `backup:*` / `workspace:recent:remove|clear` 仍只有通道名。
-- `apps/desktop/src/renderer/api-client.ts` 提供 `app`、`dialog`、`workspace`、`manifest`、`table`，
-  所有方法返回 `IpcResult<T>`，入参与响应双向 Zod 校验。
-- `table:write` 写盘前校验 200k 行 / 256MB 上限；T2.4 的批量写入仍走该通道（256MB 在保存时强制）。
-- T2.4 未新增 IPC。
+- `dialog:saveFile` / `backup:*` / `workspace:recent:remove|clear` 仍只有通道名。
+- `file:importText` 返回 `{ token, name, bytes, sha256, size, format }`（原始字节，供 Worker 解码）；
+  `file:archiveImport` 只用 token 对应的已选路径，把原文复制/记录到 `imports/`。
+- `apps/desktop/src/renderer/api-client.ts` 提供 `app`、`dialog`、`workspace`、`manifest`、`table`、
+  `file`，所有方法返回 `IpcResult<T>`，入参与响应双向 Zod 校验。
+- `table:write` 写盘前校验 200k 行 / 256MB 上限；导入保存仍走该通道（256MB 在保存时强制）。
+- T2.5 新增 3 个已实现通道（`ALL_IPC_CHANNELS` 18 → 19）。
 
-### 4.6 `@curve/app-core`（T1.5 + T2.1 + T2.2 + T2.3 + T2.4）
+### 4.6 `@curve/app-core`（T1.5 + T2.1 + T2.2 + T2.3 + T2.4 + T2.5）
 
 ```ts
 createAppCore({ workspaceStore, logger?, now?, uuid?, decodeTable?, encodeTable? }): {
@@ -270,6 +301,7 @@ createAppCore({ workspaceStore, logger?, now?, uuid?, decodeTable?, encodeTable?
 |---|---|---|
 | `table.cell.set` | `{ tableId, rowId, columnId, value }` | T2.2 单元格编辑；最小历史 |
 | `table.paste` | `{ tableId, anchor, columnIds, matrix, newColumns? }` | T2.4 区域粘贴；原子、可选新增列 |
+| `table.import` | `{ tableId, mode, rows, newColumns? }` | T2.5 导入；原子追加/替换、可选新列 |
 | `table.rows.insert` | `{ tableId, index, rows }` | T2.4 插入整行；空 text 主键生成 |
 | `table.create` | `{ table, view }` | 新表 + 表视图 + 标签 |
 | `table.delete` | `{ tableId }` | 级联删除 chart/view/layout 引用 |
@@ -293,6 +325,20 @@ PasteRequestBase, PastePrepareRequest, PasteApplyRequest, PasteProgress, PastePr
 PasteBlockReason, PastePrepareOutcome, PasteApplyOutcome
 ```
 
+T2.5 新增公开 API：
+
+```ts
+ImportSource, ImportArchiveRequest, ImportArchiveResult, ImportApplyRequest, ImportApplyOutcome
+WorkspaceActions.applyImport(request): Promise<ImportApplyOutcome>
+archiveImport?: (request: ImportArchiveRequest) => Promise<ImportArchiveResult>
+```
+
+`WorkspaceActions`（T2.5 新增部分）：
+
+```ts
+applyImport(request): Promise<ImportApplyOutcome>;
+```
+
 `WorkspaceActions`（T2.4 新增部分）：
 
 ```ts
@@ -300,10 +346,11 @@ preparePaste(request, options?): Promise<PastePrepareOutcome>;
 applyPaste(request): Promise<PasteApplyOutcome>;
 ```
 
-- 行数据命令（`table.cell.set`/`table.paste`/`table.rows.insert`）走保存队列（表 → manifest）；
-  纯 schema 命令只写 manifest。
+- 行数据命令（`table.cell.set`/`table.paste`/`table.import`/`table.rows.insert`）走保存队列
+  （表 → manifest）；纯 schema 命令只写 manifest。
 - 保存失败返回 `{ ok: false, error, committed: true }`：内存已变更，UI 关闭对话框，状态栏/Toast 重试。
-- `EditHistory` 记录 `table.cell.set` 与 `table.paste`；粘贴一次一条、不合并；撤销回滚新增行/列。
+- `EditHistory` 记录 `table.cell.set`、`table.paste` 与 `table.import`；粘贴/导入各一条、不合并；
+  撤销回滚新增行/列与覆盖单元格。
 - 结构命令仍不进入最小历史；T5.2 统一。
 - 其他导出：`checkColumnDraft`、`ColumnDraft/ColumnDraftIssue`、`ColumnChange/ColumnChangeSummary`、
   `listChartColumnReferences`/`findMissingChartColumns`/`chartReferencesColumn`、
@@ -323,6 +370,9 @@ apps/desktop/src/renderer/
 ├─ features/paste/              # T2.4：PasteColumnsDialog/PasteErrorDialog/PasteProgressDialog
 │  ├─ use-paste.tsx             # idle→preparing→columns/errors/applying
 │  └─ paste-issue-text.ts
+├─ features/import/             # T2.5：ImportWizardDialog/use-import/import-error-csv
+├─ import/                      # T2.5：encoding/client/worker-protocol/worker-handler
+├─ workers/import.worker.ts     # T2.5 专用 import Worker
 ├─ features/charts/ChartPlaceholder.tsx  # T2.3 图表无效占位（T3.1 替换）
 ├─ shell/                       # AppShell/TitleBar/Sidebar/Inspector/StatusBar/HelpDialog
 ├─ i18n/messages/{zh-CN,en-US}.ts
@@ -338,8 +388,11 @@ apps/desktop/src/renderer/
 `apps/desktop/e2e/paste.spec.ts` 7 条：5×4 引号/内嵌换行 + 重开；类型错误 + 定位 + 磁盘不变；
 超列确认 + 新增列 + 重开；10k/100k 格取消 + 磁盘不变；撤销/重做；筛选守卫；200% 缩放键盘可达。
 
-完整 E2E 现为 **48 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的 `schema.spec.ts`
-与既有 30 条仍全绿。
+T2.5 新增 `apps/desktop/e2e/import.spec.ts` 6 条：100k GBK 分号 + 3 坏行 + 错误 CSV；错编码
+覆盖；150k 取消/100k 提示；JSON 替换 + 备份 + 原文归档 + 撤销；200k 拒绝；200% 缩放键盘。
+
+完整 E2E 现为 **54 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
+`schema.spec.ts`、T2.4 的 `paste.spec.ts` 与既有 30 条仍全绿。
 
 ---
 
@@ -399,35 +452,99 @@ e2e/paste.spec.ts   7 passed
 
 ---
 
-## 6. T2.5 开工前必须做的事（不要自行选定）
+## 5A. T2.5 决策与实现记录（已完成）
 
-T2.5 尚未分析。开工前：
+12 项决策全部由用户确认，详见 `docs/adr/031-t25-csv-json-import.md`：
 
-1. 读 `docs/TASKS.md` T2.5、`docs/SPEC.md §9.4`、`docs/TESTPLAN.md` E4/§4/§5、`docs/DECISIONS.md`
-   的 ADR-005/006/007/014/024 与 ADR-028/029/030。
+1. `file:importText` 返回原始字节 + token；Worker 用 TextDecoder 严格 UTF-8 → GB18030，UI 覆盖；
+2. 新增 Papa Parse 运行时依赖；不引入 jschardet/iconv-lite 运行时依赖（iconv 仅生成夹具）；
+3. 分隔符前 20 条稳定性嗅探；表头启发式，默认歧义 true；均可覆盖；
+4. 当前表内导入；按 key/label 自动映射；已有/新列/忽略；required 未映射阻止提交；
+5. 新列推断抽样 1000 行，置信度 <80% 回退 text；JSON 对象数组/`{rows}`、键并集；
+6. 坏行整行跳过/取消；前 100 条 issue + 按坏行聚合的错误 CSV；
+7. 追加默认、替换二次确认；复用旧表备份；≤50MB 原文复制 + sidecar SHA-256；
+8. 专用 import Worker；取消即 terminate；只把 20 行预览、统计和最终 rows 传回；
+9. 最终行数 >200k 拒绝、>100k 确认；256MB 写盘守卫兜底；
+10. 成功后等保存队列 flush ≤3s；失败 `committed:true`；
+11. `table.import` 一条撤销，不合并；100k 逆补丁内存留 T5.2；
+12. 小夹具提交；100k GBK 由 `scripts/gen-100k.ts` 生成；bench `--import` 8s 门禁。
+
+关键文件：
+
+```text
+packages/table-engine/src/import.ts (+test)
+packages/app-core/src/
+├─ commands/import.ts (+test)
+├─ validation/import-planning.ts (+test)
+├─ usecases/workspace-actions.ts（applyImport）
+├─ usecases/import-actions.test.ts
+├─ history/edit-history.ts（table.import）
+└─ app-core.ts（命令注册、保存集合、archiveImport 注入）
+apps/desktop/src/
+├─ main/import/{import-files,import-token-store}.ts (+test)
+├─ main/ipc/{handlers,handlers.test}.ts
+├─ main/workspace/file-workspace-store.ts（archiveImport）
+├─ renderer/import/{encoding,client,worker-handler,worker-protocol}.ts (+test)
+├─ renderer/workers/import.worker.ts
+├─ renderer/features/import/{ImportWizardDialog,use-import,import-error-csv,import-issue-text}
+└─ shared/contracts/{channels,ipc}.ts
+apps/desktop/e2e/import.spec.ts
+scripts/gen-100k.ts
+docs/adr/031-t25-csv-json-import.md
+docs/reports/t2.5/REPORT.md
+```
+
+实测（2026-10-22）：
+
+```text
+pnpm verify         111 files / 880 tests；depcruise 319 modules / 1213 deps / 0 violations
+pnpm test:coverage  lines 74.12% / statements 74.06% / branches 66.03% / functions 76.11%
+pnpm format:check   通过
+pnpm build          exit 0；renderer 1,339.13 kB + ImportSession 42.82 kB；import.worker 266.08 kB
+pnpm e2e            54 passed；import.spec.ts 6 passed
+pnpm bench -- --import import.100k P50 645ms / P95 659ms
+```
+
+残留：
+
+- `table.import` 命令阶段仍同步校验 100k 行；T2.7 评估 Worker/硬门禁。
+- 100k 导入逆补丁内存未计 256MB 字节上限；T5.2 统一。
+- >50MB 原文只写 sidecar（路径 + hash），不复制；替换备份复用 `writeTable`。
+- 错误 CSV 一行合并多个 issue；JSON 嵌套对象/数组不支持；新列不支持 enum。
+- `file:archiveImport` 是 T2.5 新增通道（声明 18→19，已实现 11→14）；后续任务不得再扩
+  preload 白名单而不写 ADR。
+
+---
+
+## 6. T2.6 开工前必须做的事（不要自行选定）
+
+T2.6 尚未分析。开工前：
+
+1. 读 `docs/TASKS.md` T2.6、`docs/SPEC.md §9.5/§6.2`、`docs/TESTPLAN.md` E3/E4/§4/§5、
+   `docs/DECISIONS.md` 的 ADR-005/006/007/014/024 与 ADR-028/029/030/031。
 2. 按 AGENTS §11 逐项向用户确认至少以下歧义（读代码后给出具体选项与推荐）：
-   - 编码/分隔符/表头嗅探与手动覆盖；GBK 失败提示与重试。
-   - 列映射：已有列 vs 新建列；类型推断置信度；可编辑映射 UI。
-   - 坏行：跳过/取消/导出错误 CSV；预览 20 行与统计口径。
-   - 追加 vs 替换；替换前备份、原始文件副本与哈希。
-   - Worker/取消：100k 行解析的进度、取消后内存/磁盘不变。
-   - 200k 行上限、100k–200k 提示、`table:write` 256MB。
-   - 保存时机（表 → manifest）、是否进入最小历史、T5.2 统一。
-   - 夹具：`fixtures/csv/*` 生成器与提交策略；`pnpm bench --import`。
+   - 筛选 UI 形态（Inspector/表头/工具条）、12 种操作符、all/any 嵌套与值输入类型；
+   - 排序入口与 3 级优先级 UI、空值固定最后、`Intl.Collator` 的 locale/数值选项；
+   - 视图状态持久化粒度、同一表多视图、列宽/隐藏/冻结的恢复；
+   - >20k 行 Worker 查询、取消/进度、主线程回退阈值；
+   - T2.4 延后的筛选粘贴语义：只写可见行、超出可见行整批拒绝、隐藏行不变；
+   - 筛选/排序是否进入最小历史、保存时机与 T5.2 全命令历史的衔接；
+   - 性能：100k 筛选+排序 ≤400ms 的 bench/E2E 证据与夹具。
 3. 确认后先复述目标/文件/验收命令，再写测试与实现。
-4. 完成后停下报告，**不要自动进入 T2.6**。
+4. 完成后停下报告，**不要自动进入 T2.7**。
 
-建议验证命令（开工后按 TASKS T2.5 调整）：
+建议验证命令（开工后按 TASKS T2.6 调整）：
 
 ```powershell
-pnpm exec vitest run packages/table-engine packages/app-core --testNamePattern "import"
+pnpm exec vitest run packages/table-engine --testNamePattern "filter|sort"
 pnpm verify
 pnpm test:coverage
 pnpm format:check
 $env:CURVE_E2E_NO_SANDBOX = '1'
 pnpm build
-pnpm exec playwright test --config apps/desktop/playwright.config.ts --grep "import"
+pnpm exec playwright test --config apps/desktop/playwright.config.ts --grep "filter|sort"
 pnpm e2e
+pnpm bench -- --query
 ```
 
 ---
@@ -441,6 +558,10 @@ pnpm e2e
 | 全量 E2E 偶发 grid/edit 键盘超时 | 全量非零 | 单跑确认；T2.4 已修复焦点丢失；不放宽超时/不删断言 |
 | 100k 行结构变更同步执行 | UI 短暂无响应 | T2.3 已记录；T2.7 实测/Worker 化 |
 | 10 万级粘贴命令阶段同步 | UI 可能短暂无响应 | T2.4 10k 实测远低于预算；T2.7 复核 |
+| 10 万级导入命令阶段同步 | 提交时短暂占用主线程 | T2.5 bench 核心管线 P95 659ms；T2.7 复核 |
+| 导入后 100k 逆补丁 | 撤销栈内存 | T2.5 仅记录；T5.2 统一 256MB 上限 |
+| >50MB 原文只记 sidecar | 原文件路径可能失效 | SPEC §9.4 允许；路径 + SHA-256 可审计 |
+| 导入错误 CSV 按坏行聚合 | 机器消费需拆字段 | 文档已记录；UI 仍显示逐 issue |
 | 筛选视图粘贴整批拒绝 | T2.6 前体验受限 | ADR-030 显式延后；T2.6 必须闭环 |
 | 结构变更不可撤销 | 误操作需手工恢复 | 确认框 + 磁盘备份；T5.2 统一历史 |
 | 图表/样式悬空引用 | 图表错误占位；样式求值忽略 | T3.1 重映射；T4.x 样式求值处理 |
@@ -449,7 +570,7 @@ pnpm e2e
 | 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 76.34% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；M2 报告给趋势 |
+| 覆盖率 74.12% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；M2 报告给趋势 |
 | renderer bundle 约 1.31MB | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
 
 ---
@@ -464,22 +585,22 @@ pnpm e2e
 - 不绕过命令总线直接改 store（撤销会坏）；不在组件里写业务逻辑。
 - 不加未经 ADR 的运行时依赖；不跳过测试、不放宽 ESLint/覆盖率规则、不用 `--no-verify`。
 - 不未经 ADR/用户确认升级 `formatVersion`、改数据格式、IPC 通道或公共 API。
-- 不在 T2.5 顺手实现 T2.6 的筛选/排序或 T3.x 的图表；不把 10 万行整体放进 React state。
-- 不自动跨任务/跨里程碑；T2.5 完成后停下报告，不进入 T2.6。
+- 不在 T2.6 顺手实现 T2.7 的性能硬化或 T3.x 的图表；不把 10 万行整体放进 React state。
+- 不自动跨任务/跨里程碑；T2.6 完成后停下报告，不进入 T2.7。
 
 ---
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.4 提交。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.5 提交。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 T2.5、TESTPLAN §1/§2/§3（E3/E4）/§4/§5、
-      SPEC §9.4/§8.1/§13.1/§16.1、ADR-005/006/007/014/024、ADR-028/029/030。
-- [ ] 已确认 `pnpm verify` 基线（99 files / 813 tests）、coverage lines 76.34%、e2e 48 passed。
+- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 T2.6、TESTPLAN §1/§2/§3（E3/E4）/§4/§5、
+      SPEC §9.5/§6.2/§16.1、ADR-005/006/007/014/024、ADR-028/029/030/031。
+- [ ] 已确认 `pnpm verify` 基线（111 files / 880 tests）、coverage lines 74.12%、e2e 54 passed。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 T2.5 尚未开始，**先按 §6 逐项确认决策**，未自行选定。
-- [ ] 已确认 T2.4 的粘贴/新增列/新增行/保存语义；T2.5 不得绕过命令总线或另起写盘路径。
+- [ ] 已确认 T2.6 尚未开始，**先按 §6 逐项确认决策**，未自行选定。
+- [ ] 已确认 T2.4/T2.5 的粘贴/导入/保存/撤销语义；T2.6 不得绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`，截图提交前还原。
-- [ ] 复述 T2.5 目标/产出/验收/风险后再动手；完成后停下报告，不进入 T2.6。
+- [ ] 复述 T2.6 目标/产出/验收/风险后再动手；完成后停下报告，不进入 T2.7。
