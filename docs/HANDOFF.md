@@ -1,8 +1,8 @@
 # HANDOFF — Curve Studio 实施交接
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T2.5`（CSV/JSON 导入向导），按用户要求停止，
-> `T2.6` 尚未开始。最后更新：2026-10-22 · `T2.5` 提交见 `git log -1`（本次代码+文档提交）·
-> 分支 `main` · 工作树在提交前应干净。
+> `T2.6` 尚未开始。最后更新：2026-10-22 · `T2.5` 代码提交 **`16ba035`**（本交接文件随后单独提交）·
+> 分支 `main` · 工作树干净。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.6 →
 > `docs/TESTPLAN.md` §1、§2、§3（E3/E4）、§4、§5 →
 > `docs/SPEC.md` §9.5、§6.2、§16.1 →
@@ -37,17 +37,17 @@
 | 方案文档 | v1.0 已锁定（SPEC / TASKS / TESTPLAN / DECISIONS） |
 | M0 基建（T0.1–T0.5） | **已完成**；验收报告 `docs/reports/m0/REPORT.md` |
 | M1 领域与持久化（T1.1–T1.5） | **已完成并经用户验收**（2026-10-21）；报告 `docs/reports/m1/REPORT.md` |
-| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1–T2.4 扩展了命令、actions、历史与保存 |
+| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1–T2.5 扩展了命令、actions、历史与保存 |
 | `T2.1` 工作区入口、表管理与网格 | **已完成**（`07c4763`）；报告 `docs/reports/t2.1/REPORT.md`；ADR-027 |
 | `T2.2` 单元格编辑与校验 | **已完成**（`641cd86`）；报告 `docs/reports/t2.2/REPORT.md`；ADR-028 |
 | `T2.3` 列管理、结构变更与迁移 | **已完成**（`213fab4`）；报告 `docs/reports/t2.3/REPORT.md`；ADR-029 |
 | `T2.4` 区域粘贴 | **已完成**（`14c4816`）；报告 `docs/reports/t2.4/REPORT.md`；ADR-030 |
-| `T2.5` CSV/JSON 导入向导 | **已完成**（提交见 `git log -1`）；报告 `docs/reports/t2.5/REPORT.md`；ADR-031 |
+| `T2.5` CSV/JSON 导入向导 | **已完成**（`16ba035`）；报告 `docs/reports/t2.5/REPORT.md`；ADR-031 |
 | 当前里程碑 | **M2 表格数据进行中**（T2.1–T2.5 完成，T2.6–T2.7 未开始） |
 | 下一个任务 | **T2.6 筛选、排序与视图状态**；开工前必须按 AGENTS §11 确认歧义，不要自行选定 |
 | `pnpm verify` 基线 | **111 files / 880 tests**；ESLint 0；depcruise **319 modules / 1213 deps / 0 violations** |
 | `pnpm test:coverage` 基线 | 全局 lines **74.12%** / statements **74.06%** / branches **66.03%** / functions **76.11%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **54 passed**（48 + T2.5 `e2e/import.spec.ts` 6 条），约 1.9min |
+| `pnpm e2e` 基线 | **54 passed**（48 + T2.5 `e2e/import.spec.ts` 6 条），约 2.1min |
 | `pnpm format:check` | 通过 |
 | 构建 | `pnpm build` exit 0；renderer **1,339.13 kB** + 懒加载 ImportSession 42.82 kB；Worker `assets/table.worker-<hash>.js`、`assets/import.worker-<hash>.js` |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 脚本生成、gitignore |
@@ -71,7 +71,7 @@ docs/TESTPLAN.md §1/§2/§3（E3/E4）/§4/§5、
 docs/SPEC.md §9.5/§6.2/§16.1、
 docs/DECISIONS.md 的 ADR-005/006/007/014/024，再读 ADR-028/029/030/031。
 
-现状：M0、M1（已验收）、T1.1–T1.5、T2.1–T2.5 已完成；T2.5 提交见 git log -1，工作树应干净；
+现状：M0、M1（已验收）、T1.1–T1.5、T2.1–T2.5 已完成；T2.5 代码提交 `16ba035`，工作树应干净；
 pnpm verify 111 files / 880 tests、test:coverage 全局 lines 74.12%、format:check、
 pnpm e2e 54 passed 全绿。T2.5 报告见 docs/reports/t2.5/REPORT.md，决策见 ADR-031。
 
@@ -110,7 +110,7 @@ cd D:\DSH_Work_Space\curve-studio
 ### 3.2 DSH 会话策略：必须是 `danger-full-access`
 
 `workspace-write` 下 `pnpm verify` 会因 Vite 的 `spawn EPERM` 失败（HANDOFF 旧记录）。
-T2.1–T2.4 全程 `danger-full-access`，审批提示已关闭——**不要使用 `sandbox_permissions` 参数**。
+T2.1–T2.5 全程 `danger-full-access`，审批提示已关闭——**不要使用 `sandbox_permissions` 参数**。
 这不是代码问题，不要改项目配置或加 workaround。
 
 ### 3.3 受限 shell 里的 Electron / E2E
@@ -136,9 +136,9 @@ T2.1–T2.4 全程 `danger-full-access`，审批提示已关闭——**不要使
 3. 重跑 `pnpm install`，直到退出码为 0；
 4. 若报错是直接依赖链接（`apps/desktop/node_modules/...`），同样用 junction 补齐。
 
-T2.5 新增 papaparse 运行时依赖（@curve/table-engine）与 iconv-lite devDependency（仅
-scripts/gen-100k.ts 与 E2E 夹具生成）；不引入 jschardet/iconv-lite 运行时依赖。后续新增依赖仍先按
-AGENTS §4 写 ADR；能复用已有依赖就不要新增。
+T2.5 新增 `papaparse` 运行时依赖（`@curve/table-engine`）与 `iconv-lite` devDependency（仅
+`scripts/gen-100k.ts` 与 E2E 夹具生成）；不引入 jschardet/iconv-lite 运行时依赖。后续新增依赖
+仍先按 AGENTS §4 写 ADR；能复用已有依赖就不要新增。
 
 ### 3.5 文本编码与路径陷阱
 
@@ -171,7 +171,7 @@ AGENTS §4 写 ADR；能复用已有依赖就不要新增。
 - 结构变更保存：行数据命令走保存队列（表 → manifest），纯 schema 命令只写 manifest；E2E 断言前用
   `expect.poll` 读 manifest。
 - E2E 截图证据字节不稳定；断言不依赖像素。
-- Worker 产物名现在是 `assets/table.worker-<hash>.js`（不是 T1.3 的 `table-worker-*.js`）。
+- Worker 产物名现在是 `assets/table.worker-<hash>.js`、`assets/import.worker-<hash>.js`。
 
 ---
 
@@ -249,8 +249,8 @@ parseClipboardText(text): { ok: true; data: ClipboardMatrix } | { ok: false; err
 
 - 规则见 ADR-030：TSV 优先；单列含逗号回退 CSV；引号/`""`/内嵌换行、CRLF、BOM、单尾随换行、
   矩形化；未闭合引号返回 `E_IMPORT_FORMAT`。
-- T2.5 可复用 `parseClipboardText` 的引号/换行处理思路，但导入向导的编码/分隔符嗅探/表头仍是
-  独立实现；不要把粘贴解析器硬套到文件导入。
+- T2.5 可复用 `parseClipboardText` 的引号/换行处理思路，但导入向导的编码/分隔符嗅探/表头是
+  独立实现；不要把粘贴解析器硬套到文件导入（T2.5 使用 Papa Parse + 独立嗅探）。
 
 ### 4.3 `@curve/persistence`
 
@@ -286,7 +286,9 @@ parseClipboardText(text): { ok: true; data: ClipboardMatrix } | { ok: false; err
 ### 4.6 `@curve/app-core`（T1.5 + T2.1 + T2.2 + T2.3 + T2.4 + T2.5）
 
 ```ts
-createAppCore({ workspaceStore, logger?, now?, uuid?, decodeTable?, encodeTable? }): {
+createAppCore({
+  workspaceStore, logger?, now?, uuid?, decodeTable?, encodeTable?, archiveImport?
+}): {
   store: AppStore;
   commands: CommandBus;
   openWorkspace(request): Promise<OpenWorkspaceOutcome>;
@@ -371,6 +373,7 @@ apps/desktop/src/renderer/
 │  ├─ use-paste.tsx             # idle→preparing→columns/errors/applying
 │  └─ paste-issue-text.ts
 ├─ features/import/             # T2.5：ImportWizardDialog/use-import/import-error-csv
+│  └─ ImportSession.tsx          # 懒加载入口；避免进入初始 TableList chunk
 ├─ import/                      # T2.5：encoding/client/worker-protocol/worker-handler
 ├─ workers/import.worker.ts     # T2.5 专用 import Worker
 ├─ features/charts/ChartPlaceholder.tsx  # T2.3 图表无效占位（T3.1 替换）
@@ -484,11 +487,11 @@ apps/desktop/src/
 ├─ main/import/{import-files,import-token-store}.ts (+test)
 ├─ main/ipc/{handlers,handlers.test}.ts
 ├─ main/workspace/file-workspace-store.ts（archiveImport）
+├─ renderer/features/import/{ImportSession,ImportWizardDialog,use-import,import-error-csv,import-issue-text}
 ├─ renderer/import/{encoding,client,worker-handler,worker-protocol}.ts (+test)
 ├─ renderer/workers/import.worker.ts
-├─ renderer/features/import/{ImportWizardDialog,use-import,import-error-csv,import-issue-text}
 └─ shared/contracts/{channels,ipc}.ts
-apps/desktop/e2e/import.spec.ts
+apps/desktop/e2e/{import-fixtures,import.spec}.ts
 scripts/gen-100k.ts
 docs/adr/031-t25-csv-json-import.md
 docs/reports/t2.5/REPORT.md
@@ -556,6 +559,7 @@ pnpm bench -- --query
 | 会话策略回到 `workspace-write` | `verify`/E2E 报 EPERM | 切 `danger-full-access`，不改项目配置 |
 | Windows 无 symlink 权限 | `pnpm install` 失败 | 按 §3.4 用 junction 补齐；不要删 node_modules/切 linker |
 | 全量 E2E 偶发 grid/edit 键盘超时 | 全量非零 | 单跑确认；T2.4 已修复焦点丢失；不放宽超时/不删断言 |
+| 外部程序占满 CPU（如游戏/聊天工具） | verify 5s 超时、100k grid 首帧 >1s | 先确认 CPU（`Get-Counter '\Processor(_Total)\% Processor Time'`）；暂停外部程序后重跑，不改预算 |
 | 100k 行结构变更同步执行 | UI 短暂无响应 | T2.3 已记录；T2.7 实测/Worker 化 |
 | 10 万级粘贴命令阶段同步 | UI 可能短暂无响应 | T2.4 10k 实测远低于预算；T2.7 复核 |
 | 10 万级导入命令阶段同步 | 提交时短暂占用主线程 | T2.5 bench 核心管线 P95 659ms；T2.7 复核 |
@@ -571,7 +575,7 @@ pnpm bench -- --query
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
 | 覆盖率 74.12% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；M2 报告给趋势 |
-| renderer bundle 约 1.31MB | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
+| renderer bundle 约 1.34MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
 
 ---
 
@@ -592,7 +596,7 @@ pnpm bench -- --query
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.5 提交。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.5 交接提交（代码提交 `16ba035`）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
 - [ ] 已读 `AGENTS.md`、本文件、TASKS 的 T2.6、TESTPLAN §1/§2/§3（E3/E4）/§4/§5、
