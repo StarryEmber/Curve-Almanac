@@ -2,7 +2,7 @@
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T3.1`（表格样式模型与内置模板）；
 > M2 已于 2026-10-23 获用户接受。最后更新：2026-10-23 ·
-> `T3.1` 已完成并提交（提交号见 `git log` 顶部）· 分支 `main` · 工作树干净。
+> `T3.1` 代码提交 **`b75fff1`**；本交接文档随后单独提交 · 分支 `main` · 提交后工作树干净。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.1/REPORT.md` →
 > `docs/TASKS.md` 的 M3 / T3.1 / T3.2 → `docs/TESTPLAN.md` §2、§3、§5 →
 > `docs/SPEC.md` §6.4、§10、§16.1 →
@@ -43,7 +43,7 @@
 | `T2.6` 筛选、排序与视图状态 | **已完成**（`1149100`）；报告 `docs/reports/t2.6/REPORT.md`；ADR-032 |
 | `T2.7` 10 万行性能硬化 | **已完成**（`553f71b`）；报告 `docs/reports/t2.7/REPORT.md`；ADR-033 |
 | M2 验收演示 | **已获用户接受**（2026-10-23）；`e2e/m2-acceptance.spec.ts` + `docs/reports/m2/REPORT.md` |
-| `T3.1` 表格样式模型与内置模板 | **已完成**（2026-10-23，本次提交）；报告 `docs/reports/t3.1/REPORT.md`；ADR-034 |
+| `T3.1` 表格样式模型与内置模板 | **已完成**（2026-10-23，`b75fff1`）；报告 `docs/reports/t3.1/REPORT.md`；ADR-034 |
 | 当前里程碑 | **M3 表格外观**：T3.1 完成；T3.2–T3.6 待推进，里程碑验收演示最后做 |
 | 下一步 | **等待用户授权 T3.2**；不要自动开始 T3.2/T3.3 |
 | `pnpm verify` 基线 | **124 files / 997 tests**；ESLint 0；depcruise **347 modules / 1335 deps / 0 violations** |
@@ -454,7 +454,7 @@ apps/desktop/src/renderer/
 ├─ import/                      # T2.5：encoding/client/worker-protocol/worker-handler
 ├─ query/                       # T2.6：query Worker client/handler（缓存/增量/守卫）
 ├─ workers/{import,query}.worker.ts  # T2.5/T2.6 专用 Worker
-├─ features/charts/ChartPlaceholder.tsx  # T2.3 图表无效占位（T3.1 替换）
+├─ features/charts/ChartPlaceholder.tsx  # T2.3 图表无效占位（T4.1 替换）
 ├─ shell/                       # AppShell/TitleBar/Sidebar/Inspector/StatusBar/HelpDialog
 ├─ i18n/messages/{zh-CN,en-US}.ts
 ```
