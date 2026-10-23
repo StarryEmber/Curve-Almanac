@@ -45,6 +45,10 @@ export function ColumnsPanel({ tableId }: ColumnsPanelProps): ReactElement | nul
   const { t } = useI18n();
   const { core } = useRendererCore();
   const tableData = useAppState((state) => state.tables[tableId]);
+  const activeViewId = useAppState((state) => state.ui.activeViewId);
+  const activeView = useAppState((state) =>
+    activeViewId === null ? undefined : state.views[activeViewId],
+  );
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -54,6 +58,36 @@ export function ColumnsPanel({ tableId }: ColumnsPanelProps): ReactElement | nul
   }
   const table = tableData.table;
   const limited = table.columns.length >= MAX_COLUMNS_PER_TABLE;
+  const tableView =
+    activeView !== undefined && activeView.kind === 'table' ? activeView.tableView : undefined;
+  const hiddenColumnIds = tableView?.hiddenColumnIds ?? [];
+  const visibleCount = table.columns.length - hiddenColumnIds.length;
+
+  const setHiddenColumns = async (next: readonly string[]): Promise<void> => {
+    if (activeView === undefined || tableView === undefined) {
+      return;
+    }
+    const outcome = await core.actions.updateView(activeView.id, {
+      hiddenColumnIds: [...next],
+    });
+    if (!outcome.ok) {
+      core.store.getState().actions.setError(outcome.error);
+    }
+  };
+
+  const toggleColumnHidden = (column: ColumnDef): void => {
+    if (tableView === undefined) {
+      return;
+    }
+    if (hiddenColumnIds.includes(column.id)) {
+      void setHiddenColumns(hiddenColumnIds.filter((id) => id !== column.id));
+      return;
+    }
+    if (visibleCount <= 1) {
+      return;
+    }
+    void setHiddenColumns([...hiddenColumnIds, column.id]);
+  };
 
   const openAdd = (): void => {
     setDialog({ kind: 'form', mode: 'add' });
@@ -301,6 +335,31 @@ export function ColumnsPanel({ tableId }: ColumnsPanelProps): ReactElement | nul
                     size="sm"
                     variant="ghost"
                     iconOnly
+                    aria-label={
+                      hiddenColumnIds.includes(column.id)
+                        ? t('columns.show', { name: column.label })
+                        : t('columns.hide', { name: column.label })
+                    }
+                    title={
+                      hiddenColumnIds.includes(column.id)
+                        ? t('columns.show', { name: column.label })
+                        : visibleCount <= 1
+                          ? t('columns.lastVisible')
+                          : t('columns.hide', { name: column.label })
+                    }
+                    disabled={tableView === undefined}
+                    onClick={() => {
+                      toggleColumnHidden(column);
+                    }}
+                  >
+                    <span aria-hidden="true">
+                      {hiddenColumnIds.includes(column.id) ? '+' : '−'}
+                    </span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    iconOnly
                     aria-label={t('columns.moveUp', { name: column.label })}
                     disabled={index === 0}
                     onClick={() => {
@@ -327,6 +386,42 @@ export function ColumnsPanel({ tableId }: ColumnsPanelProps): ReactElement | nul
           })}
         </ul>
       )}
+
+      {hiddenColumnIds.length > 0 ? (
+        <section
+          className="cs-columns__hidden"
+          aria-label={t('columns.hiddenTitle')}
+          data-testid="hidden-columns"
+        >
+          <h3 className="cs-columns__hidden-title">{t('columns.hiddenTitle')}</h3>
+          <p className="cs-columns__hint">
+            {t('columns.hiddenCount', { count: hiddenColumnIds.length })}
+          </p>
+          <ul className="cs-columns__hidden-list">
+            {hiddenColumnIds.map((columnId) => {
+              const column = table.columns.find((entry) => entry.id === columnId);
+              if (column === undefined) {
+                return null;
+              }
+              return (
+                <li key={column.id} className="cs-columns__hidden-item">
+                  <span>{column.label}</span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    aria-label={t('columns.show', { name: column.label })}
+                    onClick={() => {
+                      toggleColumnHidden(column);
+                    }}
+                  >
+                    {t('columns.show', { name: column.label })}
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       <ColumnFormDialog
         open={dialog.kind === 'form'}

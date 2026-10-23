@@ -33,6 +33,7 @@ export function AppCoreProvider({ children, core }: AppCoreProviderProps): React
   useEffect(
     () => () => {
       value.tableIo.terminate();
+      value.query.terminate();
     },
     [value],
   );

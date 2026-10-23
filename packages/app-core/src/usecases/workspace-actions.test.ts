@@ -393,6 +393,48 @@ describe('workspace actions', () => {
     expect(core.store.getState().workspace).toBeNull();
   });
 
+  it('duplicates a table view with its filter/sort state and persists both', async () => {
+    const { store, core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const viewId = created.data.view.id;
+    const columnId = created.data.table.columns[0]?.id ?? '';
+
+    const updated = await core.actions.updateView(viewId, {
+      sort: [{ columnId, direction: 'desc' }],
+      filter: { kind: 'compare', columnId, op: 'contains', value: 'a' },
+      hiddenColumnIds: [columnId],
+    });
+    expect(updated.ok).toBe(true);
+
+    const duplicated = await core.actions.duplicateView(viewId);
+    expect(duplicated.ok).toBe(true);
+    if (!duplicated.ok) {
+      return;
+    }
+    const state = core.store.getState();
+    expect(Object.keys(state.views)).toHaveLength(2);
+    const copy = state.views[duplicated.data.viewId];
+    expect(copy?.title).toBe('Sensors (2)');
+    expect(copy?.tableView?.filter).toEqual({
+      kind: 'compare',
+      columnId,
+      op: 'contains',
+      value: 'a',
+    });
+    expect(copy?.tableView?.sort).toEqual([{ columnId, direction: 'desc' }]);
+    expect(store.manifests.at(-1)?.views).toHaveLength(2);
+
+    const second = await core.actions.duplicateView(viewId);
+    expect(second.ok).toBe(true);
+    if (second.ok) {
+      expect(core.store.getState().views[second.data.viewId]?.title).toBe('Sensors (3)');
+    }
+  });
+
   it('closes the workspace and resets the document slices', async () => {
     const { store, core } = setup();
     expect((await core.actions.createTable('Sensors')).ok).toBe(true);

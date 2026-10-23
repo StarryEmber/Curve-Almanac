@@ -12,10 +12,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { CellIssue, ViewPatch } from '@curve/app-core';
 import { formatCellValue } from '@curve/domain';
-import type { Cell, ColumnDef as DomainColumn, Row, TableMeta, ViewDef } from '@curve/domain';
-import { Select } from '@curve/ui';
+import type {
+  Cell,
+  ColumnDef as DomainColumn,
+  FilterPredicate,
+  Row,
+  TableMeta,
+  ViewDef,
+} from '@curve/domain';
+import { Button, Menu, Select } from '@curve/ui';
 
 import { useI18n } from '../../i18n';
+import { FilterDialog } from '../filter/FilterDialog';
 
 import { describeCellIssue } from './cell-issue-text';
 import { CellEditor } from './editors/CellEditor';
@@ -27,6 +35,7 @@ import {
   selectionRect,
 } from './grid-navigation';
 import { DEFAULT_COLUMN_WIDTH, frozenOffsets, measureColumnWidth } from './grid-sizing';
+import { toggleSort } from './grid-sort';
 import { GridCell } from './GridCell';
 import { GridHeader } from './GridHeader';
 import { SelectionLayer } from './SelectionLayer';
@@ -34,6 +43,7 @@ import { useCellEditing } from './use-cell-editing';
 
 import type { GridPosition, PasteTarget } from './grid-navigation';
 import type { CellCommitOutcome } from './use-cell-editing';
+import type { ViewRowsState } from './use-view-rows';
 import type { ColumnDef as TanStackColumnDef } from '@tanstack/react-table';
 import type { Range } from '@tanstack/react-virtual';
 import type { ClipboardEvent, CSSProperties, KeyboardEvent, ReactElement } from 'react';
@@ -52,24 +62,23 @@ export interface GridLocateTarget {
 
 export interface DataGridProps {
   tableMeta: TableMeta;
+  /** Visible rows in display order (filtered and/or sorted). */
   rows: readonly Row[];
+  /** Query metadata for counts, the busy indicator and E2E timing. */
+  viewRows: ViewRowsState;
   view: ViewDef;
   onViewUpdate: (patch: ViewPatch) => void | Promise<void>;
   onCellCommit: (row: Row, column: DomainColumn, raw: unknown) => Promise<CellCommitOutcome>;
   onEditIssue: (issue: CellIssue | null) => void;
   /** Receives `text/plain` when the grid (not an editor) handles a paste. */
-  onPasteText?: (text: string, target: PasteTarget, columnIds: readonly string[]) => void;
+  onPasteText?: (
+    text: string,
+    target: PasteTarget,
+    columnIds: readonly string[],
+    rowIds: readonly string[],
+  ) => void;
   /** Set by the paste error dialog to focus and flash the offending cell. */
   locate?: GridLocateTarget | null;
-}
-
-export interface DataGridProps {
-  tableMeta: TableMeta;
-  rows: readonly Row[];
-  view: ViewDef;
-  onViewUpdate: (patch: ViewPatch) => void | Promise<void>;
-  onCellCommit: (row: Row, column: DomainColumn, raw: unknown) => Promise<CellCommitOutcome>;
-  onEditIssue: (issue: CellIssue | null) => void;
 }
 
 function sameSizing(left: Record<string, number>, right: Record<string, number>): boolean {
@@ -88,9 +97,20 @@ function isDirectEditKey(event: KeyboardEvent<HTMLDivElement>): boolean {
   );
 }
 
+function countFilterConditions(filter: FilterPredicate | undefined): number {
+  if (filter === undefined) {
+    return 0;
+  }
+  if (filter.kind === 'compare') {
+    return 1;
+  }
+  return filter.children.reduce((total, child) => total + countFilterConditions(child), 0);
+}
+
 export function DataGrid({
   tableMeta,
   rows,
+  viewRows,
   view,
   onViewUpdate,
   onCellCommit,
@@ -105,9 +125,11 @@ export function DataGrid({
   const focusPending = useRef(false);
   const lastPersisted = useRef<Record<string, number>>({});
   const editingRowRef = useRef<number | null>(null);
+  const activeRowIdRef = useRef<string | null>(rows[0]?.id ?? null);
   const [active, setActive] = useState({ row: 0, col: 0 });
   const [anchor, setAnchor] = useState({ row: 0, col: 0 });
   const [conflictRow, setConflictRow] = useState<number | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
   const rangeExtractor = useCallback((range: Range): number[] => {
     const indexes = defaultRangeExtractor(range);
     const editingIndex = editingRowRef.current;
@@ -195,6 +217,31 @@ export function DataGrid({
     }));
   }, [rows.length, visibleColumns.length]);
 
+  // Keep the selection on the same row id when a query inserts/removes/moves
+  // rows. While a query is pending the list is temporarily empty, so keep the
+  // remembered id and resolve it when the new list arrives.
+  useEffect(() => {
+    if (rows.length === 0) {
+      return;
+    }
+    const rowId = activeRowIdRef.current;
+    if (rowId === null) {
+      activeRowIdRef.current = rows[0]?.id ?? null;
+      return;
+    }
+    const index = rows.findIndex((row) => row.id === rowId);
+    if (index >= 0) {
+      setActive((current) => (current.row === index ? current : { ...current, row: index }));
+      setAnchor((current) => (current.row === index ? current : { ...current, row: index }));
+      return;
+    }
+    setActive((current) => {
+      const row = Math.max(0, Math.min(current.row, rows.length - 1));
+      activeRowIdRef.current = rows[row]?.id ?? null;
+      return { ...current, row };
+    });
+  }, [rows]);
+
   const focusActiveCell = useCallback((): void => {
     const element = scrollRef.current?.querySelector<HTMLElement>('[data-active="true"]');
     element?.focus({ preventScroll: true });
@@ -243,6 +290,7 @@ export function DataGrid({
 
   const handleFinish = useCallback(
     (position: GridPosition, options: { refocus: boolean }): void => {
+      activeRowIdRef.current = rows[position.row]?.id ?? null;
       setActive(position);
       setAnchor(position);
       if (options.refocus) {
@@ -250,7 +298,7 @@ export function DataGrid({
       }
       virtualizer.scrollToIndex(position.row, { align: 'auto' });
     },
-    [virtualizer],
+    [rows, virtualizer],
   );
 
   const { editing, busy, begin, change, cancel, commit, clear } = useCellEditing({
@@ -275,6 +323,7 @@ export function DataGrid({
       }
       setActive({ row: rowIndex, col: colIndex });
       setAnchor({ row: rowIndex, col: colIndex });
+      activeRowIdRef.current = rows[rowIndex]?.id ?? null;
       focusPending.current = false;
       begin({ row: rowIndex, col: colIndex }, seed);
       virtualizer.scrollToIndex(rowIndex, { align: 'auto' });
@@ -291,6 +340,7 @@ export function DataGrid({
             return;
           }
           setActive(target);
+          activeRowIdRef.current = rows[target.row]?.id ?? null;
           if (!extend) {
             setAnchor(target);
           }
@@ -300,24 +350,27 @@ export function DataGrid({
         return;
       }
       setActive(target);
+      activeRowIdRef.current = rows[target.row]?.id ?? null;
       if (!extend) {
         setAnchor(target);
       }
       focusPending.current = true;
       virtualizer.scrollToIndex(target.row, { align: 'auto' });
     },
-    [commit, editing, virtualizer],
+    [commit, editing, rows, virtualizer],
   );
 
-  const conflict = editing?.issue?.conflictRowNumber;
+  const conflictRowId = editing?.issue?.conflictRowId;
   const editingRow = editing?.row;
   useEffect(() => {
-    if (conflict === undefined || editingRow === undefined) {
+    if (conflictRowId === undefined || editingRow === undefined) {
       setConflictRow(null);
       return;
     }
-    const index = conflict - 1;
-    if (index < 0 || index >= rows.length) {
+    const index = rows.findIndex((row) => row.id === conflictRowId);
+    if (index < 0) {
+      // The conflicting row is filtered out; keep the issue text without scrolling.
+      setConflictRow(null);
       return;
     }
     setConflictRow(index);
@@ -333,7 +386,7 @@ export function DataGrid({
       window.clearTimeout(back);
       window.clearTimeout(clearHighlight);
     };
-  }, [conflict, editingRow, focusEditor, rows.length, virtualizer]);
+  }, [conflictRowId, editingRow, focusEditor, rows, virtualizer]);
 
   const [pasteError, setPasteError] = useState<{ row: number; col: number } | null>(null);
   const locateRow = locate?.rowIndex ?? -1;
@@ -347,6 +400,7 @@ export function DataGrid({
     const col = Math.min(Math.max(locateCol, 0), visibleColumns.length - 1);
     setActive({ row, col });
     setAnchor({ row, col });
+    activeRowIdRef.current = rows[row]?.id ?? null;
     focusPending.current = true;
     setPasteError({ row, col });
     virtualizer.scrollToIndex(row, { align: 'center' });
@@ -356,7 +410,7 @@ export function DataGrid({
     return () => {
       window.clearTimeout(clearHighlight);
     };
-  }, [locateNonce, locateRow, locateCol, rows.length, visibleColumns.length, virtualizer]);
+  }, [locateNonce, locateRow, locateCol, rows, visibleColumns.length, virtualizer]);
 
   const handlePaste = (event: ClipboardEvent<HTMLDivElement>): void => {
     if (editing !== null || onPasteText === undefined) {
@@ -375,17 +429,13 @@ export function DataGrid({
       return;
     }
     const columnIds = visibleColumns.map((column) => column.id);
-    const target = pasteTarget(
-      anchor,
-      active,
-      rows.map((row) => row.id),
-      columnIds,
-    );
+    const rowIds = rows.map((row) => row.id);
+    const target = pasteTarget(anchor, active, rowIds, columnIds);
     if (target === null) {
       return;
     }
     event.preventDefault();
-    onPasteText(text, target, columnIds);
+    onPasteText(text, target, columnIds, rowIds);
   };
 
   const commitWidths = useCallback(
@@ -455,6 +505,7 @@ export function DataGrid({
     });
     const extend = event.shiftKey && event.key !== 'Tab';
     setActive(next);
+    activeRowIdRef.current = rows[next.row]?.id ?? null;
     if (!extend) {
       setAnchor(next);
     }
@@ -487,18 +538,103 @@ export function DataGrid({
   const offsets = frozenOffsets(sizes, frozenCount);
   const virtualRows = virtualizer.getVirtualItems();
   const leafColumns = table.getVisibleLeafColumns();
+  const sort = tableView.sort;
+  const filterActive = tableView.filter !== undefined;
+  const columnLabel = (columnId: string): string =>
+    tableMeta.columns.find((column) => column.id === columnId)?.label ?? columnId;
+  const sortDirectionLabel = (direction: 'asc' | 'desc'): string =>
+    direction === 'asc' ? t('grid.sort.asc') : t('grid.sort.desc');
+  const sortMenuItems =
+    sort.length === 0
+      ? [
+          {
+            id: 'none',
+            label: t('grid.sort.none'),
+            onSelect: () => undefined,
+            disabled: true,
+          },
+        ]
+      : [
+          ...sort.map((spec, index) => ({
+            id: spec.columnId,
+            label: t('grid.sort.level', {
+              index: index + 1,
+              column: columnLabel(spec.columnId),
+              direction: sortDirectionLabel(spec.direction),
+            }),
+            onSelect: () => {
+              void onViewUpdate({ sort: sort.filter((_entry, position) => position !== index) });
+            },
+          })),
+          {
+            id: 'clear',
+            label: t('grid.sort.clear'),
+            onSelect: () => {
+              void onViewUpdate({ sort: [] });
+            },
+          },
+        ];
+
+  const toggleColumnSort = (columnId: string, additive: boolean): void => {
+    const next = toggleSort(sort, columnId, additive);
+    if (
+      next.length === sort.length &&
+      next.every(
+        (spec, index) =>
+          spec.columnId === sort[index]?.columnId && spec.direction === sort[index]?.direction,
+      )
+    ) {
+      return;
+    }
+    void onViewUpdate({ sort: next });
+  };
 
   return (
     <section
       className="cs-grid"
       data-testid="data-grid"
+      data-query-mode={viewRows.mode}
+      data-query-busy={viewRows.busy ? 'true' : 'false'}
+      data-query-ms={viewRows.queryMs === null ? '' : String(Math.round(viewRows.queryMs))}
+      data-visible-rows={viewRows.visibleRows}
+      data-total-rows={viewRows.totalRows}
       aria-label={t('grid.label', { name: tableMeta.name })}
     >
       <div className="cs-grid__toolbar">
-        <span className="cs-grid__count">{t('grid.rows', { count: rows.length })}</span>
+        <span className="cs-grid__count" data-testid="grid-row-count">
+          {filterActive
+            ? t('grid.rowsFiltered', { visible: rows.length, total: viewRows.totalRows })
+            : t('grid.rows', { count: rows.length })}
+        </span>
         <span className="cs-grid__count">
           {t('grid.columns', { count: visibleColumns.length })}
         </span>
+        <Button
+          size="sm"
+          variant={filterActive ? 'secondary' : 'ghost'}
+          aria-label={t('grid.filter.button')}
+          aria-pressed={filterActive}
+          data-testid="grid-filter-open"
+          onClick={() => {
+            setFilterOpen(true);
+          }}
+        >
+          {filterActive
+            ? `${t('grid.filter.active', { count: countFilterConditions(tableView.filter) })}`
+            : t('grid.filter.button')}
+        </Button>
+        {filterActive ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              void onViewUpdate({ filter: null });
+            }}
+          >
+            {t('grid.filter.clear')}
+          </Button>
+        ) : null}
+        <Menu label={t('grid.sort.menu')} items={sortMenuItems} align="end" />
         <Select
           className="cs-grid__frozen"
           label={t('grid.frozen')}
@@ -511,6 +647,21 @@ export function DataGrid({
             void onViewUpdate({ frozenColumnCount: Number(event.target.value) });
           }}
         />
+        {viewRows.busy ? (
+          <span className="cs-grid__query" role="status">
+            {t('grid.query.busy')}
+          </span>
+        ) : null}
+        {viewRows.warning !== null ? (
+          <span className="cs-grid__query cs-grid__query--warning" role="status">
+            {t('grid.query.fallback')}
+          </span>
+        ) : null}
+        {viewRows.error !== null ? (
+          <span className="cs-grid__query cs-grid__query--error" role="alert">
+            {t('grid.query.error')}
+          </span>
+        ) : null}
       </div>
 
       <div
@@ -532,15 +683,24 @@ export function DataGrid({
           <GridHeader
             table={table}
             frozenCount={frozenCount}
+            sort={sort}
             onAutofit={autofit}
+            onToggleSort={toggleColumnSort}
             resizeLabel={(label) => t('grid.resizeColumn', { column: label })}
+            sortLabel={(label, direction, level) =>
+              `${t('grid.sort.column', { column: label })} · ${
+                direction === 'none' ? t('grid.sort.none') : sortDirectionLabel(direction)
+              }${level > 0 ? ` · ${String(level)}` : ''}`
+            }
           />
           <div
             className="cs-grid__body"
             style={{ height: rows.length === 0 ? 64 : virtualizer.getTotalSize() }}
           >
             {rows.length === 0 ? (
-              <p className="cs-grid__empty">{t('grid.empty')}</p>
+              <p className="cs-grid__empty">
+                {filterActive ? t('grid.emptyFiltered') : t('grid.empty')}
+              </p>
             ) : (
               virtualRows.map((virtualRow) => {
                 const row = rows[virtualRow.index];
@@ -627,6 +787,18 @@ export function DataGrid({
       </div>
 
       <SelectionLayer rows={selectedRows} columns={selectedColumns} label={selectionLabel} />
+      <FilterDialog
+        open={filterOpen}
+        table={tableMeta}
+        filter={tableView.filter}
+        onClose={() => {
+          setFilterOpen(false);
+        }}
+        onApply={(next) => {
+          setFilterOpen(false);
+          void onViewUpdate({ filter: next ?? null });
+        }}
+      />
     </section>
   );
 }

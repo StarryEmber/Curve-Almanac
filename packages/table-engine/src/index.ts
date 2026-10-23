@@ -16,5 +16,7 @@ export * from './dirty-set';
 export * from './import';
 export * from './jsonl';
 export * from './paste';
+export * from './query';
+export * from './query-protocol';
 export * from './row-set';
 export * from './worker-protocol';

@@ -26,6 +26,7 @@ import {
   createOpenTableView,
   type TableCreatePayload,
 } from '../commands/tables';
+import { createDuplicateTableView } from '../commands/view-copy';
 import { defaultAppLogger } from '../logging';
 import { stateToManifest } from '../state/manifest';
 import { createIdleSaveState } from '../state/store';
@@ -94,6 +95,8 @@ export interface PasteRequestBase {
   viewId: string;
   /** Visible column ids in view order; the matrix maps from the anchor inside it. */
   columnIds: readonly string[];
+  /** Visible row ids in display order (T2.6 filtered/sorted paste). */
+  rowIds?: readonly string[];
   anchor: { rowId: string | null; columnId: string };
 }
 
@@ -125,7 +128,7 @@ export interface PastePrepareOptions {
   yieldControl?: () => Promise<void>;
 }
 
-export type PasteBlockReason = 'filter-active';
+export type PasteBlockReason = 'filter-active' | 'filter-visible-exceeded' | 'filter-anchor-hidden';
 
 export type PastePrepareOutcome =
   | {
@@ -233,6 +236,8 @@ export interface WorkspaceActions {
   activateView(viewId: string): Promise<ActionOutcome>;
   closeView(viewId: string): Promise<ActionOutcome>;
   updateView(viewId: string, patch: ViewPatch): Promise<ActionOutcome>;
+  /** Copies the current table view (filter/sort/widths/frozen) into a new tab. */
+  duplicateView(viewId: string): Promise<ActionOutcome<{ viewId: string }>>;
   updateCell(
     tableId: string,
     rowId: string,
@@ -444,6 +449,39 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     return saveManifest();
   }
 
+  async function duplicateView(viewId: string): Promise<ActionOutcome<{ viewId: string }>> {
+    const state = store.getState();
+    const source = state.views[viewId];
+    if (source === undefined) {
+      return fail(createAppError('E_VALIDATION', 'The view does not exist.'));
+    }
+    if (source.kind !== 'table' || source.tableView === undefined) {
+      return fail(createAppError('E_VALIDATION', 'Only table views can be duplicated.'));
+    }
+    if (state.tables[source.refId] === undefined) {
+      return fail(createAppError('E_TABLE_NOT_FOUND', 'The table does not exist.'));
+    }
+    let view;
+    try {
+      view = createDuplicateTableView({
+        source,
+        existingTitles: Object.values(state.views).map((entry) => entry.title),
+        ...(uuid === undefined ? {} : { uuid }),
+      });
+    } catch (thrown) {
+      return fail(toAppError(thrown));
+    }
+    const dispatched = commands.dispatch('view.create', { view });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    const saved = await saveManifest();
+    if (!saved.ok) {
+      return fail(saved.error);
+    }
+    return { ok: true, data: { viewId: view.id } };
+  }
+
   async function updateCell(
     tableId: string,
     rowId: string,
@@ -529,14 +567,14 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
         }),
       );
     }
-    if (view.tableView.filter !== undefined) {
+    if (view.tableView.filter !== undefined && request.rowIds === undefined) {
       return {
         ok: false,
         kind: 'blocked',
         reason: 'filter-active',
         error: createAppError(
           'E_VALIDATION',
-          'Pasting is unavailable while the view has an active filter.',
+          'Pasting into a filtered view requires the current visible row order.',
           { detail: 'filter-active' },
         ),
       };
@@ -552,6 +590,37 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     }
     const large = matrix.rows * matrix.columns >= PASTE_PROGRESS_THRESHOLD;
 
+    if (view.tableView.filter !== undefined && request.rowIds !== undefined) {
+      const visibleRowIds = request.rowIds;
+      const anchorIndex =
+        request.anchor.rowId === null ? -1 : visibleRowIds.indexOf(request.anchor.rowId);
+      if (tableData.rows.length > 0 && anchorIndex < 0) {
+        return {
+          ok: false,
+          kind: 'blocked',
+          reason: 'filter-anchor-hidden',
+          error: createAppError(
+            'E_VALIDATION',
+            'The paste anchor row is not part of the filtered view.',
+            { detail: 'filter-anchor-hidden' },
+          ),
+        };
+      }
+      const available = visibleRowIds.length - Math.max(0, anchorIndex);
+      if (matrix.rows > available) {
+        return {
+          ok: false,
+          kind: 'blocked',
+          reason: 'filter-visible-exceeded',
+          error: createAppError(
+            'E_VALIDATION',
+            'The pasted matrix is larger than the visible rows of this filtered view.',
+            { detail: `visible-rows=${String(available)} matrix-rows=${String(matrix.rows)}` },
+          ),
+        };
+      }
+    }
+
     let planner: ReturnType<typeof createPastePlanner>;
     try {
       planner = createPastePlanner({
@@ -560,6 +629,12 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
         anchor: request.anchor,
         columnIds: request.columnIds,
         matrix: matrix.cells,
+        ...(request.rowIds === undefined
+          ? {}
+          : {
+              rowIds: request.rowIds,
+              appendBeyondVisible: view.tableView.filter === undefined,
+            }),
         ...(request.newColumns === undefined ? {} : { newColumns: request.newColumns }),
         ...(uuid === undefined ? {} : { uuid }),
       });
@@ -634,7 +709,10 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     }
   }
 
-  function collectPasteIssues(request: PasteApplyRequest): {
+  function collectPasteIssues(
+    request: PasteApplyRequest,
+    appendBeyondVisible: boolean,
+  ): {
     issues: readonly PasteIssue[];
     totalIssues: number;
   } {
@@ -650,6 +728,7 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
         anchor: request.anchor,
         columnIds: request.columnIds,
         matrix: request.matrix,
+        ...(request.rowIds === undefined ? {} : { rowIds: request.rowIds, appendBeyondVisible }),
         ...(request.newColumns === undefined ? {} : { newColumns: request.newColumns }),
         ...(uuid === undefined ? {} : { uuid }),
       });
@@ -672,27 +751,30 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
   async function applyPaste(request: PasteApplyRequest): Promise<PasteApplyOutcome> {
     const state = store.getState();
     const view = state.views[request.viewId];
-    if (view?.tableView?.filter !== undefined) {
+    if (view?.tableView?.filter !== undefined && request.rowIds === undefined) {
       return {
         ok: false,
         error: createAppError(
           'E_VALIDATION',
-          'Pasting is unavailable while the view has an active filter.',
+          'Pasting into a filtered view requires the current visible row order.',
           { detail: 'filter-active' },
         ),
       };
     }
+    const appendBeyondVisible = view?.tableView?.filter === undefined;
 
     const dispatched = commands.dispatch('table.paste', {
       tableId: request.tableId,
+      viewId: request.viewId,
       anchor: { ...request.anchor },
       columnIds: [...request.columnIds],
+      ...(request.rowIds === undefined ? {} : { rowIds: [...request.rowIds] }),
       matrix: request.matrix.map((row) => [...row]),
       ...(request.newColumns === undefined ? {} : { newColumns: [...request.newColumns] }),
     });
     if (!dispatched.ok) {
       const error = report('failed to paste the clipboard matrix', dispatched.error);
-      const collected = collectPasteIssues(request);
+      const collected = collectPasteIssues(request, appendBeyondVisible);
       return {
         ok: false,
         error,
@@ -1049,6 +1131,7 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     activateView,
     closeView,
     updateView,
+    duplicateView,
     updateCell,
     preparePaste,
     applyPaste,

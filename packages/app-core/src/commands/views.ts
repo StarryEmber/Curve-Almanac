@@ -15,6 +15,8 @@ import {
 } from '@curve/domain';
 import type { LayoutNode, SortSpec, ViewDef } from '@curve/domain';
 
+import { assertValidTableView } from '../validation/view-state';
+
 import {
   addViewToLayout,
   findActivePane,
@@ -173,6 +175,7 @@ function assertViewRefs(state: Draft<AppState>, view: ViewDef): void {
       ) {
         invalid('The view columnOrder must contain every table column exactly once.');
       }
+      assertValidTableView(table, view.tableView);
     }
     return;
   }
@@ -298,10 +301,8 @@ export function createViewUpdateCommand(
       ) {
         invalid('The view columnOrder must contain every table column exactly once.');
       }
-      for (const id of Object.keys(parsed.data.tableView?.widths ?? {})) {
-        if (!columnIds.has(id)) {
-          invalid('The view widths reference an unknown column.');
-        }
+      if (parsed.data.tableView !== undefined) {
+        assertValidTableView(table, parsed.data.tableView);
       }
       draft.views[payload.viewId] = parsed.data;
       touchWorkspace(draft, createTimestamp(now()));

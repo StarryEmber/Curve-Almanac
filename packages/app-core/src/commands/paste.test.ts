@@ -1,7 +1,7 @@
 import { applyPatches } from 'immer';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ColumnDef, Row, TableMeta, ViewDef } from '@curve/domain';
+import type { ColumnDef, FilterPredicate, Row, TableMeta, ViewDef } from '@curve/domain';
 
 import { createAppStore } from '../state/store';
 
@@ -86,12 +86,17 @@ interface Setup {
   logger: AppLogger;
 }
 
-function setup(): Setup {
+function setup(filter?: FilterPredicate): Setup {
+  const tableView = VIEW.tableView;
+  const view: ViewDef =
+    filter === undefined || tableView === undefined
+      ? VIEW
+      : { ...VIEW, tableView: { ...tableView, filter } };
   const store = createAppStore({
     initialState: {
       workspace: WORKSPACE,
       tables: { tbl_paste: { table: TABLE, rows: ROWS } },
-      views: { viw_paste: VIEW },
+      views: { viw_paste: view },
       layout: { type: 'pane', viewIds: ['viw_paste'], activeViewId: 'viw_paste' },
       ui: { activeTableId: 'tbl_paste', activeViewId: 'viw_paste' },
     },
@@ -107,6 +112,8 @@ interface PasteOverrides {
   columnIds?: string[];
   matrix?: string[][];
   newColumns?: ColumnDef[];
+  viewId?: string;
+  rowIds?: string[];
 }
 
 function paste(
@@ -263,5 +270,65 @@ describe('table.paste', () => {
       expect(outcome.error.detail).toContain('needsColumns=2');
     }
     expect(store.getState().tables).toBe(before.tables);
+  });
+
+  it('writes only visible rows when the view has a filter', () => {
+    const filter: FilterPredicate = {
+      kind: 'compare',
+      columnId: 'col_name',
+      op: 'eq',
+      value: 'First',
+    };
+    const { store, bus } = setup(filter);
+    const outcome = paste(bus, {
+      viewId: 'viw_paste',
+      rowIds: ['row_a'],
+      anchor: { rowId: 'row_a', columnId: 'col_id' },
+      matrix: [['alpha', 'Renamed', '1', '2026-02-03']],
+    });
+    expect(outcome.ok).toBe(true);
+    const rows = store.getState().tables['tbl_paste']?.rows ?? [];
+    expect(rows[0]?.values).toEqual(['alpha', 'Renamed', 1, new Date(2026, 1, 3).getTime()]);
+    expect(rows[1]?.values).toEqual(['beta', 'Second', 20, 200]);
+    expect(rows).toHaveLength(3);
+  });
+
+  it('rejects a stale filter target and a matrix larger than the visible rows', () => {
+    const filter: FilterPredicate = {
+      kind: 'compare',
+      columnId: 'col_name',
+      op: 'eq',
+      value: 'First',
+    };
+    const staleSetup = setup(filter);
+    const staleBefore = staleSetup.store.getState();
+    const stale = paste(staleSetup.bus, {
+      viewId: 'viw_paste',
+      rowIds: ['row_b'],
+      anchor: { rowId: 'row_b', columnId: 'col_id' },
+      matrix: [['beta', 'Changed', '2', '2026-02-03']],
+    });
+    expect(stale.ok).toBe(false);
+    if (!stale.ok) {
+      expect(stale.error.detail).toContain('filter-stale');
+    }
+    expect(staleSetup.store.getState().tables).toBe(staleBefore.tables);
+
+    const overflowSetup = setup(filter);
+    const overflowBefore = overflowSetup.store.getState();
+    const overflow = paste(overflowSetup.bus, {
+      viewId: 'viw_paste',
+      rowIds: ['row_a'],
+      anchor: { rowId: 'row_a', columnId: 'col_id' },
+      matrix: [
+        ['alpha', 'A', '1', '2026-02-03'],
+        ['beta', 'B', '2', '2026-02-03'],
+      ],
+    });
+    expect(overflow.ok).toBe(false);
+    if (!overflow.ok) {
+      expect(overflow.error.detail).toContain('filter-visible-exceeded');
+    }
+    expect(overflowSetup.store.getState().tables).toBe(overflowBefore.tables);
   });
 });

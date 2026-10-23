@@ -425,7 +425,9 @@ test.describe('T2.4 region paste', () => {
     await expect.poll(() => read(seeded.jsonlPath).trim().split('\n')).toHaveLength(2);
   });
 
-  test('rejects every paste while a view filter is active', async ({ page }, testInfo) => {
+  test('writes only visible rows under a filter and rejects an oversized matrix', async ({
+    page,
+  }, testInfo) => {
     const seeded = await seedWorkspace(page, testInfo, {
       name: 'Paste Filter',
       tableId: 'tbl_paste_filter',
@@ -433,21 +435,44 @@ test.describe('T2.4 region paste', () => {
       tableName: 'Filter',
       columns: [ID_COLUMN, column({ id: 'col_name', key: 'name', label: 'Name', role: 'label' })],
       primaryKey: 'col_id',
-      rows: [['r1', 'Keep']],
+      rows: [
+        ['r1', 'Keep'],
+        ['r2', 'Hidden'],
+        ['r3', 'Keep'],
+      ],
       filter: { kind: 'compare', columnId: 'col_name', op: 'eq', value: 'Keep' },
     });
     await openSeededWorkspace(page, 'Paste Filter');
+    await expect(page.getByRole('grid')).toHaveAttribute('aria-rowcount', '3');
     await focusCell(page);
     const before = read(seeded.jsonlPath);
 
-    await pasteText(page, 'alpha\tAlpha');
-
-    const dialog = page.getByRole('dialog', { name: '筛选激活时无法粘贴' });
-    await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText('隐藏行不会被修改');
+    // Two visible rows, three matrix rows: the whole batch is rejected and the
+    // hidden row must stay byte-identical.
+    await pasteText(page, 'a1\tAlpha1\nb1\tBeta1\nc1\tGamma1');
+    const overflow = page.getByRole('dialog', { name: '超出可见行' });
+    await expect(overflow).toBeVisible();
+    await expect(overflow).toContainText('隐藏行未修改');
     await page.keyboard.press('Escape');
-    await expect(dialog).toHaveCount(0);
+    await expect(overflow).toHaveCount(0);
     expect(read(seeded.jsonlPath)).toBe(before);
+
+    // Two visible rows fit: r1 and r3 are rewritten in display order, r2 is not.
+    await focusCell(page);
+    await pasteText(page, 'a1\tAlpha1\nb1\tBeta1');
+    await expect.poll(() => readManifest(seeded.manifestPath).tables[0]?.rowCount).toBe(3);
+    await expect
+      .poll(() =>
+        read(seeded.jsonlPath)
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line) as { id: string; v: string[] }),
+      )
+      .toEqual([
+        { id: 'row_1', v: ['a1', 'Alpha1'] },
+        { id: 'row_2', v: ['r2', 'Hidden'] },
+        { id: 'row_3', v: ['b1', 'Beta1'] },
+      ]);
   });
 
   test('keeps the paste confirmation keyboard reachable at 200% zoom', async ({

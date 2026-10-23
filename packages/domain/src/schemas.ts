@@ -8,6 +8,7 @@ import {
   MAX_ENUM_OPTIONS,
   MAX_FILTER_CHILDREN,
   MAX_FROZEN_COLUMNS,
+  MAX_SORT_LEVELS,
   MAX_TABLES_PER_WORKSPACE,
 } from './limits';
 
@@ -210,7 +211,7 @@ export const tableViewStateSchema: z.ZodType<TableViewState> = z.strictObject({
   columnOrder: z.array(columnIdSchema),
   widths: z.record(columnIdSchema, z.number().min(0)),
   hiddenColumnIds: z.array(columnIdSchema),
-  sort: z.array(sortSpecSchema),
+  sort: z.array(sortSpecSchema).max(MAX_SORT_LEVELS),
   filter: filterPredicateSchema.optional(),
   frozenColumnCount: z.number().int().min(0).max(MAX_FROZEN_COLUMNS),
 });

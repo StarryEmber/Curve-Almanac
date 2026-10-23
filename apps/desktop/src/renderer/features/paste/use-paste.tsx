@@ -47,6 +47,7 @@ export interface UsePasteResult {
     text: string,
     target: Pick<PasteTarget, 'rowId' | 'columnId'>,
     columnIds: readonly string[],
+    rowIds: readonly string[],
   ) => void;
   dialogs: ReactElement;
 }
@@ -114,6 +115,7 @@ export function usePaste({ tableId, viewId, onLocate }: UsePasteOptions): UsePas
             tableId: current.tableId,
             viewId: current.viewId,
             columnIds: current.columnIds,
+            ...(current.rowIds === undefined ? {} : { rowIds: current.rowIds }),
             anchor: current.anchor,
             text: current.text,
             ...(newColumns === undefined ? {} : { newColumns }),
@@ -149,6 +151,7 @@ export function usePaste({ tableId, viewId, onLocate }: UsePasteOptions): UsePas
           tableId: current.tableId,
           viewId: current.viewId,
           columnIds: current.columnIds,
+          ...(current.rowIds === undefined ? {} : { rowIds: current.rowIds }),
           anchor: current.anchor,
           matrix: outcome.data.matrix.cells,
           ...(newColumns === undefined ? {} : { newColumns }),
@@ -193,8 +196,20 @@ export function usePaste({ tableId, viewId, onLocate }: UsePasteOptions): UsePas
         return;
       }
       if (outcome.kind === 'blocked') {
-        setDialogTitle(t('paste.filter.title'));
-        setDialogBody(t('paste.filter.body'));
+        const title =
+          outcome.reason === 'filter-visible-exceeded'
+            ? t('paste.filterVisible.title')
+            : outcome.reason === 'filter-anchor-hidden'
+              ? t('paste.filterAnchor.title')
+              : t('paste.filter.title');
+        const body =
+          outcome.reason === 'filter-visible-exceeded'
+            ? t('paste.filterVisible.body')
+            : outcome.reason === 'filter-anchor-hidden'
+              ? t('paste.filterAnchor.body')
+              : t('paste.filter.body');
+        setDialogTitle(title);
+        setDialogBody(body);
         setIssues([]);
         setTotalIssues(0);
         setPhase('errors');
@@ -220,6 +235,7 @@ export function usePaste({ tableId, viewId, onLocate }: UsePasteOptions): UsePas
       text: string,
       target: Pick<PasteTarget, 'rowId' | 'columnId'>,
       columnIds: readonly string[],
+      rowIds: readonly string[],
     ): void => {
       if (phase !== 'idle') {
         return;
@@ -228,6 +244,7 @@ export function usePaste({ tableId, viewId, onLocate }: UsePasteOptions): UsePas
         tableId,
         viewId,
         columnIds: [...columnIds],
+        rowIds: [...rowIds],
         anchor: { rowId: target.rowId, columnId: target.columnId },
         text,
       };
@@ -279,6 +296,10 @@ export function usePaste({ tableId, viewId, onLocate }: UsePasteOptions): UsePas
     if (current.anchor.rowId === null) {
       return 0;
     }
+    if (current.rowIds !== undefined) {
+      const index = current.rowIds.indexOf(current.anchor.rowId);
+      return index < 0 ? 0 : index;
+    }
     const index = tableData.rows.findIndex((row) => row.id === current.anchor.rowId);
     return index < 0 ? 0 : index;
   })();
@@ -288,16 +309,13 @@ export function usePaste({ tableId, viewId, onLocate }: UsePasteOptions): UsePas
     if (current === null || tableData === undefined) {
       return undefined;
     }
+    const rowCount = current.rowIds?.length ?? tableData.rows.length;
     return issues.find((issue) => {
       if (issue.matrixRow < 0 || issue.matrixColumn < 0 || issue.columnId === undefined) {
         return false;
       }
       const rowIndex = anchorIndex + issue.matrixRow;
-      return (
-        rowIndex >= 0 &&
-        rowIndex < tableData.rows.length &&
-        current.columnIds.includes(issue.columnId)
-      );
+      return rowIndex >= 0 && rowIndex < rowCount && current.columnIds.includes(issue.columnId);
     });
   })();
 

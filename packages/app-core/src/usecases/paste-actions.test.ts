@@ -160,11 +160,15 @@ function setup(options: { filter?: FilterPredicate; rows?: Row[] } = {}) {
   return { core, store };
 }
 
-function request(text = 'alpha\tRenamed\t1,234.5\r\nbeta\tSecond\t20\r\ngamma\tThird\t30') {
+function request(
+  text = 'alpha\tRenamed\t1,234.5\r\nbeta\tSecond\t20\r\ngamma\tThird\t30',
+  rowIds?: readonly string[],
+) {
   return {
     tableId: TABLE.id,
     viewId: 'viw_paste',
     columnIds: COLUMN_IDS,
+    ...(rowIds === undefined ? {} : { rowIds }),
     anchor: { rowId: 'row_a', columnId: 'col_id' },
     text,
   };
@@ -271,6 +275,57 @@ describe('paste actions', () => {
     expect(applied.ok).toBe(false);
     expect(store.calls).toEqual([]);
     expect(core.store.getState().tables[TABLE.id]?.rows).toEqual(ROWS);
+  });
+
+  it('writes only the visible rows when the view is filtered', async () => {
+    const { core, store } = setup({
+      filter: { kind: 'compare', columnId: 'col_name', op: 'eq', value: 'First' },
+    });
+    const rowIds = ['row_a'];
+    const prepared = await core.actions.preparePaste(request('alpha\tRenamed\t1', rowIds));
+    expect(prepared.ok).toBe(true);
+
+    const applied = await core.actions.applyPaste({
+      tableId: TABLE.id,
+      viewId: 'viw_paste',
+      columnIds: COLUMN_IDS,
+      rowIds,
+      anchor: { rowId: 'row_a', columnId: 'col_id' },
+      matrix: [['alpha', 'Renamed', '1']],
+    });
+    expect(applied.ok).toBe(true);
+    const rows = core.store.getState().tables[TABLE.id]?.rows ?? [];
+    expect(rows[0]?.values).toEqual(['alpha', 'Renamed', 1]);
+    expect(rows[1]?.values).toEqual(['beta', 'Second', 20]);
+    expect(store.writtenTables.at(-1)?.jsonl).toContain('"Renamed"');
+    expect(store.calls.filter((call) => call === 'manifest')).toHaveLength(1);
+  });
+
+  it('blocks a filtered paste when the matrix exceeds the visible rows', async () => {
+    const { core, store } = setup({
+      filter: { kind: 'compare', columnId: 'col_name', op: 'eq', value: 'First' },
+    });
+    const before = core.store.getState().tables[TABLE.id]?.rows;
+    const outcome = await core.actions.preparePaste(
+      request('alpha\tA\t1\r\nbeta\tB\t2\r\ngamma\tC\t3', ['row_a']),
+    );
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok && outcome.kind === 'blocked') {
+      expect(outcome.reason).toBe('filter-visible-exceeded');
+    }
+    expect(core.store.getState().tables[TABLE.id]?.rows).toBe(before);
+    expect(store.calls).toEqual([]);
+  });
+
+  it('blocks a filtered paste whose anchor row is not visible', async () => {
+    const { core } = setup({
+      filter: { kind: 'compare', columnId: 'col_name', op: 'eq', value: 'First' },
+    });
+    const outcome = await core.actions.preparePaste(request('alpha\tA\t1', ['row_b']));
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok && outcome.kind === 'blocked') {
+      expect(outcome.reason).toBe('filter-anchor-hidden');
+    }
   });
 
   it('reports an empty clipboard as a no-op', async () => {

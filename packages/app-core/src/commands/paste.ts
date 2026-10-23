@@ -10,6 +10,7 @@
 
 import { createAppError, createTimestamp, isId, parseColumnDef } from '@curve/domain';
 import type { ColumnDef, UuidFactory } from '@curve/domain';
+import { createQueryContext, matchesFilterPredicate } from '@curve/table-engine';
 
 import { planPaste } from '../validation/paste-plan';
 
@@ -22,9 +23,13 @@ import type { Draft } from 'immer';
 
 export interface PastePayload {
   tableId: string;
+  /** Table view the paste came from; required to validate a filtered view. */
+  viewId?: string;
   anchor: PasteAnchor;
   /** Visible column ids in view order; the matrix maps from the anchor inside it. */
   columnIds: string[];
+  /** Visible row ids in display order (T2.6); omitted preserves T2.4 semantics. */
+  rowIds?: string[];
   /** Raw clipboard matrix; rectangularity and types are validated by the plan. */
   matrix: string[][];
   /** Columns the matrix needs beyond `columnIds`; appended to the schema. */
@@ -76,6 +81,29 @@ function parsePayload(payload: unknown): PastePayload {
   }
   const columnIds = rawColumnIds.map((value: unknown) => parseColumnId(value));
 
+  let viewId: string | undefined;
+  const rawViewId = payload['viewId'];
+  if (rawViewId !== undefined) {
+    if (typeof rawViewId !== 'string' || !isId('viw', rawViewId)) {
+      invalid('"viewId" must be a valid viw id when supplied.');
+    }
+    viewId = rawViewId;
+  }
+
+  let rowIds: string[] | undefined;
+  const rawRowIds = payload['rowIds'];
+  if (rawRowIds !== undefined) {
+    if (!Array.isArray(rawRowIds)) {
+      invalid('"rowIds" must be an array when supplied.');
+    }
+    rowIds = rawRowIds.map((value: unknown) => {
+      if (typeof value !== 'string' || !isId('row', value)) {
+        invalid('Every visible row id must be a valid row id.');
+      }
+      return value;
+    });
+  }
+
   const rawMatrix = payload['matrix'];
   if (!Array.isArray(rawMatrix) || rawMatrix.length === 0) {
     invalid('"matrix" must be a non-empty array of rows.');
@@ -110,8 +138,10 @@ function parsePayload(payload: unknown): PastePayload {
 
   return {
     tableId,
+    ...(viewId === undefined ? {} : { viewId }),
     anchor: { rowId: rowId === null ? null : rowId, columnId },
     columnIds,
+    ...(rowIds === undefined ? {} : { rowIds }),
     matrix,
     ...(newColumns === undefined ? {} : { newColumns }),
   };
@@ -140,12 +170,71 @@ export function createPasteCommand(
         });
       }
 
+      // A filtered view may only receive the rows the user currently sees. The
+      // action passes the visible row ids; re-check membership here because a
+      // stale preview must not write hidden rows after the filter changed.
+      let appendBeyondVisible = true;
+      if (payload.viewId !== undefined) {
+        const view = draft.views[payload.viewId];
+        if (
+          view === undefined ||
+          view.kind !== 'table' ||
+          view.tableView === undefined ||
+          view.refId !== payload.tableId
+        ) {
+          throw createAppError(
+            'E_VALIDATION',
+            'The paste source view does not belong to the table.',
+          );
+        }
+        const filter = view.tableView.filter;
+        if (filter !== undefined) {
+          if (payload.rowIds === undefined) {
+            throw createAppError(
+              'E_VALIDATION',
+              'Pasting into a filtered view requires the current visible row order.',
+            );
+          }
+          const anchorIndex =
+            payload.anchor.rowId === null ? -1 : payload.rowIds.indexOf(payload.anchor.rowId);
+          if (data.rows.length > 0 && anchorIndex < 0) {
+            throw createAppError(
+              'E_VALIDATION',
+              'The paste anchor row is not part of the filtered view.',
+            );
+          }
+          const start = Math.max(0, anchorIndex);
+          const targetRows = payload.rowIds.slice(start, start + payload.matrix.length);
+          if (targetRows.length < payload.matrix.length) {
+            throw createAppError(
+              'E_VALIDATION',
+              'The pasted matrix is larger than the visible rows of this filtered view.',
+              { detail: 'filter-visible-exceeded' },
+            );
+          }
+          const rowById = new Map(data.rows.map((row) => [row.id, row]));
+          const context = createQueryContext(data.table);
+          for (const rowId of targetRows) {
+            const row = rowById.get(rowId);
+            if (row === undefined || !matchesFilterPredicate(row, context, filter)) {
+              throw createAppError(
+                'E_VALIDATION',
+                'The filtered view changed while the paste was being prepared.',
+                { detail: 'filter-stale' },
+              );
+            }
+          }
+          appendBeyondVisible = false;
+        }
+      }
+
       const plan = planPaste({
         table: data.table,
         rows: data.rows,
         anchor: payload.anchor,
         columnIds: payload.columnIds,
         matrix: payload.matrix,
+        ...(payload.rowIds === undefined ? {} : { rowIds: payload.rowIds, appendBeyondVisible }),
         ...(payload.newColumns === undefined ? {} : { newColumns: payload.newColumns }),
         ...(uuid === undefined ? {} : { uuid }),
       });

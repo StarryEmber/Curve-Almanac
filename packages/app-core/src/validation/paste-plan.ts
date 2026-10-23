@@ -45,6 +45,17 @@ export interface PastePlanRequest {
   anchor: PasteAnchor;
   /** Visible column ids in view order; the matrix maps from the anchor inside it. */
   columnIds: readonly string[];
+  /**
+   * Visible row ids in display (filtered/sorted) order (T2.6). When supplied,
+   * the matrix maps to these rows instead of physical order; rows not in this
+   * list are never written. Omitted preserves the T2.4 physical-order behaviour.
+   */
+  rowIds?: readonly string[];
+  /**
+   * When `rowIds` runs out, append new rows (no filter) or reject the batch
+   * (filter active). Ignored when `rowIds` is omitted.
+   */
+  appendBeyondVisible?: boolean;
   /** Raw clipboard text matrix, already rectangular (parser guarantee). */
   matrix: readonly (readonly string[])[];
   /** Definitions for columns the matrix needs beyond `columnIds`. */
@@ -260,6 +271,9 @@ export function createPastePlanner(request: PastePlanRequest): PastePlanner {
   let candidateColumns: ColumnDef[] = [...table.columns];
   let addedColumns: ColumnDef[] = [];
   let anchorRowIndex = 0;
+  /** Resolved physical target for each matrix row when `rowIds` is supplied. */
+  const targetRows: Array<{ kind: 'existing'; index: number } | { kind: 'append'; index: number }> =
+    [];
   const targets: MatrixTarget[] = [];
   const mappedColumnIndices = new Set<number>();
   let appendedRows = 0;
@@ -428,8 +442,90 @@ export function createPastePlanner(request: PastePlanRequest): PastePlanner {
     }
   }
 
-  if (setupError === null) {
+  if (setupError === null && request.rowIds !== undefined) {
+    const rowIds = request.rowIds;
+    const physicalById = new Map(rows.map((row, index) => [row.id, index]));
+    const seen = new Set<string>();
+    let anchorVisibleIndex = 0;
+    for (const rowId of rowIds) {
+      if (seen.has(rowId)) {
+        setupError = failure(
+          createAppError('E_VALIDATION', 'The visible row list contains duplicate row ids.', {
+            detail: `row=${rowId}`,
+          }),
+        );
+        break;
+      }
+      seen.add(rowId);
+      if (!physicalById.has(rowId)) {
+        setupError = failure(
+          createAppError('E_VALIDATION', 'A visible row does not exist in the table.', {
+            detail: `row=${rowId}`,
+          }),
+        );
+        break;
+      }
+    }
+    if (setupError === null) {
+      if (rows.length > 0 && rowIds.length === 0) {
+        setupError = failure(
+          createAppError('E_VALIDATION', 'A paste into a non-empty table needs visible rows.'),
+        );
+      } else if (anchor.rowId !== null) {
+        const index = rowIds.indexOf(anchor.rowId);
+        if (index < 0) {
+          setupError = failure(
+            createAppError('E_VALIDATION', 'The paste anchor row is not visible in this view.', {
+              detail: `row=${anchor.rowId}`,
+            }),
+          );
+        } else {
+          anchorVisibleIndex = index;
+        }
+      }
+    }
+    if (setupError === null) {
+      const appendBeyondVisible = request.appendBeyondVisible ?? true;
+      let appendIndex = 0;
+      for (let matrixRow = 0; matrixRow < matrixRows; matrixRow += 1) {
+        const visibleIndex = anchorVisibleIndex + matrixRow;
+        const rowId = rowIds[visibleIndex];
+        if (rowId !== undefined) {
+          const physical = physicalById.get(rowId);
+          if (physical === undefined) {
+            setupError = failure(
+              createAppError('E_VALIDATION', 'A visible row does not exist in the table.', {
+                detail: `row=${rowId}`,
+              }),
+            );
+            break;
+          }
+          targetRows.push({ kind: 'existing', index: physical });
+        } else if (appendBeyondVisible) {
+          targetRows.push({ kind: 'append', index: appendIndex });
+          appendIndex += 1;
+        } else {
+          setupError = failure(
+            createAppError(
+              'E_VALIDATION',
+              'The pasted matrix is larger than the visible rows of this filtered view.',
+              {
+                detail: `visible-rows=${String(rowIds.length - anchorVisibleIndex)} matrix-rows=${String(matrixRows)}`,
+              },
+            ),
+          );
+          break;
+        }
+      }
+      appendedRows = appendIndex;
+    }
+  }
+
+  if (setupError === null && request.rowIds === undefined) {
     appendedRows = Math.max(0, anchorRowIndex + matrixRows - rows.length);
+  }
+
+  if (setupError === null) {
     nextRowCount = rows.length + appendedRows;
     if (nextRowCount > MAX_ROWS_PER_TABLE) {
       setupError = failure(
@@ -485,9 +581,21 @@ export function createPastePlanner(request: PastePlanRequest): PastePlanner {
       if (matrixRow === undefined) {
         continue;
       }
-      const targetRowIndex = anchorRowIndex + processedRows;
-      const appended = targetRowIndex >= rows.length;
-      const appendedIndex = targetRowIndex - rows.length;
+      const resolved = request.rowIds === undefined ? undefined : targetRows[processedRows];
+      const appended =
+        resolved === undefined
+          ? anchorRowIndex + processedRows >= rows.length
+          : resolved.kind === 'append';
+      const appendedIndex =
+        resolved !== undefined && resolved.kind === 'append'
+          ? resolved.index
+          : anchorRowIndex + processedRows - rows.length;
+      const targetRowIndex =
+        resolved === undefined
+          ? anchorRowIndex + processedRows
+          : resolved.kind === 'append'
+            ? rows.length + resolved.index
+            : resolved.index;
       const values = appended
         ? valuesForAppended(appendedIndex)
         : valuesForExisting(targetRowIndex);
@@ -692,7 +800,7 @@ export function createPastePlanner(request: PastePlanRequest): PastePlanner {
       rows: nextRows,
       addedColumns,
       summary: {
-        updatedRows: Math.min(matrixRows, Math.max(0, rows.length - anchorRowIndex)),
+        updatedRows: matrixRows - appendedRows,
         appendedRows,
         addedColumns: addedColumns.length,
         changedCells,

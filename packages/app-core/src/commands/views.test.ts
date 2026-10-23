@@ -134,6 +134,39 @@ describe('view.update', () => {
     ).toBe(false);
     expect(store.getState().views).toBe(before);
   });
+
+  it('rejects invalid filters, sort levels and hidden columns', () => {
+    const { store, bus, payload } = setup();
+    const before = store.getState().views;
+    const columnId = payload.table.columns[0]?.id ?? '';
+
+    expect(
+      bus.dispatch('view.update', {
+        viewId: payload.view.id,
+        patch: {
+          filter: { kind: 'compare', columnId, op: 'gt', value: 'x' },
+        },
+      }).ok,
+    ).toBe(false);
+    expect(
+      bus.dispatch('view.update', {
+        viewId: payload.view.id,
+        patch: {
+          sort: [
+            { columnId, direction: 'asc' },
+            { columnId, direction: 'desc' },
+          ],
+        },
+      }).ok,
+    ).toBe(false);
+    expect(
+      bus.dispatch('view.update', {
+        viewId: payload.view.id,
+        patch: { hiddenColumnIds: ['col_ghost'] },
+      }).ok,
+    ).toBe(false);
+    expect(store.getState().views).toBe(before);
+  });
 });
 
 describe('view.delete and view.layout', () => {

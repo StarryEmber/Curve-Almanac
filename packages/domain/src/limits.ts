@@ -24,6 +24,9 @@ export const MAX_ENUM_OPTIONS = 100;
 /** Children of an `all`/`any` filter node. */
 export const MAX_FILTER_CHILDREN = 20;
 
+/** Sort levels applied to a table view (SPEC §9.5). */
+export const MAX_SORT_LEVELS = 3;
+
 /** Conditional formatting rules per style. */
 export const MAX_CONDITIONAL_RULES = 50;
 

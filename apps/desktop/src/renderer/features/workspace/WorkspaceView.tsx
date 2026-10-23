@@ -2,17 +2,20 @@ import { useEffect, useState } from 'react';
 
 import { findActivePane } from '@curve/app-core';
 import type { CellIssue } from '@curve/app-core';
+import type { ViewDef } from '@curve/domain';
+import type { TableData } from '@curve/table-engine';
 import { Button } from '@curve/ui';
 
 import { useAppState, useRendererCore } from '../../app-core/use-app-core';
 import { useI18n } from '../../i18n';
 import { ChartPlaceholder } from '../charts/ChartPlaceholder';
 import { DataGrid } from '../grid/DataGrid';
+import { useViewRows } from '../grid/use-view-rows';
 import { usePaste } from '../paste/use-paste';
 
 import { TabBar } from './TabBar';
 
-import type { GridLocateTarget } from '../grid/DataGrid';
+import type { GridLocateTarget, DataGridProps } from '../grid/DataGrid';
 import type { CellCommitOutcome } from '../grid/use-cell-editing';
 import type { ReactElement } from 'react';
 
@@ -142,6 +145,15 @@ export function WorkspaceView(): ReactElement {
         activeViewId={activeViewId}
         label={t('tabs.label')}
         closeLabel={(title) => t('tabs.close', { title })}
+        {...(view?.kind === 'table'
+          ? {
+              newViewLabel: t('tabs.newViewLabel'),
+              newViewTitle: t('tabs.newView'),
+              onNewView: () => {
+                void core.actions.duplicateView(view.id);
+              },
+            }
+          : {})}
         onActivate={(viewId) => {
           void core.actions.activateView(viewId);
         }}
@@ -173,10 +185,9 @@ export function WorkspaceView(): ReactElement {
             )}
           </div>
         ) : (
-          <DataGrid
+          <TableViewGrid
             key={view.id}
-            tableMeta={tableData.table}
-            rows={tableData.rows}
+            tableData={tableData}
             view={view}
             onViewUpdate={(patch) => {
               void core.actions.updateView(view.id, patch);
@@ -206,5 +217,39 @@ export function WorkspaceView(): ReactElement {
       </div>
       {paste.dialogs}
     </div>
+  );
+}
+
+type TableViewGridProps = Pick<
+  DataGridProps,
+  'onViewUpdate' | 'onCellCommit' | 'onEditIssue' | 'onPasteText' | 'locate'
+> & {
+  tableData: TableData;
+  view: ViewDef;
+};
+
+/** Calls the query hook only for table views, then hands the visible rows to the grid. */
+function TableViewGrid({
+  tableData,
+  view,
+  onViewUpdate,
+  onCellCommit,
+  onEditIssue,
+  onPasteText,
+  locate,
+}: TableViewGridProps): ReactElement {
+  const viewRows = useViewRows(tableData, view.tableView);
+  return (
+    <DataGrid
+      tableMeta={tableData.table}
+      rows={viewRows.rows}
+      viewRows={viewRows}
+      view={view}
+      onViewUpdate={onViewUpdate}
+      onCellCommit={onCellCommit}
+      onEditIssue={onEditIssue}
+      {...(onPasteText === undefined ? {} : { onPasteText })}
+      {...(locate === undefined || locate === null ? {} : { locate })}
+    />
   );
 }

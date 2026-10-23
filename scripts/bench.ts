@@ -16,8 +16,14 @@ import { fileURLToPath } from 'node:url';
 
 import iconv from 'iconv-lite';
 
-import type { ColumnDef, Row, TableMeta } from '@curve/domain';
-import { decodeJsonl, encodeJsonlWithStats, parseCsv, planImport } from '@curve/table-engine';
+import type { ColumnDef, FilterPredicate, Row, SortSpec, TableMeta } from '@curve/domain';
+import {
+  decodeJsonl,
+  encodeJsonlWithStats,
+  parseCsv,
+  planImport,
+  queryRowIds,
+} from '@curve/table-engine';
 
 /** TESTPLAN §5.2: fixed seed so two runs are comparable. */
 const SEED = 42;
@@ -31,6 +37,8 @@ const OPEN_BUDGET_MS = 3_000;
 const ENCODE_BUDGET_MS = 1_500;
 /** SPEC §16.1: a 100k CSV import (parse + validate + row build) stays under 8s. */
 const IMPORT_BUDGET_MS = 8_000;
+/** SPEC §16.1: 100k filter + sort stays under 400ms. */
+const QUERY_BUDGET_MS = 400;
 /** SPEC §16.1 memory ceiling for the whole app, used here as a hard ceiling. */
 const MEMORY_BUDGET_MB = 600;
 
@@ -277,33 +285,110 @@ function runImportBench(): {
   };
 }
 
+function runQueryBench(): { cases: Sample[]; memoryPeakMB: number; rows: number } {
+  const table = buildTable();
+  const rows = buildRows(mulberry32(SEED));
+  const filter: FilterPredicate = {
+    kind: 'all',
+    children: [
+      { kind: 'compare', columnId: 'col_2', op: 'gt', value: 5_000 },
+      { kind: 'compare', columnId: 'col_8', op: 'eq', value: 'site-3' },
+    ],
+  };
+  const sort: SortSpec[] = [
+    { columnId: 'col_3', direction: 'desc' },
+    { columnId: 'col_1', direction: 'asc' },
+    { columnId: 'col_0', direction: 'asc' },
+  ];
+  const request = { filter, sort };
+  const sanity = queryRowIds(rows, table, request, { locale: 'en-US' });
+  if (sanity.visibleRows === 0 || sanity.visibleRows === rows.length) {
+    throw new Error(`Query benchmark sanity check failed: ${String(sanity.visibleRows)} rows`);
+  }
+
+  // The text-sort case needs an unsorted input; `buildRows` generates device-0…
+  // in order, which would make Timsort look artificially fast.
+  const shuffled = [...rows];
+  const shuffle = mulberry32(SEED + 1);
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(shuffle() * (index + 1));
+    const first = shuffled[index] as Row;
+    const second = shuffled[target] as Row;
+    shuffled[index] = second;
+    shuffled[target] = first;
+  }
+
+  const cases = [
+    measure('query.100k', QUERY_BUDGET_MS, () => {
+      const result = queryRowIds(rows, table, request, { locale: 'en-US' });
+      if (result.visibleRows !== sanity.visibleRows) {
+        throw new Error('Query benchmark returned a different row count.');
+      }
+    }),
+    measure('query.text-sort.100k', QUERY_BUDGET_MS, () => {
+      const result = queryRowIds(
+        shuffled,
+        table,
+        { sort: [{ columnId: 'col_0', direction: 'asc' }] },
+        { locale: 'en-US' },
+      );
+      if (result.visibleRows !== rows.length) {
+        throw new Error('Text-sort benchmark returned a different row count.');
+      }
+    }),
+  ];
+
+  return { cases, memoryPeakMB: memoryPeakMB(), rows: rows.length };
+}
+
 function main(argv: readonly string[]): number {
   const wantTableIo = argv.includes('--table-io');
   const wantImport = argv.includes('--import');
+  const wantQuery = argv.includes('--query');
   if (argv.includes('--help')) {
-    console.log('Usage: pnpm bench [-- --table-io] [-- --import]');
+    console.log('Usage: pnpm bench [-- --table-io] [-- --import] [-- --query]');
     return 0;
   }
-  const runTableIoSuite = wantTableIo || (!wantTableIo && !wantImport);
-  const runImportSuite = wantImport || (!wantTableIo && !wantImport);
+  const anySuite = wantTableIo || wantImport || wantQuery;
+  const runTableIoSuite = wantTableIo || !anySuite;
+  const runImportSuite = wantImport || !anySuite;
+  const runQuerySuite = wantQuery || !anySuite;
 
   const startedAt = Date.now();
-  process.stdout.write(
-    `[bench] seed=${SEED} rows=${ROWS} columns=${COLUMNS} ` +
-      `suite=${runTableIoSuite && runImportSuite ? 'all' : runTableIoSuite ? 'table-io' : 'import'}\n`,
-  );
+  const suiteName = [
+    runTableIoSuite ? 'table-io' : null,
+    runImportSuite ? 'import' : null,
+    runQuerySuite ? 'query' : null,
+  ]
+    .filter((value): value is string => value !== null)
+    .join(',');
+  process.stdout.write(`[bench] seed=${SEED} rows=${ROWS} columns=${COLUMNS} suite=${suiteName}\n`);
 
   const tableIoResult = runTableIoSuite ? runTableIo() : null;
   const importResult = runImportSuite ? runImportBench() : null;
-  const cases = [...(tableIoResult?.cases ?? []), ...(importResult?.cases ?? [])];
+  const queryResult = runQuerySuite ? runQueryBench() : null;
+  const cases = [
+    ...(tableIoResult?.cases ?? []),
+    ...(importResult?.cases ?? []),
+    ...(queryResult?.cases ?? []),
+  ];
   const suites = [
     ...(tableIoResult === null ? [] : ['table-io']),
     ...(importResult === null ? [] : ['import']),
+    ...(queryResult === null ? [] : ['query']),
   ];
-  const memoryPeakMB = Math.max(tableIoResult?.memoryPeakMB ?? 0, importResult?.memoryPeakMB ?? 0);
+  const memoryPeakMB = Math.max(
+    tableIoResult?.memoryPeakMB ?? 0,
+    importResult?.memoryPeakMB ?? 0,
+    queryResult?.memoryPeakMB ?? 0,
+  );
   const dataset =
     importResult === null
-      ? { rows: tableIoResult?.rows ?? 0, columns: COLUMNS, bytes: tableIoResult?.bytes ?? 0 }
+      ? {
+          rows: tableIoResult?.rows ?? queryResult?.rows ?? 0,
+          columns: COLUMNS,
+          bytes: tableIoResult?.bytes ?? 0,
+        }
       : { rows: importResult.rows, columns: 6, bytes: importResult.bytes };
   const generatedAt = new Date().toISOString();
   const failures = cases.filter((entry) => entry.p95 > entry.budget);

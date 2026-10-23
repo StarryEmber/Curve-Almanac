@@ -713,6 +713,15 @@ interface ImportResult {
   “定位第一个错误”；不提供对话框内编辑，修正后重新粘贴。
 - 筛选未实现前，检测到 `view.tableView.filter` 即整批拒绝并提示，隐藏行绝不被修改；
   “只写可见行/超出可见行整批拒绝”的完整语义由 T2.6 按本节实现并验收（ADR-030 明确延后）。
+
+**实现边界（T2.6，ADR-032）**：
+
+- `table.paste` 载荷新增可选 `rowIds`（当前可见行顺序）与 `viewId`；筛选激活时矩阵从锚点
+  逐行写入 `rowIds`，超出剩余可见行数返回 `filter-visible-exceeded`（整批拒绝、不追加、
+  不写隐藏行），锚点不可见返回 `filter-anchor-hidden`。
+- 命令在 dispatch 时重新检查目标行仍满足当前 `filter`；预览后筛选变化返回 `filter-stale`，
+  不产生半成品。无筛选时保持 T2.4 物理顺序/追加语义（有排序时按当前显示顺序）。
+- 省略 `rowIds` 的旧调用在筛选视图下仍整批拒绝，作为保守兜底；UI 始终传可见行。
 - ≥10,000 单元格显示可取消进度；校验在事件循环分块，取消不 dispatch、不写盘；命令仍同步
   重规划一次（10k parse+plan 实测 P95 远低于 1s，见 §16.1）。
 - 粘贴接入 T2.2 最小历史：一次粘贴一条、不合并，撤销同时回滚新增行/列与覆盖单元格。
@@ -773,6 +782,24 @@ interface ImportResult {
 - 排序：多列，最多 3 级；点击表头循环 asc → desc → none。
 - 视图状态持久化到 `TableViewState`，不改变数据。
 - 10 万行排序/筛选在 Worker 执行；结果返回行 ID 顺序 + 行数据引用。
+
+**实现边界（T2.6，ADR-032）**：
+
+- 筛选入口是网格工具条的按钮 + `FilterDialog`；UI 只编辑单层 all/any + 平铺条件，引擎仍支持
+  递归 AST。12 种操作符按列类型白名单开放：text 用 `eq/neq/contains/startsWith/endsWith/
+  isNull/notNull`，number/date 用 `eq/neq/gt/gte/lt/lte/between/isNull/notNull`，
+  boolean/enum 用 `eq/neq/isNull/notNull`。`between` 含边界；文本大小写不敏感；`null` 与
+  text 的 `''` 都视为空，值操作符不匹配空值。
+- 排序：表头点击 asc→desc→none（清空其他层）；Shift+点击追加/切换，最多 3 层；空值固定最后；
+  文本用 `Intl.Collator(locale, { numeric: true, sensitivity: 'variant' })` 语义（ASCII 使用
+  数字段补零自然键快速路径，非 ASCII/不安全值回退字面 collator）；并列项保持物理行顺序。
+- 视图状态的每个确认动作立即 `view.update` + 写 manifest；不写 JSONL、不标脏表、不进入
+  T2.2 最小历史（T5.2 统一）。`tableViewStateSchema.sort` 最多 3 层。
+- 同一张表可由 TabBar 的“+ 复制当前视图”产生多个独立视图；隐藏列入口在 Inspector 列面板，
+  至少保留一列可见。
+- ≤20,000 行在主线程执行同一纯函数，>20,000 行走专用 `query.worker`；Worker 按表缓存行快照，
+  首次/结构变化全量同步、单元格编辑只发改动行。新查询作废旧响应；Worker 失败回退主线程并提示。
+  查询不提供百分比进度；100k 文本排序的极端值仍由 T2.7 复核。
 
 ### 9.6 导出
 
@@ -1052,6 +1079,10 @@ export interface RenderModel {
   命令在同一 Immer 事务内校验物理 Cell/行 ID/主键唯一性，追加或替换行、追加可选列、同步
   所有表视图 `columnOrder`，并更新 `rowCount/updatedAt`；失败返回 `AppError` 且不发布半成品。
   导入不参与 800ms 合并，一次导入一条历史；保存队列与 `committed: true` 语义同 T2.4。
+- **实现边界（T2.6，ADR-032）**：`view.create/update` 校验筛选操作符/值类型、排序最多 3 层且
+  列唯一、隐藏列属于 `columnOrder`；`table.paste` 增加可选 `rowIds/viewId` 并在命令内复核
+  可见行/筛选未过期（§9.3）。`WorkspaceActions.duplicateView` 复用 `view.create`；视图状态
+  变更只写 manifest，不进入撤销历史。
 
 ### 13.2 撤销/重做
 
@@ -1070,6 +1101,8 @@ export interface RenderModel {
 - **实现边界（T2.5，ADR-031）**：`table.import` 接入最小历史，一次导入一条、不参与 800ms
   合并；撤销/重做同时回滚追加/替换行与新增列，并复用保存队列。100k 逆补丁的内存上限由
   T5.2 统一评估，T2.5 不另起历史栈。
+- **实现边界（T2.6，ADR-032）**：筛选/排序/隐藏列/列宽/冻结等视图状态变更不进入最小历史，
+  只写 manifest；T5.2 统一全命令历史时再决定是否记录 `view.update` 及合并粒度。
 
 ### 13.3 自动保存
 
@@ -1403,6 +1436,12 @@ T2.5 实现边界（ADR-031）：`file.importText` 返回原始 `Uint8Array` 与
 T2.5 实测（2026-10-22，本机）：`pnpm bench -- --import` 的 100k GBK 分号 CSV
 （parse + validate + rows + JSONL 编码）P50 645ms / P95 659ms，预算 8s；100k E2E
 从确认到网格可交互的断言 <8s 通过。命令阶段仍同步，硬门禁与内存峰值留 T2.7。
+
+T2.6 实测（2026-10-23，本机）：`pnpm bench -- --query` 的 `query.100k`
+（两个筛选条件 + 3 级排序）P50 30ms / P95 34ms；打乱后的 `query.text-sort.100k`
+P50 314ms / P95 347ms，预算均为 400ms。`e2e/filter.spec.ts` 的 100k 用例断言
+`data-query-ms <= 400` 且查询在专用 Worker 中完成；6 条筛选/排序/视图 E2E 全部通过。
+T2.7 继续做硬门禁、中文文本与内存峰值回归。
 
 ### 16.2 安全
 

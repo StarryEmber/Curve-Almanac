@@ -10,6 +10,10 @@ export interface TabBarProps {
   activeViewId: string | null;
   label: string;
   closeLabel: (title: string) => string;
+  /** Optional "duplicate view" action (T2.6). */
+  newViewLabel?: string;
+  newViewTitle?: string;
+  onNewView?: () => void;
   onActivate: (viewId: string) => void;
   onClose: (viewId: string) => void;
 }
@@ -20,6 +24,9 @@ export function TabBar({
   activeViewId,
   label,
   closeLabel,
+  newViewLabel,
+  newViewTitle,
+  onNewView,
   onActivate,
   onClose,
 }: TabBarProps): ReactElement {
@@ -74,6 +81,18 @@ export function TabBar({
           </div>
         );
       })}
+      {onNewView === undefined ? null : (
+        <button
+          type="button"
+          className="cs-tabbar__add"
+          aria-label={newViewLabel ?? newViewTitle}
+          title={newViewTitle ?? newViewLabel}
+          data-testid="tab-new-view"
+          onClick={onNewView}
+        >
+          <span aria-hidden="true">{'+'}</span>
+        </button>
+      )}
     </div>
   );
 }

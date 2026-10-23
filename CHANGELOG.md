@@ -278,3 +278,18 @@
 - T2.5：SPEC §4.2/§9.4/§13.1/§13.2/§13.3/§15.1/§15.4/§16.1、TESTPLAN E4/§4、TASKS T2.5、
   HANDOFF、AGENTS §0 同步；新增 ADR-031 与 `docs/reports/t2.5/REPORT.md`。
 - T2.5：`formatVersion`、JSONL 形态、manifest 字段、CSP、沙箱与 preload 白名单不变。
+- T2.6：`@curve/table-engine` 新增 `query.ts`（12 操作符、all/any、空值最后、三级稳定排序、
+  `Intl.Collator` 语义与自然键快速路径、筛选/排序校验）与 `query-protocol.ts`（sync/query
+  消息与守卫）；`MAX_SORT_LEVELS = 3` 落在 `@curve/domain`。
+- T2.6：`@curve/app-core` 新增筛选草稿构建 `filter-builder`、视图状态校验 `view-state`、
+  `duplicateView`（TabBar 复制当前视图）；`view.create/update` 校验筛选/排序/隐藏列；
+  `table.paste` 增加可选 `rowIds/viewId`，筛选下只写可见行、超出整批拒绝、stale 检查。
+- T2.6：desktop 新增专用 `query.worker` 与 `renderer/query/{client,handler}`（≤20k 主线程、
+  >20k Worker、失败回退）、`use-view-rows`；`FilterDialog`、表头三级排序与排序菜单、
+  Inspector 隐藏列/已隐藏列表、TabBar 复制视图；i18n 与 CSS 同步。
+- T2.6：`e2e/filter.spec.ts` 6 条（筛选/三级排序、重开恢复、双视图、隐藏列、100k Worker、
+  200% 缩放），并把 T2.4 的筛选粘贴 E2E 改为“只写可见行 + 超出拒绝”；
+  `scripts/bench.ts --query` 新增 `query.100k` 与 `query.text-sort.100k`（400ms 预算）。
+- T2.6：SPEC §9.3/§9.5/§13.1/§13.2/§16.1、TASKS T2.6、HANDOFF、AGENTS §0 同步；
+  新增 ADR-032 与 `docs/reports/t2.6/REPORT.md`；不新增依赖/IPC，不改变 `formatVersion`、
+  JSONL、manifest 字段、CSP、沙箱或 preload 白名单。

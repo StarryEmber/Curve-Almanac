@@ -716,7 +716,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t26"></a>
 ### T2.6 筛选、排序与视图状态
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T2.1
 - 覆盖：FR-TBL-05
 - 参考：SPEC §9.5、§6.2
@@ -730,13 +730,36 @@ T0.2 + T5.5 → T6.4
   2. UI 状态写入 `TableViewState`，自动保存。
   3. >20k 行走 Worker，返回行 ID 顺序。
 - 验收：
-  - [ ] 12 种操作符全部单测覆盖；空值排序固定最后。
-  - [ ] 100k 行筛选+排序 ≤ 400ms。
-  - [ ] 重启后筛选/排序/列宽/隐藏/冻结恢复。
-  - [ ] 同一张表两个视图互不影响。
-  - [ ] 承接 T2.4 延后项：筛选激活时粘贴只写可见行，矩阵超出可见行数整批拒绝，隐藏行不被修改
+  - [x] 12 种操作符全部单测覆盖；空值排序固定最后。
+  - [x] 100k 行筛选+排序 ≤ 400ms。
+  - [x] 重启后筛选/排序/列宽/隐藏/冻结恢复。
+  - [x] 同一张表两个视图互不影响。
+  - [x] 承接 T2.4 延后项：筛选激活时粘贴只写可见行，矩阵超出可见行数整批拒绝，隐藏行不被修改
         （ADR-030）。
 - 验证：`pnpm exec vitest run packages/table-engine -- --grep "filter|sort" && pnpm bench -- --query`
+- 实现备注（2026-10-23，ADR-032）：
+  - 开工前用户逐项确认 12 项：工具条 + 筛选对话框；单层 all/any（≤20）；按类型操作符白名单；
+    文本大小写不敏感/空串按 null/between 含边界；表头点击 + Shift 三级排序；空值最后 +
+    UI locale collator + 稳定排序；每个确认动作立即写 manifest、不进撤销；TabBar 复制当前视图；
+    Inspector 隐藏列 + 已隐藏列表；专用 query Worker + 行快照/增量缓存（≤20k 主线程，>20k Worker，
+    失败回退）；粘贴按可见行写入、超出整批拒绝；bench query.100k + E2E Worker 计时。
+  - table-engine：`src/query.ts`（12 操作符、all/any、排序/校验、自然键快速路径）、
+    `src/query-protocol.ts`（sync/query 消息与守卫），`MAX_SORT_LEVELS=3` 落在 domain。
+  - app-core：`validation/filter-builder.ts`（UI 草稿 → 谓词）、`validation/view-state.ts`
+    （筛选/排序/隐藏校验）、`commands/view-copy.ts` + `duplicateView`、`table.paste` 的
+    `rowIds/viewId` 可见行与 stale 检查；视图状态仍走 `view.update` + manifest。
+  - desktop：`renderer/query/{client,handler}`、`workers/query.worker.ts`、`features/filter/FilterDialog`、
+    `features/grid/{grid-sort,use-view-rows}`，DataGrid/GridHeader/ColumnsPanel/TabBar/WorkspaceView、
+    i18n/CSS 同步；`e2e/filter.spec.ts` 6 条（筛选/三级排序、重开恢复、双视图、隐藏列、100k Worker、
+    200% 缩放），并改写 T2.4 的筛选粘贴 E2E 为“只写可见行 + 超出拒绝”。
+  - 实测：`pnpm verify` **122 files / 967 tests**；depcruise **342 modules / 1309 deps / 0 violations**；
+    `pnpm test:coverage` 全局 lines **75.00%** / statements 74.87% / branches 66.81% /
+    functions 76.03%（阈值 70/60 未下调）；`pnpm format:check` 通过；`pnpm build` exit 0
+    （renderer 约 1.41MB；query.worker 约 225kB）；`pnpm e2e` **60 passed**；
+    `pnpm bench -- --query` `query.100k` P95 **34ms**、`query.text-sort.100k` P95 **347ms**（预算 400ms）。
+  - 残留：筛选对话框只编辑单层条件（嵌套谓词只读）；100k 中文排序/极端值仍可能接近预算；
+    查询 Worker 缓存最多 4 张表；视图状态连续拖动列宽会多次写 manifest（T5.3 统一）；
+    10 万级粘贴/导入命令阶段仍同步（T2.7 评估）。
 
 <a id="t27"></a>
 ### T2.7 10 万行性能硬化

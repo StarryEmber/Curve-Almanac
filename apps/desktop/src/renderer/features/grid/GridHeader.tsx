@@ -1,6 +1,6 @@
-/** Sticky header row with resize handles and double-click autofit (SPEC §9.1). */
+/** Sticky header row with resize handles, autofit and sort controls (T2.6). */
 
-import type { Row } from '@curve/domain';
+import type { Row, SortSpec } from '@curve/domain';
 
 import { frozenOffsets } from './grid-sizing';
 
@@ -10,15 +10,21 @@ import type { CSSProperties, ReactElement } from 'react';
 export interface GridHeaderProps {
   table: Table<Row>;
   frozenCount: number;
+  sort: readonly SortSpec[];
   onAutofit: (columnId: string) => void;
+  onToggleSort: (columnId: string, additive: boolean) => void;
   resizeLabel: (columnLabel: string) => string;
+  sortLabel: (columnLabel: string, direction: 'asc' | 'desc' | 'none', level: number) => string;
 }
 
 export function GridHeader({
   table,
   frozenCount,
+  sort,
   onAutofit,
+  onToggleSort,
   resizeLabel,
+  sortLabel,
 }: GridHeaderProps): ReactElement {
   const sizes = table.getVisibleLeafColumns().map((column) => column.getSize());
   const offsets = frozenOffsets(sizes, frozenCount);
@@ -35,24 +41,51 @@ export function GridHeader({
           style.left = sticky;
           style.zIndex = 3;
         }
+        const sortIndex = sort.findIndex((spec) => spec.columnId === header.column.id);
+        const sortSpec = sortIndex >= 0 ? sort[sortIndex] : undefined;
+        const direction = sortSpec?.direction ?? 'none';
+        const label = String(header.column.columnDef.header ?? '');
         return (
           <div
             key={header.id}
             role="columnheader"
             aria-colindex={index + 1}
+            aria-sort={
+              sortSpec === undefined
+                ? undefined
+                : sortSpec.direction === 'asc'
+                  ? 'ascending'
+                  : 'descending'
+            }
             className={['cs-grid__header-cell', sticky !== null && 'cs-grid__header-cell--frozen']
               .filter(Boolean)
               .join(' ')}
             style={style}
             data-column-id={header.column.id}
           >
-            <span className="cs-grid__header-label">
-              {String(header.column.columnDef.header ?? '')}
-            </span>
+            <button
+              type="button"
+              className="cs-grid__header-sort"
+              aria-label={sortLabel(label, direction, sortIndex + 1)}
+              title={sortLabel(label, direction, sortIndex + 1)}
+              onClick={(event) => {
+                onToggleSort(header.column.id, event.shiftKey);
+              }}
+            >
+              <span className="cs-grid__header-label">{label}</span>
+              {sortSpec === undefined ? null : (
+                <span className="cs-grid__sort-indicator" aria-hidden="true">
+                  {sortSpec.direction === 'asc' ? '↑' : '↓'}
+                  {sort.length > 1 ? (
+                    <span className="cs-grid__sort-level">{sortIndex + 1}</span>
+                  ) : null}
+                </span>
+              )}
+            </button>
             <span
               role="separator"
               aria-orientation="vertical"
-              aria-label={resizeLabel(String(header.column.columnDef.header ?? ''))}
+              aria-label={resizeLabel(label)}
               className="cs-grid__resizer"
               onMouseDown={header.getResizeHandler()}
               onTouchStart={header.getResizeHandler()}
