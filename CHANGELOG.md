@@ -318,3 +318,9 @@
 - T2.7：SPEC §9.5/§16.1、TASKS T2.7、HANDOFF 同步；新增 ADR-033 与
   `docs/reports/t2.7/REPORT.md`；不改变 `formatVersion`、JSONL、manifest、IPC、CSP、沙箱、
   preload 白名单，不新增第三方运行时依赖。
+- M2：新增 `apps/desktop/e2e/m2-acceptance.spec.ts`（单条端到端：新建工作区/表 → 粘贴
+  200 行 → 导入 100k GBK CSV 并跳过 3 条坏行 → 筛选/3 级排序 → 列宽/冻结 → 退出并重启
+  Electron → 断言界面与磁盘还原 + 性能预算）；`e2e/fixtures.ts` 新增 `launchCurveApp()`
+  以同一 `userData` 重启。全量 E2E **64 passed**；导入 824ms、100k 打开 624ms、
+  筛选 19ms、排序 63ms、整应用内存峰值 497MB。新增 `docs/reports/m2/REPORT.md` 与
+  4 张证据截图；不改变生产代码、`formatVersion`、JSONL、manifest、IPC 或 CSP。

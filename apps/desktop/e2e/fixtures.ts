@@ -40,6 +40,74 @@ function resolveElectronExecutable(): string {
   return join(electronDirectory, 'dist', executableName);
 }
 
+/**
+ * Builds the environment shared by every E2E launch. `CURVE_E2E_USER_DATA`
+ * keeps window state, logs and the recent list inside the per-test scratch
+ * directory; the other variables redirect the dialog stand-ins.
+ */
+function buildLaunchEnvironment(userDataDir: string, importFile: string): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (typeof value === 'string') {
+      env[key] = value;
+    }
+  }
+  delete env['ELECTRON_RUN_AS_NODE'];
+  env['CURVE_E2E'] = '1';
+  env['CURVE_E2E_USER_DATA'] = userDataDir;
+  // T2.1 dialog stand-in: a per-test directory the welcome page can "pick".
+  const dialogDirectory = join(userDataDir, 'dialog-directory');
+  mkdirSync(dialogDirectory, { recursive: true });
+  env['CURVE_E2E_DIR'] = dialogDirectory;
+  // T2.5 file stand-ins: one selected import file and one export target.
+  env['CURVE_E2E_IMPORT'] = importFile;
+  env['CURVE_E2E_SAVE'] = join(userDataDir, 'import-errors.csv');
+  return env;
+}
+
+function electronLaunchArgs(): string[] {
+  const args = [desktopAppDir];
+  if (DISABLE_CHROMIUM_SANDBOX) {
+    args.push('--no-sandbox');
+  }
+  return args;
+}
+
+export interface LaunchCurveAppOptions {
+  /** Isolated userData directory; reuse the same path to simulate a restart. */
+  userDataDir: string;
+  /** Absolute path returned by the E2E import fixture generator. */
+  importFile: string;
+}
+
+export interface LaunchedCurveApp {
+  electronApp: ElectronApplication;
+  page: Page;
+  /** Wall-clock timestamp captured immediately before `_electron.launch`. */
+  launchStartedAt: number;
+}
+
+/**
+ * Launches the built app outside the `appLaunch` fixture.
+ *
+ * The M2 acceptance demo must quit Electron and start it again with the same
+ * userData directory, which the single-launch fixture cannot express. Tracing
+ * stays with the fixture; restart-flow callers attach their own screenshots.
+ */
+export async function launchCurveApp(options: LaunchCurveAppOptions): Promise<LaunchedCurveApp> {
+  const env = buildLaunchEnvironment(options.userDataDir, options.importFile);
+  const launchStartedAt = Date.now();
+  const electronApp = await electron.launch({
+    executablePath: resolveElectronExecutable(),
+    args: electronLaunchArgs(),
+    cwd: desktopAppDir,
+    env,
+  });
+  const page = await electronApp.firstWindow();
+  await page.waitForLoadState('domcontentloaded');
+  return { electronApp, page, launchStartedAt };
+}
+
 export interface AppLaunch {
   electronApp: ElectronApplication;
   /** Wall-clock timestamp captured immediately before `_electron.launch`. */
@@ -105,32 +173,11 @@ export const test = base.extend<AppFixtures & { importFile: string }, WorkerFixt
   },
 
   appLaunch: async ({ userDataDir, importDir, importFile }, provide, testInfo) => {
-    const env: Record<string, string> = {};
-    for (const [key, value] of Object.entries(process.env)) {
-      if (typeof value === 'string') {
-        env[key] = value;
-      }
-    }
-    delete env['ELECTRON_RUN_AS_NODE'];
-    env['CURVE_E2E'] = '1';
-    env['CURVE_E2E_USER_DATA'] = userDataDir;
-    // T2.1 dialog stand-in: a per-test directory the welcome page can "pick".
-    const dialogDirectory = join(userDataDir, 'dialog-directory');
-    mkdirSync(dialogDirectory, { recursive: true });
-    env['CURVE_E2E_DIR'] = dialogDirectory;
-    // T2.5 file stand-ins: one selected import file and one export target.
-    env['CURVE_E2E_IMPORT'] = join(importDir, importFile);
-    env['CURVE_E2E_SAVE'] = join(userDataDir, 'import-errors.csv');
-
-    const args = [desktopAppDir];
-    if (DISABLE_CHROMIUM_SANDBOX) {
-      args.push('--no-sandbox');
-    }
-
+    const env = buildLaunchEnvironment(userDataDir, join(importDir, importFile));
     const launchStartedAt = Date.now();
     const electronApp = await electron.launch({
       executablePath: resolveElectronExecutable(),
-      args,
+      args: electronLaunchArgs(),
       cwd: desktopAppDir,
       env,
     });
