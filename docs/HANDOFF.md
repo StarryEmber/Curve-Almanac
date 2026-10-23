@@ -1,34 +1,35 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T2.6`（筛选、排序与视图状态），按用户要求停止，
-> `T2.7` 尚未开始。最后更新：2026-10-23 · `T2.6` 代码提交 **`1149100`**（本交接文件随后单独提交）·
+> 本文件面向**下一个实现会话**。当前会话已完成 `T2.7`（10 万行性能硬化），按用户要求停止；
+> M2 验收演示尚未执行。最后更新：2026-10-23 · `T2.7` 代码提交 **`553f71b`**（本交接文件随后单独提交）·
 > 分支 `main` · 工作树干净。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.7 →
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.7 / M2 验收演示 →
 > `docs/TESTPLAN.md` §5、§3（E3/E4）、§4 →
 > `docs/SPEC.md` §16.1、§9.5、§9.3 →
-> `docs/DECISIONS.md` 的 ADR-011/014/022/023/030/031，再读 ADR-032。
+> `docs/adr/033-t27-performance-gates.md`（T2.7）与 ADR-032（T2.6）。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
-- **当前状态**：`T2.6`（筛选、排序与视图状态）已完成并提交；`T2.7`（10 万行性能硬化）未开始；
-  M2 仍在进行，M2 验收演示要等 T2.7 完成后执行。
-- **本次交付**：工具条筛选对话框（单层 all/any、12 操作符白名单）；表头 + Shift 三级排序
-  （空值最后、locale collator、稳定排序）；筛选/排序/隐藏列/多视图持久化；专用 query Worker
-  （≤20k 主线程、>20k Worker、行快照/增量缓存、失败回退）；T2.4 粘贴闭环（只写可见行、
-  超出整批拒绝、stale 检查）；`bench query.100k` 与 100k E2E 计时。
-- **基线**：`pnpm verify` **122 files / 967 tests**；coverage lines **75.00%**；`format:check`
-  通过；`pnpm build` exit 0（renderer **1,410.66 kB** + 懒加载 ImportSession 42.82 kB；
-  query worker **227.70 kB**；import worker 266.09 kB；table worker 216.61 kB）；
-  `pnpm e2e` **60 passed**；`e2e/filter.spec.ts` **6 passed**；
-  `pnpm bench -- --query` `query.100k` P95 **34ms**、`query.text-sort.100k` P95 **347ms**
-  （预算均 400ms）。
-- **下一步**：先读 TASKS T2.7、SPEC §16.1、TESTPLAN §5，按 AGENTS §11 确认 T2.7 的待定决策，
-  **不要自行选定**；确认后先复述目标/文件/验收命令，再写测试与实现。
+- **当前状态**：`T2.7`（10 万行性能硬化）已完成并提交；**M2 验收演示未执行**，
+  下一步是新增并运行 `apps/desktop/e2e/m2-acceptance.spec.ts`（口径见 ADR-033 §7 与本文件 §6），
+  **开始前必须等用户确认，不要自动推进到 M2 验收或 T3.x**。
+- **本次交付**：`scripts/bench.ts` 多 suite 基准（每个 suite 独立子进程：open/save/edit/query/
+  CJK 排序/克隆诊断/import）+ `scripts/bench-report.ts`（报告/基线/20% 回归，11 条单测）；
+  共享 100k×10 夹具生成器；E2E `perf.spec.ts` 3 条（冷启动、100k 打开、整应用内存）；
+  三处热路径优化 + 主进程打开路径内存减法；CI `bench` 作业（预算硬失败、20% 回归软告警）；
+  ADR-033、SPEC §9.5/§16.1、TASKS T2.7、T2.7 报告。
+- **基线**：`pnpm verify` **123 files / 978 tests**；coverage lines **74.99%**、
+  statements 74.88%、branches 67.02%、functions 75.91%；`format:check` 通过；
+  `pnpm build` exit 0（renderer 1,415.85 kB + 懒加载 ImportSession 42.82 kB）；
+  `pnpm e2e` **63 passed**（60 + perf.spec 3）；`pnpm bench` **exit 0**。
+- **性能实测**：bench open 667ms/3s、save 413ms/500ms、edit 0ms/50ms、query 207ms/400ms、
+  text-sort 253ms/400ms、cjk-sort 698ms/800ms、import 878ms/8s；
+  E2E 冷启动 1,063ms/2.5s、打开 638ms/3s、整应用 private 内存 574MB/600MB。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
-  而不更新 SPEC/ADR；不跳过验收项；不自动跨任务。
-- **停点**：T2.6 已完成；完成 T2.7 后仍需停下报告，不自动进入 M2 验收或 T3.x。
+  而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
+- **停点**：T2.7 已完成；等用户确认后再做 M2 验收演示。
 
 ---
 
@@ -45,22 +46,24 @@
 | `T2.3` 列管理、结构变更与迁移 | **已完成**（`213fab4`）；报告 `docs/reports/t2.3/REPORT.md`；ADR-029 |
 | `T2.4` 区域粘贴 | **已完成**（`14c4816`）；报告 `docs/reports/t2.4/REPORT.md`；ADR-030 |
 | `T2.5` CSV/JSON 导入向导 | **已完成**（`16ba035`）；报告 `docs/reports/t2.5/REPORT.md`；ADR-031 |
-| `T2.6` 筛选、排序与视图状态 | **已完成**；报告 `docs/reports/t2.6/REPORT.md`；ADR-032 |
-| 当前里程碑 | **M2 表格数据进行中**（T2.1–T2.6 完成，T2.7 未开始） |
-| 下一个任务 | **T2.7 10 万行性能硬化**；开工前必须按 AGENTS §11 确认歧义，不要自行选定 |
-| `pnpm verify` 基线 | **122 files / 967 tests**；ESLint 0；depcruise **342 modules / 1309 deps / 0 violations** |
-| `pnpm test:coverage` 基线 | 全局 lines **75.00%** / statements **74.89%** / branches **66.85%** / functions **76.03%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **60 passed**（54 + T2.6 `e2e/filter.spec.ts` 6 条），约 2.1min |
+| `T2.6` 筛选、排序与视图状态 | **已完成**（`1149100`）；报告 `docs/reports/t2.6/REPORT.md`；ADR-032 |
+| `T2.7` 10 万行性能硬化 | **已完成**（`553f71b`）；报告 `docs/reports/t2.7/REPORT.md`；ADR-033 |
+| 当前里程碑 | **M2 表格数据**：T2.1–T2.7 全部完成，**M2 验收演示未执行** |
+| 下一步 | **M2 验收演示**（新增 `e2e/m2-acceptance.spec.ts` + `docs/reports/m2/REPORT.md`）；开始前等用户确认，不要自动推进 |
+| `pnpm verify` 基线 | **123 files / 978 tests**；ESLint 0；depcruise **344 modules / 1317 deps / 0 violations** |
+| `pnpm test:coverage` 基线 | 全局 lines **74.99%** / statements **74.88%** / branches **67.02%** / functions **75.91%**；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **63 passed**（60 + `e2e/perf.spec.ts` 3 条），约 2.6min |
+| `pnpm bench` 基线 | **exit 0**；open 667ms/3s、save 413ms/500ms、edit 0ms/50ms、query 207ms/400ms、text-sort 253ms/400ms、cjk-sort 698ms/800ms、import 878ms/8s |
 | `pnpm format:check` | 通过 |
-| 构建 | `pnpm build` exit 0；renderer **1,410.66 kB** + 懒加载 ImportSession 42.82 kB；Worker `assets/{table,import,query}.worker-<hash>.js` |
-| 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 脚本生成、gitignore |
+| 构建 | `pnpm build` exit 0；renderer **1,415.85 kB** + 懒加载 ImportSession 42.82 kB；Worker `assets/{table,import,query}.worker-<hash>.js` |
+| 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
 
 **用户明确要求**：
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **T2.6 已完成**；**T2.7 尚未开始**，开工前先确认歧义，不要自行选定。
-- M2 全部任务完成后再运行 M2 验收演示，不得跨里程碑。
+- **T2.7 已完成并已提交**；**M2 验收演示尚未开始**，开工前先复述口径并等用户确认。
+- 不得跨里程碑；M2 验收报告输出后停下等确认，不进入 T3.x。
 
 ---
 
@@ -69,21 +72,21 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T2.7、
-docs/TESTPLAN.md §5、§3（E3/E4）、§4、
-docs/SPEC.md §16.1、§9.5、§9.3、
-docs/DECISIONS.md 的 ADR-011/014/022/023/030/031，再读 ADR-032。
+先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T2.7 与 M2 验收演示、
+docs/TESTPLAN.md §5、§3（E2/E3/E4）、§4、
+docs/SPEC.md §16.1、§9.5、§9.3、§13.3，
+docs/adr/033-t27-performance-gates.md，再读 ADR-032。
 
-现状：M0、M1（已验收）、T1.1–T1.5、T2.1–T2.6 已完成；T2.6 代码已提交，工作树应干净；
-pnpm verify 122 files / 967 tests、test:coverage 全局 lines 75.00%、format:check、
-pnpm e2e 60 passed 全绿。T2.6 报告见 docs/reports/t2.6/REPORT.md，决策见 ADR-032。
+现状：M0、M1（已验收）、T1.1–T1.5、T2.1–T2.7 已完成；T2.7 代码已提交（553f71b），
+工作树应干净；pnpm verify 123 files / 978 tests、coverage lines 74.99%、format:check、
+pnpm e2e 63 passed、pnpm bench exit 0 全绿。T2.7 报告见 docs/reports/t2.7/REPORT.md。
 
-下一步是 T2.7（10 万行性能硬化），但不要直接开工：
-先按 AGENTS §11 逐项确认 T2.7 的待定决策（性能门禁形态、bench 指标/夹具、内存峰值采集、
-100k 中文排序/Worker 克隆、允许的优化范围与 M2 验收口径），不要自行选定；
-确认后先复述目标/文件/验收命令，再写测试与实现。
+下一步是 **M2 验收演示**，但不要直接开工：
+先按 ADR-033 §7 和 HANDOFF §6 复述口径（单条 m2-acceptance.spec.ts：新建表 → 粘贴 200 行 →
+导入 100k GBK CSV（含坏行）→ 筛选/排序 → 列宽/冻结 → 退出并重启 Electron → 断言还原 +
+性能预算），确认后再写 spec 与 docs/reports/m2/REPORT.md。
 
-不要自动进入 M2 验收或 T3.x；T2.7 完成后停下等确认。
+不要自动进入 T3.x；M2 验收报告输出后停下等确认。
 ```
 
 ---
@@ -160,7 +163,7 @@ T2.5 新增 `papaparse` 运行时依赖（`@curve/table-engine`）与 `iconv-lit
 - `apps/desktop/src/main/workspace/recent-list.test.ts` 的 “caps the list” 用例在 66 个 worker 并行、
   机器繁忙时偶发 5s 超时；重跑即过，不要放宽全局超时。
 - 全量 E2E 若偶发 `grid.spec.ts` 的 `Control+End` 或 `edit.spec.ts` 的 F2 编辑器超时：先单跑确认；
-  T2.4 已修复虚拟行未挂载时焦点丢失（100ms 安全重试，编辑器打开时不抢焦点），当前全量 60 passed。
+  T2.4 已修复虚拟行未挂载时焦点丢失（100ms 安全重试，编辑器打开时不抢焦点），当前全量 63 passed。
   不要放宽超时或删除断言。
 - Vitest 过滤用 `--testNamePattern`，不要用 `-- --grep`。
 - E2E 在 UI 更新后等 manifest/JSONL 落盘时使用 `expect.poll`；新增编辑/保存测试也要这样等
@@ -180,6 +183,18 @@ T2.5 新增 `papaparse` 运行时依赖（`@curve/table-engine`）与 `iconv-lit
   `data-visible-rows` 属性断言 Worker 完成与预算；不要移除这些属性。
 - T2.6 的 text sort bench 使用打乱后的 100k 文本主键；若机器繁忙 P95 可能接近 400ms，
   先确认 CPU 后重跑，不放宽预算。
+- **T2.7 的 bench 每个 suite 独立子进程**（`process.execPath --expose-gc --import tsx ...`），
+  结果写到 `bench/.tmp/suite-<name>.json` 再由父进程汇总；不要把多个 suite 塞回一个进程，
+  否则后跑的 `query.text-sort.100k` 会被前序堆状态顶到 400ms 以上。
+- `pnpm e2e` 会先执行 `tsx scripts/gen-100k.ts --workspace bench/.fixtures/100k-workspace`
+  生成 100k×10 夹具（约 15MB，gitignore）；`perf.spec.ts` 把它复制到 `testInfo.outputPath` 再打开。
+  单独跑 perf spec 前必须先执行该生成命令。
+- `perf.spec.ts` 的内存门禁用 `app.getAppMetrics().memory.privateBytes`（不含 GPU）；
+  `workingSetSize` 会重复计算共享页，只作诊断。当前峰值 574MB/600MB，余量约 4%。
+- `pnpm bench` 的 `memoryPeakMB` 是 Node 管线 RSS 趋势（约 900MB），**不是**应用内存门禁；
+  600MB 只由 E2E 判定。
+- `bench/baseline.json` 需由 CI Windows runner 的 `pnpm bench -- --write-baseline` 生成后提交；
+  缺失时报告 `baseline: "missing"` 并打印 `::notice`，回归比较跳过。损坏的基线直接让 bench 失败。
 
 ---
 
@@ -461,13 +476,18 @@ apps/desktop/src/renderer/
 T2.5 新增 `apps/desktop/e2e/import.spec.ts` 6 条：100k GBK 分号 + 3 坏行 + 错误 CSV；错编码
 覆盖；150k 取消/100k 提示；JSON 替换 + 备份 + 原文归档 + 撤销；200k 拒绝；200% 缩放键盘。
 
-完整 E2E 现为 **60 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
+完整 E2E 现为 **63 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
 `schema.spec.ts`、T2.4 的 `paste.spec.ts`、T2.5 的 `import.spec.ts`、T2.6 的
-`filter.spec.ts` 与既有 shell/ipc/smoke/workspace/table-io 仍全绿。
+`filter.spec.ts`、T2.7 的 `perf.spec.ts` 与既有 shell/ipc/smoke/workspace/table-io 仍全绿。
 
 T2.6 新增 `apps/desktop/e2e/filter.spec.ts` 6 条：2k 行筛选 + 三级排序；重开恢复筛选/排序与
 清除；同表双视图互不影响；隐藏列/恢复；100k 行 Worker 筛选+排序（`data-query-ms <= 400`）；
 200% 缩放筛选对话框键盘可达。`paste.spec.ts` 的筛选守卫改写为“只写可见行 + 超出整批拒绝”。
+
+T2.7 新增 `apps/desktop/e2e/perf.spec.ts` 3 条：冷启动 ≤2.5s（`curve:app-ready`）、
+100k 打开 ≤3s（`performance.measure('curve:open')`）、整应用 private 内存 ≤600MB
+（`app.getAppMetrics()`，含 Worker 排序后的 `data-query-total-ms` 趋势）。三条都 attach 计时/
+内存明细，失败时保留 trace 与截图。
 
 ---
 
@@ -653,23 +673,79 @@ pnpm bench -- --query query.100k P50 30ms / P95 34ms；text-sort.100k P50 314ms 
 
 ---
 
-## 6. T2.7 开工前必须做的事（不要自行选定）
+## 5C. T2.7 决策与实现记录（已完成）
 
-T2.7 尚未分析。开工前：
+7 项决策由用户确认，中文排序预算单独追加确认，详见 `docs/adr/033-t27-performance-gates.md`：
 
-1. 读 `docs/TASKS.md` T2.7、`docs/SPEC.md §16.1`、`docs/TESTPLAN.md §5`、
-   `docs/DECISIONS.md` 的 ADR-011/014/022/023/030/031 与 ADR-032。
-2. 按 AGENTS §11 逐项向用户确认至少以下歧义（读代码后给出具体选项与推荐）：
-   - 性能门禁形态：CI 软报警 vs 硬失败、回归阈值 20% 的采集方式、`bench/report.json` 归档；
-   - bench 指标/夹具：打开/滚动/编辑/保存/筛选/排序/导入，100k×10 与 100k CSV 的固定种子；
-   - 内存峰值采集口径（heapUsed/进程 RSS/Worker 克隆）、600MB 预算的测量边界；
-   - 100k 文本/中文排序、query Worker 快照克隆是否计入端到端预算；
-   - 允许的优化范围：只改实现/预算，还是允许调整 Worker、缓存、虚拟化与命令阶段；
-   - M2 验收演示的口径（复用 T2.6 E2E 还是单独脚本）与“重启还原”证据。
-3. 确认后先复述目标/文件/验收命令，再写测试与实现。
-4. 完成后停下报告，**不要自动进入 M2 验收或 T3.x**。
+1. CI 预算硬失败 + 20% 回归 `::warning`（基线 `bench/baseline.json` 由 CI Windows runner 生成后提交）；
+2. bench 采打开/保存/编辑/筛选排序/导入，E2E 采冷启动/首帧/滚动/整应用内存；
+3. 夹具共享 `scripts/gen-100k.ts`，临时目录、不提交；
+4. 内存 600MB 用 E2E `app.getAppMetrics().memory.privateBytes`（main+renderer+worker，不含 GPU），
+   bench 峰值只作趋势；
+5. 中文排序先优化、仍超再确认；实测 644ms 后确认 **800ms 单列预算**；克隆只做诊断；
+6. 优化范围限实现级 + Worker 内部；不改格式/IPC/公共 API/命令总线契约、不加运行时依赖；
+7. M2 验收另写单条 `m2-acceptance.spec.ts`，T2.7 不执行。
 
-建议验证命令（开工后按 TASKS T2.7 调整）：
+关键文件：
+
+```text
+scripts/bench.ts / bench-report.ts (+test) / tsconfig.json / gen-100k.ts
+bench/README.md
+packages/app-core/src/commands/{frozen-rows.ts,table-cell-set.ts} (+test)
+packages/table-engine/src/query.ts
+apps/desktop/src/main/workspace/file-workspace-store.ts
+apps/desktop/src/renderer/{main.tsx,app-core/use-workspace-controller.ts}
+apps/desktop/src/renderer/features/workspace/WorkspaceView.tsx
+apps/desktop/src/renderer/features/grid/{use-view-rows.ts,DataGrid.tsx}
+apps/desktop/e2e/{fixtures.ts,perf.spec.ts}
+.github/workflows/ci.yml；.gitignore；package.json；vitest.config.ts；tsconfig.json
+docs/adr/033-t27-performance-gates.md
+docs/reports/t2.7/REPORT.md
+```
+
+实测（2026-10-23）：
+
+```text
+pnpm verify         123 files / 978 tests；depcruise 344 modules / 1317 deps / 0 violations
+pnpm test:coverage  lines 74.99% / statements 74.88% / branches 67.02% / functions 75.91%
+pnpm format:check   通过
+pnpm build          exit 0；renderer 1,415.85 kB + ImportSession 42.82 kB；
+                    query.worker 229.63 kB；import.worker 266.09 kB；table.worker 216.61 kB
+pnpm e2e            63 passed（perf.spec 3 条）；冷启动 1,063ms、打开 638ms、内存 574MB
+pnpm bench          exit 0；open 667ms/3s、save 413ms/500ms、edit 0ms/50ms、
+                    query 207ms/400ms、text-sort 253ms/400ms、cjk-sort 698ms/800ms、
+                    import 878ms/8s；clone 363ms（诊断）
+```
+
+残留：
+
+- `bench/baseline.json` 尚未提交，回归比较当前为 `missing`；需 CI Windows runner 生成。
+- 整应用 private 峰值 574MB，距 600MB 约 4% 余量。
+- 中文排序 698ms/800ms；更多组合字符、非 zh/en 文本可能更慢。
+- `EditHistory` 的整数组撤销补丁每个 100k 行编辑多约 800KB；T5.2 统一历史时评估。
+- bench `memoryPeakMB`（约 900MB RSS）是 Node 管线趋势，不是应用内存门禁。
+- 10 万级粘贴/导入命令阶段仍同步（未纳入 T2.7 预算；T2.7 未改命令阶段）。
+- M2 验收演示未执行。
+
+---
+
+## 6. M2 验收演示（下一步，开始前等用户确认）
+
+按 ADR-033 §7 新增 `apps/desktop/e2e/m2-acceptance.spec.ts`（单条端到端用例）：
+
+1. 新建工作区/表 → 粘贴 200 行（TSV，含 5×4 引号/换行片段）；
+2. 通过导入向导导入 `fixtures/csv/gbk-100k.csv`（GBK + 分号 + 3 坏行，跳过错误行）；
+3. 筛选（单层 all/any）+ 2–3 级排序；调整列宽/冻结列；
+4. 退出 Electron 并重启，从最近列表打开 → 断言界面状态（筛选/排序/列宽/冻结/行数）与磁盘
+   `manifest.json`/JSONL 一致；
+5. 断言性能预算：100k 打开 ≤3s（`curve:open`）、内存 ≤600MB（`app.getAppMetrics`）、
+   导入 ≤8s；attach 截图 + 计时；
+6. 输出 `docs/reports/m2/REPORT.md`（含实测、证据路径、残留），勾选 TASKS 的 M2 验收项。
+
+约束：复用 T2.5/T2.6 的夹具与 helper（`e2e/fixtures.ts`、`import-fixtures.ts`），不改生产代码
+除非发现缺陷；不新增依赖/IPC；完成后停下等用户确认，不进入 T3.x。
+
+验证命令：
 
 ```powershell
 pnpm verify
@@ -698,9 +774,12 @@ pnpm bench
 | >50MB 原文只记 sidecar | 原文件路径可能失效 | SPEC §9.4 允许；路径 + SHA-256 可审计 |
 | 导入错误 CSV 按坏行聚合 | 机器消费需拆字段 | 文档已记录；UI 仍显示逐 issue |
 | 筛选视图粘贴整批拒绝 | 已由 T2.6 闭环 | 只写可见行/超出整批拒绝/stale 检查；见 ADR-032 |
-| 100k 文本排序接近 400ms | bench 波动可能超预算 | 自然键 + 宽 12 位快速路径；T2.7 硬化/复核中文与极端值 |
-| query Worker 缓存最多 4 张表 | 切换更多表会重新克隆 | 记录于 ADR-032；T2.7 评估淘汰策略/内存 |
-| 100k 首次 Worker 快照克隆 | 首次筛选/排序有额外延迟 | 不计入 `data-query-ms`；T2.7 纳入端到端基线 |
+| 100k 文本排序接近 400ms | bench 波动可能超预算 | T2.7 已预计算排序键/类型数组，ASCII 253ms；中文仍 698ms/800ms |
+| query Worker 缓存最多 4 张表 | 切换更多表会重新克隆 | 记录于 ADR-032；T2.7 未改淘汰策略 |
+| 100k 首次 Worker 快照克隆 | 首次筛选/排序有额外延迟 | 不计入 `data-query-ms`；E2E `data-query-total-ms` 实测 448–490ms |
+| 整应用内存 574MB/600MB | CI runner 更慢/更碎片化时可能超 | 余量约 4%；超了先查是否 E2E 探针/噪声，不改预算 |
+| bench 基线未提交 | 20% 回归告警不触发 | CI Windows runner 跑 `pnpm bench -- --write-baseline` 后提交 `bench/baseline.json` |
+| 100k 行撤销补丁变大 | 历史内存 | T2.7 的整数组 patch 每个编辑约 800KB；T5.2 统一历史时评估 |
 | 视图状态连续写 manifest | 拖动列宽/快速排序多次写盘 | T5.3 统一保存队列后合并 |
 | 筛选对话框只支持单层 | 嵌套谓词只读 | ADR-032；如需嵌套 UI 另写 ADR |
 | 结构变更不可撤销 | 误操作需手工恢复 | 确认框 + 磁盘备份；T5.2 统一历史 |
@@ -724,22 +803,23 @@ pnpm bench
 - 不绕过命令总线直接改 store（撤销会坏）；不在组件里写业务逻辑。
 - 不加未经 ADR 的运行时依赖；不跳过测试、不放宽 ESLint/覆盖率规则、不用 `--no-verify`。
 - 不未经 ADR/用户确认升级 `formatVersion`、改数据格式、IPC 通道或公共 API。
-- 不在 T2.7 顺手实现 T3.x 的图表或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
-- 不自动跨任务/跨里程碑；T2.7 完成后停下报告，不进入 M2 验收或 T3.x。
+- 不在 M2 验收里顺手实现 T3.x 的图表或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
+- 不自动跨任务/跨里程碑；M2 验收报告输出后停下等确认，不进入 T3.x。
 
 ---
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.6 交接提交（代码提交 `1149100`）。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.7 交接提交（代码提交 `553f71b`）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 T2.7、TESTPLAN §5/§3（E3/E4）/§4、
-      SPEC §16.1/§9.5/§9.3、ADR-011/014/022/023/030/031、ADR-032。
-- [ ] 已确认 `pnpm verify` 基线（122 files / 967 tests）、coverage lines 75.00%、e2e 60 passed。
+- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 T2.7 / M2 验收演示、TESTPLAN §5/§3（E2/E3/E4）/§4、
+      SPEC §16.1/§9.5/§9.3/§13.3、ADR-033 与 ADR-032。
+- [ ] 已确认 `pnpm verify` 基线（123 files / 978 tests）、coverage lines 74.99%、
+      e2e 63 passed、bench exit 0。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 T2.7 尚未开始，**先按 §6 逐项确认决策**，未自行选定。
-- [ ] 已确认 T2.4/T2.5/T2.6 的粘贴/导入/筛选/保存/撤销语义；T2.7 不得绕过命令总线或另起写盘路径。
+- [ ] 已确认 M2 验收演示尚未开始，**先按 §6 复述口径并等用户确认**，未自行开工。
+- [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`，截图提交前还原。
-- [ ] 复述 T2.7 目标/产出/验收/风险后再动手；完成后停下报告，不进入 M2 验收。
+- [ ] 复述 M2 验收目标/产出/验收/风险后再动手；完成后停下报告，不进入 T3.x。
