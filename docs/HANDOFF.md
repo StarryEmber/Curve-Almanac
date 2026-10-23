@@ -1,32 +1,34 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T2.5`（CSV/JSON 导入向导），按用户要求停止，
-> `T2.6` 尚未开始。最后更新：2026-10-22 · `T2.5` 代码提交 **`16ba035`**（本交接文件随后单独提交）·
+> 本文件面向**下一个实现会话**。当前会话已完成 `T2.6`（筛选、排序与视图状态），按用户要求停止，
+> `T2.7` 尚未开始。最后更新：2026-10-23 · `T2.6` 代码提交 **`1149100`**（本交接文件随后单独提交）·
 > 分支 `main` · 工作树干净。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.6 →
-> `docs/TESTPLAN.md` §1、§2、§3（E3/E4）、§4、§5 →
-> `docs/SPEC.md` §9.5、§6.2、§16.1 →
-> `docs/DECISIONS.md` 的 ADR-005/006/007/014/024，再读 ADR-028/029/030/031。
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.7 →
+> `docs/TESTPLAN.md` §5、§3（E3/E4）、§4 →
+> `docs/SPEC.md` §16.1、§9.5、§9.3 →
+> `docs/DECISIONS.md` 的 ADR-011/014/022/023/030/031，再读 ADR-032。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
-- **当前状态**：`T2.5`（CSV/JSON 导入向导）已完成并提交；`T2.6`（筛选、排序与视图状态）未开始；
-  M2 仍在进行，M2 验收演示要等 T2.6–T2.7 全部完成。
-- **本次交付**：5 步导入向导；`file:importText` 原始字节 + token；专用 import Worker
-  （UTF-8→GB18030、Papa Parse、取消即 terminate）；列映射/类型推断；坏行跳过/取消与错误 CSV；
-  追加/替换、旧表备份、`imports/` 原文 + SHA-256 sidecar；`table.import` 原子命令；200k 上限与
-  100k 提示；保存队列与一条撤销记录。
-- **基线**：`pnpm verify` **111 files / 880 tests**；coverage lines **74.12%**；`format:check`
-  通过；`pnpm build` exit 0（renderer **1,339.13 kB** + 懒加载 ImportSession 42.82 kB；
-  import worker 266.08 kB）；`pnpm e2e` **54 passed**；`e2e/import.spec.ts` **6 passed**；
-  `pnpm bench -- --import` P50 **645ms** / P95 **659ms**。
-- **下一步**：先读 TASKS T2.6、SPEC §9.5/§6.2、TESTPLAN E3/E4，按 AGENTS §11 逐项确认
-  T2.6 的待定决策，**不要自行选定**；确认后先复述目标/文件/验收命令，再写测试与实现。
+- **当前状态**：`T2.6`（筛选、排序与视图状态）已完成并提交；`T2.7`（10 万行性能硬化）未开始；
+  M2 仍在进行，M2 验收演示要等 T2.7 完成后执行。
+- **本次交付**：工具条筛选对话框（单层 all/any、12 操作符白名单）；表头 + Shift 三级排序
+  （空值最后、locale collator、稳定排序）；筛选/排序/隐藏列/多视图持久化；专用 query Worker
+  （≤20k 主线程、>20k Worker、行快照/增量缓存、失败回退）；T2.4 粘贴闭环（只写可见行、
+  超出整批拒绝、stale 检查）；`bench query.100k` 与 100k E2E 计时。
+- **基线**：`pnpm verify` **122 files / 967 tests**；coverage lines **75.00%**；`format:check`
+  通过；`pnpm build` exit 0（renderer **1,410.66 kB** + 懒加载 ImportSession 42.82 kB；
+  query worker **227.70 kB**；import worker 266.09 kB；table worker 216.61 kB）；
+  `pnpm e2e` **60 passed**；`e2e/filter.spec.ts` **6 passed**；
+  `pnpm bench -- --query` `query.100k` P95 **34ms**、`query.text-sort.100k` P95 **347ms**
+  （预算均 400ms）。
+- **下一步**：先读 TASKS T2.7、SPEC §16.1、TESTPLAN §5，按 AGENTS §11 确认 T2.7 的待定决策，
+  **不要自行选定**；确认后先复述目标/文件/验收命令，再写测试与实现。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务。
-- **停点**：T2.5 已完成；完成 T2.6 后仍需停下报告，不自动进入 T2.7。
+- **停点**：T2.6 已完成；完成 T2.7 后仍需停下报告，不自动进入 M2 验收或 T3.x。
 
 ---
 
@@ -37,26 +39,27 @@
 | 方案文档 | v1.0 已锁定（SPEC / TASKS / TESTPLAN / DECISIONS） |
 | M0 基建（T0.1–T0.5） | **已完成**；验收报告 `docs/reports/m0/REPORT.md` |
 | M1 领域与持久化（T1.1–T1.5） | **已完成并经用户验收**（2026-10-21）；报告 `docs/reports/m1/REPORT.md` |
-| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1–T2.5 扩展了命令、actions、历史与保存 |
+| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1–T2.6 扩展了命令、actions、历史与保存 |
 | `T2.1` 工作区入口、表管理与网格 | **已完成**（`07c4763`）；报告 `docs/reports/t2.1/REPORT.md`；ADR-027 |
 | `T2.2` 单元格编辑与校验 | **已完成**（`641cd86`）；报告 `docs/reports/t2.2/REPORT.md`；ADR-028 |
 | `T2.3` 列管理、结构变更与迁移 | **已完成**（`213fab4`）；报告 `docs/reports/t2.3/REPORT.md`；ADR-029 |
 | `T2.4` 区域粘贴 | **已完成**（`14c4816`）；报告 `docs/reports/t2.4/REPORT.md`；ADR-030 |
 | `T2.5` CSV/JSON 导入向导 | **已完成**（`16ba035`）；报告 `docs/reports/t2.5/REPORT.md`；ADR-031 |
-| 当前里程碑 | **M2 表格数据进行中**（T2.1–T2.5 完成，T2.6–T2.7 未开始） |
-| 下一个任务 | **T2.6 筛选、排序与视图状态**；开工前必须按 AGENTS §11 确认歧义，不要自行选定 |
-| `pnpm verify` 基线 | **111 files / 880 tests**；ESLint 0；depcruise **319 modules / 1213 deps / 0 violations** |
-| `pnpm test:coverage` 基线 | 全局 lines **74.12%** / statements **74.06%** / branches **66.03%** / functions **76.11%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **54 passed**（48 + T2.5 `e2e/import.spec.ts` 6 条），约 2.1min |
+| `T2.6` 筛选、排序与视图状态 | **已完成**；报告 `docs/reports/t2.6/REPORT.md`；ADR-032 |
+| 当前里程碑 | **M2 表格数据进行中**（T2.1–T2.6 完成，T2.7 未开始） |
+| 下一个任务 | **T2.7 10 万行性能硬化**；开工前必须按 AGENTS §11 确认歧义，不要自行选定 |
+| `pnpm verify` 基线 | **122 files / 967 tests**；ESLint 0；depcruise **342 modules / 1309 deps / 0 violations** |
+| `pnpm test:coverage` 基线 | 全局 lines **75.00%** / statements **74.89%** / branches **66.85%** / functions **76.03%**；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **60 passed**（54 + T2.6 `e2e/filter.spec.ts` 6 条），约 2.1min |
 | `pnpm format:check` | 通过 |
-| 构建 | `pnpm build` exit 0；renderer **1,339.13 kB** + 懒加载 ImportSession 42.82 kB；Worker `assets/table.worker-<hash>.js`、`assets/import.worker-<hash>.js` |
+| 构建 | `pnpm build` exit 0；renderer **1,410.66 kB** + 懒加载 ImportSession 42.82 kB；Worker `assets/{table,import,query}.worker-<hash>.js` |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 脚本生成、gitignore |
 
 **用户明确要求**：
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **T2.5 已完成**；**T2.6 尚未开始**，开工前先确认歧义，不要自行选定。
+- **T2.6 已完成**；**T2.7 尚未开始**，开工前先确认歧义，不要自行选定。
 - M2 全部任务完成后再运行 M2 验收演示，不得跨里程碑。
 
 ---
@@ -66,21 +69,21 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T2.6、
-docs/TESTPLAN.md §1/§2/§3（E3/E4）/§4/§5、
-docs/SPEC.md §9.5/§6.2/§16.1、
-docs/DECISIONS.md 的 ADR-005/006/007/014/024，再读 ADR-028/029/030/031。
+先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T2.7、
+docs/TESTPLAN.md §5、§3（E3/E4）、§4、
+docs/SPEC.md §16.1、§9.5、§9.3、
+docs/DECISIONS.md 的 ADR-011/014/022/023/030/031，再读 ADR-032。
 
-现状：M0、M1（已验收）、T1.1–T1.5、T2.1–T2.5 已完成；T2.5 代码提交 `16ba035`，工作树应干净；
-pnpm verify 111 files / 880 tests、test:coverage 全局 lines 74.12%、format:check、
-pnpm e2e 54 passed 全绿。T2.5 报告见 docs/reports/t2.5/REPORT.md，决策见 ADR-031。
+现状：M0、M1（已验收）、T1.1–T1.5、T2.1–T2.6 已完成；T2.6 代码已提交，工作树应干净；
+pnpm verify 122 files / 967 tests、test:coverage 全局 lines 75.00%、format:check、
+pnpm e2e 60 passed 全绿。T2.6 报告见 docs/reports/t2.6/REPORT.md，决策见 ADR-032。
 
-下一步是 T2.6（筛选、排序与视图状态），但不要直接开工：
-先按 AGENTS §11 逐项确认 T2.6 的待定决策（筛选 UI/操作符、排序层级、视图状态持久化、
-大表 Worker、与 T2.4 粘贴筛选语义的衔接、撤销/保存），不要自行选定；
+下一步是 T2.7（10 万行性能硬化），但不要直接开工：
+先按 AGENTS §11 逐项确认 T2.7 的待定决策（性能门禁形态、bench 指标/夹具、内存峰值采集、
+100k 中文排序/Worker 克隆、允许的优化范围与 M2 验收口径），不要自行选定；
 确认后先复述目标/文件/验收命令，再写测试与实现。
 
-不要自动进入 T2.7；T2.6 完成后停下等确认。
+不要自动进入 M2 验收或 T3.x；T2.7 完成后停下等确认。
 ```
 
 ---
@@ -157,7 +160,7 @@ T2.5 新增 `papaparse` 运行时依赖（`@curve/table-engine`）与 `iconv-lit
 - `apps/desktop/src/main/workspace/recent-list.test.ts` 的 “caps the list” 用例在 66 个 worker 并行、
   机器繁忙时偶发 5s 超时；重跑即过，不要放宽全局超时。
 - 全量 E2E 若偶发 `grid.spec.ts` 的 `Control+End` 或 `edit.spec.ts` 的 F2 编辑器超时：先单跑确认；
-  T2.4 已修复虚拟行未挂载时焦点丢失（100ms 安全重试，编辑器打开时不抢焦点），当前全量 54 passed。
+  T2.4 已修复虚拟行未挂载时焦点丢失（100ms 安全重试，编辑器打开时不抢焦点），当前全量 60 passed。
   不要放宽超时或删除断言。
 - Vitest 过滤用 `--testNamePattern`，不要用 `-- --grep`。
 - E2E 在 UI 更新后等 manifest/JSONL 落盘时使用 `expect.poll`；新增编辑/保存测试也要这样等
@@ -171,7 +174,12 @@ T2.5 新增 `papaparse` 运行时依赖（`@curve/table-engine`）与 `iconv-lit
 - 结构变更保存：行数据命令走保存队列（表 → manifest），纯 schema 命令只写 manifest；E2E 断言前用
   `expect.poll` 读 manifest。
 - E2E 截图证据字节不稳定；断言不依赖像素。
-- Worker 产物名现在是 `assets/table.worker-<hash>.js`、`assets/import.worker-<hash>.js`。
+- Worker 产物名现在是 `assets/table.worker-<hash>.js`、`assets/import.worker-<hash>.js`、
+  `assets/query.worker-<hash>.js`。
+- T2.6 的筛选/排序 E2E 依赖网格上的 `data-query-mode`/`data-query-busy`/`data-query-ms`/
+  `data-visible-rows` 属性断言 Worker 完成与预算；不要移除这些属性。
+- T2.6 的 text sort bench 使用打乱后的 100k 文本主键；若机器繁忙 P95 可能接近 400ms，
+  先确认 CPU 后重跑，不放宽预算。
 
 ---
 
@@ -251,6 +259,32 @@ parseClipboardText(text): { ok: true; data: ClipboardMatrix } | { ok: false; err
   矩形化；未闭合引号返回 `E_IMPORT_FORMAT`。
 - T2.5 可复用 `parseClipboardText` 的引号/换行处理思路，但导入向导的编码/分隔符嗅探/表头是
   独立实现；不要把粘贴解析器硬套到文件导入（T2.5 使用 Papa Parse + 独立嗅探）。
+
+T2.6 新增：
+
+```ts
+QueryOptions { locale?: string }
+QueryRequest { filter?: FilterPredicate; sort?: readonly SortSpec[] }
+QueryResult { rowIds: string[]; visibleRows: number }
+QueryContext; QueryIssue
+createQueryContext(table, options?): QueryContext
+queryRowIds(rows, table, request, options?): QueryResult
+queryRowIdsWithContext(rows, context, request): QueryResult
+applyFilter(rows, table, predicate, options?): Row[]
+applySort(rows, table, sort, options?): Row[]
+validateFilterPredicate(table, predicate): QueryIssue[]
+validateSortSpecs(table, sort): QueryIssue[]
+allowedCompareOps(column); compareOpNeedsValue(op); compareOpNeedsSecondValue(op)
+matchesFilterPredicate(row, context, predicate): boolean
+QUERY_WORKER_ROW_THRESHOLD = 20_000; DEFAULT_QUERY_LOCALE = 'en-US'
+QuerySyncPayload; QueryRowsPayload; QueryRowsResult
+QueryWorkerRequest/Response; isQueryWorkerRequest/isQueryWorkerResponse
+```
+
+- 12 种操作符、all/any 递归、空值最后、三级稳定排序；文本 `Intl.Collator` 语义（自然键快速路径，
+  非 ASCII/不安全值回退）。查询返回**有序 rowId**，调用方负责映射到行对象。
+- `QUERY_WORKER_ROW_THRESHOLD` 以上由 renderer 注入专用 query Worker；协议见
+  `query-protocol.ts`，缓存/守卫在 `apps/desktop/src/renderer/query/handler.ts`。
 
 ### 4.3 `@curve/persistence`
 
@@ -335,6 +369,35 @@ WorkspaceActions.applyImport(request): Promise<ImportApplyOutcome>
 archiveImport?: (request: ImportArchiveRequest) => Promise<ImportArchiveResult>
 ```
 
+T2.6 新增公开 API：
+
+```ts
+ViewPatch（既有；filter/sort/hidden/widths/frozen/columnOrder）
+validateTableViewState(table, tableView): ViewStateIssue[]
+assertValidTableView(table, tableView): void
+FilterDraft, FilterDraftCondition, FilterDraftIssue, FilterDraftIssueReason,
+BuildFilterResult, buildFilterPredicate(table, draft),
+createEmptyFilterDraft(table), filterDraftFromPredicate(table, filter),
+defaultOperatorFor(column), defaultFilterValueFor(column), dateFilterInputValue(epochMs)
+createDuplicateTableView({ source, existingTitles, uuid? }), duplicateViewTitle(base, titles)
+WorkspaceActions.duplicateView(viewId): Promise<ActionOutcome<{ viewId }>>
+PasteRequestBase.rowIds?: readonly string[]
+PasteBlockReason = 'filter-active' | 'filter-visible-exceeded' | 'filter-anchor-hidden'
+```
+
+`WorkspaceActions`（T2.6 新增部分）：
+
+```ts
+duplicateView(viewId): Promise<ActionOutcome<{ viewId: string }>>;
+```
+
+- `view.create/update` 现在校验筛选操作符/值类型、排序 ≤3 层且列唯一、隐藏列属于
+  `columnOrder`；筛选/排序/隐藏/宽度都只写 manifest，不进撤销。
+- `table.paste` 增加可选 `rowIds/viewId`：筛选下只写可见行、超出 `filter-visible-exceeded`、
+  锚点不可见 `filter-anchor-hidden`、预览后筛选变化 `filter-stale`；省略时保持 T2.4 行为。
+- `preparePaste` 的 `blocked` 原因新增 `filter-visible-exceeded`/`filter-anchor-hidden`；
+  UI 分别显示“超出可见行”/“锚点行不可见”。
+
 `WorkspaceActions`（T2.5 新增部分）：
 
 ```ts
@@ -367,15 +430,19 @@ apps/desktop/src/renderer/
 ├─ features/tables/             # TableList/New/Rename/Delete dialogs
 ├─ features/grid/               # DataGrid/GridCell/GridHeader/editors/…
 │  ├─ grid-navigation.ts        # 移动/矩形选择 + T2.4 pasteTarget
+│  ├─ grid-sort.ts              # T2.6 表头 asc→desc→none / Shift 多级
+│  ├─ use-view-rows.ts          # T2.6 可见行解析（≤20k 主线程 / >20k Worker）
 │  └─ use-cell-editing.ts
+├─ features/filter/             # T2.6：FilterDialog + filter-builder 文案
 ├─ features/columns/            # T2.3：ColumnsPanel/ColumnFormDialog/ColumnChangeDialog
 ├─ features/paste/              # T2.4：PasteColumnsDialog/PasteErrorDialog/PasteProgressDialog
-│  ├─ use-paste.tsx             # idle→preparing→columns/errors/applying
+│  ├─ use-paste.tsx             # idle→preparing→columns/errors/applying；T2.6 传 rowIds
 │  └─ paste-issue-text.ts
 ├─ features/import/             # T2.5：ImportWizardDialog/use-import/import-error-csv
 │  └─ ImportSession.tsx          # 懒加载入口；避免进入初始 TableList chunk
 ├─ import/                      # T2.5：encoding/client/worker-protocol/worker-handler
-├─ workers/import.worker.ts     # T2.5 专用 import Worker
+├─ query/                       # T2.6：query Worker client/handler（缓存/增量/守卫）
+├─ workers/{import,query}.worker.ts  # T2.5/T2.6 专用 Worker
 ├─ features/charts/ChartPlaceholder.tsx  # T2.3 图表无效占位（T3.1 替换）
 ├─ shell/                       # AppShell/TitleBar/Sidebar/Inspector/StatusBar/HelpDialog
 ├─ i18n/messages/{zh-CN,en-US}.ts
@@ -394,8 +461,13 @@ apps/desktop/src/renderer/
 T2.5 新增 `apps/desktop/e2e/import.spec.ts` 6 条：100k GBK 分号 + 3 坏行 + 错误 CSV；错编码
 覆盖；150k 取消/100k 提示；JSON 替换 + 备份 + 原文归档 + 撤销；200k 拒绝；200% 缩放键盘。
 
-完整 E2E 现为 **54 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
-`schema.spec.ts`、T2.4 的 `paste.spec.ts` 与既有 30 条仍全绿。
+完整 E2E 现为 **60 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
+`schema.spec.ts`、T2.4 的 `paste.spec.ts`、T2.5 的 `import.spec.ts`、T2.6 的
+`filter.spec.ts` 与既有 shell/ipc/smoke/workspace/table-io 仍全绿。
+
+T2.6 新增 `apps/desktop/e2e/filter.spec.ts` 6 条：2k 行筛选 + 三级排序；重开恢复筛选/排序与
+清除；同表双视图互不影响；隐藏列/恢复；100k 行 Worker 筛选+排序（`data-query-ms <= 400`）；
+200% 缩放筛选对话框键盘可达。`paste.spec.ts` 的筛选守卫改写为“只写可见行 + 超出整批拒绝”。
 
 ---
 
@@ -519,35 +591,94 @@ pnpm bench -- --import import.100k P50 645ms / P95 659ms
 
 ---
 
-## 6. T2.6 开工前必须做的事（不要自行选定）
+## 5B. T2.6 决策与实现记录（已完成）
 
-T2.6 尚未分析。开工前：
+12 项决策全部由用户确认，详见 `docs/adr/032-t26-filter-sort-view-state.md`：
 
-1. 读 `docs/TASKS.md` T2.6、`docs/SPEC.md §9.5/§6.2`、`docs/TESTPLAN.md` E3/E4/§4/§5、
-   `docs/DECISIONS.md` 的 ADR-005/006/007/014/024 与 ADR-028/029/030/031。
+1. 工具条筛选按钮 + 对话框；Inspector 仍只放列管理；
+2. 单层 all/any、最多 20 条；嵌套筛选只读、不静默拍平；
+3. 操作符按列类型白名单（text 7 种、number/date 9 种、boolean/enum 4 种）；
+4. 文本大小写不敏感、空串按 null、number/date 数值、between 含边界、enum 按 value；
+5. 表头点击 asc→desc→none；Shift+点击最多 3 级；工具条排序菜单可逐层移除/清空；
+6. 空值固定最后；文本 `Intl.Collator` 语义；并列保持物理顺序；
+7. 每个确认动作立即 `view.update` + manifest，不写 JSONL、不标脏表、不进撤销；
+8. TabBar “+ 复制当前视图”，复制 filter/sort/widths/hidden/frozen；
+9. Inspector 列面板隐藏/显示 + 已隐藏列表，至少保留一列；
+10. 专用 query Worker（≤20k 主线程，>20k Worker，快照/增量缓存，失败回退）；
+11. 粘贴按当前可见行写入；筛选下超出整批拒绝；命令复核 stale/可见行；
+12. `bench query.100k` + `query.text-sort.100k` + E2E Worker 计时。
+
+关键文件：
+
+```text
+packages/table-engine/src/query.ts (+test)
+packages/table-engine/src/query-protocol.ts (+test)
+packages/app-core/src/validation/{filter-builder,view-state}.ts (+test)
+packages/app-core/src/commands/{view-copy,paste}.ts (+test)
+packages/app-core/src/validation/paste-plan.ts (+paste-plan-visible.test)
+packages/app-core/src/usecases/workspace-actions.ts（duplicateView、paste rowIds）
+apps/desktop/src/renderer/query/{client,handler}.ts (+test)
+apps/desktop/src/renderer/workers/query.worker.ts
+apps/desktop/src/renderer/features/filter/FilterDialog.tsx (+test)
+apps/desktop/src/renderer/features/grid/{grid-sort,use-view-rows}.ts (+test)
+apps/desktop/src/renderer/features/grid/{DataGrid,GridHeader}.tsx
+apps/desktop/src/renderer/features/columns/ColumnsPanel.tsx
+apps/desktop/src/renderer/features/workspace/{TabBar,WorkspaceView}.tsx
+apps/desktop/e2e/filter.spec.ts；apps/desktop/e2e/paste.spec.ts（筛选粘贴改写）
+scripts/bench.ts（--query）
+docs/adr/032-t26-filter-sort-view-state.md
+docs/reports/t2.6/REPORT.md
+```
+
+实测（2026-10-23）：
+
+```text
+pnpm verify         122 files / 967 tests；depcruise 342 modules / 1309 deps / 0 violations
+pnpm test:coverage  lines 75.00% / statements 74.89% / branches 66.85% / functions 76.03%
+pnpm format:check   通过
+pnpm build          exit 0；renderer 1,410.66 kB + ImportSession 42.82 kB；
+                    query.worker 227.70 kB；import.worker 266.09 kB；table.worker 216.61 kB
+pnpm e2e            60 passed；filter.spec.ts 6 passed；paste.spec.ts 7 passed
+pnpm bench -- --query query.100k P50 30ms / P95 34ms；text-sort.100k P50 314ms / P95 347ms
+```
+
+残留：
+
+- 筛选对话框只编辑单层条件；嵌套谓词只读。
+- 100k 全中文/极端文本排序仍可能接近 400ms；自然键对 >12 位数字段/带符号数字回退 collator。
+- query Worker 最多缓存 4 张表；首次 100k 快照克隆未计入 `data-query-ms`。
+- 视图状态连续拖动列宽/快速排序会多次写 manifest；T5.3 统一保存队列。
+- 10 万级粘贴/导入命令阶段仍同步；T2.7 评估。
+- `table.paste` 新增可选 `rowIds/viewId`，SPEC §9.3/§13.1 已同步；省略时保持 T2.4 保守行为。
+
+---
+
+## 6. T2.7 开工前必须做的事（不要自行选定）
+
+T2.7 尚未分析。开工前：
+
+1. 读 `docs/TASKS.md` T2.7、`docs/SPEC.md §16.1`、`docs/TESTPLAN.md §5`、
+   `docs/DECISIONS.md` 的 ADR-011/014/022/023/030/031 与 ADR-032。
 2. 按 AGENTS §11 逐项向用户确认至少以下歧义（读代码后给出具体选项与推荐）：
-   - 筛选 UI 形态（Inspector/表头/工具条）、12 种操作符、all/any 嵌套与值输入类型；
-   - 排序入口与 3 级优先级 UI、空值固定最后、`Intl.Collator` 的 locale/数值选项；
-   - 视图状态持久化粒度、同一表多视图、列宽/隐藏/冻结的恢复；
-   - >20k 行 Worker 查询、取消/进度、主线程回退阈值；
-   - T2.4 延后的筛选粘贴语义：只写可见行、超出可见行整批拒绝、隐藏行不变；
-   - 筛选/排序是否进入最小历史、保存时机与 T5.2 全命令历史的衔接；
-   - 性能：100k 筛选+排序 ≤400ms 的 bench/E2E 证据与夹具。
+   - 性能门禁形态：CI 软报警 vs 硬失败、回归阈值 20% 的采集方式、`bench/report.json` 归档；
+   - bench 指标/夹具：打开/滚动/编辑/保存/筛选/排序/导入，100k×10 与 100k CSV 的固定种子；
+   - 内存峰值采集口径（heapUsed/进程 RSS/Worker 克隆）、600MB 预算的测量边界；
+   - 100k 文本/中文排序、query Worker 快照克隆是否计入端到端预算；
+   - 允许的优化范围：只改实现/预算，还是允许调整 Worker、缓存、虚拟化与命令阶段；
+   - M2 验收演示的口径（复用 T2.6 E2E 还是单独脚本）与“重启还原”证据。
 3. 确认后先复述目标/文件/验收命令，再写测试与实现。
-4. 完成后停下报告，**不要自动进入 T2.7**。
+4. 完成后停下报告，**不要自动进入 M2 验收或 T3.x**。
 
-建议验证命令（开工后按 TASKS T2.6 调整）：
+建议验证命令（开工后按 TASKS T2.7 调整）：
 
 ```powershell
-pnpm exec vitest run packages/table-engine --testNamePattern "filter|sort"
 pnpm verify
 pnpm test:coverage
 pnpm format:check
 $env:CURVE_E2E_NO_SANDBOX = '1'
 pnpm build
-pnpm exec playwright test --config apps/desktop/playwright.config.ts --grep "filter|sort"
 pnpm e2e
-pnpm bench -- --query
+pnpm bench
 ```
 
 ---
@@ -566,16 +697,20 @@ pnpm bench -- --query
 | 导入后 100k 逆补丁 | 撤销栈内存 | T2.5 仅记录；T5.2 统一 256MB 上限 |
 | >50MB 原文只记 sidecar | 原文件路径可能失效 | SPEC §9.4 允许；路径 + SHA-256 可审计 |
 | 导入错误 CSV 按坏行聚合 | 机器消费需拆字段 | 文档已记录；UI 仍显示逐 issue |
-| 筛选视图粘贴整批拒绝 | T2.6 前体验受限 | ADR-030 显式延后；T2.6 必须闭环 |
+| 筛选视图粘贴整批拒绝 | 已由 T2.6 闭环 | 只写可见行/超出整批拒绝/stale 检查；见 ADR-032 |
+| 100k 文本排序接近 400ms | bench 波动可能超预算 | 自然键 + 宽 12 位快速路径；T2.7 硬化/复核中文与极端值 |
+| query Worker 缓存最多 4 张表 | 切换更多表会重新克隆 | 记录于 ADR-032；T2.7 评估淘汰策略/内存 |
+| 100k 首次 Worker 快照克隆 | 首次筛选/排序有额外延迟 | 不计入 `data-query-ms`；T2.7 纳入端到端基线 |
+| 视图状态连续写 manifest | 拖动列宽/快速排序多次写盘 | T5.3 统一保存队列后合并 |
+| 筛选对话框只支持单层 | 嵌套谓词只读 | ADR-032；如需嵌套 UI 另写 ADR |
 | 结构变更不可撤销 | 误操作需手工恢复 | 确认框 + 磁盘备份；T5.2 统一历史 |
 | 图表/样式悬空引用 | 图表错误占位；样式求值忽略 | T3.1 重映射；T4.x 样式求值处理 |
 | 保存失败但内存已变更 | `committed: true` | UI 关闭对话框，状态栏/Toast 重试；不重复执行 |
-| 重排覆盖视图自定义顺序 | T2.6 视图级重排冲突 | T2.6 写新 ADR/调整语义 |
 | 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 74.12% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；M2 报告给趋势 |
-| renderer bundle 约 1.34MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
+| 覆盖率 75.00% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；M2 报告给趋势 |
+| renderer bundle 约 1.41MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
 
 ---
 
@@ -589,22 +724,22 @@ pnpm bench -- --query
 - 不绕过命令总线直接改 store（撤销会坏）；不在组件里写业务逻辑。
 - 不加未经 ADR 的运行时依赖；不跳过测试、不放宽 ESLint/覆盖率规则、不用 `--no-verify`。
 - 不未经 ADR/用户确认升级 `formatVersion`、改数据格式、IPC 通道或公共 API。
-- 不在 T2.6 顺手实现 T2.7 的性能硬化或 T3.x 的图表；不把 10 万行整体放进 React state。
-- 不自动跨任务/跨里程碑；T2.6 完成后停下报告，不进入 T2.7。
+- 不在 T2.7 顺手实现 T3.x 的图表或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
+- 不自动跨任务/跨里程碑；T2.7 完成后停下报告，不进入 M2 验收或 T3.x。
 
 ---
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.5 交接提交（代码提交 `16ba035`）。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T2.6 交接提交（代码提交 `1149100`）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 T2.6、TESTPLAN §1/§2/§3（E3/E4）/§4/§5、
-      SPEC §9.5/§6.2/§16.1、ADR-005/006/007/014/024、ADR-028/029/030/031。
-- [ ] 已确认 `pnpm verify` 基线（111 files / 880 tests）、coverage lines 74.12%、e2e 54 passed。
+- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 T2.7、TESTPLAN §5/§3（E3/E4）/§4、
+      SPEC §16.1/§9.5/§9.3、ADR-011/014/022/023/030/031、ADR-032。
+- [ ] 已确认 `pnpm verify` 基线（122 files / 967 tests）、coverage lines 75.00%、e2e 60 passed。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 T2.6 尚未开始，**先按 §6 逐项确认决策**，未自行选定。
-- [ ] 已确认 T2.4/T2.5 的粘贴/导入/保存/撤销语义；T2.6 不得绕过命令总线或另起写盘路径。
+- [ ] 已确认 T2.7 尚未开始，**先按 §6 逐项确认决策**，未自行选定。
+- [ ] 已确认 T2.4/T2.5/T2.6 的粘贴/导入/筛选/保存/撤销语义；T2.7 不得绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`，截图提交前还原。
-- [ ] 复述 T2.6 目标/产出/验收/风险后再动手；完成后停下报告，不进入 T2.7。
+- [ ] 复述 T2.7 目标/产出/验收/风险后再动手；完成后停下报告，不进入 M2 验收。
