@@ -14,4 +14,5 @@ export * from './schemas';
 export * from './coerce';
 export * from './factories';
 export * from './format';
+export * from './table-style';
 export type * from './types';

@@ -279,7 +279,14 @@ export const chartSpecSchema: z.ZodType<ChartSpec> = z.strictObject({
 /* Table styles                                                               */
 /* -------------------------------------------------------------------------- */
 
-const colorSchema = z.string().min(1).max(64);
+const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+
+/** Table-style colors are explicit hex values (SPEC §10.6). */
+export const tableStyleColorSchema = z
+  .string()
+  .regex(HEX_COLOR_PATTERN, 'color must be a hex value (#RGB, #RGBA, #RRGGBB or #RRGGBBAA)');
+
+const colorSchema = tableStyleColorSchema;
 
 export const tableStyleTokensSchema: z.ZodType<TableStyleTokens> = z.strictObject({
   density: z.enum(['compact', 'normal', 'comfortable']),

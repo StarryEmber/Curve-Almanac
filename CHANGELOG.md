@@ -324,3 +324,13 @@
   以同一 `userData` 重启。全量 E2E **64 passed**；导入 824ms、100k 打开 624ms、
   筛选 19ms、排序 63ms、整应用内存峰值 497MB。新增 `docs/reports/m2/REPORT.md` 与
   4 张证据截图；不改变生产代码、`formatVersion`、JSONL、manifest、IPC 或 CSP。
+- M2：验收演示于 2026-10-23 获用户接受；TASKS/AGENTS/HANDOFF 同步，下一步 T3.1。
+- T3.1：`@curve/domain` 新增 `table-style.ts`：4 个冻结内置模板（report-light/compact-light/
+  dark/finance）、`DEFAULT_TABLE_STYLE_ID`/`DEFAULT_TABLE_STYLE`/`DEFAULT_TABLE_STYLE_TOKENS`、
+  `resolveStyle`（未知 id 回退 + warning）、`forkTableStyle`（深拷贝、`sty_` 副本、内置不变）、
+  `createTableStyle` 与 `isResolvableStyleId`。
+- T3.1：样式颜色字段改为只接受 `#RGB`/`#RGBA`/`#RRGGBB`/`#RRGGBBAA`；不变量新增持久化
+  `builtin: true` 拒绝、默认样式不可解析 warning、同一样式条件规则 id 重复拒绝。
+- T3.1：`@curve/persistence` 与 `@curve/app-core` 的默认样式常量改为复用 domain；
+  SPEC §6.6.6/§10.3、TASKS T3.1、HANDOFF、AGENTS §0 同步；新增 ADR-034。不改变
+  `formatVersion`、JSONL、manifest 字段、IPC、preload、CSP 或运行时依赖。

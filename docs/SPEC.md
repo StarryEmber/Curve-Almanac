@@ -430,7 +430,8 @@ export interface WorkspaceManifest {
 3. `views[].refId` 必须存在；`kind=table` 时 `tableView.tableId === refId`。
 4. `charts[].tableId` 必须存在（删除表时级联删除图表与视图）；映射引用的列允许暂时缺失，但加载后必须标记为 invalid 并显示可重新映射的错误态，不得崩溃。
 5. `layout` 中 `viewIds` 必须存在；每个 view 至多出现在一个 pane；pane 数 ≤ 4。
-6. `tableStyles[].id` 唯一且不以 `builtin.` 开头；`styleId` 必须可解析，否则回退默认并警告。
+6. `tableStyles[].id` 唯一且不以 `builtin.` 开头，持久化样式的 `builtin` 必须为 `false`；
+   `styleId` 与工作区 `settings.defaultTableStyleId` 必须可解析，否则回退默认并警告。
 7. `columnOrder` 必须包含所有列 ID 恰好一次；`widths` 的键与 `sort`/`filter` 引用的列必须存在；`columnOverrides` 允许包含目标表不存在的列（跨表模板），求值时忽略。
 8. 时间戳必须是可解析的 ISO 8601；`schemaVersion`/`formatVersion` 必须是已知值。
 
@@ -883,6 +884,19 @@ interface ImportResult {
 - 默认样式：`builtin.report-light`。
 - 用户编辑内置模板时，**自动 fork** 为 `sty_<uuid>`，原内置不变。
 - 内置模板 id 是稳定契约，不得重命名。
+
+**实现边界（T3.1，ADR-034）**：
+
+- 4 个内置模板是 `@curve/domain` 的深度冻结常量（`builtin: true`），不写入
+  `manifest.tableStyles`；`DEFAULT_TABLE_STYLE_ID`/`DEFAULT_TABLE_STYLE_TOKENS` 也由 domain 导出，
+  persistence 与 app-core 复用同一常量。
+- 样式颜色字段只接受十六进制 `#RGB`/`#RGBA`/`#RRGGBB`/`#RRGGBBAA`；非法颜色、字体/圆角/
+  内边距/列宽/小数位越界均由 Zod 拒绝。
+- `resolveStyle(id, userStyles)` 返回 `{ style, fallback, warning? }`；未知 id（含未知
+  `builtin.*`）回退 `builtin.report-light` 并给 warning。`forkTableStyle` 深拷贝为
+  `sty_<uuid>`、`builtin: false`，名称默认 `Name (2)`。
+- `builtin.finance` 的等宽字体与斑马纹由令牌表达；数字右对齐、千分位属于 T3.2 的列格式化
+  管线，不在 T3.1 扩展 `TableStyleTokens`。
 
 ### 10.4 条件格式
 

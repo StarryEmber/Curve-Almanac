@@ -3,6 +3,7 @@ import {
   createAppError,
   createTimestamp,
   createWorkspaceId,
+  DEFAULT_TABLE_STYLE_ID,
   parseManifest,
 } from '@curve/domain';
 import type { UuidFactory, ValidationIssue, WorkspaceManifest } from '@curve/domain';
@@ -25,8 +26,6 @@ export interface ValidateManifestOptions {
   /** When present, the manifest id must match this open workspace id. */
   workspaceId?: string;
 }
-
-const DEFAULT_TABLE_STYLE_ID = 'builtin.report-light';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

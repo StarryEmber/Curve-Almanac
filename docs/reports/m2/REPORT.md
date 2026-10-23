@@ -3,7 +3,8 @@
 > 日期：2026-10-23 · 分支：`main` · 基线提交：`9e9e6d3`（T2.7 代码提交 `553f71b` 之后的交接文档）
 > 环境：Windows 10 x64 · Node 24.21.0 · pnpm 11.28.5 · Electron 44.9.0 · 16GB / SSD
 > 验收口径：`docs/TASKS.md` M2、ADR-033 §7、HANDOFF §6、SPEC §16.1/§9.3/§9.5/§13.3
-> 结论：**单条 `apps/desktop/e2e/m2-acceptance.spec.ts` 通过，全量 E2E 64 passed；等待用户验收，未进入 T3.x。**
+> 结论：**单条 `apps/desktop/e2e/m2-acceptance.spec.ts` 通过，全量 E2E 64 passed；
+> 2026-10-23 获用户接受，M2 关闭；验收时未进入 T3.x。**
 
 ## 1. 结论
 
@@ -185,4 +186,6 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/deskto
 ## 7. 验收结论
 
 M2 的 8 项演示全部通过，且固化为可重复运行的单条 E2E；未发现需要修改生产代码的缺陷。
-报告输出后暂停，等待用户验收确认。
+
+**用户已于 2026-10-23 接受 M2；M2 关闭，下一步 T3.1（已按授权完成，见
+`docs/reports/t3.1/REPORT.md`）。**

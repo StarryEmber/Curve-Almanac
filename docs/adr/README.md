@@ -63,3 +63,4 @@
 | ADR-031 | T2.5 的 CSV/JSON 导入、字节传输、工作线程与原始文件归档 | 已接受 | [031-t25-csv-json-import.md](031-t25-csv-json-import.md) |
 | ADR-032 | T2.6 的筛选、排序、视图状态、查询 Worker 与可见行粘贴 | 已接受 | [032-t26-filter-sort-view-state.md](032-t26-filter-sort-view-state.md) |
 | ADR-033 | T2.7 的性能门禁、基准口径、内存测量与三处热路径优化 | 已接受 | [033-t27-performance-gates.md](033-t27-performance-gates.md) |
+| ADR-034 | T3.1 的表格样式模型、内置模板与 fork 语义 | 已接受 | [034-t31-table-style-model.md](034-t31-table-style-model.md) |

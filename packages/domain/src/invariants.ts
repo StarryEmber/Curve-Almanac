@@ -7,6 +7,7 @@ import {
   MAX_TABLES_PER_WORKSPACE,
 } from './limits';
 import { parseCell } from './schemas';
+import { isResolvableStyleId, unresolvedStyleWarning } from './table-style';
 
 import type {
   Cell,
@@ -339,6 +340,10 @@ export function checkInvariants(
     );
   });
 
+  if (!isResolvableStyleId(manifest.settings.defaultTableStyleId, styleIds)) {
+    pushWarning(context, unresolvedStyleWarning(manifest.settings.defaultTableStyleId));
+  }
+
   manifest.tableStyles.forEach((style, index) => {
     if (style.id.startsWith('builtin.')) {
       pushIssue(
@@ -348,6 +353,27 @@ export function checkInvariants(
         'builtin styles are code constants and must not be persisted in the manifest',
       );
     }
+    if (style.builtin) {
+      pushIssue(
+        context,
+        `tableStyles[${index}].builtin`,
+        'E_VALIDATION',
+        'persisted styles must set builtin to false',
+      );
+    }
+
+    const ruleIds = new Set<string>();
+    style.conditionalRules.forEach((rule, ruleIndex) => {
+      if (ruleIds.has(rule.id)) {
+        pushIssue(
+          context,
+          `tableStyles[${index}].conditionalRules[${ruleIndex}].id`,
+          'E_DUPLICATE_KEY',
+          `duplicate conditional rule id "${rule.id}"`,
+        );
+      }
+      ruleIds.add(rule.id);
+    });
   });
 
   manifest.charts.forEach((chart, index) => {
@@ -576,11 +602,8 @@ function checkTableViewInto(
     }
   }
 
-  if (!state.styleId.startsWith('builtin.') && !styleIds.has(state.styleId)) {
-    pushWarning(
-      context,
-      `table view style "${state.styleId}" cannot be resolved; falling back to the default style`,
-    );
+  if (!isResolvableStyleId(state.styleId, styleIds)) {
+    pushWarning(context, unresolvedStyleWarning(state.styleId));
   }
 }
 

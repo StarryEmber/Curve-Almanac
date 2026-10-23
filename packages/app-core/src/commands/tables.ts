@@ -13,6 +13,7 @@ import {
   createTableId,
   createTimestamp,
   createViewId,
+  DEFAULT_TABLE_STYLE_ID,
   isId,
   parseTableMeta,
   planPrimaryKeyChange,
@@ -34,7 +35,6 @@ import type { CommandDefinition } from './types';
 import type { AppState } from '../state/types';
 import type { Draft } from 'immer';
 
-const DEFAULT_STYLE_ID = 'builtin.report-light';
 const PRIMARY_KEY_WIDTH = 180;
 
 export interface TableCreatePayload {
@@ -226,7 +226,7 @@ export function createNewTablePayload(options: NewTableOptions): TableCreatePayl
     title: name,
     tableView: {
       tableId,
-      styleId: options.defaultStyleId ?? DEFAULT_STYLE_ID,
+      styleId: options.defaultStyleId ?? DEFAULT_TABLE_STYLE_ID,
       columnOrder: [columnId],
       widths: { [columnId]: PRIMARY_KEY_WIDTH },
       hiddenColumnIds: [],
@@ -260,7 +260,7 @@ export function createOpenTableView(options: OpenTableViewOptions): ViewDef {
     title: options.table.name,
     tableView: {
       tableId: options.table.id,
-      styleId: options.defaultStyleId ?? DEFAULT_STYLE_ID,
+      styleId: options.defaultStyleId ?? DEFAULT_TABLE_STYLE_ID,
       columnOrder: ids,
       widths,
       hiddenColumnIds: [],

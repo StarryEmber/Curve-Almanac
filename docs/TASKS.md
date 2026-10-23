@@ -815,7 +815,7 @@ T0.2 + T5.5 → T6.4
     M2 验收 spec 未在本任务执行。
 
 **M2 验收演示**：新建表 → 粘贴 200 行 → 导入 100k CSV（GBK + 错误行）→ 筛选/排序 → 列宽/冻结 → 重启还原 → 性能预算达标。输出报告后停下。
-（2026-10-23 已执行；验收测试：`apps/desktop/e2e/m2-acceptance.spec.ts`；报告：`docs/reports/m2/REPORT.md`。单条 E2E + 全量 64 passed；导入 824ms、100k 打开 624ms、内存峰值 497MB；等待用户验收，未进入 T3.x。）
+（2026-10-23 已执行并经用户接受；验收测试：`apps/desktop/e2e/m2-acceptance.spec.ts`；报告：`docs/reports/m2/REPORT.md`。单条 E2E + 全量 64 passed；导入 824ms、100k 打开 624ms、内存峰值 497MB。M2 已关闭，下一步 T3.1。）
 
 ---
 
@@ -824,7 +824,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t31"></a>
 ### T3.1 表格样式模型与内置模板
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T1.1
 - 覆盖：FR-STY-01、FR-STY-05
 - 参考：SPEC §10.1、§10.3
@@ -837,10 +837,24 @@ T0.2 + T5.5 → T6.4
   2. 内置模板写成不可变常量，id 稳定。
   3. `resolveStyle` 找不到 → 默认 + warning。
 - 验收：
-  - [ ] 4 个内置模板通过 schema 校验且视觉差异明显。
-  - [ ] 编辑内置 → 自动生成 `sty_` 副本，内置不变。
-  - [ ] 非法颜色/越界数值被拒绝。
+  - [x] 4 个内置模板通过 schema 校验且视觉差异明显。
+  - [x] 编辑内置 → 自动生成 `sty_` 副本，内置不变。
+  - [x] 非法颜色/越界数值被拒绝。
 - 验证：`pnpm exec vitest run packages/domain -- --grep "style"`
+- 实现备注（2026-10-23，ADR-034）：
+  - 决策：4 个内置模板为 domain 深度冻结常量、`builtin: true`、不入 manifest；默认
+    `builtin.report-light`；`resolveStyle` 返回 `{style, fallback, warning?}`，未知 id（含未知
+    `builtin.*`）回退 + warning；`forkTableStyle` 深拷贝为 `sty_<uuid>`、`builtin:false`、名称
+    `Name (2)`；颜色只接受 `#RGB/#RGBA/#RRGGBB/#RRGGBBAA`；默认常量集中到 domain。
+  - domain：新增 `table-style.ts`（4 个模板、默认令牌、resolve/fork/create、isResolvableStyleId）、
+    `schemas.ts` 的 `tableStyleColorSchema`、`invariants.ts` 的持久化 builtin/默认样式/重复规则
+    id 检查；18 条 style 单测 + 1 条 invariant 单测，域包 150 tests。
+  - persistence/app-core：删除本地 `'builtin.report-light'`，统一引用 `DEFAULT_TABLE_STYLE_ID`。
+  - 实测：`pnpm verify` **124 files / 997 tests**，depcruise **347 modules / 1335 deps / 0
+    violations**；coverage lines **75.13%**（`table-style.ts` 97.56%）；`format:check` 通过；
+    `pnpm build` exit 0（renderer 1,419.17 kB）。
+  - 残留：`builtin.finance` 的数字右对齐/千分位由 T3.2 列格式化实现；实际视觉快照留 T3.2；
+    内置名称本地化留 T3.4/T3.5；fork 保留规则 id；颜色暂不支持关键字/CSS 变量。
 
 <a id="t32"></a>
 ### T3.2 样式渲染管线

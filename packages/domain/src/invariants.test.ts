@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { assertInvariants, checkInvariants, checkTable } from './invariants';
+import { DEFAULT_TABLE_STYLE_TOKENS } from './table-style';
 
 import type {
   ChartSpec,
+  ConditionalRule,
   LayoutNode,
   Row,
   TableMeta,
+  TableStyle,
   TableViewState,
   ViewDef,
   WorkspaceManifest,
@@ -57,6 +60,33 @@ function makeChart(overrides: Partial<ChartSpec> = {}): ChartSpec {
     createdAt: TIMESTAMP,
     updatedAt: TIMESTAMP,
     ...overrides,
+  };
+}
+
+function makeStyle(overrides: Partial<TableStyle> = {}): TableStyle {
+  return {
+    id: 'sty_1',
+    name: 'Style',
+    builtin: false,
+    tokens: {
+      ...DEFAULT_TABLE_STYLE_TOKENS,
+      header: { ...DEFAULT_TABLE_STYLE_TOKENS.header },
+      body: { ...DEFAULT_TABLE_STYLE_TOKENS.body },
+      selection: { ...DEFAULT_TABLE_STYLE_TOKENS.selection },
+    },
+    columnOverrides: {},
+    conditionalRules: [],
+    ...overrides,
+  };
+}
+
+function makeRule(id = 'rule_1'): ConditionalRule {
+  return {
+    id,
+    enabled: true,
+    target: { kind: 'row' },
+    when: { kind: 'compare', columnId: 'col_a', op: 'gt', value: 30 },
+    style: { background: '#fde2e2', bold: true },
   };
 }
 
@@ -455,14 +485,24 @@ describe('checkInvariants — charts, styles and layout', () => {
   });
 
   it('rejects persisted builtin styles and duplicate ids', () => {
-    const builtin = {
-      ...makeManifest().tableStyles[0],
-      id: 'builtin.sneaky',
-    };
     expectIssue(
-      check(makeManifest({ tableStyles: [builtin as WorkspaceManifest['tableStyles'][number]] })),
+      check(makeManifest({ tableStyles: [makeStyle({ id: 'builtin.sneaky' })] })),
       'tableStyles[0].id',
       'E_VALIDATION',
+    );
+    expectIssue(
+      check(makeManifest({ tableStyles: [makeStyle({ builtin: true })] })),
+      'tableStyles[0].builtin',
+      'E_VALIDATION',
+    );
+    expectIssue(
+      check(
+        makeManifest({
+          tableStyles: [makeStyle({ conditionalRules: [makeRule(), makeRule()] })],
+        }),
+      ),
+      'tableStyles[0].conditionalRules[1].id',
+      'E_DUPLICATE_KEY',
     );
 
     const duplicateTables = [makeTable(), makeTable({ file: 'tables/tbl_2.jsonl' })];
@@ -471,6 +511,17 @@ describe('checkInvariants — charts, styles and layout', () => {
       'tables[1].id',
       'E_DUPLICATE_KEY',
     );
+  });
+
+  it('warns when the workspace default style cannot be resolved', () => {
+    const base = makeManifest();
+    const report = check(
+      makeManifest({
+        settings: { ...base.settings, defaultTableStyleId: 'builtin.missing' },
+      }),
+    );
+    expect(report.issues).toEqual([]);
+    expect(report.warnings).toContainEqual(expect.stringContaining('falling back'));
   });
 
   it('enforces the layout view rules', () => {
