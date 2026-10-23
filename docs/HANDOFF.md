@@ -2,7 +2,8 @@
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T3.2`（样式渲染管线）；
 > M2 已于 2026-10-23 获用户接受。最后更新：2026-10-23 ·
-> `T3.2` 代码提交 **`cd415d6`**；本交接文档随后单独提交 · 分支 `main`。
+> `T3.2` 代码提交 **`cd415d6`**；分支 `main`；本文件的提交见
+> `git log -1 -- docs/HANDOFF.md`。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.2/REPORT.md` →
 > `docs/TASKS.md` 的 M3 / T3.2 / T3.3 → `docs/TESTPLAN.md` §2、§3、§5 →
 > `docs/SPEC.md` §6.4、§10、§16.1 →
@@ -25,6 +26,8 @@
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
 - **停点**：T3.2 报告已输出；**等用户授权 T3.3**，不进入 T3.3 的实现。
+- **T3.3 开工前**：先解决“条件求值器放 domain 还是 table-engine”与“规则编辑是否在 T3.3
+  接撤销命令”两个歧义；详见 §5F。不要先写代码再问。
 
 ---
 
@@ -45,7 +48,7 @@
 | `T2.7` 10 万行性能硬化 | **已完成**（`553f71b`）；报告 `docs/reports/t2.7/REPORT.md`；ADR-033 |
 | M2 验收演示 | **已获用户接受**（2026-10-23）；`e2e/m2-acceptance.spec.ts` + `docs/reports/m2/REPORT.md` |
 | `T3.1` 表格样式模型与内置模板 | **已完成**（2026-10-23，`b75fff1`）；报告 `docs/reports/t3.1/REPORT.md`；ADR-034 |
-| `T3.2` 样式渲染管线 | **已完成**（2026-10-23）；报告 `docs/reports/t3.2/REPORT.md`；ADR-035 |
+| `T3.2` 样式渲染管线 | **已完成**（2026-10-23，`cd415d6`）；报告 `docs/reports/t3.2/REPORT.md`；ADR-035 |
 | 当前里程碑 | **M3 表格外观**：T3.1–T3.2 完成；T3.3–T3.6 待推进，里程碑验收演示最后做 |
 | 下一步 | **等待用户授权 T3.3（条件格式引擎）**；不要自动开始 T3.3/T3.4 |
 | `pnpm verify` 基线 | **128 files / 1037 tests**；ESLint 0；depcruise **355 modules / 1363 deps / 0 violations** |
@@ -898,6 +901,52 @@ pnpm bench          exit 0；open 572ms、save 358ms、edit 0ms、query 216ms、
 - badge 四 tone 在样式颜色接近时区分度有限；不新增调色板模型。
 - 未提交 PNG 像素基线；视觉验收使用计算样式契约 + 截图证据。
 - T3.3 必须复用 `presentStyledCell`/`GridCell`，不要另起样式逻辑。
+
+**交接注意（T3.2 实际踩过的坑）**：
+
+- 单元格现在带 `data-column-id`，旧 E2E 的 `[data-column-id=...]` 会同时命中表头和所有行；
+  查表头请用 `[role="columnheader"][data-column-id=...]`（`grid.spec.ts` 已修）。
+- 全量 E2E 要独占 CPU。与 `verify`/`coverage`/另一套 Electron 并发时，`grid.spec.ts` 的
+  200% 缩放焦点用例可能失败；独占重跑 65 passed。不要因此放宽超时或删断言。
+- `@curve/ui` 现在运行时依赖 `@curve/domain`；新增 UI 包导入时同步 `package.json` 与
+  `tsconfig.json` 的 domain project reference，否则 `tsc -b` 会出现 rootDir/6307 错误。
+- `--cs-table-*` 是运行时变量，不在 `tokens.css`；`ui-conventions.test.ts` 从
+  `table-style.ts` 的字符串常量里读取白名单。新增变量必须进 `TABLE_STYLE_CSS_VARIABLES`。
+- 工具栏通过局部重映射 `--cs-color-*` 继承表头配色；不要在单元格里恢复应用主题令牌。
+- 数字统一千分位、布尔显示“是/否”是有意的显示层变化；不要为了旧 E2E 改回 `String(value)`。
+
+---
+
+## 5F. T3.3 预备交接（未开工，等授权）
+
+**任务卡**：T3.3 条件格式引擎；依赖 T3.1、T1.1；覆盖 FR-STY-04；参考 SPEC §10.4；
+产出 `evaluateRules(rules, row, columns)`（行/单元格目标）、12 种比较语义、首条命中、空值规则、
+可见行求值优化与基准；验收包含“所有操作符正反例 / `between` 含边界”“首条命中；50 条规则 ×
+100 行 ≤ 16ms”“空值/类型不匹配不抛异常”“规则编辑可撤销”。
+
+**已知集成点**：
+
+- 规则模型已在 `@curve/domain` 的 `TableStyle.conditionalRules`（`TableStyleTokens`/manifest
+  不变）；`TableStyleProvider` 目前只渲染 tokens/overrides，不消费规则。
+- `GridCell` 已有 `align`/`render`/`barRatio`/`badgeTone`，T3.3 应在其上叠加行/单元格样式，
+  与 selection/error/conflict 的优先级需要先定义（SPEC §10.4 只定义规则间“首条命中”）。
+- `GridHeader`/`DataGrid` 已有可见行 `rows` 与列索引；规则求值应只针对可见行，并缓存列索引。
+
+**开工前必须先问的歧义**：
+
+1. **求值器归属**：TASKS 要求 `packages/domain` 的纯函数，但现有 `FilterPredicate` 求值器
+   （`matchesFilterPredicate`）在 `@curve/table-engine`；依赖方向是 `domain ← table-engine`，
+   domain 不能反向 import。需要选择：把求值器下沉/复制到 domain、改任务归属到 table-engine，
+   或另写 domain 版语义并用属性测试对齐。涉及公共 API，按 AGENTS §11 先问。
+2. **撤销接线**：T3.3 验收有“规则编辑可撤销”，但当前没有 style 更新命令（T3.4/T3.5 才做
+   编辑器与模板 CRUD）。需要确认 T3.3 只交付纯引擎 + 单测，还是同时补 command 与最小 UI。
+3. **样式优先级**：条件格式的 background/foreground/bold/italic/icon 与选中/错误/冲突/
+   bar/badge 冲突时谁赢；建议先定“错误/冲突 > 选中 > 条件格式 > 斑马纹”并写 ADR。
+4. **性能口径**：50 条规则 × 100 行 ≤16ms 是纯求值还是含 DOM 应用；bench 放 domain 还是
+   组件层。
+
+**不要做**：不要提前实现 T3.4 的编辑器/T3.5 的模板 CRUD；不要改 `formatVersion`/manifest；
+不要在 `GridCell` 里硬编码条件颜色。
 
 ---
 
