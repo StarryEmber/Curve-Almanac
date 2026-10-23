@@ -1,7 +1,7 @@
 # HANDOFF — Curve Studio 实施交接
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T2.7`（10 万行性能硬化），按用户要求停止；
-> M2 验收演示尚未执行。最后更新：2026-10-23 · `T2.7` 代码提交 **`553f71b`**（本交接文件随后单独提交）·
+> M2 验收演示尚未执行。最后更新：2026-10-23 · `T2.7` 代码提交 **`553f71b`** ·
 > 分支 `main` · 工作树干净。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.7 / M2 验收演示 →
 > `docs/TESTPLAN.md` §5、§3（E3/E4）、§4 →
@@ -40,7 +40,7 @@
 | 方案文档 | v1.0 已锁定（SPEC / TASKS / TESTPLAN / DECISIONS） |
 | M0 基建（T0.1–T0.5） | **已完成**；验收报告 `docs/reports/m0/REPORT.md` |
 | M1 领域与持久化（T1.1–T1.5） | **已完成并经用户验收**（2026-10-21）；报告 `docs/reports/m1/REPORT.md` |
-| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1–T2.6 扩展了命令、actions、历史与保存 |
+| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1–T2.7 扩展了命令、actions、历史与保存 |
 | `T2.1` 工作区入口、表管理与网格 | **已完成**（`07c4763`）；报告 `docs/reports/t2.1/REPORT.md`；ADR-027 |
 | `T2.2` 单元格编辑与校验 | **已完成**（`641cd86`）；报告 `docs/reports/t2.2/REPORT.md`；ADR-028 |
 | `T2.3` 列管理、结构变更与迁移 | **已完成**（`213fab4`）；报告 `docs/reports/t2.3/REPORT.md`；ADR-029 |
@@ -145,6 +145,11 @@ T2.1–T2.5 全程 `danger-full-access`，审批提示已关闭——**不要使
 T2.5 新增 `papaparse` 运行时依赖（`@curve/table-engine`）与 `iconv-lite` devDependency（仅
 `scripts/gen-100k.ts` 与 E2E 夹具生成）；不引入 jschardet/iconv-lite 运行时依赖。后续新增依赖
 仍先按 AGENTS §4 写 ADR；能复用已有依赖就不要新增。
+
+T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `@curve/persistence`
+（workspace 包，供 `scripts/bench.ts` 使用；不是运行时依赖）。本机安装时先用
+`cmd /c mklink /J` 预建 `node_modules\@curve\{app-core,persistence}` 再 `pnpm install`，
+一次通过；`pnpm-lock.yaml` 已同步提交。
 
 ### 3.5 文本编码与路径陷阱
 
@@ -332,7 +337,7 @@ QueryWorkerRequest/Response; isQueryWorkerRequest/isQueryWorkerResponse
 - `table:write` 写盘前校验 200k 行 / 256MB 上限；导入保存仍走该通道（256MB 在保存时强制）。
 - T2.5 新增 3 个已实现通道（`ALL_IPC_CHANNELS` 18 → 19）。
 
-### 4.6 `@curve/app-core`（T1.5 + T2.1 + T2.2 + T2.3 + T2.4 + T2.5）
+### 4.6 `@curve/app-core`（T1.5 + T2.1 + T2.2 + T2.3 + T2.4 + T2.5 + T2.6 + T2.7）
 
 ```ts
 createAppCore({
@@ -540,7 +545,7 @@ e2e/paste.spec.ts   7 passed
 
 - 筛选视图只能整批拒绝；完整“只写可见行/超出整批拒绝”由 T2.6 闭环（TASKS T2.6 已承接）。
 - 独立“新增行”按钮/快捷键未实现；`table.rows.insert` 命令可用，E3 键盘新增一行仍待后续任务。
-- 10 万级矩阵命令阶段仍同步；T2.7 评估 Worker/硬门禁。
+- 10 万级矩阵命令阶段仍同步；T2.7 未改命令阶段（结论见 §5C）。
 - 256MB 写盘上限在保存时强制（`committed: true`），未在 dispatch 前编码整表。
 - 隐藏列/视图级列顺序的完整映射依赖 T2.6；T2.4 只处理传入的可见列顺序。
 - 新增列不支持 enum 等需要额外选项的类型，仍走 T2.3 列面板。
@@ -602,7 +607,7 @@ pnpm bench -- --import import.100k P50 645ms / P95 659ms
 
 残留：
 
-- `table.import` 命令阶段仍同步校验 100k 行；T2.7 评估 Worker/硬门禁。
+- `table.import` 命令阶段仍同步校验 100k 行；T2.7 未改命令阶段（结论见 §5C）。
 - 100k 导入逆补丁内存未计 256MB 字节上限；T5.2 统一。
 - >50MB 原文只写 sidecar（路径 + hash），不复制；替换备份复用 `writeTable`。
 - 错误 CSV 一行合并多个 issue；JSON 嵌套对象/数组不支持；新列不支持 enum。
@@ -668,7 +673,7 @@ pnpm bench -- --query query.100k P50 30ms / P95 34ms；text-sort.100k P50 314ms 
 - 100k 全中文/极端文本排序仍可能接近 400ms；自然键对 >12 位数字段/带符号数字回退 collator。
 - query Worker 最多缓存 4 张表；首次 100k 快照克隆未计入 `data-query-ms`。
 - 视图状态连续拖动列宽/快速排序会多次写 manifest；T5.3 统一保存队列。
-- 10 万级粘贴/导入命令阶段仍同步；T2.7 评估。
+- 10 万级粘贴/导入命令阶段仍同步；T2.7 未改命令阶段（见 §5C）。
 - `table.paste` 新增可选 `rowIds/viewId`，SPEC §9.3/§13.1 已同步；省略时保持 T2.4 保守行为。
 
 ---
@@ -767,9 +772,9 @@ pnpm bench
 | Windows 无 symlink 权限 | `pnpm install` 失败 | 按 §3.4 用 junction 补齐；不要删 node_modules/切 linker |
 | 全量 E2E 偶发 grid/edit 键盘超时 | 全量非零 | 单跑确认；T2.4 已修复焦点丢失；不放宽超时/不删断言 |
 | 外部程序占满 CPU（如游戏/聊天工具） | verify 5s 超时、100k grid 首帧 >1s | 先确认 CPU（`Get-Counter '\Processor(_Total)\% Processor Time'`）；暂停外部程序后重跑，不改预算 |
-| 100k 行结构变更同步执行 | UI 短暂无响应 | T2.3 已记录；T2.7 实测/Worker 化 |
-| 10 万级粘贴命令阶段同步 | UI 可能短暂无响应 | T2.4 10k 实测远低于预算；T2.7 复核 |
-| 10 万级导入命令阶段同步 | 提交时短暂占用主线程 | T2.5 bench 核心管线 P95 659ms；T2.7 复核 |
+| 100k 行结构变更同步执行 | UI 短暂无响应 | T2.3 已记录；未纳入 T2.7 预算，后续按需 Worker 化 |
+| 10 万级粘贴命令阶段同步 | UI 可能短暂无响应 | T2.4 10k 实测远低于预算；T2.7 未改命令阶段 |
+| 10 万级导入命令阶段同步 | 提交时短暂占用主线程 | T2.5/T2.7 bench 核心管线 P95 878ms（8s 预算）；命令阶段仍同步 |
 | 导入后 100k 逆补丁 | 撤销栈内存 | T2.5 仅记录；T5.2 统一 256MB 上限 |
 | >50MB 原文只记 sidecar | 原文件路径可能失效 | SPEC §9.4 允许；路径 + SHA-256 可审计 |
 | 导入错误 CSV 按坏行聚合 | 机器消费需拆字段 | 文档已记录；UI 仍显示逐 issue |
@@ -788,8 +793,8 @@ pnpm bench
 | 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 75.00% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；M2 报告给趋势 |
-| renderer bundle 约 1.41MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
+| 覆盖率 74.99% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；M2 报告给趋势 |
+| renderer bundle 约 1.42MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
 
 ---
 
