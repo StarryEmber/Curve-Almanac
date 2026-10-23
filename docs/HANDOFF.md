@@ -2,18 +2,18 @@
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T2.7`（10 万行性能硬化）并执行了
 > **M2 验收演示**，按用户要求停在验收确认前。最后更新：2026-10-23 ·
-> `T2.7` 代码提交 **`553f71b`** · M2 验收测试/报告见 §6 · 分支 `main` · 工作树干净。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/TASKS.md` 的 T2.7 / M2 验收演示 →
-> `docs/TESTPLAN.md` §5、§3（E3/E4）、§4 →
-> `docs/SPEC.md` §16.1、§9.5、§9.3 →
+> `T2.7` 代码提交 **`553f71b`** · M2 验收提交 **`8ed6c2b`** · 分支 `main` · 工作树干净。
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/m2/REPORT.md` →
+> `docs/TASKS.md` 的 M2 / T2.7 → `docs/TESTPLAN.md` §5、§3、§4 →
+> `docs/SPEC.md` §16.1、§9.5、§9.3、§13.3 →
 > `docs/adr/033-t27-performance-gates.md`（T2.7）与 ADR-032（T2.6）。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
-- **当前状态**：`T2.7`（10 万行性能硬化）已完成并提交；**M2 验收演示已执行**
-  （`apps/desktop/e2e/m2-acceptance.spec.ts` + `docs/reports/m2/REPORT.md`），
+- **当前状态**：`T2.7`（10 万行性能硬化）已完成并提交；**M2 验收演示已执行并提交**
+  （`8ed6c2b`；`apps/desktop/e2e/m2-acceptance.spec.ts` + `docs/reports/m2/REPORT.md`），
   **等待用户验收**；确认前不要开始 T3.x。
 - **本次交付**：T2.7 的 bench/E2E/热路径优化（见 §5C）＋ M2 单条端到端验收
   （新建表 → 粘贴 200 行 → 导入 100k GBK CSV（3 坏行）→ 筛选/3 级排序 → 列宽/冻结 →
@@ -44,7 +44,7 @@
 | `T2.5` CSV/JSON 导入向导 | **已完成**（`16ba035`）；报告 `docs/reports/t2.5/REPORT.md`；ADR-031 |
 | `T2.6` 筛选、排序与视图状态 | **已完成**（`1149100`）；报告 `docs/reports/t2.6/REPORT.md`；ADR-032 |
 | `T2.7` 10 万行性能硬化 | **已完成**（`553f71b`）；报告 `docs/reports/t2.7/REPORT.md`；ADR-033 |
-| M2 验收演示 | **已执行**（2026-10-23）；`e2e/m2-acceptance.spec.ts` + `docs/reports/m2/REPORT.md`；**等待用户验收** |
+| M2 验收演示 | **已执行并提交**（2026-10-23，`8ed6c2b`）；`e2e/m2-acceptance.spec.ts` + `docs/reports/m2/REPORT.md`；**等待用户验收** |
 | 当前里程碑 | **M2 表格数据**：T2.1–T2.7 全部完成，**验收演示已执行，等待用户验收** |
 | 下一步 | **等待用户验收 M2**；确认前不要开始 T3.x，也不要自动推进 |
 | `pnpm verify` 基线 | **123 files / 978 tests**；ESLint 0；depcruise **345 modules / 1326 deps / 0 violations** |
@@ -747,6 +747,13 @@ pnpm bench          exit 0；open 667ms/3s、save 413ms/500ms、edit 0ms/50ms、
 7. 输出 `docs/reports/m2/REPORT.md` 与 4 张截图；`e2e/fixtures.ts` 新增
    `launchCurveApp()`（同一 `userData` 重启，仅测试代码）。
 
+- 提交：**`8ed6c2b`**（`test(m2): add milestone acceptance demo and report`）；工作树干净。
+- 关键文件：`apps/desktop/e2e/m2-acceptance.spec.ts`、`apps/desktop/e2e/fixtures.ts`
+  （`launchCurveApp`）、`docs/reports/m2/REPORT.md` 与 `m2-01…04*.png`；
+  TASKS/CHANGELOG/AGENTS/HANDOFF 已同步。
+- Playwright 产物：`apps/desktop/test-results/m2-acceptance-*`（gitignore），含 timings/
+  manifest attachment 与失败时 trace。
+
 实测（全量 E2E 套件内，本机空闲）：
 
 | 指标 | 实测 | 预算 |
@@ -776,6 +783,9 @@ $env:CURVE_E2E_NO_SANDBOX = '1'
 pnpm e2e
 pnpm bench
 ```
+
+**验收待用户确认**：用户接受 M2 后，再把 TASKS M2 注记更新为“获用户接受”，并按 AGENTS §8
+复述 T3.1 后再开工；若用户要求修改，回到对应 T2.x 修复，不进入 T3.x。
 
 **停点：等待用户验收 M2；确认前不要开始 T3.x。**
 
@@ -833,7 +843,7 @@ pnpm bench
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 M2 验收提交（报告 `docs/reports/m2/REPORT.md`）。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 M2 验收提交 **`8ed6c2b`**（报告 `docs/reports/m2/REPORT.md`）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
 - [ ] 已读 `AGENTS.md`、本文件、TASKS 的 M2、`docs/reports/m2/REPORT.md`、
