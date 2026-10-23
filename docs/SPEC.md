@@ -801,6 +801,17 @@ interface ImportResult {
   首次/结构变化全量同步、单元格编辑只发改动行。新查询作废旧响应；Worker 失败回退主线程并提示。
   查询不提供百分比进度；100k 文本排序的极端值仍由 T2.7 复核。
 
+**实现边界（T2.7，ADR-033）**：
+
+- `buildSortPlans` 为每级排序预计算空值标志与比较键（text/enum：自然键或原始/标签字符串；
+  number/date：`Float64Array` + 不可读值的中性标志；boolean：`Uint8Array`），比较器不再逐次
+  访问 `row.values`。`QueryContext.compareCache` 让每个筛选谓词只解析一次列下标与文本比较值。
+- 非 ASCII 文本改用文档规定的参考语义（原始值 + `numeric: true` collator），ASCII 仍走
+  数字段补零的自然键快速路径；长数字段/带符号数字不再需要单独回退。
+- 全中文文本 100k 排序单列 800ms 预算（§16.1）；实测 644ms，400ms 对 ICU collator 不可达。
+- 网格新增 `data-query-total-ms`（含首次 Worker 快照克隆的端到端时间，趋势指标）；
+  `data-query-ms` 仍只含 Worker 内 filter+sort。
+
 ### 9.6 导出
 
 - CSV：UTF-8 BOM（Excel 兼容）；可选"原始值"或"按显示格式"。
@@ -1423,13 +1434,14 @@ T2.5 实现边界（ADR-031）：`file.importText` 返回原始 `Uint8Array` 与
 | 网格滚动 | ≥ 55fps | Playwright trace / 手工 DevTools |
 | 单元格提交 | ≤ 50ms（P95） | 单元基准 |
 | 筛选/排序 100k | ≤ 400ms | Worker 基准 |
+| 筛选/排序 100k（全中文文本） | ≤ 800ms | Worker 基准（ADR-033 单列预算） |
 | 图表解析+采样 100k | ≤ 300ms | chart-model 基准 |
 | 图表渲染 2k 点 | ≤ 200ms | 手工/Playwright |
 | 自动保存 100k | ≤ 500ms，且不阻塞 UI | main 写盘打点 |
 | 样式预览更新 | ≤ 100ms | 组件测试 |
 | 导入 100k CSV | ≤ 8s | E2E 计时 |
 | 粘贴 10k 单元格 | ≤ 1s（P95，软预算） | 单元基准/报告；T2.7 硬化 |
-| 内存峰值 | ≤ 600MB | 任务管理器/`process.memoryUsage` |
+| 内存峰值 | ≤ 600MB | `app.getAppMetrics()` 汇总 main + renderer + utility/worker 的 `privateBytes`（不含 GPU） |
 
 超预算：先优化；优化不了必须在任务报告里记录实测值、原因与后续计划，不得静默放过。
 
@@ -1442,6 +1454,18 @@ T2.6 实测（2026-10-23，本机）：`pnpm bench -- --query` 的 `query.100k`
 P50 314ms / P95 347ms，预算均为 400ms。`e2e/filter.spec.ts` 的 100k 用例断言
 `data-query-ms <= 400` 且查询在专用 Worker 中完成；6 条筛选/排序/视图 E2E 全部通过。
 T2.7 继续做硬门禁、中文文本与内存峰值回归。
+
+T2.7 实测（2026-10-23，本机；ADR-033）：`pnpm bench` 全部受门禁用例 P95 ——
+`table.open.100k` **358ms**（预算 3s）、`table.save.100k` **349ms**（500ms）、
+`edit.commit.100k` **1ms**（50ms，1,000 次循环）、`query.100k` **238ms**（400ms）、
+`query.text-sort.100k` **338ms**（400ms）、`query.cjk-sort.100k` **644ms**（800ms）、
+`import.100k` **781ms**（8s）；`query.sync-clone.100k` 约 300ms 仅作诊断。
+CI 的 `bench` 作业对绝对预算硬失败、对 >20% 回归软告警；基线 `bench/baseline.json`
+必须由 CI 的 Windows runner 生成后提交，缺失时比较跳过并打印 `::notice`。
+内存 600MB 由 `e2e/perf.spec.ts` 用 `app.getAppMetrics()` 的 `privateBytes` 整应用口径
+（main + renderer + utility/worker，不含 GPU）判定，实测峰值 **570MB**；`workingSetSize`
+会重复计算共享页，只作为诊断记录（711MB）。冷启动（≤2.5s，实测 997ms）与 100k 首帧
+（≤3s，`performance.measure('curve:open')` 实测 665ms）也在该 spec 中断言。
 
 ### 16.2 安全
 

@@ -114,9 +114,13 @@ describe('command bus and table.cell.set', () => {
     const { patches, inversePatches, mergeKey, next } = outcome.result;
     expect(mergeKey).toBe('table.cell.set:tbl_test:row_2:col_value');
     expect(patches.length).toBeGreaterThan(0);
-    expect(patches.some((patch) => patch.path[0] === 'tables' && patch.path.length === 4)).toBe(
-      true,
+    // T2.7/ADR-033: the edit publishes one atomic `rows` replacement instead of
+    // an element patch, so Immer never finalizes the whole 100k-row array.
+    const rowsPatch = patches.find(
+      (patch) => patch.path[0] === 'tables' && patch.path[2] === 'rows',
     );
+    expect(rowsPatch?.path).toEqual(['tables', 'tbl_test', 'rows']);
+    expect(Array.isArray(rowsPatch?.value)).toBe(true);
     expect(patches.some((patch) => patch.path.length === 2 && patch.path[0] === 'tables')).toBe(
       false,
     );

@@ -67,12 +67,7 @@ import type {
   WriteTableRequest,
   WriteTableResult,
 } from '@curve/persistence';
-import {
-  countJsonlRows,
-  hasTrailingNewline,
-  reconcileRowCounts,
-  tableWriteLimitError,
-} from '@curve/table-engine';
+import { countJsonlRows, reconcileRowCounts, tableWriteLimitError } from '@curve/table-engine';
 
 import { atomicWrite } from './atomic-write';
 import { inspectLock, lockDocument, removeLockIfOwned, writeLock } from './lock-file';
@@ -153,6 +148,33 @@ function safeImportFileName(name: string): string {
     .replace(/^_+|_+$/g, '')
     .slice(0, 80);
   return cleaned.length === 0 ? 'import' : cleaned;
+}
+
+/**
+ * Byte-level `countJsonlRows` for the open-time `rowCount` repair (SPEC §7.5).
+ *
+ * A UTF-8 newline byte can never appear inside a multi-byte sequence, so
+ * counting `0x0A` over the buffer is exact. It also counts only non-empty
+ * segments, matching `countJsonlRows` for blank lines (T2.7/ADR-033: avoids
+ * decoding a 100k table file to a string just to count rows).
+ */
+function countBufferJsonlRows(buffer: Buffer): number {
+  if (buffer.length === 0) {
+    return 0;
+  }
+  let count = 0;
+  let start = 0;
+  for (;;) {
+    const newline = buffer.indexOf(0x0a, start);
+    const end = newline === -1 ? buffer.length : newline;
+    if (end > start) {
+      count += 1;
+    }
+    if (newline === -1) {
+      return count;
+    }
+    start = newline + 1;
+  }
 }
 
 export class FileWorkspaceStore implements WorkspaceStore {
@@ -404,9 +426,12 @@ export class FileWorkspaceStore implements WorkspaceStore {
   async readTable(request: TableRef): Promise<TableReadResult> {
     const { workspace, table } = this.requireTable(request);
     const filePath = await this.resolveTableFile(workspace, table);
-    let buffer: Buffer;
+    let jsonl: string;
     try {
-      buffer = await readFile(filePath);
+      // Read straight to UTF-8 instead of Buffer + toString: the IPC reply needs
+      // the string anyway, and the extra ~15MB buffer only adds to the 100k open
+      // memory peak (T2.7 memory budget, ADR-033).
+      jsonl = await readFile(filePath, 'utf8');
     } catch (error) {
       if (isEnoent(error)) {
         // SPEC §7.5 + ADR-022: a table that the manifest still describes as
@@ -421,7 +446,7 @@ export class FileWorkspaceStore implements WorkspaceStore {
       }
       throw toFsError('E_FS_READ', 'Cannot read the table data file.', error);
     }
-    return { jsonl: buffer.toString('utf8'), bytes: buffer.byteLength };
+    return { jsonl, bytes: Buffer.byteLength(jsonl, 'utf8') };
   }
 
   async writeTable(request: WriteTableRequest): Promise<WriteTableResult> {
@@ -878,9 +903,11 @@ export class FileWorkspaceStore implements WorkspaceStore {
       } catch {
         continue;
       }
-      let content: string;
+      let content: Buffer;
       try {
-        content = await readFile(tablePath, 'utf8');
+        // Row counting only needs the `\n` bytes: decoding 15MB to a string here
+        // doubled the main-process heap on every 100k open (ADR-033).
+        content = await readFile(tablePath);
       } catch (error) {
         if (!isEnoent(error)) {
           workspace.warnings.push(
@@ -889,8 +916,8 @@ export class FileWorkspaceStore implements WorkspaceStore {
         }
         continue;
       }
-      actual.set(table.id, countJsonlRows(content));
-      if (!hasTrailingNewline(content)) {
+      actual.set(table.id, countBufferJsonlRows(content));
+      if (content.length > 0 && content[content.length - 1] !== 0x0a) {
         workspace.warnings.push(
           `The data file for table "${table.name}" does not end with a newline.`,
         );

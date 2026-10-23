@@ -293,3 +293,28 @@
 - T2.6：SPEC §9.3/§9.5/§13.1/§13.2/§16.1、TASKS T2.6、HANDOFF、AGENTS §0 同步；
   新增 ADR-032 与 `docs/reports/t2.6/REPORT.md`；不新增依赖/IPC，不改变 `formatVersion`、
   JSONL、manifest 字段、CSP、沙箱或 preload 白名单。
+- T2.7：`scripts/bench.ts` 重写为多 suite 基准（`table-io` 的 open/save/encode/decode、
+  `edit.commit.100k` 1,000 次提交、`query.100k`/ASCII/CJK 排序、`query.sync-clone` 诊断、
+  `import.100k`），新增 `scripts/bench-report.ts`（报告/基线/20% 回归，11 条单测）、
+  `scripts/tsconfig.json`（bench 纳入 typecheck）与 `bench/README.md`；`pnpm bench` 改为
+  `node --expose-gc --import tsx`，suite 间显式 GC，支持 `--write-baseline`。
+- T2.7：`scripts/gen-100k.ts` 增加共享 100k×10 工作区生成器（固定种子 42、CJK 站点/姓名列），
+  bench 与 `pnpm e2e` 复用；`perf.spec.ts` 复制到测试输出目录后打开。
+- T2.7：`@curve/app-core` 的 `table.cell.set` 改为在 base 状态校验并把新行数组冻结后替换
+  （Immer 不再遍历 100k 行），提交 P95 409ms → 1ms；新增 `commands/frozen-rows.ts`。
+- T2.7：`@curve/table-engine` 的排序计划预计算空值标志与比较键（`Uint8Array`/`Float64Array`），
+  比较器不再逐次访问行对象（`query.100k` 447ms → 238ms、ASCII 文本排序 516ms → 338ms）；
+  筛选谓词缓存列下标与规范化比较值；非 ASCII 文本改用参考 `numeric:true` collator
+  （CJK 1.1s → 644ms），并按用户确认把全中文 100k 排序单列 **800ms** 预算。
+- T2.7：新增 `apps/desktop/e2e/perf.spec.ts` 3 条（冷启动 ≤2.5s、100k 打开 ≤3s、
+  整应用内存 ≤600MB + `data-query-total-ms` 趋势）；`fixtures.ts` 暴露
+  `appLaunch.launchStartedAt`；renderer 增加 `curve:app-ready`/`curve:open` 打点，
+  `DataGrid` 增加 `data-query-total-ms`，`use-view-rows` 在无查询时不再构建 100k `rowById`。
+- T2.7：`FileWorkspaceStore` 打开路径不再为行数重算解码整表、`readTable` 直接读 UTF-8
+  字符串；E2E 整应用 `privateBytes` 峰值 644MB → **570MB**（main 225MB → 135MB）。
+- T2.7：CI 新增 `bench` 作业（Windows，预算硬失败 + 20% 回归 `::warning`，report artifact +
+  Job Summary）；`.gitignore` 改为 `bench/*` 并放行 `bench/README.md`、`bench/baseline.json`；
+  根 devDependencies 增加 `@curve/app-core`/`@curve/persistence`（bench 使用，workspace 包）。
+- T2.7：SPEC §9.5/§16.1、TASKS T2.7、HANDOFF 同步；新增 ADR-033 与
+  `docs/reports/t2.7/REPORT.md`；不改变 `formatVersion`、JSONL、manifest、IPC、CSP、沙箱、
+  preload 白名单，不新增第三方运行时依赖。

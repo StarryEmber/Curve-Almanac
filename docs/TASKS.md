@@ -763,7 +763,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t27"></a>
 ### T2.7 10 万行性能硬化
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T2.1–T2.6
 - 覆盖：FR-TBL-07、NFR-01
 - 参考：SPEC §16.1
@@ -776,11 +776,43 @@ T0.2 + T5.5 → T6.4
   2. 记录基线；逐项优化并复测。
   3. 把预算写入 CI（软门禁 + 报告）。
 - 验收：
-  - [ ] 打开 ≤3s、排序 ≤400ms、编辑提交 ≤50ms、保存 ≤500ms。
-  - [ ] 内存峰值 ≤600MB。
-  - [ ] 报告提交到 `bench/report.json`（CI artifact）。
-  - [ ] 回归超过 20% 时 CI 报警。
+  - [x] 打开 ≤3s、排序 ≤400ms、编辑提交 ≤50ms、保存 ≤500ms。
+  - [x] 内存峰值 ≤600MB。
+  - [x] 报告提交到 `bench/report.json`（CI artifact）。
+  - [x] 回归超过 20% 时 CI 报警。
 - 验证：`pnpm bench`
+- 实现备注（2026-10-23，ADR-033）：
+  - 开工前用户逐项确认 7 项：CI 预算硬失败 + 20% 回归软告警（基线由 CI Windows runner
+    生成后提交）；bench 采打开/保存/编辑/筛选排序/导入 + E2E 采冷启动/首帧/滚动/内存；
+    夹具共享 `scripts/gen-100k.ts`、临时目录不提交；内存 600MB 用 E2E
+    `app.getAppMetrics()`（main+renderer+worker，不含 GPU）门禁、bench 峰值只作趋势；
+    中文排序先优化、仍超再确认预算；优化范围限实现级 + Worker 内部；M2 验收另写一条 E2E spec
+    （本次不执行）。实测中文 644ms 后用户确认 CJK 单列 800ms 预算。
+  - 三处优化：`table.cell.set` 用 base 状态校验 + 冻结新行数组（Immer 不再遍历 100k 数组），
+    提交 P95 409ms → 1ms；排序计划预计算 `nulls`/`keys`/`Float64Array` 等，
+    `query.100k` 447ms → 238ms、ASCII 文本排序 516ms → 338ms；筛选谓词缓存列下标与
+    规范化比较值；非 ASCII 文本改用参考 `numeric:true` collator（CJK 1.1s → 644ms）。
+  - bench：`scripts/bench-report.ts`（报告/基线/回归，单测）、`scripts/tsconfig.json`（纳入
+    typecheck）、`node --expose-gc --import tsx`、suite 间 GC、`--write-baseline`。
+  - E2E：`apps/desktop/e2e/perf.spec.ts` 3 条（冷启动 ≤2.5s、100k 打开 ≤3s、
+    整应用内存 ≤600MB + `data-query-total-ms` 趋势）；`fixtures.ts` 暴露
+    `appLaunch.launchStartedAt`；`main.tsx`/`use-workspace-controller`/`WorkspaceView`
+    增加 `curve:app-ready`、`curve:open` 打点；`DataGrid` 增加 `data-query-total-ms`。
+  - 内存口径：`app.getAppMetrics().memory.privateBytes` 汇总 main + renderer + utility
+    （不含 GPU）；`workingSetSize` 会重复计算共享页，只作诊断。主进程打开路径也做了两处
+    减法：行数重算按 `0x0A` 字节计数、`readTable` 直接读 UTF-8 字符串，整应用 private 峰值
+    644MB → **570MB**（main 225MB → 135MB）。
+  - E2E 实测：冷启动 **997ms**（2.5s）、100k 打开 `curve:open` **665ms**（3s，点击到首帧
+    1005ms）、整应用 private 峰值 **570MB**（600MB，working set 711MB 仅诊断）、
+    端到端查询（含首次快照克隆）448–490ms。
+  - CI：新增 `bench` 作业（report artifact + Job Summary + `::warning` 注释）；
+    `.gitignore` 放行 `bench/README.md` 与 `bench/baseline.json`。
+  - 实测：`pnpm bench` —— open **358ms**（3s）、save **349ms**（500ms）、edit **1ms**（50ms）、
+    query **238ms**（400ms）、ASCII 文本排序 **338ms**（400ms）、CJK 排序 **644ms**（800ms）、
+    import **781ms**（8s）；`query.sync-clone.100k` ~300ms（诊断）。
+  - 残留：CJK 排序 800ms 单列预算；whole-array 撤销补丁每个 100k 行编辑约多 800KB（T5.2 统一）；
+    `bench/baseline.json` 需由 CI Windows runner 生成后提交，提交前回归比较为 `missing`；
+    M2 验收 spec 未在本任务执行。
 
 **M2 验收演示**：新建表 → 粘贴 200 行 → 导入 100k CSV（GBK + 错误行）→ 筛选/排序 → 列宽/冻结 → 重启还原 → 性能预算达标。输出报告后停下。
 

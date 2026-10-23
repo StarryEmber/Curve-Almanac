@@ -596,6 +596,7 @@ export function DataGrid({
       data-query-mode={viewRows.mode}
       data-query-busy={viewRows.busy ? 'true' : 'false'}
       data-query-ms={viewRows.queryMs === null ? '' : String(Math.round(viewRows.queryMs))}
+      data-query-total-ms={viewRows.totalMs === null ? '' : String(Math.round(viewRows.totalMs))}
       data-visible-rows={viewRows.visibleRows}
       data-total-rows={viewRows.totalRows}
       aria-label={t('grid.label', { name: tableMeta.name })}

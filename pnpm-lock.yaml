@@ -8,9 +8,15 @@ importers:
 
   .:
     devDependencies:
+      '@curve/app-core':
+        specifier: workspace:*
+        version: link:packages/app-core
       '@curve/domain':
         specifier: workspace:*
         version: link:packages/domain
+      '@curve/persistence':
+        specifier: workspace:*
+        version: link:packages/persistence
       '@curve/table-engine':
         specifier: workspace:*
         version: link:packages/table-engine

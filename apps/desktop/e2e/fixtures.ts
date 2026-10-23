@@ -40,8 +40,16 @@ function resolveElectronExecutable(): string {
   return join(electronDirectory, 'dist', executableName);
 }
 
+export interface AppLaunch {
+  electronApp: ElectronApplication;
+  /** Wall-clock timestamp captured immediately before `_electron.launch`. */
+  launchStartedAt: number;
+}
+
 export interface AppFixtures {
   userDataDir: string;
+  /** T2.7: exposes the launch timestamp for the cold-start measurement. */
+  appLaunch: AppLaunch;
   electronApp: ElectronApplication;
   page: Page;
 }
@@ -96,7 +104,7 @@ export const test = base.extend<AppFixtures & { importFile: string }, WorkerFixt
     rmSync(directory, { recursive: true, force: true });
   },
 
-  electronApp: async ({ userDataDir, importDir, importFile }, provide, testInfo) => {
+  appLaunch: async ({ userDataDir, importDir, importFile }, provide, testInfo) => {
     const env: Record<string, string> = {};
     for (const [key, value] of Object.entries(process.env)) {
       if (typeof value === 'string') {
@@ -119,6 +127,7 @@ export const test = base.extend<AppFixtures & { importFile: string }, WorkerFixt
       args.push('--no-sandbox');
     }
 
+    const launchStartedAt = Date.now();
     const electronApp = await electron.launch({
       executablePath: resolveElectronExecutable(),
       args,
@@ -158,7 +167,7 @@ export const test = base.extend<AppFixtures & { importFile: string }, WorkerFixt
       });
     }
 
-    await provide(electronApp);
+    await provide({ electronApp, launchStartedAt });
 
     const failed = testInfo.status !== testInfo.expectedStatus;
     try {
@@ -169,6 +178,10 @@ export const test = base.extend<AppFixtures & { importFile: string }, WorkerFixt
       await stopTracing();
       await electronApp.close();
     }
+  },
+
+  electronApp: async ({ appLaunch }, provide) => {
+    await provide(appLaunch.electronApp);
   },
 
   page: async ({ electronApp }, provide) => {

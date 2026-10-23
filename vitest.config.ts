@@ -11,6 +11,7 @@ export default defineConfig({
       'apps/*/src/**/*.test.{ts,tsx}',
       'apps/*/test/**/*.test.{ts,tsx}',
       'plugins/*/src/**/*.test.{ts,tsx}',
+      'scripts/**/*.test.ts',
     ],
     coverage: {
       provider: 'v8',

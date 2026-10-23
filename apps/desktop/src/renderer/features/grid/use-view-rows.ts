@@ -28,6 +28,11 @@ export interface ViewRowsState {
   busy: boolean;
   /** Filter/sort time reported by the Worker or measured on the main thread. */
   queryMs: number | null;
+  /**
+   * T2.7/ADR-033: end-to-end query wall time including the first Worker snapshot
+   * sync (which `data-query-ms` deliberately excludes). Trend only, no budget.
+   */
+  totalMs: number | null;
   /** Set when even the main-thread fallback failed (invalid persisted filter). */
   error: AppError | null;
   /** Worker failure that triggered a successful main-thread fallback. */
@@ -48,6 +53,7 @@ interface QueryState {
   rowIds: string[];
   mode: Exclude<ViewQueryMode, 'plain' | 'pending'>;
   queryMs: number | null;
+  totalMs: number | null;
   error: AppError | null;
   warning: AppError | null;
 }
@@ -89,6 +95,7 @@ export function useViewRows(
     generation.current = runGeneration;
     let cancelled = false;
     setLoading(true);
+    const startedAt = performance.now();
 
     const current = (): boolean => !cancelled && generation.current === runGeneration;
 
@@ -109,6 +116,7 @@ export function useViewRows(
           rowIds: result.rowIds,
           mode: workerWarning === null ? 'sync' : 'fallback',
           queryMs: performance.now() - started,
+          totalMs: performance.now() - startedAt,
           error: null,
           warning: workerWarning,
         });
@@ -121,6 +129,7 @@ export function useViewRows(
           rowIds: [],
           mode: 'sync',
           queryMs: null,
+          totalMs: null,
           error: toAppError(thrown),
           warning: workerWarning,
         });
@@ -162,6 +171,7 @@ export function useViewRows(
         rowIds: queried.result.rowIds,
         mode: 'worker',
         queryMs: queried.result.durationMs,
+        totalMs: performance.now() - startedAt,
         error: null,
         warning: null,
       });
@@ -176,11 +186,16 @@ export function useViewRows(
 
   const rowById = useMemo(() => {
     const map = new Map<string, Row>();
+    if (key === null) {
+      // Unfiltered views render `tableData.rows` directly; building a 100k map
+      // on every cell edit would add ~15ms to the commit path for nothing.
+      return map;
+    }
     for (const row of tableData.rows) {
       map.set(row.id, row);
     }
     return map;
-  }, [tableData.rows]);
+  }, [key, tableData.rows]);
 
   const current = key !== null && state !== null && sameKey(state.key, key) ? state : null;
 
@@ -209,6 +224,7 @@ export function useViewRows(
       mode: 'plain',
       busy: false,
       queryMs: null,
+      totalMs: null,
       error: null,
       warning: null,
     };
@@ -221,6 +237,7 @@ export function useViewRows(
     mode: current?.mode ?? 'pending',
     busy: current === null || loading,
     queryMs: current?.queryMs ?? null,
+    totalMs: current?.totalMs ?? null,
     error: current?.error ?? null,
     warning: current?.warning ?? null,
   };

@@ -23,6 +23,18 @@ export interface WorkspaceController {
   pickDirectory(title: string, defaultPath?: string): Promise<string | null>;
 }
 
+/**
+ * T2.7/ADR-033: starts the open measurement. The grid marks `curve:open-ready`
+ * when the table's first frame is mounted; the perf E2E spec reads the
+ * `curve:open` measure instead of click-to-assert wall time.
+ */
+function markOpenStart(): void {
+  performance.clearMarks('curve:open-start');
+  performance.clearMarks('curve:open-ready');
+  performance.clearMeasures('curve:open');
+  performance.mark('curve:open-start');
+}
+
 export function useWorkspaceController(): WorkspaceController {
   const { api, workspaceStore, core } = useRendererCore();
 
@@ -39,6 +51,7 @@ export function useWorkspaceController(): WorkspaceController {
         return thrown as AppError;
       }
       const root = joinPathLike(parentDir, workspaceFolderName(name));
+      markOpenStart();
       const opened = await core.openWorkspace({ dir: root });
       if (!opened.ok) {
         await workspaceStore.close({ workspaceId }).catch(() => undefined);
@@ -51,6 +64,7 @@ export function useWorkspaceController(): WorkspaceController {
 
   const openWorkspace = useCallback(
     async (dir: string): Promise<AppError | null> => {
+      markOpenStart();
       const opened = await core.openWorkspace({ dir });
       return opened.ok ? null : opened.error;
     },

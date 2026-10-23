@@ -71,6 +71,54 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # T2.7: hard SPEC §16.1 budgets + soft 20% regression annotation. The job runs
+  # the pure pipelines only (no Electron), so it shares the Windows runner class
+  # the committed baseline must be generated on; `bench/report.json` is uploaded
+  # every run, and `bench/summary.md` lands in the job summary.
+  bench:
+    name: Bench (windows-latest)
+    needs: quality
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `pnpm bench` exits non-zero when a gated P95 exceeds its budget and
+      # prints `::warning` annotations for >20% regressions vs bench/baseline.json.
+      - name: Run benchmarks
+        run: pnpm bench
+
+      - name: Append benchmark summary
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path bench/summary.md) {
+            Get-Content bench/summary.md | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+          }
+
+      - name: Upload benchmark report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-report
+          path: bench/report.json
+          if-no-files-found: warn
+          retention-days: 30
+
   e2e:
     name: E2E (windows-latest)
     # E2E is the slowest gate; only spend it once lint/typecheck/test/build pass.

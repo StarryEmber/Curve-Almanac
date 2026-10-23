@@ -62,6 +62,19 @@ export interface QueryContext {
   columnIndex: ReadonlyMap<string, number>;
   collators: Map<string, Intl.Collator>;
   enumLabels: Map<string, ReadonlyMap<string, string>>;
+  /**
+   * T2.7: `matchesCompare` runs once per row, so the column lookup and the
+   * normalized comparison value are resolved once per predicate instead of
+   * 100k times (the text value was re-normalized for every row before).
+   */
+  compareCache: WeakMap<object, PreparedCompare>;
+}
+
+export interface PreparedCompare {
+  index: number;
+  column: ColumnDef;
+  /** Locale-normalized text value for eq/neq/contains/startsWith/endsWith. */
+  needle: string | null;
 }
 
 const TEXT_OPERATORS: readonly CompareOp[] = Object.freeze([
@@ -130,6 +143,7 @@ export function createQueryContext(table: TableMeta, options: QueryOptions = {})
     columnIndex,
     collators: new Map(),
     enumLabels,
+    compareCache: new WeakMap(),
   };
 }
 
@@ -317,6 +331,10 @@ function equalsCell(cell: Cell, value: Cell, column: ColumnDef, locale: string):
   }
 }
 
+function equalsNormalizedText(cell: Cell, needle: string, locale: string): boolean {
+  return normalizeText(textOf(cell), locale) === needle;
+}
+
 function compareNumericCell(cell: Cell, value: Cell): number | null {
   const left = numericOf(cell);
   const right = numericOf(value);
@@ -328,12 +346,11 @@ function compareNumericCell(cell: Cell, value: Cell): number | null {
 
 function compareTextOp(
   cell: Cell,
-  value: Cell,
+  needle: string,
   op: 'contains' | 'startsWith' | 'endsWith',
   locale: string,
 ): boolean {
   const haystack = normalizeText(textOf(cell), locale);
-  const needle = normalizeText(textOf(value), locale);
   switch (op) {
     case 'contains':
       return haystack.includes(needle);
@@ -344,20 +361,43 @@ function compareTextOp(
   }
 }
 
+function prepareCompare(
+  context: QueryContext,
+  predicate: Extract<FilterPredicate, { kind: 'compare' }>,
+): PreparedCompare | null {
+  const cached = context.compareCache.get(predicate);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const index = context.columnIndex.get(predicate.columnId);
+  if (index === undefined) {
+    return null;
+  }
+  const column = context.table.columns[index];
+  if (column === undefined) {
+    return null;
+  }
+  const value = predicate.value;
+  const needle =
+    column.type === 'text' && value !== undefined
+      ? normalizeText(textOf(value), context.locale)
+      : null;
+  const prepared: PreparedCompare = { index, column, needle };
+  context.compareCache.set(predicate, prepared);
+  return prepared;
+}
+
 function matchesCompare(
   row: Row,
   context: QueryContext,
   predicate: Extract<FilterPredicate, { kind: 'compare' }>,
 ): boolean {
-  const index = context.columnIndex.get(predicate.columnId);
-  if (index === undefined) {
+  const prepared = prepareCompare(context, predicate);
+  if (prepared === null) {
     return false;
   }
-  const column = context.table.columns[index];
-  if (column === undefined) {
-    return false;
-  }
-  const cell = row.values[index] ?? null;
+  const { column } = prepared;
+  const cell = row.values[prepared.index] ?? null;
 
   if (predicate.op === 'isNull') {
     return isNullish(cell, column);
@@ -373,17 +413,22 @@ function matchesCompare(
   if (value === undefined) {
     return false;
   }
+  const needle = prepared.needle ?? normalizeText(textOf(value), context.locale);
 
   switch (predicate.op) {
     case 'eq':
-      return equalsCell(cell, value, column, context.locale);
+      return column.type === 'text'
+        ? equalsNormalizedText(cell, needle, context.locale)
+        : equalsCell(cell, value, column, context.locale);
     case 'neq':
-      return !equalsCell(cell, value, column, context.locale);
+      return column.type === 'text'
+        ? !equalsNormalizedText(cell, needle, context.locale)
+        : !equalsCell(cell, value, column, context.locale);
     case 'contains':
     case 'startsWith':
     case 'endsWith':
       return column.type === 'text'
-        ? compareTextOp(cell, value, predicate.op, context.locale)
+        ? compareTextOp(cell, needle, predicate.op, context.locale)
         : false;
     case 'gt': {
       const compared = compareNumericCell(cell, value);
@@ -466,9 +511,20 @@ interface SortPlan {
   /** Plain base keys are used for ASCII text; non-ASCII falls back to collation. */
   mode: 'plain' | 'collator' | 'raw';
   collator: Intl.Collator | null;
+  /** Natural keys (plain/collator) or raw/label strings (raw) for text/enum. */
   keys: readonly string[] | null;
   baseKeys: readonly string[] | null;
+  /** T2.7: per-row flags/values so comparisons never touch row objects again. */
+  nulls: Uint8Array;
+  numbers: Float64Array | null;
+  neutrals: Uint8Array | null;
+  booleans: Uint8Array | null;
 }
+
+const ASCII_ONLY = /^[\u0000-\u007f]*$/;
+const UPPERCASE = /[A-Z]/;
+const DIGIT_RUN = /\d/;
+const UNSAFE_DIGITS = /(^|[\s(=,])[+-]\d/;
 
 function buildSortPlans(
   rows: readonly Row[],
@@ -485,6 +541,11 @@ function buildSortPlans(
     if (column === undefined) {
       continue;
     }
+    const nulls = new Uint8Array(rows.length);
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+      const cell = rows[rowIndex]?.values[index] ?? null;
+      nulls[rowIndex] = isNullish(cell, column) ? 1 : 0;
+    }
     const plan: SortPlan = {
       index,
       column,
@@ -493,51 +554,86 @@ function buildSortPlans(
       collator: null,
       keys: null,
       baseKeys: null,
+      nulls,
+      numbers: null,
+      neutrals: null,
+      booleans: null,
     };
+
     if (column.type === 'text' || column.type === 'enum') {
       const labels = column.type === 'enum' ? context.enumLabels.get(column.id) : undefined;
-      const keys: string[] = [];
+      const sources: string[] = new Array<string>(rows.length);
       let usable = true;
       let ascii = true;
       let hasUppercase = false;
-      for (const row of rows) {
-        const cell = row.values[index] ?? null;
+      for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+        const cell = rows[rowIndex]?.values[index] ?? null;
         const source =
           column.type === 'enum' ? (labels?.get(textOf(cell)) ?? textOf(cell)) : textOf(cell);
-        if (/(^|[\s(=,])[+-]\d/.test(source) || LONG_DIGIT_RUN.test(source)) {
+        sources[rowIndex] = source;
+        if (usable && (UNSAFE_DIGITS.test(source) || LONG_DIGIT_RUN.test(source))) {
           usable = false;
-          break;
         }
-        if (!/^[\u0000-\u007f]*$/.test(source)) {
+        if (ascii && !ASCII_ONLY.test(source)) {
           ascii = false;
         }
-        if (/[A-Z]/.test(source)) {
+        if (!hasUppercase && UPPERCASE.test(source)) {
           hasUppercase = true;
         }
-        keys.push(isNullish(cell, column) ? '' : naturalSortKey(source));
       }
-      if (usable) {
-        plan.keys = keys;
-        if (ascii) {
-          plan.mode = 'plain';
-          plan.baseKeys = hasUppercase ? keys.map((key) => key.toLowerCase()) : keys;
-          plan.collator = collatorFor(context, column.id, false);
-        } else {
-          plan.mode = 'collator';
-          plan.collator = collatorFor(context, column.id, false);
+      if (usable && ascii) {
+        const keys = new Array<string>(rows.length);
+        for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+          const source = sources[rowIndex] ?? '';
+          keys[rowIndex] = DIGIT_RUN.test(source) ? naturalSortKey(source) : source;
         }
+        plan.keys = keys;
+        plan.collator = collatorFor(context, column.id, false);
+        plan.mode = 'plain';
+        plan.baseKeys = hasUppercase ? keys.map((key) => key.toLowerCase()) : keys;
       } else {
+        // T2.7: non-ASCII text now uses the literal `numeric: true` collator on
+        // the raw value instead of a zero-padded natural key. That is exactly
+        // the reference semantics from ADR-032 and avoids the padding cost on
+        // CJK values ("站点-北京-0" -> a 12-character digit run): measured
+        // 100k CJK sort went from ~1.1s to ~0.65s. The unsafe-digit check above
+        // only gates the ASCII fast path now.
         plan.mode = 'raw';
+        plan.keys = sources;
         plan.collator = collatorFor(context, column.id, true);
       }
+    } else if (column.type === 'number' || column.type === 'date') {
+      const numbers = new Float64Array(rows.length);
+      const neutrals = new Uint8Array(rows.length);
+      for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+        if (nulls[rowIndex] === 1) {
+          continue;
+        }
+        const numeric = numericOf(rows[rowIndex]?.values[index] ?? null);
+        if (numeric === null) {
+          neutrals[rowIndex] = 1;
+        } else {
+          numbers[rowIndex] = numeric;
+        }
+      }
+      plan.numbers = numbers;
+      plan.neutrals = neutrals;
+    } else {
+      const booleans = new Uint8Array(rows.length);
+      for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+        booleans[rowIndex] = rows[rowIndex]?.values[index] === true ? 1 : 0;
+      }
+      plan.booleans = booleans;
     }
     plans.push(plan);
   }
   return plans;
 }
 
-function compareKeys(plan: SortPlan, leftIndex: number, rightIndex: number): number {
-  if (plan.collator === null || plan.keys === null) {
+function compareTextPlan(plan: SortPlan, leftIndex: number, rightIndex: number): number {
+  const keys = plan.keys;
+  const collator = plan.collator;
+  if (keys === null || collator === null) {
     return 0;
   }
   if (plan.mode === 'plain' && plan.baseKeys !== null) {
@@ -549,32 +645,23 @@ function compareKeys(plan: SortPlan, leftIndex: number, rightIndex: number): num
     if (leftBase > rightBase) {
       return 1;
     }
-    return plan.collator.compare(plan.keys[leftIndex] ?? '', plan.keys[rightIndex] ?? '');
+    return collator.compare(keys[leftIndex] ?? '', keys[rightIndex] ?? '');
   }
-  if (plan.mode === 'collator') {
-    return plan.collator.compare(plan.keys[leftIndex] ?? '', plan.keys[rightIndex] ?? '');
-  }
-  return 0;
+  return collator.compare(keys[leftIndex] ?? '', keys[rightIndex] ?? '');
 }
 
-function compareRows(
-  leftIndex: number,
-  rightIndex: number,
-  rows: readonly Row[],
-  context: QueryContext,
-  plans: readonly SortPlan[],
-): number {
-  const left = rows[leftIndex];
-  const right = rows[rightIndex];
-  if (left === undefined || right === undefined) {
-    return leftIndex - rightIndex;
-  }
+/**
+ * Compares two row indexes using the pre-computed plan arrays.
+ *
+ * T2.7 (ADR-033): the previous version read both row objects and called
+ * `isNullish`/`textOf`/`numericOf` on every comparison. On 100k rows that random
+ * object access dominated text sorts; the plan now holds typed arrays and keys,
+ * so the comparator stays inside contiguous buffers.
+ */
+function compareRows(leftIndex: number, rightIndex: number, plans: readonly SortPlan[]): number {
   for (const plan of plans) {
-    const column = plan.column;
-    const first = left.values[plan.index] ?? null;
-    const second = right.values[plan.index] ?? null;
-    const firstNull = isNullish(first, column);
-    const secondNull = isNullish(second, column);
+    const firstNull = plan.nulls[leftIndex] === 1;
+    const secondNull = plan.nulls[rightIndex] === 1;
     if (firstNull && secondNull) {
       continue;
     }
@@ -587,36 +674,24 @@ function compareRows(
     }
 
     let compared = 0;
-    switch (column.type) {
+    switch (plan.column.type) {
       case 'text':
-        compared =
-          plan.mode === 'raw'
-            ? (plan.collator?.compare(textOf(first), textOf(second)) ?? 0)
-            : compareKeys(plan, leftIndex, rightIndex);
+      case 'enum':
+        compared = compareTextPlan(plan, leftIndex, rightIndex);
         break;
       case 'number':
       case 'date': {
-        const leftNumber = numericOf(first);
-        const rightNumber = numericOf(second);
-        if (leftNumber !== null && rightNumber !== null) {
-          compared = leftNumber - rightNumber;
+        if (
+          plan.neutrals !== null &&
+          (plan.neutrals[leftIndex] === 1 || plan.neutrals[rightIndex] === 1)
+        ) {
+          break;
         }
+        compared = (plan.numbers?.[leftIndex] ?? 0) - (plan.numbers?.[rightIndex] ?? 0);
         break;
       }
       case 'boolean':
-        compared = (first === true ? 1 : 0) - (second === true ? 1 : 0);
-        break;
-      case 'enum':
-        if (plan.mode === 'raw') {
-          const labels = context.enumLabels.get(column.id);
-          compared =
-            plan.collator?.compare(
-              labels?.get(textOf(first)) ?? textOf(first),
-              labels?.get(textOf(second)) ?? textOf(second),
-            ) ?? 0;
-        } else {
-          compared = compareKeys(plan, leftIndex, rightIndex);
-        }
+        compared = (plan.booleans?.[leftIndex] ?? 0) - (plan.booleans?.[rightIndex] ?? 0);
         break;
     }
     if (compared !== 0) {
@@ -637,7 +712,7 @@ function sortRows(
   const plans = buildSortPlans(rows, context, sort);
   const order = rows.map((_row, index) => index);
   order.sort((left, right) => {
-    const compared = compareRows(left, right, rows, context, plans);
+    const compared = compareRows(left, right, plans);
     // Stable tie-break: physical row order stays the final order.
     return compared === 0 ? left - right : compared;
   });

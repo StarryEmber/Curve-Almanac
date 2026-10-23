@@ -239,6 +239,25 @@ function TableViewGrid({
   locate,
 }: TableViewGridProps): ReactElement {
   const viewRows = useViewRows(tableData, view.tableView);
+
+  // T2.7/ADR-033: the first grid frame ends the `curve:open` measurement that
+  // `useWorkspaceController` started. A frame after commit means the virtual rows
+  // are mounted and the grid is interactive.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      if (performance.getEntriesByName('curve:open-start', 'mark').length === 0) {
+        return;
+      }
+      performance.clearMarks('curve:open-ready');
+      performance.mark('curve:open-ready');
+      performance.clearMeasures('curve:open');
+      performance.measure('curve:open', 'curve:open-start', 'curve:open-ready');
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [tableData.table.id, view.id]);
+
   return (
     <DataGrid
       tableMeta={tableData.table}
