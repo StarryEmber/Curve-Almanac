@@ -118,11 +118,19 @@ describe('renderer conventions', () => {
   it('only consumes tokens the design system declares', () => {
     const tokensCss = readFileSync(join(uiRoot, 'tokens.css'), 'utf8');
     const shellCss = readFileSync(join(rendererRoot, 'styles.css'), 'utf8');
+    const tableStyleSource = readFileSync(join(uiRoot, 'table-style.ts'), 'utf8');
     const declared = new Set<string>();
     for (const match of tokensCss.matchAll(/(--cs-[a-z0-9-]+)\s*:/g)) {
       const name = match[1];
       if (name !== undefined) {
         declared.add(name);
+      }
+    }
+    const tableVariables = new Set<string>();
+    for (const match of tableStyleSource.matchAll(/'(--cs-table-[a-z0-9-]+)'/g)) {
+      const name = match[1];
+      if (name !== undefined) {
+        tableVariables.add(name);
       }
     }
 
@@ -135,8 +143,13 @@ describe('renderer conventions', () => {
     }
 
     expect(used.size).toBeGreaterThan(10);
+    expect([...used].some((name) => name.startsWith('--cs-table-'))).toBe(true);
     for (const name of used) {
-      expect(declared.has(name), `styles.css uses undeclared ${name}`).toBe(true);
+      if (name.startsWith('--cs-table-')) {
+        expect(tableVariables.has(name), `styles.css uses unknown ${name}`).toBe(true);
+      } else {
+        expect(declared.has(name), `styles.css uses undeclared ${name}`).toBe(true);
+      }
     }
     expect(shellCss.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(colorLiteral);
   });

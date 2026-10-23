@@ -682,20 +682,29 @@ body {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  border: 1px solid var(--cs-color-border-default);
-  border-radius: var(--cs-radius-md);
-  background: var(--cs-color-bg-surface);
+  border: 1px solid var(--cs-table-body-border);
+  border-radius: var(--cs-table-radius);
+  background: var(--cs-table-body-bg);
   overflow: hidden;
 }
 
 .cs-grid__toolbar {
+  /* The toolbar belongs to the table surface; scope the app control tokens to
+   * the style's header palette so the dark/finance templates stay coherent. */
+  --cs-color-fg-default: var(--cs-table-header-fg);
+  --cs-color-fg-muted: var(--cs-table-header-fg);
+  --cs-color-fg-subtle: var(--cs-table-header-fg);
+  --cs-color-bg-surface: var(--cs-table-header-bg);
+  --cs-color-bg-muted: color-mix(in srgb, var(--cs-table-header-fg) 14%, transparent);
+  --cs-color-border-default: var(--cs-table-header-border);
   display: flex;
   flex: none;
   align-items: center;
   gap: var(--cs-space-3);
   padding: var(--cs-space-1) var(--cs-space-2);
-  border-bottom: 1px solid var(--cs-color-border-default);
-  background: var(--cs-color-bg-surface);
+  border-bottom: 1px solid var(--cs-table-header-border);
+  background: var(--cs-table-header-bg);
+  color: var(--cs-table-header-fg);
 }
 
 .cs-grid__count {
@@ -714,11 +723,15 @@ body {
   min-height: 0;
   overflow: auto;
   outline: none;
+  scrollbar-color: var(--cs-table-body-border) var(--cs-table-body-bg);
 }
 
 .cs-grid__canvas {
   position: relative;
   min-width: 100%;
+  color: var(--cs-table-body-fg);
+  font-family: var(--cs-table-font-family);
+  font-size: var(--cs-table-font-size);
 }
 
 .cs-grid__header-row {
@@ -726,8 +739,8 @@ body {
   top: 0;
   z-index: 4;
   display: flex;
-  height: 32px;
-  background: var(--cs-color-bg-muted);
+  height: var(--cs-table-row-height);
+  background: var(--cs-table-header-bg);
 }
 
 .cs-grid__header-cell {
@@ -735,15 +748,23 @@ body {
   display: flex;
   align-items: center;
   flex: none;
-  padding: 0 var(--cs-space-2);
+  padding: 0 var(--cs-table-cell-padding-x);
   overflow: hidden;
-  border-right: 1px solid var(--cs-color-border-default);
-  border-bottom: 1px solid var(--cs-color-border-default);
-  background: var(--cs-color-bg-muted);
-  color: var(--cs-color-fg-muted);
-  font-size: var(--cs-font-size-xs);
-  font-weight: var(--cs-font-weight-semibold);
+  border-right: var(--cs-table-grid-column-border) solid var(--cs-table-header-border);
+  border-bottom: 1px solid var(--cs-table-header-border);
+  background: var(--cs-table-header-bg);
+  color: var(--cs-table-header-fg);
+  font-size: var(--cs-table-font-size);
+  font-weight: var(--cs-table-header-weight);
   white-space: nowrap;
+}
+
+.cs-grid__header-cell[data-align='right'] {
+  justify-content: flex-end;
+}
+
+.cs-grid__header-cell[data-align='center'] {
+  justify-content: center;
 }
 
 .cs-grid__header-cell--frozen {
@@ -768,13 +789,14 @@ body {
 }
 
 .cs-grid__resizer:hover {
-  background: var(--cs-color-accent-default);
+  background: var(--cs-table-selection-bg);
   opacity: 0.5;
 }
 
 .cs-grid__body {
   position: relative;
   min-height: 64px;
+  background: var(--cs-table-body-bg);
 }
 
 .cs-grid__row {
@@ -782,26 +804,45 @@ body {
 }
 
 .cs-grid__cell {
+  position: relative;
   display: flex;
   align-items: center;
   flex: none;
-  padding: 0 var(--cs-space-2);
+  padding: var(--cs-table-cell-padding-y) var(--cs-table-cell-padding-x);
   overflow: hidden;
-  border-right: 1px solid var(--cs-color-border-subtle);
-  border-bottom: 1px solid var(--cs-color-border-subtle);
-  background: var(--cs-color-bg-surface);
-  font-size: var(--cs-font-size-sm);
+  border-right: var(--cs-table-grid-column-border) solid var(--cs-table-body-border);
+  border-bottom: var(--cs-table-grid-row-border) solid var(--cs-table-body-border);
+  background: var(--cs-row-bg, var(--cs-table-row-bg));
+  color: var(--cs-table-body-fg);
+  font: inherit;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.cs-grid__cell[data-align='right'] {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.cs-grid__cell[data-align='center'] {
+  justify-content: center;
+  text-align: center;
+}
+
+.cs-grid__cell[data-align='left'] {
+  justify-content: flex-start;
+  text-align: left;
+}
+
 .cs-grid__cell--frozen {
   z-index: 2;
-  border-right-color: var(--cs-color-border-strong);
+  border-right-color: var(--cs-table-body-border);
 }
 
 .cs-grid__cell--selected {
-  background: var(--cs-color-accent-soft);
+  background: var(--cs-table-selection-bg);
+  color: var(--cs-table-selection-fg);
 }
 
 .cs-grid__cell--active {
@@ -814,7 +855,7 @@ body {
   overflow: visible;
   outline: 2px solid var(--cs-color-focus-ring);
   outline-offset: -2px;
-  background: var(--cs-color-bg-surface);
+  background: var(--cs-table-body-bg);
 }
 
 .cs-grid__cell--error {
@@ -832,14 +873,71 @@ body {
   box-shadow: inset 0 0 0 2px var(--cs-color-danger-default);
 }
 
+.cs-grid__cell-text {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-grid__bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  background: var(--cs-table-selection-bg);
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.cs-grid__badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0 var(--cs-space-2);
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: var(--cs-radius-pill);
+  font-size: var(--cs-font-size-xs);
+  font-weight: var(--cs-font-weight-medium);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cs-grid__badge[data-tone='0'] {
+  background: var(--cs-table-header-bg);
+  color: var(--cs-table-header-fg);
+}
+
+.cs-grid__badge[data-tone='1'] {
+  background: var(--cs-table-selection-bg);
+  color: var(--cs-table-selection-fg);
+}
+
+.cs-grid__badge[data-tone='2'] {
+  border-color: var(--cs-table-body-border);
+  background: var(--cs-table-row-alt-bg);
+  color: var(--cs-table-body-fg);
+}
+
+.cs-grid__badge[data-tone='3'] {
+  border-color: var(--cs-table-selection-bg);
+  background: var(--cs-table-body-bg);
+  color: var(--cs-table-body-fg);
+}
+
 .cs-grid__editor {
   width: 100%;
   height: 100%;
   min-width: 0;
-  padding: 0 var(--cs-space-2);
+  padding: 0 var(--cs-table-cell-padding-x);
   border: 0;
   background: transparent;
-  color: var(--cs-color-fg-default);
+  color: var(--cs-table-body-fg);
   font: inherit;
 }
 
@@ -859,15 +957,17 @@ body {
 .cs-grid__empty {
   margin: 0;
   padding: var(--cs-space-4);
-  color: var(--cs-color-fg-muted);
+  color: var(--cs-table-body-fg);
   font-size: var(--cs-font-size-sm);
+  opacity: 0.7;
 }
 
 .cs-grid__selection {
   flex: none;
   padding: var(--cs-space-1) var(--cs-space-2);
-  border-top: 1px solid var(--cs-color-border-subtle);
-  color: var(--cs-color-fg-subtle);
+  border-top: 1px solid var(--cs-table-body-border);
+  background: var(--cs-table-body-bg);
+  color: var(--cs-table-body-fg);
   font-size: var(--cs-font-size-xs);
 }
 
@@ -1481,16 +1581,17 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--cs-color-accent-default);
+  color: inherit;
   font-size: var(--cs-font-size-xs);
+  opacity: 0.8;
 }
 
 .cs-grid__sort-level {
   min-width: 1.2em;
   padding: 0 3px;
   border-radius: var(--cs-radius-pill);
-  background: var(--cs-color-accent-soft);
-  color: var(--cs-color-accent-default);
+  background: var(--cs-table-selection-bg);
+  color: var(--cs-table-selection-fg);
   font-size: var(--cs-font-size-xs);
   text-align: center;
 }

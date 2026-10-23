@@ -11,5 +11,6 @@
     // contract, which needs Node's fs/url types. Browser code never uses them.
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [{ "path": "../domain" }]
 }

@@ -11,16 +11,26 @@ import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { CellIssue, ViewPatch } from '@curve/app-core';
-import { formatCellValue } from '@curve/domain';
 import type {
   Cell,
   ColumnDef as DomainColumn,
   FilterPredicate,
   Row,
   TableMeta,
+  TableStyle,
   ViewDef,
 } from '@curve/domain';
-import { Button, Menu, Select } from '@curve/ui';
+import {
+  Button,
+  Menu,
+  Select,
+  TableStyleProvider,
+  columnDisplayLabel,
+  computeBarRanges,
+  formatStyledCellValue,
+  presentStyledCell,
+  tableRowHeight,
+} from '@curve/ui';
 
 import { useI18n } from '../../i18n';
 import { FilterDialog } from '../filter/FilterDialog';
@@ -48,7 +58,6 @@ import type { ColumnDef as TanStackColumnDef } from '@tanstack/react-table';
 import type { Range } from '@tanstack/react-virtual';
 import type { ClipboardEvent, CSSProperties, KeyboardEvent, ReactElement } from 'react';
 
-const ROW_HEIGHT = 32;
 const CONFLICT_HIGHLIGHT_MS = 2_500;
 const CONFLICT_RETURN_MS = 1_200;
 const PASTE_ERROR_HIGHLIGHT_MS = 2_500;
@@ -62,6 +71,10 @@ export interface GridLocateTarget {
 
 export interface DataGridProps {
   tableMeta: TableMeta;
+  /** Resolved table style for this view (builtin or persisted user style). */
+  tableStyle: TableStyle;
+  /** True when `resolveStyle` had to fall back to the default style. */
+  styleFallback?: boolean;
   /** Visible rows in display order (filtered and/or sorted). */
   rows: readonly Row[];
   /** Query metadata for counts, the busy indicator and E2E timing. */
@@ -109,6 +122,8 @@ function countFilterConditions(filter: FilterPredicate | undefined): number {
 
 export function DataGrid({
   tableMeta,
+  tableStyle,
+  styleFallback = false,
   rows,
   viewRows,
   view,
@@ -118,8 +133,11 @@ export function DataGrid({
   onPasteText,
   locate = null,
 }: DataGridProps): ReactElement {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const tableView = view.tableView;
+  const rowHeight = tableRowHeight(tableStyle.tokens);
+  const trueLabel = t('grid.editor.true');
+  const falseLabel = t('grid.editor.false');
   const scrollRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
   const focusPending = useRef(false);
@@ -155,10 +173,19 @@ export function DataGrid({
   const initialSizing = useMemo(() => {
     const sizing: Record<string, number> = {};
     for (const column of visibleColumns) {
-      sizing[column.id] = tableView?.widths[column.id] ?? column.width ?? DEFAULT_COLUMN_WIDTH;
+      sizing[column.id] =
+        tableView?.widths[column.id] ??
+        tableStyle.columnOverrides[column.id]?.width ??
+        column.width ??
+        DEFAULT_COLUMN_WIDTH;
     }
     return sizing;
-  }, [tableView, visibleColumns]);
+  }, [tableStyle, tableView, visibleColumns]);
+
+  const barRanges = useMemo(
+    () => computeBarRanges(rows, tableMeta.columns, tableStyle),
+    [rows, tableMeta.columns, tableStyle],
+  );
 
   const [columnSizing, setColumnSizing] = useState<Record<string, number>>(initialSizing);
 
@@ -172,13 +199,12 @@ export function DataGrid({
     return visibleColumns.map((column) => ({
       id: column.id,
       accessorFn: (row: Row): Cell => row.values[indexById.get(column.id) ?? 0] ?? null,
-      header: column.label,
+      header: columnDisplayLabel(column, tableStyle),
       size: initialSizing[column.id] ?? DEFAULT_COLUMN_WIDTH,
       minSize: 80,
       maxSize: 800,
-      cell: (info) => formatCellValue(info.getValue() as Cell, column),
     }));
-  }, [initialSizing, tableMeta.columns, visibleColumns]);
+  }, [initialSizing, tableMeta.columns, tableStyle, visibleColumns]);
 
   const table = useReactTable<Row>({
     data: rows as Row[],
@@ -201,7 +227,7 @@ export function DataGrid({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => rowHeight,
     overscan: 8,
     rangeExtractor,
   });
@@ -456,12 +482,27 @@ export function DataGrid({
       if (column === undefined) {
         return;
       }
-      const width = measureColumnWidth(column, rows, index, column.label);
+      const width = measureColumnWidth(
+        column,
+        rows,
+        index,
+        columnDisplayLabel(column, tableStyle),
+        {
+          formatValue: (value, targetColumn) =>
+            formatStyledCellValue(value, targetColumn, tableStyle, {
+              locale,
+              trueLabel,
+              falseLabel,
+            }),
+          fontFamily: tableStyle.tokens.fontFamily,
+          fontSize: tableStyle.tokens.fontSize,
+        },
+      );
       const next = { ...columnSizing, [column.id]: width };
       setColumnSizing(next);
       commitWidths(next);
     },
-    [columnSizing, commitWidths, rows, visibleColumns],
+    [columnSizing, commitWidths, falseLabel, locale, rows, tableStyle, trueLabel, visibleColumns],
   );
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -491,8 +532,8 @@ export function DataGrid({
       return;
     }
     event.preventDefault();
-    const viewportHeight = scrollRef.current?.clientHeight ?? ROW_HEIGHT * 10;
-    const pageRows = Math.max(1, Math.floor(viewportHeight / ROW_HEIGHT) - 1);
+    const viewportHeight = scrollRef.current?.clientHeight ?? rowHeight * 10;
+    const pageRows = Math.max(1, Math.floor(viewportHeight / rowHeight) - 1);
     const next = moveGridPosition(active, {
       key: event.key,
       shiftKey: event.shiftKey,
@@ -540,8 +581,10 @@ export function DataGrid({
   const leafColumns = table.getVisibleLeafColumns();
   const sort = tableView.sort;
   const filterActive = tableView.filter !== undefined;
-  const columnLabel = (columnId: string): string =>
-    tableMeta.columns.find((column) => column.id === columnId)?.label ?? columnId;
+  const columnLabel = (columnId: string): string => {
+    const column = tableMeta.columns.find((candidate) => candidate.id === columnId);
+    return column === undefined ? columnId : columnDisplayLabel(column, tableStyle);
+  };
   const sortDirectionLabel = (direction: 'asc' | 'desc'): string =>
     direction === 'asc' ? t('grid.sort.asc') : t('grid.sort.desc');
   const sortMenuItems =
@@ -590,9 +633,11 @@ export function DataGrid({
   };
 
   return (
-    <section
+    <TableStyleProvider
+      tableStyle={tableStyle}
       className="cs-grid"
       data-testid="data-grid"
+      data-style-fallback={styleFallback ? 'true' : undefined}
       data-query-mode={viewRows.mode}
       data-query-busy={viewRows.busy ? 'true' : 'false'}
       data-query-ms={viewRows.queryMs === null ? '' : String(Math.round(viewRows.queryMs))}
@@ -683,6 +728,8 @@ export function DataGrid({
         <div className="cs-grid__canvas" style={{ width: totalWidth }}>
           <GridHeader
             table={table}
+            columns={visibleColumns}
+            tableStyle={tableStyle}
             frozenCount={frozenCount}
             sort={sort}
             onAutofit={autofit}
@@ -708,13 +755,17 @@ export function DataGrid({
                 if (row === undefined) {
                   return null;
                 }
-                const rowStyle: CSSProperties = {
+                const rowStyle: CSSProperties & Record<'--cs-row-bg', string> = {
                   position: 'absolute',
                   top: 0,
                   left: 0,
                   width: totalWidth,
                   height: virtualRow.size,
                   transform: `translateY(${virtualRow.start}px)`,
+                  '--cs-row-bg':
+                    virtualRow.index % 2 === 1
+                      ? 'var(--cs-table-row-alt-bg)'
+                      : 'var(--cs-table-row-bg)',
                 };
                 return (
                   <div
@@ -734,6 +785,11 @@ export function DataGrid({
                         (candidate) => candidate.id === column.id,
                       );
                       const value: Cell = row.values[valueIndex] ?? null;
+                      const presentation = presentStyledCell(value, column, tableStyle, barRanges, {
+                        locale,
+                        trueLabel,
+                        falseLabel,
+                      });
                       const isFrozen = colIndex < frozenCount;
                       const isEditing =
                         editing?.row === virtualRow.index && editing.col === colIndex;
@@ -744,7 +800,12 @@ export function DataGrid({
                           rowIndex={virtualRow.index}
                           colIndex={colIndex}
                           rowId={row.id}
-                          text={formatCellValue(value, column)}
+                          columnId={column.id}
+                          text={presentation.text}
+                          align={presentation.align}
+                          render={presentation.render}
+                          barRatio={presentation.barRatio}
+                          badgeTone={presentation.badgeTone}
                           width={sizes[colIndex] ?? DEFAULT_COLUMN_WIDTH}
                           stickyLeft={isFrozen ? (offsets[colIndex] ?? 0) : null}
                           active={active.row === virtualRow.index && active.col === colIndex}
@@ -800,6 +861,6 @@ export function DataGrid({
           void onViewUpdate({ filter: next ?? null });
         }}
       />
-    </section>
+    </TableStyleProvider>
   );
 }

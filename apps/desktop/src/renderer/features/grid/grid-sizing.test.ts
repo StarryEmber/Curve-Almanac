@@ -25,6 +25,17 @@ describe('measureColumnWidth', () => {
     expect(measureColumnWidth(column, rows(1000, 200), 0, 'ID')).toBeLessThanOrEqual(800);
     expect(measureColumnWidth(column, rows(10, 40), 0, 'ID')).toBeGreaterThan(80);
   });
+
+  it('measures the style-aware formatted text', () => {
+    const data = rows(3, 1);
+    const short = measureColumnWidth(column, data, 0, 'ID');
+    const wide = measureColumnWidth(column, data, 0, 'ID', {
+      formatValue: () => 'x'.repeat(60),
+    });
+
+    expect(wide).toBeGreaterThan(short);
+    expect(wide).toBeLessThanOrEqual(800);
+  });
 });
 
 describe('frozenOffsets', () => {

@@ -8,8 +8,9 @@
  * Theming: `:root` holds the light values, `[data-theme='dark']` overrides the
  * colour and shadow tokens. `data-theme` is set on `<html>` by the renderer's
  * ThemeProvider (`@curve/ui` exports the attribute name and the pure helpers).
- * The table style tokens (`--cs-table-*`, SPEC §10.2) arrive with T4.x; they are
- * deliberately not part of the application chrome palette.
+ * The table style tokens (`--cs-table-*`, SPEC §10.2) are supplied per view by
+ * `TableStyleProvider`; they deliberately are not part of the application
+ * chrome palette and therefore do not appear in this file.
  */
 
 :root {

@@ -225,6 +225,10 @@ importers:
         version: 5.5.2
 
   packages/ui:
+    dependencies:
+      '@curve/domain':
+        specifier: workspace:*
+        version: link:../domain
     devDependencies:
       '@testing-library/react':
         specifier: ^16.3.3

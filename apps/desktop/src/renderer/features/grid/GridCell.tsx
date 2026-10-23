@@ -2,13 +2,24 @@
 
 import { memo } from 'react';
 
+import type { BadgeTone, CellAlign, CellRenderMode } from '@curve/ui';
+
 import type { CSSProperties, ReactElement, ReactNode } from 'react';
 
 export interface GridCellProps {
   rowIndex: number;
   colIndex: number;
   rowId: string;
+  columnId: string;
   text: string;
+  /** Alignment resolved from the column type and the style override. */
+  align: CellAlign;
+  /** `text`, enum `badge`, or numeric background `bar`. */
+  render: CellRenderMode;
+  /** 0..1 for bar cells; null renders plain text. */
+  barRatio: number | null;
+  /** Style-derived badge tone for enum cells. */
+  badgeTone: BadgeTone | null;
   width: number;
   /** Set for frozen columns; the value is the sticky left offset in px. */
   stickyLeft: number | null;
@@ -31,7 +42,12 @@ function GridCellComponent({
   rowIndex,
   colIndex,
   rowId,
+  columnId,
   text,
+  align,
+  render,
+  barRatio,
+  badgeTone,
   width,
   stickyLeft,
   active,
@@ -51,6 +67,10 @@ function GridCellComponent({
     style.zIndex = 2;
   }
 
+  const hasBar = render === 'bar' && barRatio !== null;
+  const hasBadge = render === 'badge' && badgeTone !== null && text.length > 0;
+  const content = text.length === 0 ? '\u00a0' : text;
+
   return (
     <div
       role="gridcell"
@@ -62,6 +82,10 @@ function GridCellComponent({
       data-row={rowIndex}
       data-col={colIndex}
       data-row-id={rowId}
+      data-column-id={columnId}
+      data-align={align}
+      data-render={render}
+      data-badge-tone={hasBadge && badgeTone !== null ? badgeTone : undefined}
       data-testid={`grid-cell-${rowIndex}-${colIndex}`}
       title={errorText ?? undefined}
       className={[
@@ -92,7 +116,23 @@ function GridCellComponent({
         onBeginEdit(rowIndex, colIndex);
       }}
     >
-      {editor ?? (text.length === 0 ? '\u00a0' : text)}
+      {editor ??
+        (hasBadge ? (
+          <span className="cs-grid__badge" data-tone={badgeTone ?? 0}>
+            {text}
+          </span>
+        ) : hasBar ? (
+          <>
+            <span
+              className="cs-grid__bar"
+              aria-hidden="true"
+              style={{ width: `${String(Math.round((barRatio ?? 0) * 100))}%` }}
+            />
+            <span className="cs-grid__cell-text">{content}</span>
+          </>
+        ) : (
+          content
+        ))}
     </div>
   );
 }

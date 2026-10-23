@@ -1,29 +1,30 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T3.1`（表格样式模型与内置模板）；
+> 本文件面向**下一个实现会话**。当前会话已完成 `T3.2`（样式渲染管线）；
 > M2 已于 2026-10-23 获用户接受。最后更新：2026-10-23 ·
-> `T3.1` 代码提交 **`b75fff1`**；本交接文档随后单独提交 · 分支 `main` · 提交后工作树干净。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.1/REPORT.md` →
-> `docs/TASKS.md` 的 M3 / T3.1 / T3.2 → `docs/TESTPLAN.md` §2、§3、§5 →
+> `T3.2` 代码提交见 git log；本交接文档随后单独提交 · 分支 `main`。
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.2/REPORT.md` →
+> `docs/TASKS.md` 的 M3 / T3.2 / T3.3 → `docs/TESTPLAN.md` §2、§3、§5 →
 > `docs/SPEC.md` §6.4、§10、§16.1 →
-> `docs/adr/034-t31-table-style-model.md`（T3.1）与 ADR-033（T2.7）。
+> `docs/adr/035-t32-style-rendering.md`（T3.2）、ADR-034（T3.1）与 ADR-033（T2.7）。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
-- **当前状态**：M2 已于 2026-10-23 获用户接受；`T3.1`（表格样式模型与内置模板）已完成并提交
-  （`docs/reports/t3.1/REPORT.md`、ADR-034）。**下一步 T3.2（样式渲染管线）需等用户明确授权；
-  不要自动开始。**
-- **本次交付**：4 个深度冻结的内置模板（report-light/compact-light/dark/finance）、默认样式
-  常量、`resolveStyle` 回退、`forkTableStyle` 深拷贝、`createTableStyle`、hex 颜色 schema、
-  样式不变量；persistence/app-core 的默认样式字符串统一到 domain（见 §5D）。
-- **基线**：`pnpm verify` **124 files / 997 tests**；coverage lines **75.13%**；
-  `format:check` 通过；`pnpm build` exit 0；`pnpm e2e` **64 passed**（T3.1 未改 UI，沿用 M2
-  最后一次运行）；`pnpm bench` **exit 0**（T3.1 未改热路径）。
+- **当前状态**：M2 已于 2026-10-23 获用户接受；`T3.1`（样式模型）与 `T3.2`（样式渲染管线）
+  已完成并提交（`docs/reports/t3.{1,2}/REPORT.md`、ADR-034/035）。**下一步 T3.3（条件格式引擎）
+  需等用户明确授权；不要自动开始。**
+- **本次交付**：20 个 `--cs-table-*` 变量与 `TableStyleProvider`、样式化行高/斑马纹/网格线/
+  圆角/内边距、数字/日期/布尔/枚举格式化、列覆盖（对齐/宽度/标签/渲染模式）、enum badge、
+  数字 bar、四模板 + 用户样式的真实 Electron 视觉验证。
+- **基线**：`pnpm verify` **128 files / 1037 tests**；coverage lines **75.39%** /
+  statements 75.29% / branches 67.97% / functions 76.37%；
+  `format:check` 通过；`pnpm build` exit 0（renderer **1,431.97 kB**）；
+  `pnpm e2e` **65 passed**（含新增 `style.spec.ts`）；`pnpm bench` **exit 0**。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
-- **停点**：T3.1 报告已输出；**等用户授权 T3.2**，不进入 T3.2 的实现。
+- **停点**：T3.2 报告已输出；**等用户授权 T3.3**，不进入 T3.3 的实现。
 
 ---
 
@@ -44,22 +45,23 @@
 | `T2.7` 10 万行性能硬化 | **已完成**（`553f71b`）；报告 `docs/reports/t2.7/REPORT.md`；ADR-033 |
 | M2 验收演示 | **已获用户接受**（2026-10-23）；`e2e/m2-acceptance.spec.ts` + `docs/reports/m2/REPORT.md` |
 | `T3.1` 表格样式模型与内置模板 | **已完成**（2026-10-23，`b75fff1`）；报告 `docs/reports/t3.1/REPORT.md`；ADR-034 |
-| 当前里程碑 | **M3 表格外观**：T3.1 完成；T3.2–T3.6 待推进，里程碑验收演示最后做 |
-| 下一步 | **等待用户授权 T3.2**；不要自动开始 T3.2/T3.3 |
-| `pnpm verify` 基线 | **124 files / 997 tests**；ESLint 0；depcruise **347 modules / 1335 deps / 0 violations** |
-| `pnpm test:coverage` 基线 | 全局 lines **75.13%** / statements **75.03%** / branches **67.23%** / functions **76.12%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **64 passed**（60 + `perf.spec.ts` 3 + M2 验收 1）；T3.1 未改 UI，沿用 M2 运行 |
-| `pnpm bench` 基线 | **exit 0**；T3.1 未改热路径，沿用 T2.7 实测（open 553ms、save 409ms、query 191ms、text-sort 249ms、cjk-sort 661ms、import 685ms） |
+| `T3.2` 样式渲染管线 | **已完成**（2026-10-23）；报告 `docs/reports/t3.2/REPORT.md`；ADR-035 |
+| 当前里程碑 | **M3 表格外观**：T3.1–T3.2 完成；T3.3–T3.6 待推进，里程碑验收演示最后做 |
+| 下一步 | **等待用户授权 T3.3（条件格式引擎）**；不要自动开始 T3.3/T3.4 |
+| `pnpm verify` 基线 | **128 files / 1037 tests**；ESLint 0；depcruise **355 modules / 1363 deps / 0 violations** |
+| `pnpm test:coverage` 基线 | 全局 lines **75.39%** / statements **75.29%** / branches **67.97%** / functions **76.37%**；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **65 passed**（含新增 `style.spec.ts` 1 条）；M2 验收仍通过 |
+| `pnpm bench` 基线 | **exit 0**；open 572ms、save 358ms、edit 0ms、query 216ms、text-sort 287ms、cjk-sort 648ms、import 945ms；clone 345ms（诊断） |
 | `pnpm format:check` | 通过 |
-| 构建 | `pnpm build` exit 0；renderer **1,419.17 kB** + 懒加载 ImportSession 42.82 kB；table/query/import worker 220.13/233.15/269.61 kB |
+| 构建 | `pnpm build` exit 0；renderer **1,431.97 kB** + 懒加载 ImportSession 42.82 kB；table/query/import worker 220.13/233.15/269.61 kB |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
 
 **用户明确要求**：
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **M2 已获用户接受；T3.1 已完成并提交**；下一步等待用户授权 T3.2。
-- 不得跨里程碑；T3.1 报告已输出，停下等用户确认，不进入 T3.2 的实现。
+- **M2 已获用户接受；T3.1、T3.2 已完成**；下一步等待用户授权 T3.3。
+- 不得跨里程碑；T3.2 报告已输出，停下等用户确认，不进入 T3.3 的实现。
 
 ---
 
@@ -68,16 +70,16 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/reports/t3.1/REPORT.md、
-docs/TASKS.md 的 M3 / T3.1 / T3.2、docs/TESTPLAN.md §2/§3/§5、
-docs/SPEC.md §6.4/§10/§16.1、ADR-034 与 ADR-033。
+先读 AGENTS.md、docs/HANDOFF.md、docs/reports/t3.2/REPORT.md、
+docs/TASKS.md 的 M3 / T3.2 / T3.3、docs/TESTPLAN.md §2/§3/§5、
+docs/SPEC.md §6.4/§10/§16.1、ADR-035、ADR-034 与 ADR-033。
 
-现状：M0、M1（已验收）、M2（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1 已完成；
-pnpm verify 124 files / 997 tests、coverage lines 75.13%、pnpm e2e 64 passed、
-pnpm bench exit 0；T3.1 未改 UI，E2E 沿用 M2 运行。
+现状：M0、M1（已验收）、M2（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1、T3.2 已完成；
+pnpm verify 128 files / 1037 tests、coverage lines 75.39%、pnpm e2e 65 passed、
+pnpm bench exit 0。
 
-下一步：等待用户授权 T3.2（样式渲染管线）；确认前不要开始 T3.2 的实现。
-若用户明确授权进入 T3.2，先按 AGENTS §8 复述目标/产出/验收再开工。
+下一步：等待用户授权 T3.3（条件格式引擎）；确认前不要开始 T3.3 的实现。
+若用户明确授权进入 T3.3，先按 AGENTS §8 复述目标/产出/验收再开工。
 ```
 
 ---
@@ -158,9 +160,10 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
 - 纯逻辑门禁：domain/table-engine/chart-model 行覆盖 ≥85%；全局 lines/statements/functions 70%、branches 60。
 - `apps/desktop/src/main/workspace/recent-list.test.ts` 的 “caps the list” 用例在 66 个 worker 并行、
   机器繁忙时偶发 5s 超时；重跑即过，不要放宽全局超时。
-- 全量 E2E 若偶发 `grid.spec.ts` 的 `Control+End` 或 `edit.spec.ts` 的 F2 编辑器超时：先单跑确认；
-  T2.4 已修复虚拟行未挂载时焦点丢失（100ms 安全重试，编辑器打开时不抢焦点），当前全量 63 passed。
-  不要放宽超时或删除断言。
+- 全量 E2E 若偶发 `grid.spec.ts` 的 `Control+End`、200% 缩放焦点或 `edit.spec.ts` 的 F2
+  编辑器超时：先单跑确认；T2.4 已修复虚拟行未挂载时焦点丢失（100ms 安全重试，编辑器打开时
+  不抢焦点）。**跑全量 E2E 时不要同时跑 verify/coverage/另一套 Electron**：T3.2 实测并发时
+  200% 缩放用例会因焦点重试延迟失败，独占 CPU 后 65 passed。不要放宽超时或删除断言。
 - Vitest 过滤用 `--testNamePattern`，不要用 `-- --grep`。
 - E2E 在 UI 更新后等 manifest/JSONL 落盘时使用 `expect.poll`；新增编辑/保存测试也要这样等
   磁盘，不要直接读文件后立刻断言（渲染状态先于异步写盘）。
@@ -472,10 +475,10 @@ apps/desktop/src/renderer/
 T2.5 新增 `apps/desktop/e2e/import.spec.ts` 6 条：100k GBK 分号 + 3 坏行 + 错误 CSV；错编码
 覆盖；150k 取消/100k 提示；JSON 替换 + 备份 + 原文归档 + 撤销；200k 拒绝；200% 缩放键盘。
 
-完整 E2E 现为 **64 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
+完整 E2E 现为 **65 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
 `schema.spec.ts`、T2.4 的 `paste.spec.ts`、T2.5 的 `import.spec.ts`、T2.6 的
-`filter.spec.ts`、T2.7 的 `perf.spec.ts`、M2 的 `m2-acceptance.spec.ts` 与既有
-shell/ipc/smoke/workspace/table-io 仍全绿。
+`filter.spec.ts`、T2.7 的 `perf.spec.ts`、T3.2 的 `style.spec.ts`、M2 的
+`m2-acceptance.spec.ts` 与既有 shell/ipc/smoke/workspace/table-io 仍全绿。
 
 T2.6 新增 `apps/desktop/e2e/filter.spec.ts` 6 条：2k 行筛选 + 三级排序；重开恢复筛选/排序与
 清除；同表双视图互不影响；隐藏列/恢复；100k 行 Worker 筛选+排序（`data-query-ms <= 400`）；
@@ -491,6 +494,11 @@ GBK CSV（3 坏行）→ 筛选/3 级排序 → 列宽/冻结 → 退出并重�
 预算）；`e2e/fixtures.ts` 新增 `launchCurveApp()` 以同一 `userData` 重启。实测导入 824ms、
 100k 打开 624ms、筛选 19ms、排序 63ms、内存 497MB；报告 `docs/reports/m2/REPORT.md`；
 2026-10-23 已获用户接受。
+
+T3.2 新增 `apps/desktop/e2e/style.spec.ts` 1 条：seed 1 表 7 列 + 5 视图（report-light/
+compact-light/dark/finance + 持久化 `sty_bars`），断言计算后的颜色/行高/字族/对齐、数字/
+日期/布尔/枚举文本、列覆盖 label/width/numberFormat、bar 比例与切回内置视图不受影响；
+每个模板 attach 一张网格截图到 `docs/reports/t3.2/`。不提交像素基线。
 
 ### 4.9 `@curve/domain` 表格样式（T3.1）
 
@@ -516,9 +524,38 @@ tableStyleColorSchema
 - `forkTableStyle` 深拷贝 tokens/overrides/嵌套 `FilterPredicate`，分配 `sty_<uuid>`，
   `builtin: false`，名称默认 `Name (2)`；条件规则 id 暂时保留。
 - 颜色只接受 `#RGB/#RGBA/#RRGGBB/#RRGGBBAA`；`builtin.finance` 的数字右对齐/千分位由
-  T3.2 的列格式化实现，T3.1 只提供等宽字体 + 斑马纹令牌。
+  T3.2 的全局数字规则实现（ADR-035），T3.1 只提供等宽字体 + 斑马纹令牌。
 - 模型、决策与残留见 `docs/adr/034-t31-table-style-model.md` 与
   `docs/reports/t3.1/REPORT.md`。
+
+### 4.10 `@curve/ui` 表格样式渲染（T3.2）
+
+```ts
+TABLE_STYLE_CSS_VARIABLES
+TableStyleCssVariable / TableStyleCssVars
+styleToCssVars(style): TableStyleCssVars   // 20 个 --cs-table-*
+tableRowHeight(tokens): number
+TableStyleProvider({ tableStyle, ...sectionProps })
+formatStyledCellValue(value, column, style, options?)
+resolveCellAlign(column, style): CellAlign
+resolveCellRender(column, style): CellRenderMode
+columnDisplayLabel(column, style): string
+computeBarRanges(rows, columns, style)
+barRatioForValue(value, range)
+enumBadgeTone(value): 0 | 1 | 2 | 3
+presentStyledCell(value, column, style, barRanges, options?)
+```
+
+- `WorkspaceView` 用 `resolveStyle(view.tableView.styleId, Object.values(state.tableStyles))`
+  解析样式；`TableStyleProvider` 直接渲染 `DataGrid` 的 `<section>`，`data-table-style` 暴露
+  id，`data-style-fallback` 标记回退。
+- 网格只读 `--cs-table-*`；工具栏局部映射应用控件令牌；`ui-conventions.test.ts` 校验样式表
+  只消费 `TABLE_STYLE_CSS_VARIABLES` 中的变量。
+- 数字统一千分位；数字/日期默认右对齐；布尔本地化；列覆盖 label/width/align/numberFormat/
+  dateFormat/cellRender 只影响显示；bar 的 min/max 来自当前可见行并缓存；badge 哈希到 4 个
+  样式 tone。
+- 真实渲染验证：`apps/desktop/e2e/style.spec.ts`；决策与代价见
+  `docs/adr/035-t32-style-rendering.md` 与 `docs/reports/t3.2/REPORT.md`。
 
 ---
 
@@ -807,6 +844,63 @@ pnpm build          exit 0；renderer 1,419.17 kB + ImportSession 42.82 kB
 
 ---
 
+## 5E. T3.2 决策与实现记录（已完成）
+
+ADR-035 记录 6 组决定：
+
+1. `styleToCssVars` 输出 20 个 `--cs-table-*` 变量，`TableStyleProvider` 直接作为网格
+   `<section>`；网格/工具栏/选择栏只消费变量；工具栏把应用控件令牌局部映射到表头配色。
+2. 行高 = `max(密度基线, ceil(fontSize×1.25)+2×cellPaddingY)`；内置模板仍 24/32/40；虚拟化
+   统一行高，不逐行测量。
+3. 数字统一 `Intl.NumberFormat` + 千分位（覆盖 digits → 列 precision → 原始精度 20 位）；
+   日期/布尔/枚举走 i18n/列定义；数字/日期默认右对齐。采用用户确认的**全局数字规则**，
+   不扩展 `TableStyleTokens`（ADR-034 的 finance 分支不采用）。
+4. 有效宽度 `view.widths > 覆盖 width > ColumnDef.width > 160`；label 只影响显示；`cellRender`
+   的 badge 仅 enum、bar 仅 number，不兼容组合回退 text。
+5. bar 只统计当前可见行并 `useMemo` 缓存；全等值 0 宽；badge 用 FNV-1a 哈希到样式自身的
+   header/selection/alternate/body 四组令牌，不新增调色板模型。
+6. 视觉验证用真实 Electron 网格 seed 4 个内置 + 1 个持久化用户样式，断言计算样式/格式化/
+   宽度/bar，并 attach 5 张截图；不提交 PNG 像素基线（HANDOFF §3.6）。
+
+关键文件：
+
+```text
+packages/ui/src/table-style.ts (+9 tests)
+packages/ui/src/TableStyleProvider.tsx (+3 tests)
+packages/ui/src/table-style-format.ts (+20 tests)
+packages/ui/src/index.ts / package.json / tsconfig.json
+apps/desktop/src/renderer/features/workspace/WorkspaceView.tsx
+apps/desktop/src/renderer/features/grid/{DataGrid,GridCell,GridHeader,grid-sizing}.tsx/ts
+apps/desktop/src/renderer/styles.css
+apps/desktop/test/ui-conventions.test.ts
+apps/desktop/e2e/style.spec.ts
+apps/desktop/e2e/edit.spec.ts（布尔文案）
+docs/adr/035-t32-style-rendering.md
+docs/reports/t3.2/REPORT.md (+5 screenshots)
+```
+
+实测（2026-10-23）：
+
+```text
+pnpm verify         128 files / 1037 tests；depcruise 355 modules / 1363 deps / 0 violations
+pnpm test:coverage  lines 75.39% / statements 75.29% / branches 67.97% / functions 76.37%
+pnpm format:check   通过
+pnpm build          exit 0；renderer 1,431.97 kB + ImportSession 42.82 kB
+pnpm e2e            65 passed（style.spec.ts 1 passed）
+pnpm bench          exit 0；open 572ms、save 358ms、edit 0ms、query 216ms、
+                    text-sort 287ms、cjk-sort 648ms、import 945ms；clone 345ms（诊断）
+```
+
+残留：
+
+- 所有模板数字带千分位、布尔显示“是/否”；显示层变化，不改变磁盘数据。
+- 行高统一；极大字体/内边距按公式增高但不逐行测量。
+- badge 四 tone 在样式颜色接近时区分度有限；不新增调色板模型。
+- 未提交 PNG 像素基线；视觉验收使用计算样式契约 + 截图证据。
+- T3.3 必须复用 `presentStyledCell`/`GridCell`，不要另起样式逻辑。
+
+---
+
 ## 6. M2 验收演示（已获用户接受）
 
 单条 `apps/desktop/e2e/m2-acceptance.spec.ts`（一个 test）已按 ADR-033 §7 执行完毕：
@@ -858,10 +952,10 @@ pnpm e2e
 pnpm bench
 ```
 
-**用户已于 2026-10-23 接受 M2**；TASKS M2 注记已更新为“获用户接受”，T3.1 已按授权完成
-（见 §5D）。若未来用户要求修改 M2，再回到对应 T2.x 修复。
+**用户已于 2026-10-23 接受 M2**；TASKS M2 注记已更新为“获用户接受”，T3.1、T3.2 已按授权完成
+（见 §5D/§5E）。若未来用户要求修改 M2，再回到对应 T2.x 修复。
 
-**M2 已关闭；下一步等待用户授权 T3.2。**
+**M2 已关闭；T3.1/T3.2 已完成，下一步等待用户授权 T3.3。**
 
 ---
 
@@ -891,7 +985,9 @@ pnpm bench
 | 筛选对话框只支持单层 | 嵌套谓词只读 | ADR-032；如需嵌套 UI 另写 ADR |
 | 结构变更不可撤销 | 误操作需手工恢复 | 确认框 + 磁盘备份；T5.2 统一历史 |
 | 图表/样式悬空引用 | 图表错误占位；样式求值忽略 | 样式覆盖/规则列引用按 SPEC §6.6.7 保留；T3.2/T3.3 求值时忽略缺失列，T4.x 图表重映射 |
-| `builtin.finance` 数字格式 | 模板令牌无法表达右对齐/千分位 | T3.2 的列格式化管线实现；若需样式级配置，扩展模型并写 ADR |
+| `builtin.finance` 数字格式 | 模板令牌无法表达右对齐/千分位 | T3.2 用全局数字规则实现（ADR-035）：number/date 默认右对齐、Intl 千分位；未扩展模型 |
+| 所有模板数字带千分位、布尔本地化 | 与 T2.x 显示不同 | 用户确认的全局数字规则；显示层变化，不改磁盘数据；E2E 断言已同步 |
+| 视觉验收无像素基线 | 跨 DPI/字体可能视觉漂移 | 按 HANDOFF §3.6 用计算样式契约 + 截图证据；需要像素基线时先评估 Windows CI 稳定性 |
 | 内置模板名称 i18n | 常量使用中文规范名 | T3.4/T3.5 按 id 走 `t(key)`；不要直接把 `style.name` 当最终 UI 文案 |
 | 颜色仅接受 hex | 不支持 `transparent`/CSS 变量 | 按 SPEC §10.6；需要时另写 ADR 放宽 schema |
 | fork 保留规则 id | 跨样式复制后规则 id 可能重复 | 规则在样式内求值，当前不冲突；T3.5 导入/复制时统一分配 |
@@ -899,8 +995,8 @@ pnpm bench
 | 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 75.13% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；T3.1 报告记录实测 |
-| renderer bundle 约 1.42MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
+| 覆盖率 75.39% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；T3.2 报告记录实测 |
+| renderer bundle 约 1.43MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
 
 ---
 
@@ -914,24 +1010,25 @@ pnpm bench
 - 不绕过命令总线直接改 store（撤销会坏）；不在组件里写业务逻辑。
 - 不加未经 ADR 的运行时依赖；不跳过测试、不放宽 ESLint/覆盖率规则、不用 `--no-verify`。
 - 不未经 ADR/用户确认升级 `formatVersion`、改数据格式、IPC 通道或公共 API。
-- 不在 T3.1 里顺手实现 T3.2 的渲染/格式化或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
-- 不自动跨任务/跨里程碑；T3.1 已完成并输出报告，等待用户授权 T3.2，不进入 T3.2 的实现。
+- 不在 T3.2 已完成后再顺手实现 T3.3 条件格式/T3.4 编辑器或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
+- 不自动跨任务/跨里程碑；T3.2 已完成并输出报告，等待用户授权 T3.3，不进入 T3.3 的实现。
 
 ---
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T3.1 提交（报告 `docs/reports/t3.1/REPORT.md`）。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T3.2 提交（报告 `docs/reports/t3.2/REPORT.md`）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 M3/T3.1/T3.2、`docs/reports/t3.1/REPORT.md`、
-      TESTPLAN §2/§3/§5、SPEC §6.4/§10/§16.1、ADR-034 与 ADR-033。
-- [ ] 已确认 `pnpm verify` 基线（124 files / 997 tests）、coverage lines 75.13%、
-      e2e 64 passed、bench exit 0。
+- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 M3/T3.2/T3.3、`docs/reports/t3.2/REPORT.md`、
+      TESTPLAN §2/§3/§5、SPEC §6.4/§10/§16.1、ADR-035、ADR-034 与 ADR-033。
+- [ ] 已确认 `pnpm verify` 基线（128 files / 1037 tests）、coverage lines 75.39%、
+      e2e 65 passed、bench exit 0。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M2 已获用户接受、T3.1 已完成；**等待用户授权 T3.2**，不要自行进入 T3.2。
-- [ ] 已确认 T3.1 的 hex 颜色、内置模板冻结、resolve/fork 语义；不绕过 domain 另起样式模型。
+- [ ] 已确认 M2 已获用户接受、T3.1/T3.2 已完成；**等待用户授权 T3.3**，不要自行进入 T3.3。
+- [ ] 已确认 T3.1 的 hex 颜色、内置模板冻结、resolve/fork 语义；T3.2 的 20 个表变量、宽度优先级、
+      全局数字规则与 bar/badge 语义；不绕过 `TableStyleProvider` 另起样式逻辑。
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`，截图提交前还原。
-- [ ] 用户明确授权 T3.2 后，先按 AGENTS §8 复述再开工；未授权则停在 T3.1。
+- [ ] 用户明确授权 T3.3 后，先按 AGENTS §8 复述再开工；未授权则停在 T3.2。

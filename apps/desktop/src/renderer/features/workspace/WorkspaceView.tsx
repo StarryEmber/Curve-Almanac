@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { findActivePane } from '@curve/app-core';
 import type { CellIssue } from '@curve/app-core';
-import type { ViewDef } from '@curve/domain';
+import { DEFAULT_TABLE_STYLE, resolveStyle } from '@curve/domain';
+import type { TableStyle, ViewDef } from '@curve/domain';
 import type { TableData } from '@curve/table-engine';
 import { Button } from '@curve/ui';
 
@@ -34,6 +35,7 @@ export function WorkspaceView(): ReactElement {
   const layout = useAppState((state) => state.layout);
   const views = useAppState((state) => state.views);
   const tables = useAppState((state) => state.tables);
+  const tableStyles = useAppState((state) => state.tableStyles);
   const activeViewId = useAppState((state) => state.ui.activeViewId);
   const [warningsDismissed, setWarningsDismissed] = useState(false);
 
@@ -88,6 +90,12 @@ export function WorkspaceView(): ReactElement {
   const viewIds = pane?.viewIds ?? [];
   const view = activeViewId === null ? undefined : views[activeViewId];
   const tableData = view?.kind === 'table' ? tables[view.refId] : undefined;
+  const styleResolution = useMemo(() => {
+    if (view === undefined || view.kind !== 'table' || view.tableView === undefined) {
+      return null;
+    }
+    return resolveStyle(view.tableView.styleId, Object.values(tableStyles));
+  }, [tableStyles, view]);
   const warnings = workspace?.warnings ?? [];
   const firstTableId = Object.keys(tables)[0];
 
@@ -189,6 +197,8 @@ export function WorkspaceView(): ReactElement {
             key={view.id}
             tableData={tableData}
             view={view}
+            tableStyle={styleResolution?.style ?? DEFAULT_TABLE_STYLE}
+            styleFallback={styleResolution?.fallback ?? false}
             onViewUpdate={(patch) => {
               void core.actions.updateView(view.id, patch);
             }}
@@ -226,12 +236,16 @@ type TableViewGridProps = Pick<
 > & {
   tableData: TableData;
   view: ViewDef;
+  tableStyle: TableStyle;
+  styleFallback: boolean;
 };
 
 /** Calls the query hook only for table views, then hands the visible rows to the grid. */
 function TableViewGrid({
   tableData,
   view,
+  tableStyle,
+  styleFallback,
   onViewUpdate,
   onCellCommit,
   onEditIssue,
@@ -261,6 +275,8 @@ function TableViewGrid({
   return (
     <DataGrid
       tableMeta={tableData.table}
+      tableStyle={tableStyle}
+      styleFallback={styleFallback}
       rows={viewRows.rows}
       viewRows={viewRows}
       view={view}

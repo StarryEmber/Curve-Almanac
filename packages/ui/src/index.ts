@@ -15,6 +15,31 @@ import './ui.css';
 export { Button } from './Button';
 export type { ButtonProps, ButtonSize, ButtonVariant } from './Button';
 
+export { TableStyleProvider } from './TableStyleProvider';
+export type { TableStyleProviderProps } from './TableStyleProvider';
+
+export { TABLE_STYLE_CSS_VARIABLES, styleToCssVars, tableRowHeight } from './table-style';
+export type { TableStyleCssVariable, TableStyleCssVars } from './table-style';
+
+export {
+  barRatioForValue,
+  columnDisplayLabel,
+  computeBarRanges,
+  enumBadgeTone,
+  formatStyledCellValue,
+  presentStyledCell,
+  resolveCellAlign,
+  resolveCellRender,
+} from './table-style-format';
+export type {
+  BadgeTone,
+  BarRange,
+  CellAlign,
+  CellRenderMode,
+  StyledCellOptions,
+  StyledCellPresentation,
+} from './table-style-format';
+
 export { Dialog } from './Dialog';
 export type { DialogProps } from './Dialog';
 

@@ -858,7 +858,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t32"></a>
 ### T3.2 样式渲染管线
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T2.1、T2.6、T3.1
 - 覆盖：FR-STY-02、FR-STY-03、FR-STY-07
 - 参考：SPEC §10.2
@@ -873,11 +873,26 @@ T0.2 + T5.5 → T6.4
   2. 单元格格式化管线：原始值 → 列覆盖 → 字段类型 → 字符串。
   3. bar 的 min/max 由当前筛选结果计算并缓存。
 - 验收：
-  - [ ] 令牌改动即时反映，无内联硬编码颜色。
-  - [ ] 列覆盖不影响 schema 与其他视图。
-  - [ ] 数字/日期在 zh-CN/en-US 下格式正确。
-  - [ ] 视觉快照通过（浅色/深色/紧凑/财务）。
-- 验证：`pnpm exec vitest run packages/ui apps/desktop -- --grep "style"`
+  - [x] 令牌改动即时反映，无内联硬编码颜色。
+  - [x] 列覆盖不影响 schema 与其他视图。
+  - [x] 数字/日期在 zh-CN/en-US 下格式正确。
+  - [x] 视觉快照通过（浅色/深色/紧凑/财务）。
+- 验证：`pnpm exec vitest run packages/ui apps/desktop`（`--grep` 不是 Vitest 5 参数；目录全跑）
+- 实现备注（2026-10-23，ADR-035）：
+  - 决策：`styleToCssVars` 输出 20 个 `--cs-table-*` 变量，`TableStyleProvider` 直接作为网格
+    `<section>`；工具栏把应用控件令牌局部映射到表头配色。行高 = `max(密度基线, ceil(fontSize×1.25)+2×paddingY)`，
+    内置模板仍为 24/32/40。数字统一 `Intl.NumberFormat` + 千分位，数字/日期默认右对齐；布尔本地化；
+    有效宽度 `view.widths > 覆盖 width > ColumnDef.width > 160`；bar 的 min/max 只统计当前可见行；
+    badge 哈希到样式自身的 4 组令牌。adopt “全局数字规则”，不扩展 `TableStyleTokens`。
+  - 文件：`packages/ui/src/{table-style,TableStyleProvider,table-style-format}.ts(x)` 及测试；
+    `WorkspaceView` 解析 `styleId`；`DataGrid/GridCell/GridHeader/grid-sizing` 接线；
+    `apps/desktop/src/renderer/styles.css` 网格段；`e2e/style.spec.ts`；`e2e/edit.spec.ts` 布尔文案。
+  - 实测：`pnpm verify` **128 files / 1037 tests**，depcruise **355 modules / 1363 deps / 0
+    violations**；coverage lines **75.39%**；`style.spec.ts` 1 passed，全量 E2E **65 passed**；
+    `pnpm bench` exit 0；四模板 + 用户样式截图见 `docs/reports/t3.2/`。
+  - 残留：所有数字显示千分位、布尔显示“是/否”属于显示层变化；未提交 PNG 像素基线（按仓库既有
+    “E2E 不断言像素”策略，使用计算样式契约 + 截图证据）；bar 只在启用时扫描可见行；未实现 T3.3
+    条件格式/T3.4 编辑器/T3.5 模板管理。
 
 <a id="t33"></a>
 ### T3.3 条件格式引擎

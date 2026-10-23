@@ -1,6 +1,7 @@
 /** Sticky header row with resize handles, autofit and sort controls (T2.6). */
 
-import type { Row, SortSpec } from '@curve/domain';
+import type { ColumnDef, Row, SortSpec, TableStyle } from '@curve/domain';
+import { resolveCellAlign } from '@curve/ui';
 
 import { frozenOffsets } from './grid-sizing';
 
@@ -9,6 +10,9 @@ import type { CSSProperties, ReactElement } from 'react';
 
 export interface GridHeaderProps {
   table: Table<Row>;
+  /** Domain columns in the same order as the visible leaf columns. */
+  columns: readonly ColumnDef[];
+  tableStyle: TableStyle;
   frozenCount: number;
   sort: readonly SortSpec[];
   onAutofit: (columnId: string) => void;
@@ -19,6 +23,8 @@ export interface GridHeaderProps {
 
 export function GridHeader({
   table,
+  columns,
+  tableStyle,
   frozenCount,
   sort,
   onAutofit,
@@ -41,6 +47,9 @@ export function GridHeader({
           style.left = sticky;
           style.zIndex = 3;
         }
+        const domainColumn = columns[index];
+        const align =
+          domainColumn === undefined ? 'left' : resolveCellAlign(domainColumn, tableStyle);
         const sortIndex = sort.findIndex((spec) => spec.columnId === header.column.id);
         const sortSpec = sortIndex >= 0 ? sort[sortIndex] : undefined;
         const direction = sortSpec?.direction ?? 'none';
@@ -62,6 +71,7 @@ export function GridHeader({
               .join(' ')}
             style={style}
             data-column-id={header.column.id}
+            data-align={align}
           >
             <button
               type="button"

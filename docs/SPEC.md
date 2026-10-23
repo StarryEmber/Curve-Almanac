@@ -872,6 +872,23 @@ interface ImportResult {
   - `badge`：仅 enum；用枚举值哈希到调色板。
 - 表格样式是**显式配色**，不随应用深浅色自动反转；内置深色模板单独提供。
 
+**实现边界（T3.2，ADR-035）**：
+
+- `styleToCssVars(style)` 是唯一转换点，输出 20 个 `--cs-table-*` 变量；网格、工具栏与选择栏
+  只消费这些变量。工具栏把应用控件的 `--cs-color-*` 局部重映射到表头令牌，避免深色模板出现
+  浅色孤岛。
+- 行高 = `max(密度基线, ceil(fontSize × 1.25) + 2 × cellPaddingY)`；内置模板仍为
+  compact 24 / normal 32 / comfortable 40，虚拟化使用统一行高。
+- 数字统一使用 `Intl.NumberFormat` 并开启千分位；小数位取列覆盖否则列 `precision`。数字与
+  日期默认右对齐，其他类型默认左对齐；`ColumnStyleOverride.align` 可覆盖。
+- 布尔单元格使用消息表的“是/否”（en-US 为 Yes/No）；日期使用 i18n locale；枚举使用
+  `enumOptions.label`，`auto` 渲染为 badge。
+- 有效列宽：视图 `widths` > 列覆盖 `width` > `ColumnDef.width` > 160；列覆盖 `label` 只影响
+  表头显示，不写回 schema。
+- `bar` 的 min/max 只统计当前筛选/排序后的可见行；全等值区间渲染 0 宽条。badge 用枚举值
+  FNV-1a 哈希到 4 个 tone，复用样式自身的 header/selection/alternate/body 令牌，不新增
+  manifest 字段或调色板模型。
+
 ### 10.3 内置模板（代码常量，不入 manifest）
 
 | id | 名称 | 特征 |
@@ -895,8 +912,8 @@ interface ImportResult {
 - `resolveStyle(id, userStyles)` 返回 `{ style, fallback, warning? }`；未知 id（含未知
   `builtin.*`）回退 `builtin.report-light` 并给 warning。`forkTableStyle` 深拷贝为
   `sty_<uuid>`、`builtin: false`，名称默认 `Name (2)`。
-- `builtin.finance` 的等宽字体与斑马纹由令牌表达；数字右对齐、千分位属于 T3.2 的列格式化
-  管线，不在 T3.1 扩展 `TableStyleTokens`。
+- `builtin.finance` 的等宽字体与斑马纹由令牌表达；数字右对齐、千分位由 T3.2 的统一数字格式
+  管线实现（所有模板共享），未扩展 `TableStyleTokens`（ADR-035）。
 
 ### 10.4 条件格式
 

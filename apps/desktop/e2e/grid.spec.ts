@@ -542,7 +542,7 @@ test.describe('T2.1 data grid', () => {
     const seeded = await seedWorkspace(page, testInfo, SEED_ROW_COUNT);
     await openSeededWorkspace(page);
 
-    const header = page.locator('[data-column-id="col_e2e_time"]');
+    const header = page.locator('[role="columnheader"][data-column-id="col_e2e_time"]');
     const resizer = header.getByRole('separator');
     const box = await resizer.boundingBox();
     expect(box).not.toBeNull();
@@ -567,7 +567,7 @@ test.describe('T2.1 data grid', () => {
       .not.toBe(draggedWidth);
 
     await openSeededWorkspace(page);
-    const reloadedHeader = page.locator('[data-column-id="col_e2e_time"]');
+    const reloadedHeader = page.locator('[role="columnheader"][data-column-id="col_e2e_time"]');
     const persisted = readManifest(seeded.root).views[0]?.tableView?.widths['col_e2e_time'] ?? 0;
     const width = await reloadedHeader.evaluate((element) => getComputedStyle(element).width);
     expect(Math.round(Number.parseFloat(width))).toBe(persisted);

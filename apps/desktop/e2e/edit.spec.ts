@@ -225,7 +225,7 @@ test.describe('T2.2 cell editing', () => {
     await startEdit(page, 0, 4);
     await page.getByTestId('cell-editor').selectOption('false');
     await page.keyboard.press('Enter');
-    await expect(cell(page, 0, 4)).toHaveText('false');
+    await expect(cell(page, 0, 4)).toHaveText('否');
 
     await startEdit(page, 0, 5);
     await page.getByTestId('cell-editor').selectOption('paused');
@@ -248,7 +248,7 @@ test.describe('T2.2 cell editing', () => {
     await expect(page.getByTestId('data-grid')).toBeVisible();
     await expect(cell(page, 0, 1)).toHaveText('Renamed');
     await expect(cell(page, 0, 2)).toHaveText('1,234.50');
-    await expect(cell(page, 0, 4)).toHaveText('false');
+    await expect(cell(page, 0, 4)).toHaveText('否');
     await expect(cell(page, 0, 5)).toHaveText('Paused');
   });
 

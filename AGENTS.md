@@ -11,8 +11,9 @@
   （区域粘贴）、`T2.5`（CSV/JSON 导入向导）、`T2.6`（筛选、排序与视图状态）与 `T2.7`
   （10 万行性能硬化）已完成；**M2 验收演示已于 2026-10-23 执行并获用户接受**
   （`apps/desktop/e2e/m2-acceptance.spec.ts` + `docs/reports/m2/REPORT.md`）。
-  **T3.1（表格样式模型与内置模板）已完成**（`docs/reports/t3.1/REPORT.md`、ADR-034）；
-  **下一步 T3.2 需等用户明确授权，不要自动开始。**
+  **T3.1（表格样式模型与内置模板）已完成**（`docs/reports/t3.1/REPORT.md`、ADR-034）。
+  **T3.2（样式渲染管线）已完成**（`docs/reports/t3.2/REPORT.md`、ADR-035）；
+  **下一步 T3.3 需等用户明确授权，不要自动开始。**
 - 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
   `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 14 个已接线
   IPC 通道；**续作前先读 `docs/HANDOFF.md`**。

@@ -17,6 +17,13 @@ function approximateWidth(text: string): number {
   return text.length * 8 + 32;
 }
 
+export interface MeasureColumnWidthOptions {
+  /** Style-aware formatter; defaults to the domain baseline. */
+  formatValue?: (value: Cell, column: ColumnDef) => string;
+  fontFamily?: string;
+  fontSize?: number;
+}
+
 /**
  * Measures a sensible column width from the header and the first rows.
  *
@@ -28,23 +35,27 @@ export function measureColumnWidth(
   rows: readonly Row[],
   columnIndex: number,
   headerLabel: string,
+  options: MeasureColumnWidthOptions = {},
 ): number {
+  const formatValue = options.formatValue ?? formatCellValue;
+  const fontSize = options.fontSize ?? 13;
   let widest = approximateWidth(headerLabel);
 
   const canvas = typeof document === 'undefined' ? null : document.createElement('canvas');
   const context = canvas?.getContext('2d') ?? null;
-  const font =
-    typeof getComputedStyle === 'function'
+  const fontFamily =
+    options.fontFamily ??
+    (typeof getComputedStyle === 'function'
       ? getComputedStyle(document.documentElement).getPropertyValue('font-family')
-      : '';
+      : '');
   if (context !== null) {
-    context.font = `13px ${font.length > 0 ? font : 'sans-serif'}`;
+    context.font = `${String(fontSize)}px ${fontFamily.length > 0 ? fontFamily : 'sans-serif'}`;
   }
 
   const sample = rows.slice(0, AUTOFIT_SAMPLE_ROWS);
   for (const row of sample) {
     const value: Cell = row.values[columnIndex] ?? null;
-    const text = formatCellValue(value, column);
+    const text = formatValue(value, column);
     const width = context === null ? approximateWidth(text) : context.measureText(text).width;
     widest = Math.max(widest, width + 32);
   }

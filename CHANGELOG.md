@@ -334,3 +334,15 @@
 - T3.1：`@curve/persistence` 与 `@curve/app-core` 的默认样式常量改为复用 domain；
   SPEC §6.6.6/§10.3、TASKS T3.1、HANDOFF、AGENTS §0 同步；新增 ADR-034。不改变
   `formatVersion`、JSONL、manifest 字段、IPC、preload、CSP 或运行时依赖。
+- T3.2：`@curve/ui` 新增 `styleToCssVars`/`TABLE_STYLE_CSS_VARIABLES`（20 个
+  `--cs-table-*`）、`TableStyleProvider`（直接作为网格 section）、`formatStyledCellValue`、
+  `resolveCellAlign`/`resolveCellRender`/`columnDisplayLabel`、`computeBarRanges`/
+  `barRatioForValue`/`enumBadgeTone`/`presentStyledCell`；`@curve/ui` 增加 domain workspace 依赖。
+- T3.2：`DataGrid`/`GridCell`/`GridHeader`/`grid-sizing`/`WorkspaceView` 接入样式解析、密度
+  行高、数字/日期/布尔/枚举格式化、列覆盖（对齐/宽度/标签/渲染模式）、enum badge 与数字 bar；
+  `styles.css` 网格/工具栏/选择栏只消费表样式变量；`ui-conventions` 增加表变量白名单校验。
+- T3.2：数字统一 `Intl.NumberFormat` 千分位、数字/日期默认右对齐、布尔本地化（zh-CN 是/否）；
+  采用用户确认的“全局数字规则”，不扩展 `TableStyleTokens`、不改变 manifest/formatVersion。
+- T3.2：新增 `apps/desktop/e2e/style.spec.ts`（4 个内置模板 + 1 个持久化用户样式；计算样式/
+  格式化/宽度/bar 断言 + 截图证据）；`e2e/edit.spec.ts` 布尔断言更新；新增 ADR-035、SPEC §10.2、
+  TASKS T3.2、HANDOFF 与 `docs/reports/t3.2/REPORT.md`。
