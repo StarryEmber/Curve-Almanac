@@ -68,3 +68,4 @@
 | ADR-036 | T3.3 的条件求值器归属、比较语义、样式优先级与撤销 | 已接受 | [036-t33-conditional-format.md](036-t33-conditional-format.md) |
 | ADR-037 | T3.4 的样式编辑器、懒 fork、预览与提交粒度 | 已接受 | [037-t34-style-editor.md](037-t34-style-editor.md) |
 | ADR-038 | T3.5 的模板 CRUD、删除回退、导入导出与身份重分配 | 已接受 | [038-t35-template-management.md](038-t35-template-management.md) |
+| ADR-039 | T3.6 的 CSV 导出、流式 IPC、原始/显示值与文件名 | 已接受 | [039-t36-csv-export.md](039-t36-csv-export.md) |

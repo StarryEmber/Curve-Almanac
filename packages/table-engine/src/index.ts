@@ -12,6 +12,7 @@
 
 export const PACKAGE_NAME = '@curve/table-engine' as const;
 
+export * from './csv-export';
 export * from './dirty-set';
 export * from './import';
 export * from './jsonl';

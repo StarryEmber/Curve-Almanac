@@ -278,6 +278,7 @@ function TableViewGrid({
       tableStyle={tableStyle}
       styleFallback={styleFallback}
       rows={viewRows.rows}
+      allRows={tableData.rows}
       viewRows={viewRows}
       view={view}
       onViewUpdate={onViewUpdate}

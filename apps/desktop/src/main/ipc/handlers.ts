@@ -16,6 +16,8 @@ import {
   appInfoResponseSchema,
   archiveImportRequestSchema,
   archiveImportResponseSchema,
+  exportCsvRequestSchema,
+  exportCsvResponseSchema,
   exportTextRequestSchema,
   exportTextResponseSchema,
   importTextRequestSchema,
@@ -47,6 +49,8 @@ import type {
   AppInfo,
   ArchiveImportReply,
   ArchiveImportRequest,
+  ExportCsvReply,
+  ExportCsvRequest,
   ExportTextReply,
   ExportTextRequest,
   ImportTextReply,
@@ -68,6 +72,7 @@ export interface RegisterIpcHandlersOptions {
   pickDirectory: (request: PickDirectoryRequest) => Promise<PickDirectoryResult | null>;
   readImportFile: (request: ImportTextRequest) => Promise<ImportTextReply | null>;
   exportTextFile: (request: ExportTextRequest) => Promise<ExportTextReply | null>;
+  exportCsv: (request: ExportCsvRequest) => Promise<ExportCsvReply | null>;
   archiveImport: (request: ArchiveImportRequest) => Promise<ArchiveImportReply>;
   workspaceStore: WorkspaceStore;
   listRecentWorkspaces: () => Promise<RecentEntry[]>;
@@ -160,6 +165,12 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     IPC_CHANNELS.fileExportText,
     { request: exportTextRequestSchema, response: exportTextResponseSchema },
     (request) => options.exportTextFile(request),
+  );
+
+  registrar.handle(
+    IPC_CHANNELS.fileExportCsv,
+    { request: exportCsvRequestSchema, response: exportCsvResponseSchema },
+    (request) => options.exportCsv(request),
   );
 
   registrar.handle(

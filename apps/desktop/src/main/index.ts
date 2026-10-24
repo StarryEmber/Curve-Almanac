@@ -22,6 +22,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session } from 'elec
 import { toAppError, createAppError } from '@curve/domain';
 
 import { resolveE2EDialogStubs, resolveE2EUserDataPath } from './e2e-hooks';
+import { createCsvExportWriter } from './export/csv-export-file';
 import { exportTextFile, readImportSource } from './import/import-files';
 import { createImportTokenStore } from './import/import-token-store';
 import { registerIpcHandlers } from './ipc/handlers';
@@ -79,6 +80,34 @@ function registerIpc(workspaceStore: FileWorkspaceStore): void {
   const registrar = createIpcRegistrar({ ipcMain, logger });
   const importTokens = createImportTokenStore();
   const pickerWindow = (): BrowserWindow | null => BrowserWindow.getFocusedWindow() ?? mainWindow;
+
+  const chooseSavePath = async (
+    suggestedName: string,
+    filters: { name: string; extensions: string[] }[],
+  ): Promise<string | null> => {
+    const stubs = resolveE2EDialogStubs({ isPackaged: app.isPackaged, env: process.env });
+    if (stubs !== null) {
+      return stubs.savePath;
+    }
+    const options: SaveDialogOptions = {
+      defaultPath: suggestedName,
+      filters: filters.map((filter) => ({
+        name: filter.name,
+        extensions: filter.extensions,
+      })),
+    };
+    const focusedWindow = pickerWindow();
+    const result =
+      focusedWindow === null
+        ? await dialog.showSaveDialog(options)
+        : await dialog.showSaveDialog(focusedWindow, options);
+    return result.canceled || result.filePath.length === 0 ? null : result.filePath;
+  };
+
+  const csvWriter = createCsvExportWriter({ chooseSavePath });
+  app.on('before-quit', () => {
+    csvWriter.dispose();
+  });
 
   const pickImportPath = async (request: ImportTextRequest): Promise<string | null> => {
     const stubs = resolveE2EDialogStubs({ isPackaged: app.isPackaged, env: process.env });
@@ -151,31 +180,14 @@ function registerIpc(workspaceStore: FileWorkspaceStore): void {
       };
     },
     exportTextFile: async (request) => {
-      const stubs = resolveE2EDialogStubs({ isPackaged: app.isPackaged, env: process.env });
-      let path: string | null;
-      if (stubs !== null) {
-        path = stubs.savePath;
-      } else {
-        const options: SaveDialogOptions = {
-          defaultPath: request.suggestedName,
-          filters: request.filters.map((filter) => ({
-            name: filter.name,
-            extensions: filter.extensions,
-          })),
-        };
-        const focusedWindow = pickerWindow();
-        const result =
-          focusedWindow === null
-            ? await dialog.showSaveDialog(options)
-            : await dialog.showSaveDialog(focusedWindow, options);
-        path = result.canceled || result.filePath.length === 0 ? null : result.filePath;
-      }
+      const path = await chooseSavePath(request.suggestedName, request.filters);
       if (path === null) {
         return null;
       }
       await exportTextFile(path, request.content);
       return { path };
     },
+    exportCsv: (request) => csvWriter.handle(request),
     archiveImport: async (request) => {
       const entry = importTokens.get(request.token);
       if (

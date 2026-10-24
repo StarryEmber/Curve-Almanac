@@ -139,6 +139,27 @@ export interface ExportTextReply {
   path: string;
 }
 
+/** Largest single CSV chunk accepted by `file:exportCsv` (T3.6, ADR-039). */
+export const MAX_EXPORT_CSV_CHUNK_BYTES = 8 * 1024 * 1024;
+
+/**
+ * `file:exportCsv` is a four-step streaming protocol on one channel: `begin`
+ * opens the save dialog and a temporary file, `append` writes one chunk,
+ * `finish` renames the temporary file into place, and `cancel` removes it.
+ * Only the opaque token crosses the boundary; renderer never sends a path.
+ */
+export type ExportCsvRequest =
+  | { op: 'begin'; suggestedName: string; filters: FileFilter[] }
+  | { op: 'append'; token: string; chunk: string }
+  | { op: 'finish'; token: string; rows: number }
+  | { op: 'cancel'; token: string };
+
+export type ExportCsvReply =
+  | { op: 'begin'; token: string; path: string }
+  | { op: 'append'; bytes: number }
+  | { op: 'finish'; path: string; bytes: number; rows: number }
+  | { op: 'cancel'; removed: boolean };
+
 /** `file:archiveImport` request: commits the selected source to `imports/`. */
 export interface ArchiveImportRequest {
   workspaceId: string;
@@ -191,6 +212,7 @@ export interface CurveApi {
   file: {
     importText(request: ImportTextRequest): Promise<IpcResult<ImportTextReply | null>>;
     exportText(request: ExportTextRequest): Promise<IpcResult<ExportTextReply | null>>;
+    exportCsv(request: ExportCsvRequest): Promise<IpcResult<ExportCsvReply | null>>;
     archiveImport(request: ArchiveImportRequest): Promise<IpcResult<ArchiveImportReply>>;
   };
 }
@@ -305,6 +327,55 @@ export const fileFilterSchema: z.ZodType<FileFilter, FileFilter> = z.strictObjec
   name: z.string().min(1).max(80),
   extensions: z.array(z.string().min(1).max(16)).min(1).max(20),
 });
+
+const exportCsvTokenSchema = z.string().min(1).max(200);
+
+export const exportCsvRequestSchema: z.ZodType<ExportCsvRequest, ExportCsvRequest> =
+  z.discriminatedUnion('op', [
+    z.strictObject({
+      op: z.literal('begin'),
+      suggestedName: z.string().min(1).max(200),
+      filters: z.array(fileFilterSchema).min(1).max(10),
+    }),
+    z.strictObject({
+      op: z.literal('append'),
+      token: exportCsvTokenSchema,
+      chunk: z.string().max(MAX_EXPORT_CSV_CHUNK_BYTES),
+    }),
+    z.strictObject({
+      op: z.literal('finish'),
+      token: exportCsvTokenSchema,
+      rows: z.number().int().nonnegative(),
+    }),
+    z.strictObject({
+      op: z.literal('cancel'),
+      token: exportCsvTokenSchema,
+    }),
+  ]);
+
+export const exportCsvResponseSchema: z.ZodType<ExportCsvReply | null, ExportCsvReply | null> = z
+  .discriminatedUnion('op', [
+    z.strictObject({
+      op: z.literal('begin'),
+      token: exportCsvTokenSchema,
+      path: z.string().min(1),
+    }),
+    z.strictObject({
+      op: z.literal('append'),
+      bytes: z.number().int().nonnegative(),
+    }),
+    z.strictObject({
+      op: z.literal('finish'),
+      path: z.string().min(1),
+      bytes: z.number().int().nonnegative(),
+      rows: z.number().int().nonnegative(),
+    }),
+    z.strictObject({
+      op: z.literal('cancel'),
+      removed: z.boolean(),
+    }),
+  ])
+  .nullable();
 
 export const importTextRequestSchema: z.ZodType<ImportTextRequest, ImportTextRequest> =
   z.strictObject({

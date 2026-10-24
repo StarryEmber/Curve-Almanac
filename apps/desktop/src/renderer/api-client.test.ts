@@ -51,6 +51,7 @@ function bridge(overrides: Partial<CurveApi> = {}): CurveApi {
     file: {
       importText: async () => ({ ok: true, data: null }),
       exportText: async () => ({ ok: true, data: null }),
+      exportCsv: async () => ({ ok: true, data: null }),
       archiveImport: async () => ({
         ok: true,
         data: { copied: true, archivePath: 'imports/a.csv', sidecarPath: 'imports/a.json' },
@@ -259,6 +260,12 @@ describe('createApiClient', () => {
         content: 'a\n',
         filters: [{ name: 'Data', extensions: ['csv'] }],
       }),
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      client.file.exportCsv({ op: 'append', token: 'tok_1', chunk: 'a,b\r\n' }),
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      client.file.exportCsv({ op: 'append', token: '', chunk: 'a' }),
     ).resolves.toMatchObject({ ok: false });
     await expect(
       client.file.archiveImport({

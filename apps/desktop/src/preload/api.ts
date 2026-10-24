@@ -18,6 +18,8 @@ import type {
   ArchiveImportReply,
   ArchiveImportRequest,
   CurveApi,
+  ExportCsvReply,
+  ExportCsvRequest,
   ExportTextReply,
   ExportTextRequest,
   ImportTextReply,
@@ -101,6 +103,8 @@ export function createCurveApi(invoke: InvokeFn): CurveApi {
         call<ImportTextReply | null>(invoke, IPC_CHANNELS.fileImportText, request),
       exportText: (request: ExportTextRequest): Promise<IpcResult<ExportTextReply | null>> =>
         call<ExportTextReply | null>(invoke, IPC_CHANNELS.fileExportText, request),
+      exportCsv: (request: ExportCsvRequest): Promise<IpcResult<ExportCsvReply | null>> =>
+        call<ExportCsvReply | null>(invoke, IPC_CHANNELS.fileExportCsv, request),
       archiveImport: (request: ArchiveImportRequest): Promise<IpcResult<ArchiveImportReply>> =>
         call<ArchiveImportReply>(invoke, IPC_CHANNELS.fileArchiveImport, request),
     },

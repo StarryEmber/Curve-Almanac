@@ -16,9 +16,10 @@
   **T3.3（条件格式引擎）已完成**（`docs/reports/t3.3/REPORT.md`、ADR-036）；
   **T3.4（样式编辑器与实时预览）已完成**（`docs/reports/t3.4/REPORT.md`、ADR-037）；
   **T3.5（模板管理与导入导出）已完成**（`docs/reports/t3.5/REPORT.md`、ADR-038）；
-  **下一步 T3.6 需等用户明确授权，不要自动开始；M3 验收演示最后做。**
+  **T3.6（CSV 导出）已完成**（`docs/reports/t3.6/REPORT.md`、ADR-039）；
+  **M3 验收演示需等用户明确授权，不要自动开始；下一步先停下等用户确认。**
 - 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
-  `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 14 个已接线
+  `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 15 个已接线
   IPC 通道；**续作前先读 `docs/HANDOFF.md`**。
 - 每个任务的协议与里程碑停点见 §8。
 

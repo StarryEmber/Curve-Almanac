@@ -64,6 +64,14 @@ function wire(): { ipcMain: FakeIpcMain; lines: string[] } {
       format: 'csv',
     }),
     exportTextFile: async () => ({ path: 'C:\\export.csv' }),
+    exportCsv: async (request) =>
+      request.op === 'begin'
+        ? { op: 'begin', token: 'tok_csv', path: 'C:\\export.csv' }
+        : request.op === 'append'
+          ? { op: 'append', bytes: 10 }
+          : request.op === 'finish'
+            ? { op: 'finish', path: 'C:\\export.csv', bytes: 10, rows: 1 }
+            : { op: 'cancel', removed: true },
     archiveImport: async () => ({
       copied: true,
       archivePath: 'imports/20260101T000000000Z-data.csv',
@@ -288,6 +296,39 @@ describe('registerIpcHandlers', () => {
         filters,
       }),
     ).resolves.toEqual({ ok: true, data: { path: 'C:\\export.csv' } });
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.fileExportCsv, {
+        op: 'begin',
+        suggestedName: 'Data.csv',
+        filters,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      data: { op: 'begin', token: 'tok_csv', path: 'C:\\export.csv' },
+    });
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.fileExportCsv, {
+        op: 'append',
+        token: 'tok_csv',
+        chunk: 'a,b\r\n',
+      }),
+    ).resolves.toEqual({ ok: true, data: { op: 'append', bytes: 10 } });
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.fileExportCsv, {
+        op: 'finish',
+        token: 'tok_csv',
+        rows: 1,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      data: { op: 'finish', path: 'C:\\export.csv', bytes: 10, rows: 1 },
+    });
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.fileExportCsv, { op: 'cancel', token: 'tok_csv' }),
+    ).resolves.toEqual({ ok: true, data: { op: 'cancel', removed: true } });
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.fileExportCsv, { op: 'append', chunk: 'a' }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'E_IPC_INVALID_PAYLOAD' } });
     await expect(
       ipcMain.invoke(IPC_CHANNELS.fileArchiveImport, {
         workspaceId: 'ws_1',

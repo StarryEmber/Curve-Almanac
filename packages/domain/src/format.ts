@@ -43,6 +43,27 @@ export function formatCellValue(
   }
 }
 
+const DATE_OPTIONS: Record<Exclude<DateDisplayFormat, 'iso'>, Intl.DateTimeFormatOptions> = {
+  date: { year: 'numeric', month: '2-digit', day: '2-digit' },
+  'date-time': {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  },
+  time: { hour: '2-digit', minute: '2-digit', second: '2-digit' },
+};
+
+/**
+ * `Intl` formatters are expensive to construct (about 0.1ms here) and CSV
+ * export formats up to 1M cells. Caching by locale/format is safe because the
+ * formatter is stateless; it also speeds up the grid's normal rendering.
+ */
+const numberFormatters = new Map<string, Intl.NumberFormat>();
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+
 function formatNumber(value: number, column: ColumnDef, locale: string | undefined): string {
   if (!Number.isFinite(value)) {
     return '';
@@ -50,10 +71,16 @@ function formatNumber(value: number, column: ColumnDef, locale: string | undefin
   if (column.precision === undefined) {
     return String(value);
   }
-  return new Intl.NumberFormat(locale, {
-    minimumFractionDigits: column.precision,
-    maximumFractionDigits: column.precision,
-  }).format(value);
+  const key = `${locale ?? ''}\u0000${String(column.precision)}`;
+  let formatter = numberFormatters.get(key);
+  if (formatter === undefined) {
+    formatter = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: column.precision,
+      maximumFractionDigits: column.precision,
+    });
+    numberFormatters.set(key, formatter);
+  }
+  return formatter.format(value);
 }
 
 function formatDate(value: number, locale: string | undefined, format: DateDisplayFormat): string {
@@ -65,21 +92,13 @@ function formatDate(value: number, locale: string | undefined, format: DateDispl
     return date.toISOString();
   }
 
-  const options: Intl.DateTimeFormatOptions =
-    format === 'time'
-      ? { hour: '2-digit', minute: '2-digit', second: '2-digit' }
-      : format === 'date-time'
-        ? {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          }
-        : { year: 'numeric', month: '2-digit', day: '2-digit' };
-
-  return new Intl.DateTimeFormat(locale, options).format(date);
+  const key = `${locale ?? ''}\u0000${format}`;
+  let formatter = dateFormatters.get(key);
+  if (formatter === undefined) {
+    formatter = new Intl.DateTimeFormat(locale, DATE_OPTIONS[format]);
+    dateFormatters.set(key, formatter);
+  }
+  return formatter.format(date);
 }
 
 function enumLabel(value: string, column: ColumnDef): string {

@@ -819,6 +819,23 @@ interface ImportResult {
 - 导出当前筛选/排序后的行；列顺序按视图顺序。
 - 文件名默认 `<表名>-<yyyyMMdd-HHmm>.csv`。
 
+**实现边界（T3.6，ADR-039）**：
+
+- 入口是网格工具条的“导出 CSV…”对话框；导出是只读操作，不发命令、不进撤销、不写
+  manifest/JSONL。列只含当前视图可见列，顺序按 `tableView.columnOrder`；隐藏列不导出。
+- 行默认是当前筛选/排序结果；对话框另提供“全部行（忽略筛选、保留排序）”。空表只导出表头。
+- 值格式默认“按显示格式”：复用 `formatStyledCellValue`（当前解析样式/locale/布尔文案），
+  表头用 `columnDisplayLabel`；“原始值”用存盘值（text 原样、number 无千分位、date epoch ms、
+  boolean `true`/`false`、enum 存储值），表头用 `column.label`。条件颜色/图标、bar/badge
+  的视觉形态不进入 CSV。
+- 文件格式：UTF-8 BOM（只一次）、CRLF、RFC 4180（含 `,`/`"`/CR/LF/首尾空白时加引号，
+  内部 `"` 写成 `""`）；默认文件名用清洗后的表名 + 本地时间 `yyyyMMdd-HHmm`。
+- 传输用 `file:exportCsv` 的 `begin/append/finish/cancel` 四步；main 在用户选择的目录写
+  临时文件、`fsync` 后 rename，取消删除临时文件；renderer 约 1,000 行/块并在块间让出事件
+  循环，100k 导出 ≤5s 且可取消（§16.1）。
+- 不处理 CSV 公式注入：以 `=`/`+`/`-`/`@` 开头的文本不改写，保持数据保真；需要缓解时
+  另加显式选项与 ADR，不能静默改写。
+
 ### 9.7 列管理（T2.3）
 
 - 入口：右侧 Inspector 的活动表列面板；新增/编辑在 Dialog 完成；删除、改类型、换主键以及会使现有值非法的
@@ -1377,6 +1394,7 @@ export interface PluginCommandContext {
 | `manifest:write` | R→M | `{ workspaceId, manifest }` | `{ ok: true }` |
 | `file:importText` | R→M | `{ filters }` | `{ token, name, bytes, sha256, size, format } \| null` |
 | `file:exportText` | R→M | `{ suggestedName, content, filters }` | `{ path } \| null` |
+| `file:exportCsv` | R→M | `ExportCsvRequest`（op: begin/append/finish/cancel） | `ExportCsvReply \| null` |
 | `file:archiveImport` | R→M | `{ workspaceId, token, tableId, mode, name, sha256, size, encoding, format }` | `{ copied, archivePath, sidecarPath }` |
 | `backup:list` | R→M | `{ workspaceId, tableId }` | `BackupEntry[]` |
 | `backup:restore` | R→M | `{ workspaceId, tableId, backupPath }` | `{ ok: true }` |
@@ -1400,6 +1418,11 @@ export interface PluginCommandContext {
   路径，不能读取任意路径。`bytes` 为原始字节（T2.5，ADR-031）。
 - `file:archiveImport` 在提交前把源文件归档到工作区 `imports/`；≤50MB 复制并写 sidecar，
   >50MB 只写 sidecar（原始路径 + SHA-256）。路径/工作区由 main 校验，renderer 不传绝对路径。
+- `file:exportCsv`（T3.6，ADR-039）：`begin` 显示保存对话框并创建临时文件，返回不透明
+  `token` 与目标路径；`append { token, chunk }` 顺序追加（单块 ≤8MB）；`finish { token, rows }`
+  `fsync` 后 rename，返回 `{ path, bytes, rows }`；`cancel { token }` 删除临时文件。
+  `append/finish/cancel` 只接受 token，不接受路径；保存对话框取消时 `begin` 返回 `null`。
+  未完成的临时文件在 `before-quit` 清理。
 
 ### 15.2 路径白名单
 
@@ -1467,6 +1490,16 @@ export interface ImportTextReply {
   format: 'csv' | 'json';
 }
 export interface ExportTextReq { suggestedName: string; content: string; filters: FileFilter[] }
+export type ExportCsvReq =
+  | { op: 'begin'; suggestedName: string; filters: FileFilter[] }
+  | { op: 'append'; token: string; chunk: string }
+  | { op: 'finish'; token: string; rows: number }
+  | { op: 'cancel'; token: string };
+export type ExportCsvReply =
+  | { op: 'begin'; token: string; path: string }
+  | { op: 'append'; bytes: number }
+  | { op: 'finish'; path: string; bytes: number; rows: number }
+  | { op: 'cancel'; removed: boolean };
 export interface ArchiveImportReq {
   workspaceId: string;
   token: string;
@@ -1508,6 +1541,7 @@ interface CurveApi {
   file: {
     importText(req: ImportTextReq): Promise<IpcResult<ImportTextReply | null>>;
     exportText(req: ExportTextReq): Promise<IpcResult<{ path: string } | null>>;
+    exportCsv(req: ExportCsvReq): Promise<IpcResult<ExportCsvReply | null>>;
     archiveImport(req: ArchiveImportReq): Promise<IpcResult<ArchiveImportReply>>;
   };
   backup: {
@@ -1523,6 +1557,10 @@ interface CurveApi {
 T2.5 实现边界（ADR-031）：`file.importText` 返回原始 `Uint8Array` 与不透明 `token`；
 `file.archiveImport` 只接受该 token，main 解析出用户已选择的源路径后才写入 `imports/`。
 `window.api` 仍不暴露 `ipcRenderer`、泛 `invoke` 或任意路径读写。
+
+T3.6 实现边界（ADR-039）：`file.exportCsv` 只暴露四步协议；`begin` 的保存路径来自 main 的
+原生保存对话框，`append/finish/cancel` 只接受 `begin` 返回的不透明 token，preload 不提供
+任意路径写入。
 
 ---
 
@@ -1545,6 +1583,7 @@ T2.5 实现边界（ADR-031）：`file.importText` 返回原始 `Uint8Array` 与
 | 样式预览更新 | ≤ 100ms | 组件测试 |
 | 条件格式求值 50 规则 × 100 行 | ≤ 16ms | `pnpm bench` 的 `condition.rules.50x100`（纯求值，不含 DOM） |
 | 导入 100k CSV | ≤ 8s | E2E 计时 |
+| CSV 导出 100k | ≤ 5s，且可取消 | E2E 计时（`export-csv.spec.ts`） |
 | 粘贴 10k 单元格 | ≤ 1s（P95，软预算） | 单元基准/报告；T2.7 硬化 |
 | 内存峰值 | ≤ 600MB | `app.getAppMetrics()` 汇总 main + renderer + utility/worker 的 `privateBytes`（不含 GPU） |
 
@@ -1594,6 +1633,15 @@ T3.5 实测（2026-10-24，本机；ADR-038）：模板往返 E2E（导出 → �
 `query.cjk-sort.100k` **434ms**、`import.100k` **623ms**、`condition.rules.50x100` P95
 **0ms**/16ms。全量 E2E **68 passed**；perf 整应用 private 内存峰值 **568MB**/600MB、
 冷启动 **939ms**/2.5s。样式预览 100ms 预算沿用 T3.4 的 3ms 自测。
+
+T3.6 实测（2026-10-24，本机；ADR-039）：100k×10 默认“显示格式”导出 **1,716ms**（预算 5s，
+E2E `export-csv.spec.ts`）；取消后目标文件与临时文件均不存在。3 行夹具验证 UTF-8 BOM、CRLF、
+RFC 4180 引号/逗号/换行、当前筛选/排序、隐藏列排除、原始值与显示格式切换，以及 200% 缩放 +
+纯键盘打开。`pnpm bench` 全部通过：`table.open.100k` **663ms**、`table.save.100k`
+**342ms**、`edit.commit.100k` **0ms**、`query.100k` **213ms**、`query.text-sort.100k`
+**260ms**、`query.cjk-sort.100k` **667ms**、`import.100k` **893ms**、
+`condition.rules.50x100` P95 **1ms**/16ms。全量 E2E **71 passed**；perf 整应用 private
+内存峰值 **571MB**/600MB、冷启动 **1,025ms**/2.5s。
 
 ### 16.2 安全
 

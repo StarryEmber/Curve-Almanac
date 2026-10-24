@@ -196,6 +196,9 @@ describe('createCurveApi', () => {
       if (channel === IPC_CHANNELS.fileExportText) {
         return { ok: true, data: { path: 'C:/tmp/errors.csv' } };
       }
+      if (channel === IPC_CHANNELS.fileExportCsv) {
+        return { ok: true, data: { op: 'begin', token: 'tok_csv', path: 'C:/tmp/data.csv' } };
+      }
       return {
         ok: true,
         data: { copied: true, archivePath: 'imports/a.csv', sidecarPath: 'imports/a.json' },
@@ -208,6 +211,12 @@ describe('createCurveApi', () => {
     await expect(
       api.file.exportText({ suggestedName: 'errors.csv', content: 'a\n', filters }),
     ).resolves.toEqual({ ok: true, data: { path: 'C:/tmp/errors.csv' } });
+    await expect(
+      api.file.exportCsv({ op: 'begin', suggestedName: 'Data.csv', filters }),
+    ).resolves.toEqual({
+      ok: true,
+      data: { op: 'begin', token: 'tok_csv', path: 'C:/tmp/data.csv' },
+    });
     await expect(
       api.file.archiveImport({
         workspaceId: 'ws_1',
@@ -248,7 +257,12 @@ describe('createCurveApi', () => {
     expect(Object.keys(api.workspace)).toEqual(['create', 'open', 'close', 'recent']);
     expect(Object.keys(api.manifest)).toEqual(['write']);
     expect(Object.keys(api.table)).toEqual(['read', 'write', 'trash']);
-    expect(Object.keys(api.file)).toEqual(['importText', 'exportText', 'archiveImport']);
+    expect(Object.keys(api.file)).toEqual([
+      'importText',
+      'exportText',
+      'exportCsv',
+      'archiveImport',
+    ]);
     expect(api).not.toHaveProperty('invoke');
     expect(api).not.toHaveProperty('send');
     expect(api).not.toHaveProperty('ipcRenderer');

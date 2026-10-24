@@ -387,3 +387,15 @@
   测试使用的 `saveFile` 选项。新增 ADR-038、SPEC §10.5/§13.1/§13.2/§16.1、TASKS T3.5 与
   `docs/reports/t3.5/REPORT.md`；不改变 `formatVersion`、JSONL、manifest 字段、IPC、
   preload、CSP 或运行时依赖。
+- T3.6：`@curve/table-engine` 新增 `csv-export.ts`（RFC 4180 转义、BOM 只一次、CRLF、
+  raw 值、表头、分块生成、文件名清洗）；`@curve/domain` 的 `formatCellValue` 按
+  locale/格式缓存 `Intl.DateTimeFormat`/`NumberFormat`，修复 100k 日期导出每单元格新建
+  formatter 的性能问题。
+- T3.6：新增 `file:exportCsv` 单通道四步协议（begin/append/finish/cancel，19→20；已实现
+  14→15）与 main 的临时文件流式写入器（append→fsync→rename、取消/退出清理、token 校验）；
+  preload/api-client/handlers 双向 Zod 覆盖，renderer 不传路径。
+- T3.6：网格工具条“导出 CSV…”对话框（显示格式/原始值、当前筛选排序/全部行、行×列摘要、
+  进度/取消/完成/错误、隐藏列与默认文件名提示）；显示格式复用 `formatStyledCellValue`，
+  导出只读、不进撤销、不改 manifest/JSONL；`e2e/export-csv.spec.ts` 覆盖转义/筛选排序/
+  原始值切换/100k 1,716ms 预算/取消无残留/200% 键盘；新增 ADR-039、SPEC §9.6/§15.1/§15.4/
+  §16.1、TASKS T3.6 与 `docs/reports/t3.6/`。

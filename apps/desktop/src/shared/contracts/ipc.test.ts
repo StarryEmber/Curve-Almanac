@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   appInfoRequestSchema,
   appInfoResponseSchema,
+  exportCsvRequestSchema,
+  exportCsvResponseSchema,
   logWriteRequestSchema,
   logWriteResponseSchema,
   manifestWriteRequestSchema,
@@ -106,6 +108,74 @@ describe('dialog:pickDirectory contract', () => {
     expect(pickDirectoryResponseSchema.safeParse(null).success).toBe(true);
     expect(pickDirectoryResponseSchema.safeParse({ path: '' }).success).toBe(false);
     expect(pickDirectoryResponseSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('file:exportCsv contract', () => {
+  const filters = [{ name: 'CSV', extensions: ['csv'] }];
+
+  it('accepts the four streaming operations', () => {
+    expect(
+      exportCsvRequestSchema.safeParse({ op: 'begin', suggestedName: 'Data.csv', filters }).success,
+    ).toBe(true);
+    expect(
+      exportCsvRequestSchema.safeParse({ op: 'append', token: 'tok_1', chunk: '\uFEFFa,b\r\n' })
+        .success,
+    ).toBe(true);
+    expect(
+      exportCsvRequestSchema.safeParse({ op: 'finish', token: 'tok_1', rows: 2 }).success,
+    ).toBe(true);
+    expect(exportCsvRequestSchema.safeParse({ op: 'cancel', token: 'tok_1' }).success).toBe(true);
+  });
+
+  it('rejects unknown operations, missing tokens and extra fields', () => {
+    expect(exportCsvRequestSchema.safeParse({ op: 'write', token: 't', chunk: 'x' }).success).toBe(
+      false,
+    );
+    expect(exportCsvRequestSchema.safeParse({ op: 'append', chunk: 'x' }).success).toBe(false);
+    expect(exportCsvRequestSchema.safeParse({ op: 'append', token: '', chunk: 'x' }).success).toBe(
+      false,
+    );
+    expect(
+      exportCsvRequestSchema.safeParse({ op: 'append', token: 't', chunk: 'x', path: 'C:/x' })
+        .success,
+    ).toBe(false);
+    expect(exportCsvRequestSchema.safeParse({ op: 'finish', token: 't', rows: -1 }).success).toBe(
+      false,
+    );
+    expect(
+      exportCsvRequestSchema.safeParse({ op: 'begin', suggestedName: '', filters }).success,
+    ).toBe(false);
+    expect(
+      exportCsvRequestSchema.safeParse({ op: 'begin', suggestedName: 'x', filters: [] }).success,
+    ).toBe(false);
+  });
+
+  it('accepts every successful reply shape and null for a cancelled dialog', () => {
+    expect(
+      exportCsvResponseSchema.safeParse({ op: 'begin', token: 'tok_1', path: 'C:/out.csv' })
+        .success,
+    ).toBe(true);
+    expect(exportCsvResponseSchema.safeParse({ op: 'append', bytes: 10 }).success).toBe(true);
+    expect(
+      exportCsvResponseSchema.safeParse({
+        op: 'finish',
+        path: 'C:/out.csv',
+        bytes: 10,
+        rows: 1,
+      }).success,
+    ).toBe(true);
+    expect(exportCsvResponseSchema.safeParse({ op: 'cancel', removed: true }).success).toBe(true);
+    expect(exportCsvResponseSchema.safeParse(null).success).toBe(true);
+  });
+
+  it('rejects malformed replies', () => {
+    expect(exportCsvResponseSchema.safeParse({ op: 'begin', token: 't' }).success).toBe(false);
+    expect(exportCsvResponseSchema.safeParse({ op: 'append', bytes: -1 }).success).toBe(false);
+    expect(
+      exportCsvResponseSchema.safeParse({ op: 'finish', path: 'C:/out.csv', bytes: 1 }).success,
+    ).toBe(false);
+    expect(exportCsvResponseSchema.safeParse({ op: 'cancel', removed: 'yes' }).success).toBe(false);
   });
 });
 

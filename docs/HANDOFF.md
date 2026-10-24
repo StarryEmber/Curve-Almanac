@@ -1,39 +1,39 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T3.5`（模板管理与导入导出）；
-> M2 已于 2026-10-23 获用户接受。最后更新：2026-10-24 ·
-> 分支 `main`；`T3.5` 代码提交 **`ac02ba8`**；本交接文档的提交见
+> 本文件面向**下一个实现会话**。当前会话已完成 `T3.6`（CSV 导出）；
+> M2 已于 2026-10-23 获用户接受，M3 的 T3.1–T3.6 已全部完成。最后更新：2026-10-24 ·
+> 分支 `main`；`T3.6` 代码提交见 `git log --oneline -5`；本交接文档的提交见
 > `git log -1 -- docs/HANDOFF.md`。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.5/REPORT.md` →
-> `docs/TASKS.md` 的 M3 / T3.5 / T3.6 → `docs/TESTPLAN.md` §2、§3、§5 →
-> `docs/SPEC.md` §10.5、§10.6、§13.1、§13.2、§16.1 →
-> `docs/adr/038-t35-template-management.md`（T3.5）、ADR-037/036/035/034。
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.6/REPORT.md` →
+> `docs/TASKS.md` 的 M3 / T3.6 → `docs/TESTPLAN.md` §2、§3、§5 →
+> `docs/SPEC.md` §9.6、§13.1、§15.1、§16.1 →
+> `docs/adr/039-t36-csv-export.md`（T3.6）、ADR-038/037/036/035/034。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
 - **当前状态**：M2 已于 2026-10-23 获用户接受；`T3.1`（样式模型）、`T3.2`（渲染管线）、
-  `T3.3`（条件格式引擎）、`T3.4`（样式编辑器与实时预览）与 `T3.5`（模板管理与导入导出）已完成
-  （`docs/reports/t3.{1,2,3,4,5}/REPORT.md`、ADR-034/035/036/037/038）。
-  **下一步 T3.6（CSV 导出）需等用户明确授权；不要自动开始，也不要提前做 M3 验收。**
-- **本次交付**：`style.delete`/`style.apply` 命令（删除原子回退、可撤销 + 二次确认）、
-  `deleteTableStyle`/`applyTableStyle`/`duplicateTableStyle` action、`.curvestyle.json` 导出与
-  导入（身份重分配、名称冲突 ` (2)`、前 50 行预览、缺失列提示）、检查器“模板管理…”对话框、
-  编辑器“另存为模板…”；往返/删除回退/坏文件/200% E2E 与两张截图。
-- **基线**：`pnpm verify` **138 files / 1181 tests**；coverage lines **74.94%** /
-  statements 74.81% / branches 67.53% / functions 73.00%；
-  `format:check` 通过；`pnpm build` exit 0（renderer **1,594.18 kB**，CSS 62.86 kB）；
-  `pnpm e2e` **68 passed**；`pnpm bench` **exit 0**（condition P95 **0ms**/16ms）；
-  perf 内存 **568MB**/600MB、冷启动 **939ms**/2.5s。
+  `T3.3`（条件格式引擎）、`T3.4`（样式编辑器与实时预览）、`T3.5`（模板管理与导入导出）与
+  `T3.6`（CSV 导出）已完成（`docs/reports/t3.{1,2,3,4,5,6}/REPORT.md`、ADR-034/035/036/037/038/039）。
+  **M3 任务已全部完成；下一步是 M3 验收演示，需等用户明确授权；不要自动开始。**
+- **本次交付**：`file:exportCsv` 四步流式通道（begin/append/finish/cancel）、main 临时文件
+  append→fsync→rename 与退出清理、`@curve/table-engine` 的 RFC 4180 CSV 编码/分块/文件名、
+  网格工具条“导出 CSV…”对话框（显示格式/原始值、当前筛选排序/全部行、进度/取消/完成/错误）、
+  100k 导出 1,716ms、取消无残留、200% 键盘冒烟；`formatCellValue` 的 Intl 格式化缓存。
+- **基线**：`pnpm verify` **143 files / 1232 tests**；coverage lines **74.90%** /
+  statements 74.78% / branches 67.66% / functions 73.20%；
+  `format:check` 通过；`pnpm build` exit 0（renderer **1,617.22 kB**，CSS 64.03 kB）；
+  `pnpm e2e` **71 passed**；`pnpm bench` **exit 0**（open 663ms、save 342ms、edit 0ms、
+  query 213ms、text-sort 260ms、cjk-sort 667ms、import 893ms、condition P95 1ms）；
+  perf 内存 **571MB**/600MB、冷启动 **1,025ms**/2.5s。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
-- **停点**：T3.5 报告已输出；**等用户授权 T3.6**，不进入 CSV 导出或 T4.x。
-- **接手动作**：确认工作树干净；先读 T3.5 报告与 ADR-038，再按 §5H 的“T3.6 开工交接清单”
-  确认导出范围/格式/流式写盘与 IPC 复用；未授权前不要改代码。
-- **T3.6 开工前**：确认 CSV 导出是否复用 `file:exportText`、原始值/显示格式与筛选范围的
-  口径、UTF-8 BOM/转义/文件名、100k 流式写入与取消；复用 `formatStyledCellValue`，不要另写
-  第二套格式化或写盘路径。
+- **停点**：T3.6 报告已输出；**等用户授权 M3 验收演示**，不进入 T4.x。
+- **接手动作**：确认工作树干净；先读 T3.6 报告与 ADR-039；按 §5I 的“M3 验收交接清单”
+  准备演示；未授权前不要改代码。
+- **M3 验收前**：确认 4 个内置模板对比、令牌/列格式编辑、条件规则“高温标红”、另存模板、
+  CSV 导出、新工作区导入应用与重启还原；复用 T3.1–T3.6 的 E2E 与截图，不新增运行时依赖。
 
 ---
 
@@ -58,22 +58,23 @@
 | `T3.3` 条件格式引擎 | **已完成**（2026-10-24，`0a6bedf`）；报告 `docs/reports/t3.3/REPORT.md`；ADR-036 |
 | `T3.4` 样式编辑器与实时预览 | **已完成**（2026-10-24，`7e695bb`）；报告 `docs/reports/t3.4/REPORT.md`；ADR-037 |
 | `T3.5` 模板管理与导入导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.5/REPORT.md`；ADR-038 |
-| 当前里程碑 | **M3 表格外观**：T3.1–T3.5 完成；T3.6 待推进，里程碑验收演示最后做 |
-| 下一步 | **等待用户授权 T3.6（CSV 导出）**；不要自动开始 T3.6 或 M3 验收 |
-| `pnpm verify` 基线 | **138 files / 1181 tests**；ESLint 0；depcruise **380 modules / 1503 deps / 0 violations** |
-| `pnpm test:coverage` 基线 | 全局 lines **74.94%** / statements **74.81%** / branches **67.53%** / functions **73.00%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **68 passed**（`style.spec.ts` 2 条、`template.spec.ts` 2 条：往返/删除回退/坏文件/200%）；M2 验收仍通过 |
-| `pnpm bench` 基线 | **exit 0**；open 352ms、save 254ms、edit 0ms、query 209ms、text-sort 248ms、cjk-sort 434ms、import 623ms、condition P95 0ms；clone 236ms（诊断） |
+| `T3.6` CSV 导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.6/REPORT.md`；ADR-039 |
+| 当前里程碑 | **M3 表格外观**：T3.1–T3.6 全部完成；M3 验收演示待用户授权 |
+| 下一步 | **等待用户授权 M3 验收演示**；不要自动开始 T4.x |
+| `pnpm verify` 基线 | **143 files / 1232 tests**；ESLint 0；depcruise **394 modules / 1584 deps / 0 violations** |
+| `pnpm test:coverage` 基线 | 全局 lines **74.90%** / statements **74.78%** / branches **67.66%** / functions **73.20%**；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **71 passed**（`export-csv.spec.ts` 3 条：转义/筛选排序/原始值、100k 1,716ms/取消、200% 键盘）；M2 验收仍通过 |
+| `pnpm bench` 基线 | **exit 0**；open 663ms、save 342ms、edit 0ms、query 213ms、text-sort 260ms、cjk-sort 667ms、import 893ms、condition P95 1ms；clone 333ms（诊断） |
 | `pnpm format:check` | 通过 |
-| 构建 | `pnpm build` exit 0；renderer **1,594.18 kB** + 懒加载 ImportSession 42.82 kB；CSS 62.86 kB；table/query/import worker 220.68/236.16/270.16 kB |
+| 构建 | `pnpm build` exit 0；renderer **1,617.22 kB** + 懒加载 ImportSession 42.82 kB；CSS 64.03 kB；table/query/import worker 220.68/236.16/270.16 kB |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
 
 **用户明确要求**：
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **M2 已获用户接受；T3.1、T3.2、T3.3、T3.4、T3.5 已完成**；下一步等待用户授权 T3.6。
-- 不得跨里程碑；T3.5 报告已输出，停下等用户确认，不进入 T3.6（CSV 导出）的实现。
+- **M2 已获用户接受；T3.1–T3.6 已完成**；下一步等待用户授权 M3 验收演示。
+- 不得跨里程碑；T3.6 报告已输出，停下等用户确认，不进入 M3 验收或 T4.x。
 
 ---
 
@@ -82,16 +83,16 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/reports/t3.5/REPORT.md、
-docs/TASKS.md 的 M3 / T3.5 / T3.6、docs/TESTPLAN.md §2/§3/§5、
-docs/SPEC.md §9.6/§13.1/§16.1、ADR-038、ADR-037。
+先读 AGENTS.md、docs/HANDOFF.md、docs/reports/t3.6/REPORT.md、
+docs/TASKS.md 的 M3 / T3.6、docs/TESTPLAN.md §2/§3/§5、
+docs/SPEC.md §9.6/§13.1/§15.1/§16.1、ADR-039、ADR-038。
 
-现状：M0、M1（已验收）、M2（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1、T3.2、T3.3、T3.4、T3.5 已完成；
-pnpm verify 138 files / 1181 tests、coverage lines 74.94%、pnpm e2e 68 passed、
+现状：M0、M1（已验收）、M2（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1–T3.6 已完成；
+pnpm verify 143 files / 1232 tests、coverage lines 74.90%、pnpm e2e 71 passed、
 pnpm bench exit 0。
 
-下一步：等待用户授权 T3.6（CSV 导出）；确认前不要开始 T3.6 的实现。
-若用户明确授权进入 T3.6，先按 AGENTS §8 复述目标/产出/验收再开工。
+下一步：M3 验收演示需等用户明确授权；确认前不要开始演示实现或 M4。
+若用户明确授权，先按 AGENTS §8 复述演示步骤/证据/验收再开工。
 ```
 
 ---
@@ -222,6 +223,16 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
   E2E 依赖 `style-template-*` / `style-import-*`，不要重命名。
 - 模板管理是模态对话框；导入预览复用 `StylePreview`（前 50 行），不挂 DataGrid/查询/虚拟滚动。
   名称冲突与 ` (2)` 规则在 domain（`styleCopyName`/`resolveStyleName`），UI 只做展示与校验。
+- T3.6 的 `file:exportCsv` 是**单通道四步协议**（begin/append/finish/cancel），不是四个通道；
+  `ipc.spec.ts` 的 fileMethods 顺序为 `archiveImport, exportCsv, exportText, importText`。
+- `file:exportCsv` 的 `begin` 复用 `CURVE_E2E_SAVE` 保存对话框替身；E2E 用
+  `launchCurveApp({ saveFile })` 指定目标。`append/finish/cancel` 只收 token，渲染层不碰路径。
+- 100k 导出预算 5s；实测 1,716ms。`formatCellValue` 的 Intl formatter 缓存（domain）是达标关键，
+  不要改回每单元格 `new Intl.*`；否则日期列 100k 会退到 10s 量级。
+- 取消 E2E 在页面内把 `setTimeout(0)` 放慢到 20ms 制造确定窗口（测试替身），不修改生产代码；
+  `before-quit` 会清理未完成临时文件，取消路径也会 `unlink`。
+- 导出对话框每次打开重置为“显示格式 + 当前筛选排序”；一次只允许一个导出任务；`ExportCsvDialog`
+  的容器（IPC/流式）未做组件测试，视图与 hook 有单测，完整路径由 E2E 覆盖。
 
 ---
 
@@ -347,17 +358,20 @@ QueryWorkerRequest/Response; isQueryWorkerRequest/isQueryWorkerResponse
 
 ### 4.5 IPC / preload / renderer
 
-`IMPLEMENTED_IPC_CHANNELS` 共 **14** 个：`app:info`、`dialog:pickDirectory`、`log:write`、
+`IMPLEMENTED_IPC_CHANNELS` 共 **15** 个：`app:info`、`dialog:pickDirectory`、`log:write`、
 `workspace:create/open/close/recent`、`manifest:write`、`table:read/write/trash`、
-`file:importText`、`file:exportText`、`file:archiveImport`。
+`file:importText`、`file:exportText`、`file:exportCsv`、`file:archiveImport`。
 
 - `dialog:saveFile` / `backup:*` / `workspace:recent:remove|clear` 仍只有通道名。
 - `file:importText` 返回 `{ token, name, bytes, sha256, size, format }`（原始字节，供 Worker 解码）；
   `file:archiveImport` 只用 token 对应的已选路径，把原文复制/记录到 `imports/`。
+- `file:exportCsv` 返回 `begin/append/finish/cancel` 的 op 联合；`begin` 返回 `{ token, path }`
+  或 `null`（用户取消保存对话框），其余 op 只接受 token。
 - `apps/desktop/src/renderer/api-client.ts` 提供 `app`、`dialog`、`workspace`、`manifest`、`table`、
   `file`，所有方法返回 `IpcResult<T>`，入参与响应双向 Zod 校验。
 - `table:write` 写盘前校验 200k 行 / 256MB 上限；导入保存仍走该通道（256MB 在保存时强制）。
-- T2.5 新增 3 个已实现通道（`ALL_IPC_CHANNELS` 18 → 19）。
+- T2.5 新增 3 个已实现通道（`ALL_IPC_CHANNELS` 18 → 19）；T3.6 新增 `file:exportCsv`
+  （19 → 20；已实现 14 → 15）。
 
 ### 4.6 `@curve/app-core`（T1.5 + T2.1 + T2.2 + T2.3 + T2.4 + T2.5 + T2.6 + T2.7）
 
@@ -1252,17 +1266,83 @@ pnpm bench          exit 0；open 352ms、save 254ms、edit 0ms、query 209ms、
 - renderer bundle 约 1.59MB（+48.8 kB），T6.4 打包阶段评估拆包。
 - 删除可撤销的确认文案必须说明可撤销；如未来改回不可撤销，需改 SPEC §13.1 与 ADR-038。
 
-**T3.6 开工交接清单**：
+**M3 验收交接清单**：
 
-- 先读 `docs/TASKS.md` 的 T3.6、SPEC §9.6/§13.1/§16.1、ADR-038；按 AGENTS §8 复述目标/产出/验收。
-- 确认导出动作的归属（命令/纯读取 action）、原始值 vs 显示格式、列顺序、筛选/排序范围与
-  文件名；确认 `file:exportText` 是否够用（它需要整串内容，100k 流式导出可能需要新通道/ADR）。
-- 显示格式必须复用 `formatStyledCellValue`/样式解析，不得另写格式化；写入仍走原子写。
-- 验收预算：100k 行导出 ≤5s 且可取消；Excel 打开无乱码；引号/逗号/换行正确转义。
-- T3.6 不做 M3 验收演示；不做 T4.x 图表。
+- 先读 `docs/TASKS.md` 的 M3 验收说明、SPEC §10.1–§10.6/§13.1/§16.1、ADR-034–ADR-039。
+- 按 TASKS 的 M3 演示脚本执行：4 个内置模板对比 → 改令牌/列格式 → 加“高温标红” →
+  另存模板 → 导出 CSV → 新工作区导入应用 → 重启还原；输出报告后停下等用户确认。
+- 复用 `style.spec.ts`/`template.spec.ts`/`export-csv.spec.ts` 的 seed 与截图，不新增运行时依赖；
+  演示可以写成单条 `m3-acceptance.spec.ts`，但必须先获用户授权。
+- 验收前跑 `pnpm verify`、`pnpm test:coverage`、`pnpm format:check`、`pnpm build`、`pnpm e2e`、
+  `pnpm bench`，并记录实际输出。
+- 不进入 T4.x；不改 `formatVersion`/manifest 字段/JSONL/IPC。
 
-**不要做**：不要提前实现 T3.6 CSV 导出、M3 验收或 T4.x；不要改 `formatVersion`/manifest 字段；
-不要在命令/编辑器之外另写样式求值或写盘路径。
+## 5I. T3.6 决策与实现记录（已完成）
+
+ADR-039 记录 6 组决定：
+
+1. **入口与归属**：网格工具条“导出 CSV…”→ `ExportCsvDialog`；导出只读，不发命令、不进
+   `EditHistory`、不写 manifest/JSONL；一次只允许一个导出任务。
+2. **行/列范围**：只导出当前视图可见列（`tableView.columnOrder`，隐藏列排除）；行默认当前
+   筛选/排序结果，另提供“全部行（忽略筛选、保留排序）”；空表只导出表头。
+3. **值格式**：默认“按显示格式”，复用 `formatStyledCellValue`（表头 `columnDisplayLabel`）；
+   “原始值”用 text 原样、number 无千分位、date epoch ms、boolean `true/false`、enum 存储值
+   （表头 `column.label`）；条件颜色/图标、bar/badge 形态不导出。
+4. **传输**：新增单通道 `file:exportCsv`（`begin/append/finish/cancel`，19→20，已实现 14→15）；
+   main 写同目录临时文件、`fsync` 后 rename；取消/退出删除临时文件；`append` 单块 ≤8MB，
+   token 不透明、renderer 不传路径。
+5. **格式/文件名**：UTF-8 BOM 只一次、CRLF、RFC 4180（含逗号/引号/CR/LF/首尾空白才加引号，
+   `""` 转义）；默认文件名 `<清洗后表名>-<yyyyMMdd-HHmm>.csv`（本地时间），Windows 保留名
+   加 `_`；不处理 CSV 公式注入，保持数据保真。
+6. **UI/预算**：对话框显示“N 行 × M 列”和隐藏列/默认文件名提示；约 1,000 行/块、块间让出
+   事件循环；进度/取消/完成/错误内联；100k ≤5s（实测 1,716ms），取消无残留文件。
+
+关键文件：
+
+```text
+packages/table-engine/src/csv-export.ts (+test)        # RFC 4180/BOM/raw/分块/文件名
+packages/domain/src/format.ts                          # Intl formatter 缓存（100k 日期导出）
+apps/desktop/src/main/export/csv-export-file.ts (+test)# token/临时文件/fsync/rename/清理
+apps/desktop/src/main/{index.ts,ipc/handlers.ts}
+apps/desktop/src/shared/contracts/{channels,ipc}.ts (+tests)
+apps/desktop/src/preload/api.ts；src/renderer/api-client.ts (+tests)
+apps/desktop/src/renderer/features/export/{ExportCsvDialog,use-export-csv,export-csv-plan}.tsx/ts (+tests)
+apps/desktop/src/renderer/features/grid/DataGrid.tsx；features/workspace/WorkspaceView.tsx
+apps/desktop/src/renderer/{i18n/messages/*,styles.css}
+apps/desktop/e2e/export-csv.spec.ts
+docs/adr/039-t36-csv-export.md；docs/reports/t3.6/REPORT.md (+1 screenshot)
+```
+
+实测（2026-10-24）：
+
+```text
+pnpm verify         143 files / 1232 tests；ESLint 0；
+                    depcruise 394 modules / 1584 deps / 0 violations
+pnpm test:coverage  lines 74.90% / statements 74.78% / branches 67.66% / functions 73.20%
+pnpm format:check   通过
+pnpm build          exit 0；renderer 1,617.22 kB + ImportSession 42.82 kB；CSS 64.03 kB
+pnpm e2e            71 passed（export-csv.spec 3 条；100k 导出 1,716ms；
+                    内存 571MB/600MB、冷启动 1,025ms）
+pnpm bench          exit 0；open 663ms、save 342ms、edit 0ms、query 213ms、
+                    text-sort 260ms、cjk-sort 667ms、import 893ms、condition P95 1ms；clone 333ms
+```
+
+提交：**`<T3.6 代码提交>`**（`feat(tbl): add CSV export with streaming IPC (T3.6)`）；
+本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`；工作树干净。
+
+残留：
+
+- 显示格式的千分位/本地化日期可能被 Excel 当作文本；数值语义请用“原始值”。
+- 原始值日期是 epoch ms，不是 ISO/Excel 日期。
+- 只导出可见列，不提供列选择器/隐藏列包含选项；需要时先调整视图。
+- 不缓解 CSV 公式注入（`=`/`+`/`-`/`@` 不改写）；需要时另加显式选项与 ADR。
+- 一次只允许一个导出任务；并发导出需要 token 级进度 UI，T3.6 不做。
+- 导出流式/对话框容器主要由 E2E 覆盖（`ExportCsvDialog.tsx` 容器 lines 37.5%、hook 60%）；
+  全局 lines 74.90% 仍高于 70/60。
+- renderer bundle 增至约 1.62MB（+23 kB vs T3.5），T6.4 打包阶段评估拆包。
+
+**不要做**：不要提前实现 M3 验收演示或 T4.x；不要改 `formatVersion`/manifest 字段/JSONL；
+不要在 `file:exportCsv` 之外另写第二套写盘路径或第二套显示格式化。
 
 ---
 
@@ -1320,7 +1400,7 @@ pnpm bench
 **用户已于 2026-10-23 接受 M2**；TASKS M2 注记已更新为“获用户接受”，T3.1、T3.2、T3.3、T3.4、
 T3.5 已按授权完成（见 §5D/§5E/§5F/§5G/§5H）。若未来用户要求修改 M2，再回到对应 T2.x 修复。
 
-**M2 已关闭；T3.1–T3.5 已完成，下一步等待用户授权 T3.6（CSV 导出）。**
+**M2 已关闭；T3.1–T3.6 已完成，下一步等待用户授权 M3 验收演示。**
 
 ---
 
@@ -1342,7 +1422,7 @@ T3.5 已按授权完成（见 §5D/§5E/§5F/§5G/§5H）。若未来用户要�
 | 100k 文本排序接近 400ms | bench 波动可能超预算 | T2.7 已预计算排序键/类型数组，ASCII 253ms；中文仍 698ms/800ms |
 | query Worker 缓存最多 4 张表 | 切换更多表会重新克隆 | 记录于 ADR-032；T2.7 未改淘汰策略 |
 | 100k 首次 Worker 快照克隆 | 首次筛选/排序有额外延迟 | 不计入 `data-query-ms`；E2E `data-query-total-ms` 实测 448–490ms |
-| 整应用内存 497MB/600MB（M2 实测；T2.7 570MB；T3.5 568MB） | CI runner 更慢/更碎片化时可能超 | 余量约 5%；超了先查是否 E2E 探针/噪声，不改预算 |
+| 整应用内存 497MB/600MB（M2 实测；T2.7 570MB；T3.5 568MB；T3.6 571MB） | CI runner 更慢/更碎片化时可能超 | 余量约 5%；超了先查是否 E2E 探针/噪声，不改预算 |
 | bench 基线未提交 | 20% 回归告警不触发 | CI Windows runner 跑 `pnpm bench -- --write-baseline` 后提交 `bench/baseline.json` |
 | 100k 行撤销补丁变大 | 历史内存 | T2.7 的整数组 patch 每个编辑约 800KB；T5.2 统一历史时评估 |
 | 视图状态连续写 manifest | 拖动列宽/快速排序多次写盘 | T5.3 统一保存队列后合并 |
@@ -1369,8 +1449,14 @@ T3.5 已按授权完成（见 §5D/§5E/§5F/§5G/§5H）。若未来用户要�
 | 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 74.94% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；T3.5 报告记录实测 |
-| renderer bundle 约 1.59MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
+| 覆盖率 74.90%（T3.6 实测） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；T3.6 报告记录实测 |
+| renderer bundle 约 1.62MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
+| 100k CSV 导出 1,716ms/5s（T3.6） | 去掉 Intl formatter 缓存会退到 10s 量级 | `formatCellValue` 的 locale/格式缓存是达标关键；不要改回每单元格 `new Intl.*` |
+| CSV 临时文件残留 | 进程崩溃时 `.curve-export-*.tmp` 留在目标目录 | cancel/`before-quit` 已清理；崩溃残留需手工删除，报告已记录 |
+| 显示格式 CSV 的千分位/本地化日期 | Excel 可能识别为文本 | 数值语义用“原始值”；对话框已说明两种格式 |
+| CSV 公式注入 | `=`/`+`/`-`/`@` 开头文本可能被 Excel 执行 | T3.6 不改写数据；需要缓解时加显式选项与 ADR |
+| 宽表分块格式化 | 100 列 × 1,000 行/块可能阻塞 >100ms | 100k×10 实测达标；极宽表可后续增大让出频率或移入 Worker |
+| 导出会话 token 无 TTL | 渲染层崩溃后临时文件留到退出清理 | `before-quit` 兜底；不新增 TTL 计时器 |
 | 删除可撤销与 TASKS 原文冲突 | 确认文案/验收口径可能被误读 | SPEC §13.1 优先；ADR-038 已记录，确认框必须写“可撤销” |
 | 导入总是新建模板 | 无法合并/覆盖同名样式 | ADR-038；需要合并时另写 ADR 与冲突 UI |
 | 导入文档 2,000,000 字符上限 | 极端大模板被拒 | 正常模板几 KB；上限在 JSON.parse 前短路 |
@@ -1389,29 +1475,30 @@ T3.5 已按授权完成（见 §5D/§5E/§5F/§5G/§5H）。若未来用户要�
 - 不绕过命令总线直接改 store（撤销会坏）；不在组件里写业务逻辑。
 - 不加未经 ADR 的运行时依赖；不跳过测试、不放宽 ESLint/覆盖率规则、不用 `--no-verify`。
 - 不未经 ADR/用户确认升级 `formatVersion`、改数据格式、IPC 通道或公共 API。
-- 不在 T3.5 已完成后再顺手实现 T3.6 CSV 导出、M3 验收或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
-- 不自动跨任务/跨里程碑；T3.5 已完成并输出报告，等待用户授权 T3.6，不进入 T3.6 的实现。
+- 不在 T3.6 已完成后再顺手实现 M3 验收演示、T4.x 或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
+- 不自动跨任务/跨里程碑；T3.6 已完成并输出报告，等待用户授权 M3 验收演示。
 
 ---
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T3.5 交接提交（代码提交 `ac02ba8`，
-      报告 `docs/reports/t3.5/REPORT.md`）。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T3.6 交接提交（报告
+      `docs/reports/t3.6/REPORT.md`，ADR-039）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 M3/T3.5/T3.6、`docs/reports/t3.5/REPORT.md`、
-      TESTPLAN §2/§3/§5、SPEC §10.5/§10.6/§9.6/§13.1/§13.2/§16.1、ADR-038、ADR-037、ADR-036、
+- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 M3/T3.6、`docs/reports/t3.6/REPORT.md`、
+      TESTPLAN §2/§3/§5、SPEC §9.6/§13.1/§15.1/§16.1、ADR-039、ADR-038、ADR-037、ADR-036、
       ADR-035 与 ADR-034。
-- [ ] 已确认 `pnpm verify` 基线（138 files / 1181 tests）、coverage lines 74.94%、
-      e2e 68 passed、bench exit 0、condition P95 0ms、样式预览 3ms。
+- [ ] 已确认 `pnpm verify` 基线（143 files / 1232 tests）、coverage lines 74.90%、
+      e2e 71 passed、bench exit 0、condition P95 1ms、100k 导出 1,716ms。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M2 已获用户接受、T3.1–T3.5 已完成；**等待用户授权 T3.6**，不要自行进入 T3.6。
+- [ ] 已确认 M2 已获用户接受、T3.1–T3.6 已完成；**等待用户授权 M3 验收演示**，不要自行进入演示。
 - [ ] 已确认 T3.1 的 hex 颜色/内置冻结/resolve/fork；T3.2 的 20 个表变量/宽度优先级/全局数字规则/
       bar/badge；T3.3 的条件原语/`conditionCompareOps`/优先级/`style.update`；T3.4 的
       `style.create` 懒 fork、前 50 行预览与一次控件一条撤销；T3.5 的 `style.delete/apply`、
-      导出文档/身份重分配、删除回退与可撤销。
+      导出文档/身份重分配、删除回退与可撤销；T3.6 的 `file:exportCsv` 四步协议、
+      BOM/CRLF/RFC4180、原始值/显示格式与 5s 预算。
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`，截图提交前还原。
-- [ ] 用户明确授权 T3.6 后，先按 AGENTS §8 复述再开工；未授权则停在 T3.5。
+- [ ] 用户明确授权 M3 验收演示后，先按 AGENTS §8 复述再开工；未授权则停在 T3.6。

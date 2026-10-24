@@ -48,6 +48,7 @@
 | `table-engine/paste` | TSV/CSV、引号、换行、BOM、矩形化 | 5×4 矩阵、CSV 回退、未闭合引号、10k 拒绝 |
 | `app-core/paste` | 锚点、coerce、空主键、超列、100 列、取消、撤销 | 整批失败、定位首错、新增列、10k 分块取消 |
 | `table-engine/import` | 编码/分隔符/表头/类型推断 | GBK、分号、坏行、JSON 数组 |
+| `table-engine/csv-export` | 转义/BOM/CRLF/分块/文件名 | 引号、逗号、换行、首尾空白、空表、100k 分块 |
 | `chart-model/resolve` | 宽/长映射、系列 id、warning | 缺列、非数值 Y、重复 X、>20 系列 |
 | `chart-model/sample` | LTTB、首尾、null | 100k→2k、单调性、关闭采样 |
 | `chart-echarts/option` | 黄金快照 | 4 调色板、深浅背景、null 断点 |
@@ -154,6 +155,20 @@
 3. 导入向导出现示例导入器；导入 `fixtures/json/points.json` 成功。
 4. 注入一个激活即抛错的测试插件（仅测试构建）：断言应用继续启动、插件被禁用、其他功能正常。
 
+### E10 CSV 导出（T3.6）
+
+1. 3 行夹具含逗号/引号/内嵌换行/首尾空白/中文/空值；筛选 `value >= 2` + `value desc`，
+   隐藏 1 列。
+2. 打开“导出 CSV…”；默认显示格式、当前筛选排序，断言摘要 `3 行 × 6 列` 与隐藏列提示。
+3. 导出后断言 UTF-8 BOM、CRLF、表头/行顺序、被筛掉的行不在文件、隐藏列不在文件；
+   引号/逗号/换行/中文正确。
+4. 切“原始值”再导出：无千分位、日期 epoch ms、布尔/枚举存储值。
+5. 100k 工作区默认显示格式导出 ≤5s；再导出并在进度出现后取消，断言目标与
+   `.curve-export-*.tmp` 均不存在。
+6. 200% 缩放下纯键盘 Enter 打开、Esc 关闭，对话框不越界。
+
+> `apps/desktop/e2e/export-csv.spec.ts` 3 条已覆盖上述步骤；100k 实测 1,716ms。
+
 ---
 
 ## 4. 夹具
@@ -196,6 +211,7 @@
 | 图表渲染 2k 点 | ≤ 200ms | adapter 计时 |
 | 自动保存 100k | ≤ 500ms | main 写盘计时（异步不阻塞） |
 | 导入 100k CSV | ≤ 8s | E2E 计时 |
+| CSV 导出 100k | ≤ 5s，可取消 | E2E 计时（`export-csv.spec.ts`，实测 1,716ms） |
 | 粘贴 10k 单元格 | ≤ 1s（P95，软预算） | 单元基准/任务报告；T2.7 硬化 |
 | 内存峰值 | ≤ 600MB | `process.memoryUsage().heapUsed` + 手工核对 |
 

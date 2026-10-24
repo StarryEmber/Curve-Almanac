@@ -22,6 +22,7 @@ export const IPC_CHANNELS = {
   manifestWrite: 'manifest:write',
   fileImportText: 'file:importText',
   fileExportText: 'file:exportText',
+  fileExportCsv: 'file:exportCsv',
   fileArchiveImport: 'file:archiveImport',
   backupList: 'backup:list',
   backupRestore: 'backup:restore',
@@ -57,5 +58,6 @@ export const IMPLEMENTED_IPC_CHANNELS = [
   IPC_CHANNELS.tableTrash,
   IPC_CHANNELS.fileImportText,
   IPC_CHANNELS.fileExportText,
+  IPC_CHANNELS.fileExportCsv,
   IPC_CHANNELS.fileArchiveImport,
 ] as const;

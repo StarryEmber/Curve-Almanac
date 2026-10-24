@@ -38,7 +38,7 @@ test.describe('T0.3 typed IPC', () => {
       workspaceMethods: ['close', 'create', 'open', 'recent'],
       manifestMethods: ['write'],
       tableMethods: ['read', 'trash', 'write'],
-      fileMethods: ['archiveImport', 'exportText', 'importText'],
+      fileMethods: ['archiveImport', 'exportCsv', 'exportText', 'importText'],
       invoke: 'undefined',
       send: 'undefined',
       ipcRenderer: 'undefined',

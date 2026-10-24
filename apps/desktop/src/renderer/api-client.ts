@@ -11,6 +11,8 @@ import {
   appInfoResponseSchema,
   archiveImportRequestSchema,
   archiveImportResponseSchema,
+  exportCsvRequestSchema,
+  exportCsvResponseSchema,
   exportTextRequestSchema,
   exportTextResponseSchema,
   importTextRequestSchema,
@@ -41,6 +43,8 @@ import type {
   ArchiveImportReply,
   ArchiveImportRequest,
   CurveApi,
+  ExportCsvReply,
+  ExportCsvRequest,
   ExportTextReply,
   ExportTextRequest,
   ImportTextReply,
@@ -124,7 +128,12 @@ export function createApiClient(bridge: CurveApi | undefined): CurveApi {
       },
       manifest: { write: unavailable },
       table: { read: unavailable, write: unavailable, trash: unavailable },
-      file: { importText: unavailable, exportText: unavailable, archiveImport: unavailable },
+      file: {
+        importText: unavailable,
+        exportText: unavailable,
+        exportCsv: unavailable,
+        archiveImport: unavailable,
+      },
     };
   }
 
@@ -223,6 +232,13 @@ export function createApiClient(bridge: CurveApi | undefined): CurveApi {
           return Promise.resolve(INVALID_REQUEST);
         }
         return call(exportTextResponseSchema, () => bridge.file.exportText(parsed.data));
+      },
+      exportCsv: (request: ExportCsvRequest): Promise<IpcResult<ExportCsvReply | null>> => {
+        const parsed = exportCsvRequestSchema.safeParse(request);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(exportCsvResponseSchema, () => bridge.file.exportCsv(parsed.data));
       },
       archiveImport: (request: ArchiveImportRequest): Promise<IpcResult<ArchiveImportReply>> => {
         const parsed = archiveImportRequestSchema.safeParse(request);

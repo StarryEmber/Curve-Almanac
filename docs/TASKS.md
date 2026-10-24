@@ -1023,7 +1023,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t36"></a>
 ### T3.6 CSV 导出
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T2.6
 - 覆盖：FR-TBL-06
 - 参考：SPEC §9.6
@@ -1036,10 +1036,36 @@ T0.2 + T5.5 → T6.4
   2. 显示格式导出走 `StyleProvider` 的格式化函数。
   3. 分块写入，避免主线程卡顿。
 - 验收：
-  - [ ] Excel 打开无乱码；引号/逗号/换行正确转义。
-  - [ ] 只导出当前筛选/排序结果。
-  - [ ] 100k 行导出 ≤ 5s 且 UI 可取消。
-- 验证：`pnpm e2e -- --grep "export-csv"`
+  - [x] Excel 打开无乱码；引号/逗号/换行正确转义。
+  - [x] 只导出当前筛选/排序结果。
+  - [x] 100k 行导出 ≤ 5s 且 UI 可取消。
+- 验证：`pnpm e2e -- --grep "export-csv"`（另需 `pnpm verify`、`pnpm build`、`pnpm bench`）
+- 实现备注（2026-10-24，ADR-039）：
+  - 决策：网格工具条“导出 CSV…”→ `ExportCsvDialog`；只读、不发命令、不进撤销、不写
+    manifest/JSONL。列只导出当前视图可见列（`tableView.columnOrder`）；行默认当前筛选/排序，
+    另提供“全部行（忽略筛选、保留排序）”。值默认“按显示格式”并复用 `formatStyledCellValue`
+    （表头 `columnDisplayLabel`），原始值用存盘值（日期 epoch ms、布尔 true/false、enum 存储值，
+    表头 `column.label`）；条件颜色/图标不导出。
+  - 传输：新增单通道 `file:exportCsv`（`begin/append/finish/cancel`，19→20；已实现 14→15）。
+    main 写同目录临时文件、`fsync` 后 rename；取消删除临时文件；`before-quit` 清理未完成会话。
+    renderer 约 1,000 行/块并在块间 `setTimeout(0)` 让出事件循环，进度/取消在对话框内完成。
+  - 格式：UTF-8 BOM 只一次、CRLF、RFC 4180（含逗号/引号/CR/LF/首尾空白才加引号）；默认文件名
+    `<清洗后表名>-<yyyyMMdd-HHmm>.csv`（本地时间），Windows 保留名加 `_` 前缀；不处理 CSV
+    公式注入（记录为残留风险）。
+  - 性能：`formatCellValue` 的 `Intl.DateTimeFormat`/`NumberFormat` 按 locale/格式缓存（原先每个
+    日期单元格新建 formatter）；100k×10 显示格式导出实测 **1,716ms**/5,000ms，取消无残留文件。
+  - 文件：`packages/table-engine/src/csv-export.ts`、`packages/domain/src/format.ts`、
+    `apps/desktop/src/main/export/csv-export-file.ts`、`shared/contracts/{channels,ipc}.ts`、
+    `preload/api.ts`、`renderer/api-client.ts`、`renderer/features/export/*`、`DataGrid`/
+    `WorkspaceView`、i18n/styles、`e2e/export-csv.spec.ts`、ADR-039、`docs/reports/t3.6/`。
+  - 实测：`pnpm verify` **143 files / 1232 tests**；coverage lines **74.90%** / statements 74.78% /
+    branches 67.66% / functions 73.20%；`pnpm format:check` 通过；`pnpm build` exit 0（renderer
+    **1,617.22 kB** + ImportSession 42.82 kB；CSS 64.03 kB）；`pnpm e2e` **71 passed**（export-csv
+    3 条）；`pnpm bench` exit 0（open 663ms、save 342ms、edit 0ms、query 213ms、text-sort 260ms、
+    cjk-sort 667ms、import 893ms、condition P95 1ms）；perf 内存 571MB/600MB、冷启动 1,025ms。
+  - 残留：显示格式的千分位/本地化日期可能被 Excel 当作文本；原始值日期是 epoch ms；不导出
+    隐藏列、不提供列选择器；不缓解公式注入；一次只允许一个导出任务；renderer bundle 增至
+    ~1.62MB（T6.4 评估拆包）。
 
 **M3 验收演示**：应用 4 个内置模板对比 → 改令牌/列格式 → 加"高温标红"→ 另存模板 → 导出 → 新工作区导入应用 → 重启还原。输出报告后停下。
 

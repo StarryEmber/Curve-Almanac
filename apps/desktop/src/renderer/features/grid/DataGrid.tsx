@@ -35,6 +35,7 @@ import {
 } from '@curve/ui';
 
 import { useI18n } from '../../i18n';
+import { ExportCsvDialog } from '../export/ExportCsvDialog';
 import { FilterDialog } from '../filter/FilterDialog';
 
 import { describeCellIssue } from './cell-issue-text';
@@ -79,6 +80,8 @@ export interface DataGridProps {
   styleFallback?: boolean;
   /** Visible rows in display order (filtered and/or sorted). */
   rows: readonly Row[];
+  /** Physical rows used by the CSV export "all rows" scope (T3.6). */
+  allRows: readonly Row[];
   /** Query metadata for counts, the busy indicator and E2E timing. */
   viewRows: ViewRowsState;
   view: ViewDef;
@@ -127,6 +130,7 @@ export function DataGrid({
   tableStyle,
   styleFallback = false,
   rows,
+  allRows,
   viewRows,
   view,
   onViewUpdate,
@@ -150,6 +154,7 @@ export function DataGrid({
   const [anchor, setAnchor] = useState({ row: 0, col: 0 });
   const [conflictRow, setConflictRow] = useState<number | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const rangeExtractor = useCallback((range: Range): number[] => {
     const indexes = defaultRangeExtractor(range);
     const editingIndex = editingRowRef.current;
@@ -691,6 +696,17 @@ export function DataGrid({
           </Button>
         ) : null}
         <Menu label={t('grid.sort.menu')} items={sortMenuItems} align="end" />
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={t('grid.export.button')}
+          data-testid="grid-export-open"
+          onClick={() => {
+            setExportOpen(true);
+          }}
+        >
+          {t('grid.export.button')}
+        </Button>
         <Select
           className="cs-grid__frozen"
           label={t('grid.frozen')}
@@ -884,6 +900,18 @@ export function DataGrid({
         onApply={(next) => {
           setFilterOpen(false);
           void onViewUpdate({ filter: next ?? null });
+        }}
+      />
+      <ExportCsvDialog
+        open={exportOpen}
+        tableMeta={tableMeta}
+        tableStyle={tableStyle}
+        view={view}
+        visibleColumns={visibleColumns}
+        rows={rows}
+        allRows={allRows}
+        onClose={() => {
+          setExportOpen(false);
         }}
       />
     </TableStyleProvider>
