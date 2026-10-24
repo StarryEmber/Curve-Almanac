@@ -1242,6 +1242,9 @@ pnpm bench          exit 0；open 352ms、save 254ms、edit 0ms、query 209ms、
                     text-sort 248ms、cjk-sort 434ms、import 623ms、condition P95 0ms；clone 236ms
 ```
 
+提交：**`ac02ba8`**（`feat(tbl): add template management and style import/export (T3.5)`）；
+本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`；工作树干净。
+
 残留：
 
 - 导入总是新建模板，不合并/覆盖同一样式；导入预览只含前 50 行。
