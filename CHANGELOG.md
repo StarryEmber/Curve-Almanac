@@ -410,3 +410,17 @@
 - M3：验收演示于 2026-10-24 获用户接受（复核：`pnpm verify` 143 files / 1232 tests、
   `pnpm build` exit 0、`pnpm format:check` 通过、`m3-acceptance.spec.ts` 1 passed、
   `pnpm e2e` 72 passed）；TASKS/AGENTS/HANDOFF 同步验收状态，下一步 T4.1。
+- T4.1：`@curve/chart-model` 新增 `render-model.ts`：`resolveSeries(table, rows, spec, options?)`
+  产出 SPEC §11.3 的 `RenderModel`（宽表每 Y 列一条系列、长表按系列列首次出现分组）；稳定
+  系列 id（列 id / `<seriesColumnId>:<存储值>`）、重名 ` (2)`、enum label、空系列 `(空)`；
+  映射校验（类型/角色/重复/缺列）与筛选/排序校验复用 `@curve/table-engine`；number/date X
+  缺失行丢弃 + 聚合 warning、null 断点、重复 X 与 >20 系列 warning；`meta.sampled=false`、
+  `sourcePoints=renderedPoints=非空 Y 值数`。
+- T4.1：`palettes.ts` 提供 4 组 8 色调色板（含 Okabe–Ito 色盲友好）与 `auto` 背景解析
+  （显式覆盖 > 主题 > light/dark > 白）；新增 `validateChartMapping`、`canBeChartX/Y/Series`、
+  `MAX_CHART_SERIES = 20`；44 条单测 + 2 条黄金快照；`packages/chart-model/tsconfig.json`
+  补齐 domain/table-engine 的 project references。新增 ADR-040、SPEC §11.3 实现边界、
+  TASKS T4.1 与 `docs/reports/t4.1/REPORT.md`；不新增运行时依赖，不 import
+  ECharts/React/Electron，不改 `formatVersion`/manifest/JSONL/IPC。
+- T4.1：`pnpm verify` 144 files / 1276 tests；coverage 全局 lines 75.34% / branches 68.21%
+  （`render-model.ts` 97.54% / `palettes.ts` 90.9%）；`pnpm format:check` 通过。

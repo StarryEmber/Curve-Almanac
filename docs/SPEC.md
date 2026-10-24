@@ -1109,6 +1109,29 @@ export interface RenderModel {
 - `chart-echarts` 只消费 RenderModel，不得读取表/Store。
 - 所有 warning 必须可展示；不得吞掉。
 
+**实现边界（T4.1，ADR-040）**：
+
+- `resolveSeries(table, rows, spec, { locale?, theme?, background? })` 返回
+  `{ ok: true, model } | { ok: false, issues }`；失败一次返回全部
+  `{ path, code, message }`，不抛异常。`validateChartMapping` 与
+  `canBeChartX/Y/Series` 供检查器复用；`MAX_CHART_SERIES = 20`。
+- 行顺序：先应用 `spec.filter`，剔除 number/date X 缺失的行并聚合 warning；再应用
+  `spec.sort`，未配置时 number/date 按 X 升序、text 保持物理顺序。筛选/排序复用
+  `@curve/table-engine`（ADR-032），不另写比较语义。
+- 系列：宽表 `id = 列 id`、`name = 列 label`（重名 ` (2)`）；长表
+  `id = "<seriesColumnId>:<存储值>"`，空值归 `(空)` 组（id 的值部分为空串），enum 用
+  option label 命名；超过 20 条按顺序截断并 warning。
+- 值：date → epoch ms（`x.type='time'`）、number → 数值、text → 字符串（`'category'`）；
+  Y `null` 是断点（不补 0、不插值），非 number → null + 该列一条聚合 warning；重复 X
+  保留全部点并按排序后的行序连线 + warning。
+- 样式：`style.palette` 由 `paletteId` 解析为 4 组 8 色常量（含 Okabe–Ito 色盲友好组）；
+  `style.background` 解析顺序为显式 `options.background` > `options.theme`（`auto`）>
+  `light`/`dark` > `#ffffff`；其余令牌直接映射。
+- `meta.sampled = false`、`renderedPoints = sourcePoints = 非空 Y 值总数`；T4.2 才做
+  LTTB 采样并改写这三个字段。
+- warning 为英文开发者文案（与 manifest/workspace warning 一致），按“X 丢行 → 重复 X →
+  非数值 Y（按列）→ 系列截断”的固定顺序聚合，UI 负责展示与本地化。
+
 ### 11.4 ECharts 适配器
 
 - 按需引入 `echarts/core` + `LineChart/ScatterChart/BarChart` + 必要组件。

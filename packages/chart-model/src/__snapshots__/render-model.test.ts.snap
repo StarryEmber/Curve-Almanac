@@ -1,0 +1,127 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`RenderModel golden snapshot > matches the fixture model for a long enum chart 1`] = `
+{
+  "kind": "scatter",
+  "meta": {
+    "renderedPoints": 2,
+    "sampled": false,
+    "sourcePoints": 2,
+    "warnings": [],
+  },
+  "series": [
+    {
+      "color": "#0072b2",
+      "id": "col_phase:east",
+      "name": "East",
+      "values": [
+        1.5,
+        null,
+        null,
+      ],
+    },
+    {
+      "color": "#e69f00",
+      "id": "col_phase:west",
+      "name": "West",
+      "values": [
+        null,
+        2.5,
+        null,
+      ],
+    },
+  ],
+  "style": {
+    "background": "#1e1e1e",
+    "legend": "top",
+    "lineWidth": 2,
+    "numberDigits": 2,
+    "palette": [
+      "#0072b2",
+      "#e69f00",
+      "#009e73",
+      "#d55e00",
+      "#cc79a7",
+      "#56b4e9",
+      "#f0e442",
+      "#000000",
+    ],
+    "showGrid": true,
+    "showSymbol": false,
+    "smooth": false,
+    "yStartAtZero": false,
+  },
+  "x": {
+    "label": "Day",
+    "type": "time",
+    "values": [
+      1767268800000,
+      1767355200000,
+      1767441600000,
+    ],
+  },
+}
+`;
+
+exports[`RenderModel golden snapshot > matches the fixture model for a wide date chart 1`] = `
+{
+  "kind": "line",
+  "meta": {
+    "renderedPoints": 4,
+    "sampled": false,
+    "sourcePoints": 4,
+    "warnings": [],
+  },
+  "series": [
+    {
+      "color": "#2563eb",
+      "id": "col_a",
+      "name": "Sensor A",
+      "values": [
+        1.5,
+        2.5,
+        null,
+      ],
+    },
+    {
+      "color": "#0d9488",
+      "id": "col_b",
+      "name": "Sensor B",
+      "values": [
+        10,
+        null,
+        30,
+      ],
+    },
+  ],
+  "style": {
+    "background": "#ffffff",
+    "legend": "top",
+    "lineWidth": 2,
+    "numberDigits": 2,
+    "palette": [
+      "#2563eb",
+      "#0d9488",
+      "#7c3aed",
+      "#db2777",
+      "#ea580c",
+      "#16a34a",
+      "#ca8a04",
+      "#475569",
+    ],
+    "showGrid": true,
+    "showSymbol": false,
+    "smooth": false,
+    "yStartAtZero": false,
+  },
+  "x": {
+    "label": "Day",
+    "type": "time",
+    "values": [
+      1767268800000,
+      1767355200000,
+      1767441600000,
+    ],
+  },
+}
+`;

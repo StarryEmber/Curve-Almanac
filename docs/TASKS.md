@@ -1083,7 +1083,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t41"></a>
 ### T4.1 RenderModel 与宽/长表映射
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T1.1、T2.6
 - 覆盖：FR-CHT-01、FR-CHT-02
 - 参考：SPEC §11.1–§11.3
@@ -1096,11 +1096,32 @@ T0.2 + T5.5 → T6.4
   2. 宽表：每 Y 列一条系列；长表：groupBy 系列列。
   3. 生成稳定系列 id（列 ID / `seriesId:value`）。
 - 验收：
-  - [ ] 固定夹具的 RenderModel 黄金快照通过。
-  - [ ] 空数据/缺列/类型错返回错误或 warning，不崩溃。
-  - [ ] 系列顺序稳定；>20 系列截断并警告。
-  - [ ] 包内无 echarts import。
+  - [x] 固定夹具的 RenderModel 黄金快照通过。
+  - [x] 空数据/缺列/类型错返回错误或 warning，不崩溃。
+  - [x] 系列顺序稳定；>20 系列截断并警告。
+  - [x] 包内无 echarts import。
 - 验证：`pnpm exec vitest run packages/chart-model`
+
+  实现备注（2026-10-24，ADR-040）：
+  - 决策：`resolveSeries(table, rows, spec, options?)` 返回 `{ ok, model } | { ok, issues }`；
+    `validateChartMapping` + `canBeChartX/Y/Series` 复用给检查器；`MAX_CHART_SERIES = 20`。
+    行顺序 = filter → 丢 number/date 缺失 X 行 → sort（未配置时数值/时间 X 升序、text 保序）→
+    分组；筛选/排序复用 `@curve/table-engine`（ADR-032）。宽表 `id=列 id`、`name=label`（重名
+    ` (2)`）；长表 `id=<seriesColumnId>:<存储值>`、空值归 `(空)`、enum 用 option label；Y `null`
+    为断点、非 number 聚合 warning；重复 X 保留全部点 + warning；>20 截断 + warning。
+    调色板为 4 组 8 色常量（colorblind 用 Okabe–Ito）；`style.background` 解析顺序
+    `options.background` > `theme`(auto) > `light/dark` > `#ffffff`；`meta.sampled=false`、
+    `sourcePoints=renderedPoints=非空 Y 值数`。未做 LTTB（T4.2）与 ECharts（T4.3）。
+  - 文件：`packages/chart-model/src/{render-model,palettes}.ts` 与测试、
+    `render-model.test.ts.snap`（2 条黄金快照）、`index.ts` 公开出口、`tsconfig.json`
+    增加 domain/table-engine 的 project references 与 `types: ["node"]`（仅测试读源码用）。
+  - 实测：`pnpm verify` **144 files / 1276 tests**；coverage 全局 lines **75.34%** /
+    branches 68.21%，`render-model.ts` lines **97.54%** / `palettes.ts` **90.9%**；
+    `pnpm format:check` 通过；`pnpm build` exit 0；`pnpm e2e` 72 passed（未改 UI）；
+    `pnpm bench` exit 0。
+  - 残留：X 缺失的 number/date 行被丢弃（有 warning）；warning 为英文聚合文案，未本地化；
+    长表把 null 与空字符串合并为 `(空)`；调色板为常量，未接设计令牌；T4.2 采样口径以本任务
+    的 `sourcePoints` 为准。
 
 <a id="t42"></a>
 ### T4.2 LTTB 采样与缺失值语义

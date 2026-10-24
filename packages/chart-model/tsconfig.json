@@ -4,7 +4,11 @@
     "composite": true,
     "rootDir": "src",
     "outDir": "dist-types",
-    "tsBuildInfoFile": "dist-types/tsconfig.tsbuildinfo"
+    "tsBuildInfoFile": "dist-types/tsconfig.tsbuildinfo",
+    // The T4.1 boundary test reads the package sources with node:fs/url; the
+    // production modules themselves import no Node builtins.
+    "types": ["node"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../domain" }, { "path": "../table-engine" }]
 }
