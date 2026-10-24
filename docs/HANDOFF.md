@@ -2,7 +2,7 @@
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T3.6`（CSV 导出）；
 > M2 已于 2026-10-23 获用户接受，M3 的 T3.1–T3.6 已全部完成。最后更新：2026-10-24 ·
-> 分支 `main`；`T3.6` 代码提交见 `git log --oneline -5`；本交接文档的提交见
+> 分支 `main`；`T3.6` 代码提交 **`45e5891`**；本交接文档的提交见
 > `git log -1 -- docs/HANDOFF.md`。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.6/REPORT.md` →
 > `docs/TASKS.md` 的 M3 / T3.6 → `docs/TESTPLAN.md` §2、§3、§5 →
@@ -517,11 +517,11 @@ apps/desktop/src/renderer/
 T2.5 新增 `apps/desktop/e2e/import.spec.ts` 6 条：100k GBK 分号 + 3 坏行 + 错误 CSV；错编码
 覆盖；150k 取消/100k 提示；JSON 替换 + 备份 + 原文归档 + 撤销；200k 拒绝；200% 缩放键盘。
 
-完整 E2E 现为 **68 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
+完整 E2E 现为 **71 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
 `schema.spec.ts`、T2.4 的 `paste.spec.ts`、T2.5 的 `import.spec.ts`、T2.6 的
 `filter.spec.ts`、T2.7 的 `perf.spec.ts`、T3.2/T3.4 的 `style.spec.ts`、T3.5 的
-`template.spec.ts`、M2 的 `m2-acceptance.spec.ts` 与既有 shell/ipc/smoke/workspace/table-io
-仍全绿。
+`template.spec.ts`、T3.6 的 `export-csv.spec.ts`、M2 的 `m2-acceptance.spec.ts` 与既有
+shell/ipc/smoke/workspace/table-io 仍全绿。
 
 T2.6 新增 `apps/desktop/e2e/filter.spec.ts` 6 条：2k 行筛选 + 三级排序；重开恢复筛选/排序与
 清除；同表双视图互不影响；隐藏列/恢复；100k 行 Worker 筛选+排序（`data-query-ms <= 400`）；
@@ -1327,7 +1327,7 @@ pnpm bench          exit 0；open 663ms、save 342ms、edit 0ms、query 213ms、
                     text-sort 260ms、cjk-sort 667ms、import 893ms、condition P95 1ms；clone 333ms
 ```
 
-提交：**`<T3.6 代码提交>`**（`feat(tbl): add CSV export with streaming IPC (T3.6)`）；
+提交：**`45e5891`**（`feat(tbl): add CSV export with streaming IPC (T3.6)`）；
 本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`；工作树干净。
 
 残留：
