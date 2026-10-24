@@ -2,7 +2,7 @@
 
 - 里程碑：**M3 表格外观**（T3.1–T3.6 已完成）
 - 日期：2026-10-24
-- 状态：**演示已执行；等待用户验收**（未进入 T4.x）
+- 状态：**已于 2026-10-24 获用户接受**（M3 关闭；未进入 T4.x）
 - 演示：`apps/desktop/e2e/m3-acceptance.spec.ts`（1 条，全量 E2E 内 **11.2s**，三次启动）
 - 决策：ADR-034/035/036/037/038/039；本次**无新增 ADR**（未改 `formatVersion`、manifest 字段、
   JSONL、IPC、preload、CSP 或运行时依赖）
@@ -173,4 +173,10 @@ $env:CURVE_E2E_NO_SANDBOX = '1'
 pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/m3-acceptance.spec.ts
 ```
 
-**停点**：报告与证据已输出，等待用户验收 M3；未获接受前不进入 T4.x。
+**验收结论（2026-10-24）**：用户已接受 M3。接受前负责人独立复核：`pnpm build` exit 0（产物
+1,618.04 kB / CSS 64.03 kB）、`pnpm verify` 143 files / 1232 tests、`pnpm format:check` 通过、
+`m3-acceptance.spec.ts` 单跑 1 passed（13.9s，`previewMs=2`、`noteWidth=116`、JSONL SHA-256
+`2face74e…`、源/目标 CSV 211/293 B 与报告一致）、`pnpm e2e` 72 passed（M3 11.4s、100k 导出
+1,670ms、冷启动 1,271ms、内存 569MB/600MB）。
+
+**停点**：M3 已关闭；下一里程碑 M4 从 T4.1 开始。

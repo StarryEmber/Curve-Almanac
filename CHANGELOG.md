@@ -407,3 +407,6 @@
   仍沿用旧测量值，行高停留在旧值直到滚动/缩放；`DataGrid` 在 `rowHeight` 变化时调用
   `virtualizer.measure()`。M3 用例断言 `compact-light` 应用后行高立即为 24px（修复前为复现失败）。
   不改变数据格式、IPC、公共 API 或运行时依赖。
+- M3：验收演示于 2026-10-24 获用户接受（复核：`pnpm verify` 143 files / 1232 tests、
+  `pnpm build` exit 0、`pnpm format:check` 通过、`m3-acceptance.spec.ts` 1 passed、
+  `pnpm e2e` 72 passed）；TASKS/AGENTS/HANDOFF 同步验收状态，下一步 T4.1。

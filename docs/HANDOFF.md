@@ -1,9 +1,9 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T3.6`（CSV 导出）与 **M3 验收演示**；
-> M2 已于 2026-10-23 获用户接受，M3 的 T3.1–T3.6 已全部完成并输出演示报告。最后更新：
-> 2026-10-24 · 分支 `main`；`T3.6` 代码提交 **`45e5891`**，M3 演示提交 **`9cac391`**；
-> 本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`。
+> 本文件面向**下一个实现会话**。当前会话已完成 `T3.6`（CSV 导出）与 **M3 验收演示**，
+> 且 **M3 已于 2026-10-24 获用户接受**；M4 自 `T4.1` 开始。最后更新：
+> 2026-10-24 · 分支 `main`；`T3.6` 代码提交 **`45e5891`**，M3 演示提交 **`9cac391`**，
+> 验收记录提交见 `git log -1 -- docs/HANDOFF.md`。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/m3/REPORT.md` →
 > `docs/reports/t3.6/REPORT.md` → `docs/TASKS.md` 的 M3 / T3.6 →
 > `docs/TESTPLAN.md` §2、§3、§5 → `docs/SPEC.md` §9.6、§13.1、§15.1、§16.1 →
@@ -16,7 +16,7 @@
 - **当前状态**：M2 已于 2026-10-23 获用户接受；`T3.1`（样式模型）、`T3.2`（渲染管线）、
   `T3.3`（条件格式引擎）、`T3.4`（样式编辑器与实时预览）、`T3.5`（模板管理与导入导出）与
   `T3.6`（CSV 导出）已完成（`docs/reports/t3.{1,2,3,4,5,6}/REPORT.md`、ADR-034/035/036/037/038/039）。
-  **M3 验收演示已于 2026-10-24 执行并输出报告；等待用户验收，接受前不要进入 T4.x。**
+  **M3 验收演示已于 2026-10-24 执行并获用户接受（M3 已关闭）；下一任务 T4.1（M4 图表）。**
 - **本次交付**：`apps/desktop/e2e/m3-acceptance.spec.ts`（单条演示，3 次启动）覆盖 4 个内置模板
   对比 → 编辑器改密度/表头色/列覆盖 → 一次控件一条撤销 → “高温”条件规则 → 另存模板 →
   筛选/排序/冻结/列宽 → CSV 导出（4 行 × 6 列）→ 新工作区导入应用（12 项计算样式一致）→
@@ -30,12 +30,10 @@
   import 918ms、condition P95 0ms）；perf 内存 **572MB**/600MB、冷启动 **1,017ms**/2.5s。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
-- **停点**：M3 报告已输出；**等用户验收 M3**，不进入 T4.x。
-- **接手动作**：确认工作树干净；先读 `docs/reports/m3/REPORT.md` 与 ADR-039；按 §6A 的
-  “M3 验收演示（已执行）”复核证据；验收通过后再领取 T4.1。
-- **M3 验收复核**：4 个内置模板对比、令牌/列格式编辑、条件规则“高温标红”、另存模板、
-  CSV 导出、新工作区导入应用与重启还原；复用 `m3-acceptance.spec.ts` 与 10 张截图，
-  不新增运行时依赖。
+- **停点**：M3 已于 2026-10-24 获用户接受并关闭；下一任务 T4.1（M4 图表），一次只推进一个任务。
+- **接手动作**：确认工作树干净；读 `docs/TASKS.md` 的 M4/T4.1、SPEC §11、TESTPLAN E6 与
+  `docs/DECISIONS.md` 的图表决策；按协议先复述，再测试先行。
+- **M4 验收复核**：T4.1–T4.6 完成后运行 M4 验收演示（TESTPLAN E6），停下等用户确认。
 
 ---
 
@@ -61,9 +59,9 @@
 | `T3.4` 样式编辑器与实时预览 | **已完成**（2026-10-24，`7e695bb`）；报告 `docs/reports/t3.4/REPORT.md`；ADR-037 |
 | `T3.5` 模板管理与导入导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.5/REPORT.md`；ADR-038 |
 | `T3.6` CSV 导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.6/REPORT.md`；ADR-039 |
-| M3 验收演示 | **已于 2026-10-24 执行**；`e2e/m3-acceptance.spec.ts` + `docs/reports/m3/REPORT.md`（10 张截图）；**等待用户验收** |
-| 当前里程碑 | **M3 表格外观**：T3.1–T3.6 与验收演示均已完成；等待用户接受 |
-| 下一步 | **等待用户验收 M3**；接受前不要进入 T4.x |
+| M3 验收演示 | **已获用户接受**（2026-10-24）；`e2e/m3-acceptance.spec.ts` + `docs/reports/m3/REPORT.md`（10 张截图） |
+| 当前里程碑 | **M4 图表**：自 T4.1 开始 |
+| 下一步 | **T4.1 RenderModel 与宽/长表映射** |
 | `pnpm verify` 基线 | **143 files / 1232 tests**；ESLint 0；depcruise **395 modules / 1592 deps / 0 violations** |
 | `pnpm test:coverage` 基线 | 全局 lines **74.89%** / statements **74.76%** / branches **67.66%** / functions **73.17%**；阈值 70/60 未下调 |
 | `pnpm e2e` 基线 | **72 passed**（新增 `m3-acceptance.spec.ts` 1 条 11.2s；`export-csv.spec.ts` 100k 1,646ms；M2 验收仍通过） |
@@ -76,8 +74,8 @@
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **M2 已获用户接受；T3.1–T3.6 与 M3 验收演示已完成**；下一步等待用户验收 M3。
-- 不得跨里程碑；M3 报告已输出，停下等用户确认，接受前不进入 T4.x。
+- **M1/M2/M3 均已获用户接受；T3.1–T3.6 与 M3 验收演示已完成**；下一步 T4.1。
+- 不得跨里程碑；M4 全部任务完成后运行验收演示，停下等用户确认。
 
 ---
 
@@ -86,15 +84,13 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/reports/m3/REPORT.md、
-docs/reports/t3.6/REPORT.md、docs/TASKS.md 的 M3 / T3.6、
-docs/TESTPLAN.md §2/§3/§5、docs/SPEC.md §9.6/§13.1/§15.1/§16.1、ADR-039、ADR-038。
+先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 M4 / T4.1、
+docs/SPEC.md §11、docs/TESTPLAN.md E6、docs/DECISIONS.md 的图表决策。
 
-现状：M0、M1（已验收）、M2（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1–T3.6 已完成；
-M3 验收演示已执行（等待用户验收）；pnpm verify 143 files / 1232 tests、
-coverage lines 74.89%、pnpm e2e 72 passed、pnpm bench exit 0。
+现状：M0、M1（已验收）、M2（已验收）、M3（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1–T3.6 已完成；
+pnpm verify 143 files / 1232 tests、coverage lines 74.89%、pnpm e2e 72 passed、pnpm bench exit 0。
 
-下一步：等待用户验收 M3；接受前不要开始 T4.x。
+下一步：T4.1（RenderModel 与宽/长表映射）；一次只推进一个任务。
 ```
 
 ---
@@ -1410,7 +1406,7 @@ pnpm bench          exit 0；open 663ms、save 342ms、edit 0ms、query 213ms、
 
 ---
 
-## 5J. M3 验收演示记录（已完成，等待验收）
+## 5J. M3 验收演示记录（已获用户接受）
 
 M3 演示不需要新的 ADR：不改变文件格式、IPC、公共 API 或运行时依赖，只新增一条 E2E 与一份报告。
 演示暴露并修复了一个渲染缺陷（见第 2 条）。
@@ -1453,8 +1449,8 @@ docs/TASKS.md（M3 验收演示注记）、CHANGELOG、AGENTS §0
 提交：**`9cac391`**（`test(m3): add milestone acceptance demo and report`）；本交接文档的
 提交见 `git log -1 -- docs/HANDOFF.md`。
 
-**不要做**：用户验收前不要开始 T4.1；不要改 `formatVersion`/manifest 字段/JSONL/IPC；不要
-把演示脚本改成多个 test（跨启动状态必须留在同一条用例内）。
+**不要做**：不要重跑/重写 M3 演示脚本（已验收）；不要改 `formatVersion`/manifest 字段/JSONL/IPC；
+不要把演示脚本改成多个 test（跨启动状态必须留在同一条用例内）。
 
 ---
 
@@ -1512,11 +1508,11 @@ pnpm bench
 **用户已于 2026-10-23 接受 M2**；TASKS M2 注记已更新为“获用户接受”，T3.1、T3.2、T3.3、T3.4、
 T3.5、T3.6 已按授权完成（见 §5D/§5E/§5F/§5G/§5H/§5I）。若未来用户要求修改 M2，再回到对应 T2.x 修复。
 
-**M2 已关闭；T3.1–T3.6 已完成，M3 验收演示已执行（见 §6A），等待用户验收。**
+**M2 已关闭；T3.1–T3.6 已完成；M3 验收演示已执行并于 2026-10-24 获用户接受（见 §6A）。**
 
 ---
 
-## 6A. M3 验收演示（已执行，等待用户验收）
+## 6A. M3 验收演示（已执行并获用户接受）
 
 演示已于 **2026-10-24** 执行，提交为 `test(m3): add milestone acceptance demo and report`（见
 `git log -1 -- apps/desktop/e2e/m3-acceptance.spec.ts`）。单条 `e2e/m3-acceptance.spec.ts`
@@ -1542,7 +1538,9 @@ M3 用例可复现）。
 
 验收命令（已执行，结果见报告 §7）：`pnpm verify`、`pnpm test:coverage`、`pnpm format:check`、
 `pnpm build`、`pnpm e2e`（72 passed）、`pnpm bench`（exit 0）。未改 `formatVersion`/manifest/
-JSONL/IPC；未新增运行时依赖；未进入 T4.x。
+JSONL/IPC；未新增运行时依赖。接受前复核（2026-10-24）：`pnpm verify` 143 files / 1232 tests、
+`pnpm build` exit 0、`m3-acceptance` 单跑 1 passed、全量 `pnpm e2e` 72 passed（M3 11.4s、
+100k 导出 1,670ms、内存 569MB/600MB）。
 
 实测（全量 E2E 内，本机空闲）：
 
@@ -1561,7 +1559,7 @@ JSONL/IPC；未新增运行时依赖；未进入 T4.x。
 Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings、`m3-contract.json` 与
 失败时的 trace；截图已复制到 `docs/reports/m3/`。
 
-**停点**：等待用户验收 M3；接受前不要开始 T4.1。
+**停点（已解除）**：M3 已于 2026-10-24 获用户接受并关闭；下一任务 T4.1（M4 图表）。
 
 ---
 
@@ -1637,26 +1635,24 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 - 不绕过命令总线直接改 store（撤销会坏）；不在组件里写业务逻辑。
 - 不加未经 ADR 的运行时依赖；不跳过测试、不放宽 ESLint/覆盖率规则、不用 `--no-verify`。
 - 不未经 ADR/用户确认升级 `formatVersion`、改数据格式、IPC 通道或公共 API。
-- 不在 T3.6 已完成后再顺手实现 T4.x 或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
-- 不自动跨任务/跨里程碑；M3 演示已完成并输出报告，等待用户验收后再领取 T4.1。
+- 不在 T3.6 已完成后再顺手实现 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
+- 不自动跨任务/跨里程碑；M3 已验收并关闭，M4 的 T4.1–T4.6 完成后运行验收演示，停下等用户确认。
 
 ---
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 M3 演示提交（报告
-      `docs/reports/m3/REPORT.md`、`e2e/m3-acceptance.spec.ts`）。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 M3 验收记录提交（M3 报告
+      `docs/reports/m3/REPORT.md` 状态为“已获用户接受”）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/m3/REPORT.md`、TASKS 的 M3/T3.6、
-      `docs/reports/t3.6/REPORT.md`、TESTPLAN §2/§3/§5、SPEC §9.6/§13.1/§15.1/§16.1、
-      ADR-039、ADR-038、ADR-037、ADR-036、ADR-035 与 ADR-034。
+- [ ] 已读 `AGENTS.md`、本文件、`docs/TASKS.md` 的 M4/T4.1、`docs/SPEC.md §11`、
+      `docs/TESTPLAN.md` E6 与 `docs/DECISIONS.md` 的图表决策。
 - [ ] 已确认 `pnpm verify` 基线（143 files / 1232 tests）、coverage lines 74.89%、
       e2e 72 passed、bench exit 0、condition P95 0ms、100k 导出 1,646ms。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M2 已获用户接受、T3.1–T3.6 已完成、**M3 验收演示已执行并等待用户验收**；
-      接受前不要自行进入 T4.x。
+- [ ] 已确认 M1/M2/M3 均已获用户接受、T3.1–T3.6 已完成；下一步为 T4.1，一次只推进一个任务。
 - [ ] 已确认 T3.1 的 hex 颜色/内置冻结/resolve/fork；T3.2 的 20 个表变量/宽度优先级/全局数字规则/
       bar/badge；T3.3 的条件原语/`conditionCompareOps`/优先级/`style.update`；T3.4 的
       `style.create` 懒 fork、前 50 行预览与一次控件一条撤销；T3.5 的 `style.delete/apply`、
@@ -1664,4 +1660,4 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
       BOM/CRLF/RFC4180、原始值/显示格式与 5s 预算；M3 的 `virtualizer.measure()` 行高重测。
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`；`m3` 截图写入 `docs/reports/m3/`，`m0` 截图提交前还原。
-- [ ] 用户验收 M3 后，先按 AGENTS §8 复述 T4.1 再开工；未接受则停在 M3。
+- [ ] T4.1 开工前按 AGENTS §8 复述目标/涉及文件/验收命令，再测试先行。

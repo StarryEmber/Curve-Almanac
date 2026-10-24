@@ -1069,10 +1069,12 @@ T0.2 + T5.5 → T6.4
 
 **M3 验收演示**：应用 4 个内置模板对比 → 改令牌/列格式 → 加"高温标红"→ 另存模板 → 导出 → 新工作区导入应用 → 重启还原。输出报告后停下。
 
-**M3 验收演示（2026-10-24 已执行，等待用户验收）**：`apps/desktop/e2e/m3-acceptance.spec.ts`
+**M3 验收演示（2026-10-24 已执行并获用户接受）**：`apps/desktop/e2e/m3-acceptance.spec.ts`
 单条用例按上述脚本执行（3 次启动：源工作区 → 新工作区导入 → 重启还原），全量 E2E 内 11.2s；
 报告 `docs/reports/m3/REPORT.md` 与 10 张截图。演示中发现并修复“虚拟化行高不随样式令牌重测”
-（`DataGrid` 在行高变化时 `virtualizer.measure()`），`pnpm e2e` **72 passed**。
+（`DataGrid` 在行高变化时 `virtualizer.measure()`），`pnpm e2e` **72 passed**。接受前复核：
+`pnpm verify` 143 files / 1232 tests、`pnpm build` exit 0、`m3-acceptance` 单跑 1 passed、
+全量 `pnpm e2e` 72 passed。**M3 已关闭，下一任务 T4.1。**
 
 ---
 
