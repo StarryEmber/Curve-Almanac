@@ -2,9 +2,9 @@
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T4.1`（RenderModel 与宽/长表映射），
 > M4 自 `T4.2` 继续；M3 已于 2026-10-24 获用户接受。最后更新：
-> 2026-10-24 · 分支 `main`；T4.1 代码提交见 `git log -1 -- packages/chart-model`。
+> 2026-10-24 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t4.1/REPORT.md` →
-> `docs/TASKS.md` 的 M4 / T4.1 → `docs/SPEC.md` §11.1–§11.3、§16.1 →
+> `docs/TASKS.md` 的 M4 / T4.2 → `docs/SPEC.md` §11.1–§11.3、§16.1 →
 > `docs/adr/040-t41-render-model.md` → ADR-032（筛选/排序语义）。
 
 ---
@@ -57,7 +57,7 @@
 | `T3.5` 模板管理与导入导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.5/REPORT.md`；ADR-038 |
 | `T3.6` CSV 导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.6/REPORT.md`；ADR-039 |
 | M3 验收演示 | **已获用户接受**（2026-10-24）；`e2e/m3-acceptance.spec.ts` + `docs/reports/m3/REPORT.md`（10 张截图） |
-| `T4.1` RenderModel 与宽/长表映射 | **已完成**（2026-10-24）；报告 `docs/reports/t4.1/REPORT.md`；ADR-040 |
+| `T4.1` RenderModel 与宽/长表映射 | **已完成**（2026-10-24，`06858d4`）；报告 `docs/reports/t4.1/REPORT.md`；ADR-040 |
 | 当前里程碑 | **M4 图表**：T4.1 已完成，下一 T4.2 |
 | 下一步 | **T4.2 LTTB 采样与缺失值语义** |
 | `pnpm verify` 基线 | **144 files / 1276 tests**；ESLint 0；depcruise 0 violations |
@@ -240,6 +240,9 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
 - 模板导入确认后**导入对话框与模板管理对话框同时关闭**；不要再点 `style-templates-close`。
 - 每个 Dialog 的 icon 关闭按钮都带 `aria-label="关闭"`；导出对话框的 footer 也叫“关闭”，
   `getByRole('button', { name: '关闭' })` 会命中两个，需要 footer 时用 `.last()`。
+- T4.1 的 RenderModel 黄金快照在 `packages/chart-model/src/__snapshots__/`；只有在**有意**改
+  `RenderModel` 契约时才用 `pnpm exec vitest run packages/chart-model -u` 更新，并在任务报告里
+  写明变化，不要用更新快照掩盖回归。
 
 ---
 
@@ -801,6 +804,31 @@ apps/desktop/src/renderer/features/export/
   main 侧 token 只在内存，`before-quit` 清理。
 - 对话框每次打开重置为“显示格式 + 当前筛选排序”；Esc/X 关闭会取消进行中的会话（不叠加确认框）。
 - 完整 E2E 见 §4.8；100k 预算与取消见 `e2e/export-csv.spec.ts`。
+
+### 4.19 `@curve/chart-model` RenderModel（T4.1）
+
+```ts
+MAX_CHART_SERIES = 20
+EMPTY_SERIES_NAME = '(空)'
+CHART_PALETTES / CHART_BACKGROUNDS
+resolvePalette(paletteId) / resolveChartBackground(option, { theme?, background? })
+canBeChartX(column) / canBeChartY(column) / canBeChartSeries(column)
+validateChartMapping(table, mapping): ChartIssue[]
+resolveSeries(table, rows, spec, options?): { ok: true; model } | { ok: false; issues }
+
+RenderModel { kind; x; series; style; meta }   // SPEC §11.3
+RenderSeries / RenderXAxis / RenderStyle / RenderMeta
+ChartIssue { path; code: ValidationIssueCode; message }
+ChartResolveOptions { locale?; theme?: 'light' | 'dark'; background? }
+```
+
+- 纯函数、无状态；只依赖 `@curve/domain` 与 `@curve/table-engine`，禁止 ECharts/React/Electron。
+- 失败一次返回全部 issue（不抛异常）；warning 走 `meta.warnings`（英文聚合文案）。
+- 宽表 `id=列 id`、长表 `id=<seriesColumnId>:<存储值>`；`(空)` 组合并 null 与空串；
+  `> MAX_CHART_SERIES` 截断并 warning。
+- `sourcePoints=renderedPoints=非空 Y 值数`、`sampled=false`（T4.2 采样后改写）。
+- 完整语义、代价与复核条件见 `docs/adr/040-t41-render-model.md` 与
+  `docs/reports/t4.1/REPORT.md`；2 条黄金快照在 `packages/chart-model/src/__snapshots__/`。
 
 ---
 
@@ -1499,6 +1527,22 @@ docs/SPEC.md §11.3（实现边界）、docs/TASKS.md（T4.1）、CHANGELOG、HA
 不要改 `formatVersion`/manifest/JSONL/IPC；不要把 LTTB（T4.2）或 ECharts option（T4.3）
 顺手塞进本任务；不要让 warning 变成静默丢弃。
 
+提交：**`06858d4`**（`feat(chart): add RenderModel with wide/long mapping (T4.1)`）；
+M3 验收记录为 **`4ec9653`**。
+
+**T4.2 交接提示（LTTB 采样与缺失值语义）**：
+
+- 采样只发生在 RenderModel 生成阶段（`chart-model`），`chart-echarts` 不得再采样。
+- 每个系列独立采样；x 必须单调（T4.1 已按 X 升序或用户排序输出）；保留首尾点；null 不参与
+  三角面积计算且输出仍为 null（断点语义不变）。
+- 配置来自 `ChartOptions.sampling { enabled, threshold, target }`；关闭或点数 ≤ threshold 时
+  原样输出。
+- 采样后必须更新 `meta.sampled=true` 与 `renderedPoints ≤ sourcePoints`（sourcePoints 口径见
+  ADR-040：非空 Y 值数），并保持 T4.1 的 warning 顺序不变。
+- 验收：100k → 2k 点、首尾保留、采样 ≤50ms/系列、属性测试（点数 ≤ target 且 x 单调）、
+  `pnpm bench -- --sample`；图表解析+采样总预算 300ms（SPEC §16.1）。
+- 不要改 T4.1 的映射/校验/系列 id 契约；需要扩展时先改 SPEC/ADR。
+
 ---
 
 ## 6. M2 验收演示（已获用户接受）
@@ -1656,7 +1700,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 74.89%（M3 实测；T3.6 为 74.90%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；任务报告记录实测 |
+| 覆盖率 75.34%（T4.1 实测；M3 为 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`render-model.ts` 97.54%；任务报告记录实测 |
 | renderer bundle 约 1.62MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
 | 100k CSV 导出 1,716ms/5s（T3.6） | 去掉 Intl formatter 缓存会退到 10s 量级 | `formatCellValue` 的 locale/格式缓存是达标关键；不要改回每单元格 `new Intl.*` |
 | CSV 临时文件残留 | 进程崩溃时 `.curve-export-*.tmp` 留在目标目录 | cancel/`before-quit` 已清理；崩溃残留需手工删除，报告已记录 |
@@ -1713,4 +1757,4 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
       T4.1 的 `resolveSeries` 映射/校验/空值口径、4 调色板与 `sourcePoints` 定义。
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`；`m3` 截图写入 `docs/reports/m3/`，`m0` 截图提交前还原。
-- [ ] T4.1 开工前按 AGENTS §8 复述目标/涉及文件/验收命令，再测试先行。
+- [ ] T4.2 开工前按 AGENTS §8 复述目标/涉及文件/验收命令，再测试先行。

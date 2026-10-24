@@ -18,7 +18,8 @@
   **T3.5（模板管理与导入导出）已完成**（`docs/reports/t3.5/REPORT.md`、ADR-038）；
   **T3.6（CSV 导出）已完成**（`docs/reports/t3.6/REPORT.md`、ADR-039）；
   **M3 验收演示已于 2026-10-24 执行并获用户接受**（`apps/desktop/e2e/m3-acceptance.spec.ts` +
-  `docs/reports/m3/REPORT.md`）；里程碑 M3 已关闭，自 T4.1 起进入 M4 图表。
+  `docs/reports/m3/REPORT.md`）；里程碑 M3 已关闭。**T4.1（RenderModel 与宽/长表映射）已完成**
+  （`docs/reports/t4.1/REPORT.md`、ADR-040）；下一任务 T4.2。
 - 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
   `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 15 个已接线
   IPC 通道；**续作前先读 `docs/HANDOFF.md`**。
