@@ -7,7 +7,14 @@
  */
 
 import { formatCellValue } from '@curve/domain';
-import type { Cell, ColumnDef, ColumnStyleOverride, Row, TableStyle } from '@curve/domain';
+import type {
+  Cell,
+  ColumnDef,
+  ColumnStyleOverride,
+  ConditionalRuleMatch,
+  Row,
+  TableStyle,
+} from '@curve/domain';
 
 export type CellAlign = 'left' | 'center' | 'right';
 
@@ -15,6 +22,24 @@ export type CellAlign = 'left' | 'center' | 'right';
 export type CellRenderMode = 'text' | 'badge' | 'bar';
 
 export type BadgeTone = 0 | 1 | 2 | 3;
+
+export type ConditionalIcon = 'up' | 'down' | 'warning';
+
+/** The decorative part of a matched conditional rule, ready for `GridCell`. */
+export interface ConditionalCellStyle {
+  ruleId: string;
+  label?: string;
+  background?: string;
+  foreground?: string;
+  bold?: boolean;
+  italic?: boolean;
+  icon?: ConditionalIcon;
+}
+
+export interface ConditionalCellStyleOptions {
+  /** Row-level icons are only drawn once per row (first visible column). */
+  includeIcon?: boolean;
+}
 
 export interface BarRange {
   min: number;
@@ -231,6 +256,33 @@ export function enumBadgeTone(value: string): BadgeTone {
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
   return (hash % 4) as BadgeTone;
+}
+
+/**
+ * Maps a matched rule to the decorations `GridCell` should paint.
+ *
+ * The grid decides whether the rule may apply (selection/error/conflict win)
+ * and whether a row icon belongs on this column; this helper only copies the
+ * rule style so the cell never reads the rule model directly.
+ */
+export function conditionalCellStyle(
+  match: ConditionalRuleMatch | null,
+  options: ConditionalCellStyleOptions = {},
+): ConditionalCellStyle | null {
+  if (match === null) {
+    return null;
+  }
+  const style = match.rule.style;
+  const includeIcon = options.includeIcon !== false;
+  return {
+    ruleId: match.rule.id,
+    ...(match.rule.label === undefined ? {} : { label: match.rule.label }),
+    ...(style.background === undefined ? {} : { background: style.background }),
+    ...(style.foreground === undefined ? {} : { foreground: style.foreground }),
+    ...(style.bold === undefined ? {} : { bold: style.bold }),
+    ...(style.italic === undefined ? {} : { italic: style.italic }),
+    ...(includeIcon && style.icon !== undefined ? { icon: style.icon } : {}),
+  };
 }
 
 /** Convenience for the grid: everything `GridCell` needs for one value. */

@@ -17,6 +17,7 @@ export * from './commands/layout';
 export * from './commands/paste';
 export * from './commands/import';
 export * from './commands/rows';
+export * from './commands/styles';
 export * from './commands/table-cell-set';
 export * from './commands/tables';
 export * from './commands/view-copy';

@@ -21,7 +21,8 @@ export const DEFAULT_HISTORY_LIMIT = 100;
 export interface EditHistoryEntry {
   name: string;
   mergeKey?: string;
-  tableId: string;
+  /** Table data changed by the entry; null for workspace-scoped commands. */
+  tableId: string | null;
   patches: readonly Patch[];
   inversePatches: readonly Patch[];
   recordedAt: number;
@@ -33,8 +34,10 @@ export interface EditHistoryOptions {
   now?: () => number;
   mergeWindowMs?: number;
   limit?: number;
-  /** Called after an undo/redo changed the document (save queue hook). */
+  /** Called after an undo/redo changed a table (save queue hook). */
   onChanged?: (tableId: string) => void;
+  /** Called after an undo/redo changed manifest-only document state. */
+  onWorkspaceChanged?: () => void;
 }
 
 export interface EditHistory {
@@ -68,7 +71,8 @@ export function createEditHistory(options: EditHistoryOptions): EditHistory {
     const recordable =
       result.name === 'table.cell.set' ||
       result.name === 'table.paste' ||
-      result.name === 'table.import';
+      result.name === 'table.import' ||
+      result.name === 'style.update';
     if (!recordable) {
       if (result.patches.length > 0) {
         redoStack.length = 0;
@@ -79,7 +83,7 @@ export function createEditHistory(options: EditHistoryOptions): EditHistory {
       return;
     }
     const tableId = tableIdOf(result.payload);
-    if (tableId === null) {
+    if (result.name !== 'style.update' && tableId === null) {
       return;
     }
     const recordedAt = now();
@@ -120,7 +124,11 @@ export function createEditHistory(options: EditHistoryOptions): EditHistory {
     }
     store.setState(applyPatches(store.getState(), entry.inversePatches), true);
     redoStack.push(entry);
-    options.onChanged?.(entry.tableId);
+    if (entry.tableId === null) {
+      options.onWorkspaceChanged?.();
+    } else {
+      options.onChanged?.(entry.tableId);
+    }
     return true;
   };
 
@@ -131,7 +139,11 @@ export function createEditHistory(options: EditHistoryOptions): EditHistory {
     }
     store.setState(applyPatches(store.getState(), entry.patches), true);
     undoStack.push(entry);
-    options.onChanged?.(entry.tableId);
+    if (entry.tableId === null) {
+      options.onWorkspaceChanged?.();
+    } else {
+      options.onChanged?.(entry.tableId);
+    }
     return true;
   };
 

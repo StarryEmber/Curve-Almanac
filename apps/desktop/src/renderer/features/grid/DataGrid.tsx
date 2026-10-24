@@ -11,6 +11,7 @@ import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { CellIssue, ViewPatch } from '@curve/app-core';
+import { createConditionalFormat } from '@curve/domain';
 import type {
   Cell,
   ColumnDef as DomainColumn,
@@ -27,6 +28,7 @@ import {
   TableStyleProvider,
   columnDisplayLabel,
   computeBarRanges,
+  conditionalCellStyle,
   formatStyledCellValue,
   presentStyledCell,
   tableRowHeight,
@@ -185,6 +187,14 @@ export function DataGrid({
   const barRanges = useMemo(
     () => computeBarRanges(rows, tableMeta.columns, tableStyle),
     [rows, tableMeta.columns, tableStyle],
+  );
+
+  const conditionalFormat = useMemo(
+    () =>
+      createConditionalFormat(tableStyle.conditionalRules, tableMeta.columns, {
+        locale,
+      }),
+    [locale, tableMeta.columns, tableStyle.conditionalRules],
   );
 
   const [columnSizing, setColumnSizing] = useState<Record<string, number>>(initialSizing);
@@ -755,6 +765,7 @@ export function DataGrid({
                 if (row === undefined) {
                   return null;
                 }
+                const conditionalRow = conditionalFormat.evaluateRow(row);
                 const rowStyle: CSSProperties & Record<'--cs-row-bg', string> = {
                   position: 'absolute',
                   top: 0,
@@ -794,6 +805,18 @@ export function DataGrid({
                       const isEditing =
                         editing?.row === virtualRow.index && editing.col === colIndex;
                       const cellError = isEditing ? errorText : null;
+                      const conditionalMatch = conditionalRow.cellRule(column.id);
+                      const conditional = conditionalCellStyle(conditionalMatch, {
+                        includeIcon: conditionalMatch?.target === 'cell' || colIndex === 0,
+                      });
+                      const conditionalIconLabel =
+                        conditional?.icon === 'up'
+                          ? t('grid.ruleIcon.up')
+                          : conditional?.icon === 'down'
+                            ? t('grid.ruleIcon.down')
+                            : conditional?.icon === 'warning'
+                              ? t('grid.ruleIcon.warning')
+                              : undefined;
                       return (
                         <GridCell
                           key={column.id}
@@ -835,6 +858,8 @@ export function DataGrid({
                           pasteError={
                             pasteError?.row === virtualRow.index && pasteError.col === colIndex
                           }
+                          conditional={conditional}
+                          conditionalIconLabel={conditionalIconLabel}
                           onActivate={activate}
                           onBeginEdit={beginEdit}
                         />

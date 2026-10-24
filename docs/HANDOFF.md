@@ -1,33 +1,34 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T3.2`（样式渲染管线）；
-> M2 已于 2026-10-23 获用户接受。最后更新：2026-10-23 ·
-> `T3.2` 代码提交 **`cd415d6`**；分支 `main`；本文件的提交见
-> `git log -1 -- docs/HANDOFF.md`。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.2/REPORT.md` →
-> `docs/TASKS.md` 的 M3 / T3.2 / T3.3 → `docs/TESTPLAN.md` §2、§3、§5 →
-> `docs/SPEC.md` §6.4、§10、§16.1 →
-> `docs/adr/035-t32-style-rendering.md`（T3.2）、ADR-034（T3.1）与 ADR-033（T2.7）。
+> 本文件面向**下一个实现会话**。当前会话已完成 `T3.3`（条件格式引擎）；
+> M2 已于 2026-10-23 获用户接受。最后更新：2026-10-24 ·
+> 分支 `main`；本文件的提交见 `git log -1 -- docs/HANDOFF.md`。
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.3/REPORT.md` →
+> `docs/TASKS.md` 的 M3 / T3.3 / T3.4 → `docs/TESTPLAN.md` §2、§3、§5 →
+> `docs/SPEC.md` §10.4、§13.1、§13.2、§16.1 →
+> `docs/adr/036-t33-conditional-format.md`（T3.3）、ADR-035（T3.2）、ADR-034 与 ADR-033。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
-- **当前状态**：M2 已于 2026-10-23 获用户接受；`T3.1`（样式模型）与 `T3.2`（样式渲染管线）
-  已完成并提交（`docs/reports/t3.{1,2}/REPORT.md`、ADR-034/035）。**下一步 T3.3（条件格式引擎）
-  需等用户明确授权；不要自动开始。**
-- **本次交付**：20 个 `--cs-table-*` 变量与 `TableStyleProvider`、样式化行高/斑马纹/网格线/
-  圆角/内边距、数字/日期/布尔/枚举格式化、列覆盖（对齐/宽度/标签/渲染模式）、enum badge、
-  数字 bar、四模板 + 用户样式的真实 Electron 视觉验证。
-- **基线**：`pnpm verify` **128 files / 1037 tests**；coverage lines **75.39%** /
-  statements 75.29% / branches 67.97% / functions 76.37%；
-  `format:check` 通过；`pnpm build` exit 0（renderer **1,431.97 kB**）；
-  `pnpm e2e` **65 passed**（含新增 `style.spec.ts`）；`pnpm bench` **exit 0**。
+- **当前状态**：M2 已于 2026-10-23 获用户接受；`T3.1`（样式模型）、`T3.2`（渲染管线）与
+  `T3.3`（条件格式引擎）已完成并提交（`docs/reports/t3.{1,2,3}/REPORT.md`、ADR-034/035/036）。
+  **下一步 T3.4（样式编辑器与实时预览）需等用户明确授权；不要自动开始。**
+- **本次交付**：domain 共享比较原语与条件求值器（行/单元格目标、首条命中、缺失列忽略、
+  number/date 条件 `contains`）、`style.update`（manifest-only、workspace 作用域撤销）、
+  `SaveQueue.enqueueManifest`、`conditionalCellStyle`、GridCell/DataGrid 条件样式接线、
+  `condition.rules.50x100` bench 门禁与条件规则 E2E。
+- **基线**：`pnpm verify` **131 files / 1123 tests**；coverage lines **75.82%** /
+  statements 75.70% / branches 68.74% / functions 76.68%；
+  `format:check` 通过；`pnpm build` exit 0（renderer **1,446.60 kB**）；
+  `pnpm e2e` **65 passed**；`pnpm bench` **exit 0**（condition P95 **1ms**/16ms）。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
-- **停点**：T3.2 报告已输出；**等用户授权 T3.3**，不进入 T3.3 的实现。
-- **T3.3 开工前**：先解决“条件求值器放 domain 还是 table-engine”与“规则编辑是否在 T3.3
-  接撤销命令”两个歧义；详见 §5F。不要先写代码再问。
+- **停点**：T3.3 报告已输出；**等用户授权 T3.4**，不进入样式编辑器/模板管理的实现。
+- **T3.4 开工前**：确认编辑器范围（模板/令牌/列覆盖/条件规则）、内置模板编辑的 fork 时机、
+  预览 50 行的刷新预算与一次控件提交的撤销粒度；复用 `conditionCompareOps` 与 `style.update`，
+  不要另写求值或写盘逻辑。
 
 ---
 
@@ -49,22 +50,23 @@
 | M2 验收演示 | **已获用户接受**（2026-10-23）；`e2e/m2-acceptance.spec.ts` + `docs/reports/m2/REPORT.md` |
 | `T3.1` 表格样式模型与内置模板 | **已完成**（2026-10-23，`b75fff1`）；报告 `docs/reports/t3.1/REPORT.md`；ADR-034 |
 | `T3.2` 样式渲染管线 | **已完成**（2026-10-23，`cd415d6`）；报告 `docs/reports/t3.2/REPORT.md`；ADR-035 |
-| 当前里程碑 | **M3 表格外观**：T3.1–T3.2 完成；T3.3–T3.6 待推进，里程碑验收演示最后做 |
-| 下一步 | **等待用户授权 T3.3（条件格式引擎）**；不要自动开始 T3.3/T3.4 |
-| `pnpm verify` 基线 | **128 files / 1037 tests**；ESLint 0；depcruise **355 modules / 1363 deps / 0 violations** |
-| `pnpm test:coverage` 基线 | 全局 lines **75.39%** / statements **75.29%** / branches **67.97%** / functions **76.37%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **65 passed**（含新增 `style.spec.ts` 1 条）；M2 验收仍通过 |
-| `pnpm bench` 基线 | **exit 0**；open 572ms、save 358ms、edit 0ms、query 216ms、text-sort 287ms、cjk-sort 648ms、import 945ms；clone 345ms（诊断） |
+| `T3.3` 条件格式引擎 | **已完成**（2026-10-24）；报告 `docs/reports/t3.3/REPORT.md`；ADR-036 |
+| 当前里程碑 | **M3 表格外观**：T3.1–T3.3 完成；T3.4–T3.6 待推进，里程碑验收演示最后做 |
+| 下一步 | **等待用户授权 T3.4（样式编辑器与实时预览）**；不要自动开始 T3.4/T3.5 |
+| `pnpm verify` 基线 | **131 files / 1123 tests**；ESLint 0；depcruise **361 modules / 1390 deps / 0 violations** |
+| `pnpm test:coverage` 基线 | 全局 lines **75.82%** / statements **75.70%** / branches **68.74%** / functions **76.68%**；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **65 passed**（`style.spec.ts` 含条件规则视图与 200% 缩放）；M2 验收仍通过 |
+| `pnpm bench` 基线 | **exit 0**；open 548ms、save 327ms、edit 0ms、query 224ms、text-sort 302ms、cjk-sort 581ms、import 913ms、condition 1ms；clone 309ms（诊断） |
 | `pnpm format:check` | 通过 |
-| 构建 | `pnpm build` exit 0；renderer **1,431.97 kB** + 懒加载 ImportSession 42.82 kB；table/query/import worker 220.13/233.15/269.61 kB |
+| 构建 | `pnpm build` exit 0；renderer **1,446.60 kB** + 懒加载 ImportSession 42.82 kB；table/query/import worker 220.53/236.02/270.01 kB |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
 
 **用户明确要求**：
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **M2 已获用户接受；T3.1、T3.2 已完成**；下一步等待用户授权 T3.3。
-- 不得跨里程碑；T3.2 报告已输出，停下等用户确认，不进入 T3.3 的实现。
+- **M2 已获用户接受；T3.1、T3.2、T3.3 已完成**；下一步等待用户授权 T3.4。
+- 不得跨里程碑；T3.3 报告已输出，停下等用户确认，不进入 T3.4 的实现。
 
 ---
 
@@ -73,16 +75,16 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/reports/t3.2/REPORT.md、
-docs/TASKS.md 的 M3 / T3.2 / T3.3、docs/TESTPLAN.md §2/§3/§5、
-docs/SPEC.md §6.4/§10/§16.1、ADR-035、ADR-034 与 ADR-033。
+先读 AGENTS.md、docs/HANDOFF.md、docs/reports/t3.3/REPORT.md、
+docs/TASKS.md 的 M3 / T3.3 / T3.4、docs/TESTPLAN.md §2/§3/§5、
+docs/SPEC.md §10.4/§13.1/§13.2/§16.1、ADR-036、ADR-035 与 ADR-034。
 
-现状：M0、M1（已验收）、M2（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1、T3.2 已完成；
-pnpm verify 128 files / 1037 tests、coverage lines 75.39%、pnpm e2e 65 passed、
+现状：M0、M1（已验收）、M2（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1、T3.2、T3.3 已完成；
+pnpm verify 131 files / 1123 tests、coverage lines 75.79%、pnpm e2e 65 passed、
 pnpm bench exit 0。
 
-下一步：等待用户授权 T3.3（条件格式引擎）；确认前不要开始 T3.3 的实现。
-若用户明确授权进入 T3.3，先按 AGENTS §8 复述目标/产出/验收再开工。
+下一步：等待用户授权 T3.4（样式编辑器与实时预览）；确认前不要开始 T3.4 的实现。
+若用户明确授权进入 T3.4，先按 AGENTS §8 复述目标/产出/验收再开工。
 ```
 
 ---
@@ -185,6 +187,12 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
   `data-visible-rows` 属性断言 Worker 完成与预算；不要移除这些属性。
 - T2.6 的 text sort bench 使用打乱后的 100k 文本主键；若机器繁忙 P95 可能接近 400ms，
   先确认 CPU 后重跑，不放宽预算。
+- T3.3 的 `condition.rules.50x100` 在 query suite 内；预算 16ms 是**纯求值**（50 规则 × 100 行），
+  不含 DOM。实测 P95 1ms；不要把 `GridCell` 渲染或截图耗时算进去。
+- T3.3 的 `style.spec.ts` 打开视图时首行首列处于选中态，选中背景会覆盖条件背景；断言条件背景
+  请选未选中的单元格（如 `grid-cell-0-1`），选中优先级本身也有断言。
+- `style.update` 是 manifest-only 命令：`SaveQueue.enqueueManifest` 串行写 manifest，失败可重试；
+  历史条目 `tableId: null`，undo/redo 走 `onWorkspaceChanged`，不标记脏表。不要另写一条写盘路径。
 - **T2.7 的 bench 每个 suite 独立子进程**（`process.execPath --expose-gc --import tsx ...`），
   结果写到 `bench/.tmp/suite-<name>.json` 再由父进程汇总；不要把多个 suite 塞回一个进程，
   否则后跑的 `query.text-sort.100k` 会被前序堆状态顶到 400ms 以上。
@@ -192,7 +200,7 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
   生成 100k×10 夹具（约 15MB，gitignore）；`perf.spec.ts` 把它复制到 `testInfo.outputPath` 再打开。
   单独跑 perf spec 前必须先执行该生成命令。
 - `perf.spec.ts` 的内存门禁用 `app.getAppMetrics().memory.privateBytes`（不含 GPU）；
-  `workingSetSize` 会重复计算共享页，只作诊断。当前峰值 574MB/600MB，余量约 4%。
+  `workingSetSize` 会重复计算共享页，只作诊断。当前峰值 565MB/600MB，余量约 6%。
 - `pnpm bench` 的 `memoryPeakMB` 是 Node 管线 RSS 趋势（约 900MB），**不是**应用内存门禁；
   600MB 只由 E2E 判定。
 - `bench/baseline.json` 需由 CI Windows runner 的 `pnpm bench -- --write-baseline` 生成后提交；
@@ -560,6 +568,45 @@ presentStyledCell(value, column, style, barRanges, options?)
 - 真实渲染验证：`apps/desktop/e2e/style.spec.ts`；决策与代价见
   `docs/adr/035-t32-style-rendering.md` 与 `docs/reports/t3.2/REPORT.md`。
 
+### 4.11 `@curve/domain` 条件格式（T3.3）
+
+```ts
+CompareMode = 'filter' | 'condition'
+DEFAULT_COMPARE_LOCALE
+allowedCompareOps(column) / conditionCompareOps(column)
+compareOpNeedsValue(op) / compareOpNeedsSecondValue(op)
+PreparedComparison
+prepareComparison(column, predicate, { locale?, mode? })
+matchesPreparedComparison(cell, prepared)
+ConditionalRuleMatch / RowConditionalFormat / ConditionalFormat
+createConditionalFormat(rules, columns, { locale? })
+evaluateRules(rules, row, columns, { locale? })
+```
+
+- `prepareComparison`/`matchesPreparedComparison` 是筛选与条件规则唯一的比较实现；
+  `conditionCompareOps` 只比过滤器多 number/date 的 `contains`（SPEC §10.4）。
+- `createConditionalFormat` 一次准备列索引/谓词/needle；`evaluateRow` 返回 `rowRule` 和
+  `cellRule(columnId)`，混合目标按数组下标取最早命中；`evaluateRules` 是一次性入口。
+- 缺失列分支忽略、全缺失规则不命中；空值/类型不匹配返回 false；禁用规则在准备阶段丢弃。
+- `GridCell` 用 `conditionalCellStyle`（`@curve/ui`）复制 rule style；条件样式只在没有
+  选中/错误/冲突/粘贴错误时应用，条件背景存在时不画 bar，行 icon 只在首个可见列。
+
+### 4.12 `@curve/app-core` `style.update` 与 workspace 历史（T3.3）
+
+```ts
+createStyleUpdateCommand(options?)
+StyleUpdatePayload { style }
+WorkspaceActions.updateTableStyle(style): Promise<ActionOutcome>
+SaveQueue.enqueueManifest(): void
+```
+
+- 只接受 `sty_` 用户样式；`tableStyleSchema`、样式存在性、重复规则 id 都在命令内校验；
+  只写 `state.tableStyles[id]` 与 workspace `updatedAt`，不写 JSONL。
+- `SaveQueue.enqueueManifest` 与表保存共用串行队列；表保存会顺带写 manifest，写盘期间新到的
+  manifest 任务会再写一次；失败保留可重试状态。
+- `EditHistory` 条目 `tableId` 可为 `null`；`style.update` 的 undo/redo 通过
+  `onWorkspaceChanged` 入队 manifest。T3.4 的编辑器必须复用该命令。
+
 ---
 
 ## 5. T2.4 决策与实现记录（已完成）
@@ -917,33 +964,60 @@ pnpm bench          exit 0；open 572ms、save 358ms、edit 0ms、query 216ms、
 
 ---
 
-## 5F. T3.3 预备交接（未开工，等授权）
+## 5F. T3.3 决策与实现记录（已完成）
 
-**任务卡**：T3.3 条件格式引擎；依赖 T3.1、T1.1；覆盖 FR-STY-04；参考 SPEC §10.4；
-产出 `evaluateRules(rules, row, columns)`（行/单元格目标）、12 种比较语义、首条命中、空值规则、
-可见行求值优化与基准；验收包含“所有操作符正反例 / `between` 含边界”“首条命中；50 条规则 ×
-100 行 ≤ 16ms”“空值/类型不匹配不抛异常”“规则编辑可撤销”。
+ADR-036 记录 5 组决定：
 
-**已知集成点**：
+1. **求值器归属**：12 种比较的语义原语下沉 `packages/domain/src/predicate.ts`；
+   `@curve/table-engine` 保留 `QueryContext`/`compareCache`/排序，`matchesCompare` 改为调用
+   domain 原语并继续导出 `allowedCompareOps` 等。`condition.ts` 的 `createConditionalFormat`
+   一次准备、逐可见行求值；`evaluateRules` 为一次性入口。
+2. **number/date contains**：只在 `condition` 模式启用，`String(value)` 后按 locale 不区分
+   大小写；过滤器白名单与行为不变。日期按 epoch 字符串（不是显示文本）。
+3. **撤销**：新增 `style.update`（只接受 `sty_` 用户样式、schema/存在性/规则 id 唯一校验、
+   manifest-only）；`SaveQueue.enqueueManifest` 串行写 manifest；`EditHistory` 支持
+   `tableId: null` 的 workspace 作用域，undo/redo 走 `onWorkspaceChanged`，不标记脏表；
+   `WorkspaceActions.updateTableStyle` 等待 flush，失败 `committed: true`。
+4. **优先级**：错误/冲突/粘贴错误 > 选中 > 条件规则（首条） > bar > 斑马纹/基础；
+   条件背景覆盖 bar；行 icon 只在首个可见列；条件样式只影响显示。
+5. **性能口径**：16ms 是纯求值（50 规则 × 100 行），domain best-of-3 + bench
+   `condition.rules.50x100` 硬门禁；DOM 应用不计入。
 
-- 规则模型已在 `@curve/domain` 的 `TableStyle.conditionalRules`（`TableStyleTokens`/manifest
-  不变）；`TableStyleProvider` 目前只渲染 tokens/overrides，不消费规则。
-- `GridCell` 已有 `align`/`render`/`barRatio`/`badgeTone`，T3.3 应在其上叠加行/单元格样式，
-  与 selection/error/conflict 的优先级需要先定义（SPEC §10.4 只定义规则间“首条命中”）。
-- `GridHeader`/`DataGrid` 已有可见行 `rows` 与列索引；规则求值应只针对可见行，并缓存列索引。
+关键文件：
 
-**开工前必须先问的歧义**：
+```text
+packages/domain/src/{predicate,condition}.ts (+test)
+packages/table-engine/src/query.ts (+query.test.ts)
+packages/app-core/src/commands/styles.ts (+test)
+packages/app-core/src/{app-core.ts,history/edit-history.ts,usecases/save-queue.ts,usecases/workspace-actions.ts} (+tests)
+packages/ui/src/{table-style-format.ts,index.ts} (+test)
+apps/desktop/src/renderer/features/grid/{DataGrid,GridCell}.tsx (+GridCell.test.tsx)
+apps/desktop/src/renderer/styles.css；i18n/messages/{zh-CN,en-US}.ts
+apps/desktop/e2e/style.spec.ts；scripts/bench.ts
+docs/adr/036-t33-conditional-format.md；docs/reports/t3.3/REPORT.md
+```
 
-1. **求值器归属**：TASKS 要求 `packages/domain` 的纯函数，但现有 `FilterPredicate` 求值器
-   （`matchesFilterPredicate`）在 `@curve/table-engine`；依赖方向是 `domain ← table-engine`，
-   domain 不能反向 import。需要选择：把求值器下沉/复制到 domain、改任务归属到 table-engine，
-   或另写 domain 版语义并用属性测试对齐。涉及公共 API，按 AGENTS §11 先问。
-2. **撤销接线**：T3.3 验收有“规则编辑可撤销”，但当前没有 style 更新命令（T3.4/T3.5 才做
-   编辑器与模板 CRUD）。需要确认 T3.3 只交付纯引擎 + 单测，还是同时补 command 与最小 UI。
-3. **样式优先级**：条件格式的 background/foreground/bold/italic/icon 与选中/错误/冲突/
-   bar/badge 冲突时谁赢；建议先定“错误/冲突 > 选中 > 条件格式 > 斑马纹”并写 ADR。
-4. **性能口径**：50 条规则 × 100 行 ≤16ms 是纯求值还是含 DOM 应用；bench 放 domain 还是
-   组件层。
+实测（2026-10-24）：
+
+```text
+pnpm verify         131 files / 1123 tests；depcruise 361 modules / 1390 deps / 0 violations
+pnpm test:coverage  lines 75.82% / statements 75.70% / branches 68.74% / functions 76.68%
+pnpm format:check   通过
+pnpm build          exit 0；renderer 1,446.60 kB + ImportSession 42.82 kB
+pnpm e2e            65 passed（style.spec 含条件规则 + 200% 缩放）；内存 565MB/600MB
+pnpm bench          exit 0；open 548ms、save 327ms、edit 0ms、query 224ms、
+                    text-sort 302ms、cjk-sort 581ms、import 913ms、
+                    condition.rules.50x100 P95 1ms/16ms；clone 309ms（诊断）
+```
+
+残留：
+
+- number/date 的 `contains` 匹配 epoch 字符串而非显示日期；如需显示文本匹配，另写 ADR。
+- 条件规则首条命中、不叠加；渲染层不做对比度自动校正。
+- 条件背景覆盖 bar；如产品希望“背景 + 条”并存，需要新视觉规则。
+- `style.update` 的 manifest 写入异步；撤销/重做后由保存队列落盘，与 T2.2 历史语义一致。
+- T3.4 必须用 `conditionCompareOps` 构建条件规则操作符列表，复用 `style.update`；不得在
+  组件里另写求值或写盘逻辑。
 
 **不要做**：不要提前实现 T3.4 的编辑器/T3.5 的模板 CRUD；不要改 `formatVersion`/manifest；
 不要在 `GridCell` 里硬编码条件颜色。
@@ -1001,10 +1075,10 @@ pnpm e2e
 pnpm bench
 ```
 
-**用户已于 2026-10-23 接受 M2**；TASKS M2 注记已更新为“获用户接受”，T3.1、T3.2 已按授权完成
-（见 §5D/§5E）。若未来用户要求修改 M2，再回到对应 T2.x 修复。
+**用户已于 2026-10-23 接受 M2**；TASKS M2 注记已更新为“获用户接受”，T3.1、T3.2、T3.3 已按授权完成
+（见 §5D/§5E/§5F）。若未来用户要求修改 M2，再回到对应 T2.x 修复。
 
-**M2 已关闭；T3.1/T3.2 已完成，下一步等待用户授权 T3.3。**
+**M2 已关闭；T3.1/T3.2/T3.3 已完成，下一步等待用户授权 T3.4。**
 
 ---
 
@@ -1034,6 +1108,11 @@ pnpm bench
 | 筛选对话框只支持单层 | 嵌套谓词只读 | ADR-032；如需嵌套 UI 另写 ADR |
 | 结构变更不可撤销 | 误操作需手工恢复 | 确认框 + 磁盘备份；T5.2 统一历史 |
 | 图表/样式悬空引用 | 图表错误占位；样式求值忽略 | 样式覆盖/规则列引用按 SPEC §6.6.7 保留；T3.2/T3.3 求值时忽略缺失列，T4.x 图表重映射 |
+| 条件规则 number/date `contains` | 匹配 epoch 字符串，不是显示日期 | 按 SPEC §10.4“字符串化”字面实现；需要显示文本匹配时另写 ADR |
+| 条件规则不叠加 | 多条规则只有首条生效 | SPEC §10.4；需要叠加时扩展 `ConditionalRule.style`/合并语义并写 ADR |
+| 条件背景覆盖 bar | 同时启用时 bar 不可见 | ADR-036 的优先级决定；需要并存时重定视觉规则 |
+| `style.update` manifest 异步 | 撤销后短暂未落盘 | 与 T2.2 相同的队列语义；关闭/退出前 flush |
+| 条件格式 16ms 仅纯求值 | DOM 应用不在门禁 | T3.4 预览按 SPEC §16.1 的 100ms 预算用组件/E2E 覆盖 |
 | `builtin.finance` 数字格式 | 模板令牌无法表达右对齐/千分位 | T3.2 用全局数字规则实现（ADR-035）：number/date 默认右对齐、Intl 千分位；未扩展模型 |
 | 所有模板数字带千分位、布尔本地化 | 与 T2.x 显示不同 | 用户确认的全局数字规则；显示层变化，不改磁盘数据；E2E 断言已同步 |
 | 视觉验收无像素基线 | 跨 DPI/字体可能视觉漂移 | 按 HANDOFF §3.6 用计算样式契约 + 截图证据；需要像素基线时先评估 Windows CI 稳定性 |
@@ -1044,8 +1123,8 @@ pnpm bench
 | 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 75.39% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；T3.2 报告记录实测 |
-| renderer bundle 约 1.43MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
+| 覆盖率 75.79% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；T3.3 报告记录实测 |
+| renderer bundle 约 1.45MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
 
 ---
 
@@ -1059,25 +1138,25 @@ pnpm bench
 - 不绕过命令总线直接改 store（撤销会坏）；不在组件里写业务逻辑。
 - 不加未经 ADR 的运行时依赖；不跳过测试、不放宽 ESLint/覆盖率规则、不用 `--no-verify`。
 - 不未经 ADR/用户确认升级 `formatVersion`、改数据格式、IPC 通道或公共 API。
-- 不在 T3.2 已完成后再顺手实现 T3.3 条件格式/T3.4 编辑器或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
-- 不自动跨任务/跨里程碑；T3.2 已完成并输出报告，等待用户授权 T3.3，不进入 T3.3 的实现。
+- 不在 T3.3 已完成后再顺手实现 T3.4 编辑器/T3.5 模板 CRUD 或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
+- 不自动跨任务/跨里程碑；T3.3 已完成并输出报告，等待用户授权 T3.4，不进入 T3.4 的实现。
 
 ---
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T3.2 提交（报告 `docs/reports/t3.2/REPORT.md`）。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T3.3 提交（报告 `docs/reports/t3.3/REPORT.md`）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 M3/T3.2/T3.3、`docs/reports/t3.2/REPORT.md`、
-      TESTPLAN §2/§3/§5、SPEC §6.4/§10/§16.1、ADR-035、ADR-034 与 ADR-033。
-- [ ] 已确认 `pnpm verify` 基线（128 files / 1037 tests）、coverage lines 75.39%、
-      e2e 65 passed、bench exit 0。
+- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 M3/T3.3/T3.4、`docs/reports/t3.3/REPORT.md`、
+      TESTPLAN §2/§3/§5、SPEC §10.4/§13.1/§13.2/§16.1、ADR-036、ADR-035 与 ADR-034。
+- [ ] 已确认 `pnpm verify` 基线（131 files / 1123 tests）、coverage lines 75.79%、
+      e2e 65 passed、bench exit 0、condition P95 1ms。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M2 已获用户接受、T3.1/T3.2 已完成；**等待用户授权 T3.3**，不要自行进入 T3.3。
+- [ ] 已确认 M2 已获用户接受、T3.1/T3.2/T3.3 已完成；**等待用户授权 T3.4**，不要自行进入 T3.4。
 - [ ] 已确认 T3.1 的 hex 颜色、内置模板冻结、resolve/fork 语义；T3.2 的 20 个表变量、宽度优先级、
-      全局数字规则与 bar/badge 语义；不绕过 `TableStyleProvider` 另起样式逻辑。
+      全局数字规则与 bar/badge 语义；T3.3 的条件原语、`conditionCompareOps`、优先级与 `style.update`。
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`，截图提交前还原。
-- [ ] 用户明确授权 T3.3 后，先按 AGENTS §8 复述再开工；未授权则停在 T3.2。
+- [ ] 用户明确授权 T3.4 后，先按 AGENTS §8 复述再开工；未授权则停在 T3.3。

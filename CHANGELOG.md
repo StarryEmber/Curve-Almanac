@@ -346,3 +346,15 @@
 - T3.2：新增 `apps/desktop/e2e/style.spec.ts`（4 个内置模板 + 1 个持久化用户样式；计算样式/
   格式化/宽度/bar 断言 + 截图证据）；`e2e/edit.spec.ts` 布尔断言更新；新增 ADR-035、SPEC §10.2、
   TASKS T3.2、HANDOFF 与 `docs/reports/t3.2/REPORT.md`。
+- T3.3：`@curve/domain` 新增 `predicate.ts`（12 种比较的共享语义、`conditionCompareOps`、
+  `prepareComparison`/`matchesPreparedComparison`）与 `condition.ts`（`createConditionalFormat`/
+  `evaluateRules`，行/单元格目标、首条命中、缺失列忽略）；`@curve/table-engine` 复用同一原语，
+  过滤器行为不变。
+- T3.3：`@curve/app-core` 新增 `style.update`（仅 `sty_` 用户样式、manifest-only、规则 id 唯一）、
+  `WorkspaceActions.updateTableStyle`、`SaveQueue.enqueueManifest` 与 workspace 作用域历史；
+  undo/redo 只写 manifest，不标记脏表。
+- T3.3：`@curve/ui` 新增 `conditionalCellStyle`；`GridCell` 应用条件背景/前景/粗体/斜体/icon，
+  优先级为错误/冲突/选中 > 条件规则 > bar/斑马纹；条件背景覆盖 bar，行 icon 只在首个可见列。
+- T3.3：`e2e/style.spec.ts` 增加条件规则视图（行/单元格目标、首条命中、禁用/缺失列、选中优先级、
+  200% 缩放键盘冒烟）；`scripts/bench.ts` 增加 `condition.rules.50x100`（16ms 硬门禁）；新增
+  ADR-036、SPEC §10.4/§13.1/§13.2/§16.1、TASKS T3.3 与 `docs/reports/t3.3/REPORT.md`。

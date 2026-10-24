@@ -14,11 +14,22 @@
  * - enum sorting uses the option label, enum filtering compares the option value.
  */
 
-import { createAppError, MAX_FILTER_CHILDREN, MAX_SORT_LEVELS, parseCell } from '@curve/domain';
+import {
+  DEFAULT_COMPARE_LOCALE,
+  MAX_FILTER_CHILDREN,
+  MAX_SORT_LEVELS,
+  allowedCompareOps,
+  compareOpNeedsSecondValue,
+  compareOpNeedsValue,
+  createAppError,
+  matchesPreparedComparison,
+  parseCell,
+  prepareComparison,
+} from '@curve/domain';
 import type {
+  PreparedComparison,
   Cell,
   ColumnDef,
-  CompareOp,
   FilterPredicate,
   Row,
   SortSpec,
@@ -27,7 +38,9 @@ import type {
 } from '@curve/domain';
 
 /** Locale used when a caller does not pass the workspace/UI locale. */
-export const DEFAULT_QUERY_LOCALE = 'en-US';
+export const DEFAULT_QUERY_LOCALE = DEFAULT_COMPARE_LOCALE;
+
+export { allowedCompareOps, compareOpNeedsSecondValue, compareOpNeedsValue };
 
 /** Above this many rows the renderer runs the query in a dedicated Worker. */
 export const QUERY_WORKER_ROW_THRESHOLD = 20_000;
@@ -75,54 +88,8 @@ export interface PreparedCompare {
   column: ColumnDef;
   /** Locale-normalized text value for eq/neq/contains/startsWith/endsWith. */
   needle: string | null;
-}
-
-const TEXT_OPERATORS: readonly CompareOp[] = Object.freeze([
-  'eq',
-  'neq',
-  'contains',
-  'startsWith',
-  'endsWith',
-  'isNull',
-  'notNull',
-]);
-
-const RANGE_OPERATORS: readonly CompareOp[] = Object.freeze([
-  'eq',
-  'neq',
-  'gt',
-  'gte',
-  'lt',
-  'lte',
-  'between',
-  'isNull',
-  'notNull',
-]);
-
-const EQUALITY_OPERATORS: readonly CompareOp[] = Object.freeze(['eq', 'neq', 'isNull', 'notNull']);
-
-/** Operators offered for a column type (the UI consumes this list). */
-export function allowedCompareOps(column: ColumnDef): readonly CompareOp[] {
-  switch (column.type) {
-    case 'text':
-      return TEXT_OPERATORS;
-    case 'number':
-    case 'date':
-      return RANGE_OPERATORS;
-    case 'boolean':
-    case 'enum':
-      return EQUALITY_OPERATORS;
-  }
-}
-
-/** `isNull`/`notNull` do not take a value; every other operator needs one. */
-export function compareOpNeedsValue(op: CompareOp): boolean {
-  return op !== 'isNull' && op !== 'notNull';
-}
-
-/** `between` needs a second value. */
-export function compareOpNeedsSecondValue(op: CompareOp): boolean {
-  return op === 'between';
+  /** Shared domain comparison prepared once per predicate (T3.3). */
+  comparison: PreparedComparison;
 }
 
 export function createQueryContext(table: TableMeta, options: QueryOptions = {}): QueryContext {
@@ -163,10 +130,6 @@ function collatorFor(context: QueryContext, columnId: string, numeric: boolean):
 
 function isNullish(cell: Cell | undefined, column: ColumnDef): boolean {
   return cell === null || cell === undefined || (column.type === 'text' && cell === '');
-}
-
-function normalizeText(value: string, locale: string): string {
-  return value.toLocaleLowerCase(locale);
 }
 
 function textOf(cell: Cell | undefined): string {
@@ -317,50 +280,6 @@ export function validateSortSpecs(table: TableMeta, sort: readonly SortSpec[]): 
   return issues;
 }
 
-function equalsCell(cell: Cell, value: Cell, column: ColumnDef, locale: string): boolean {
-  switch (column.type) {
-    case 'text':
-      return normalizeText(textOf(cell), locale) === normalizeText(textOf(value), locale);
-    case 'number':
-    case 'date':
-      return typeof cell === 'number' && typeof value === 'number' && cell === value;
-    case 'boolean':
-      return typeof cell === 'boolean' && typeof value === 'boolean' && cell === value;
-    case 'enum':
-      return typeof cell === 'string' && typeof value === 'string' && cell === value;
-  }
-}
-
-function equalsNormalizedText(cell: Cell, needle: string, locale: string): boolean {
-  return normalizeText(textOf(cell), locale) === needle;
-}
-
-function compareNumericCell(cell: Cell, value: Cell): number | null {
-  const left = numericOf(cell);
-  const right = numericOf(value);
-  if (left === null || right === null) {
-    return null;
-  }
-  return left - right;
-}
-
-function compareTextOp(
-  cell: Cell,
-  needle: string,
-  op: 'contains' | 'startsWith' | 'endsWith',
-  locale: string,
-): boolean {
-  const haystack = normalizeText(textOf(cell), locale);
-  switch (op) {
-    case 'contains':
-      return haystack.includes(needle);
-    case 'startsWith':
-      return haystack.startsWith(needle);
-    case 'endsWith':
-      return haystack.endsWith(needle);
-  }
-}
-
 function prepareCompare(
   context: QueryContext,
   predicate: Extract<FilterPredicate, { kind: 'compare' }>,
@@ -377,12 +296,16 @@ function prepareCompare(
   if (column === undefined) {
     return null;
   }
-  const value = predicate.value;
-  const needle =
-    column.type === 'text' && value !== undefined
-      ? normalizeText(textOf(value), context.locale)
-      : null;
-  const prepared: PreparedCompare = { index, column, needle };
+  const comparison = prepareComparison(column, predicate, {
+    locale: context.locale,
+    mode: 'filter',
+  });
+  const prepared: PreparedCompare = {
+    index,
+    column,
+    needle: comparison.needle,
+    comparison,
+  };
   context.compareCache.set(predicate, prepared);
   return prepared;
 }
@@ -396,72 +319,7 @@ function matchesCompare(
   if (prepared === null) {
     return false;
   }
-  const { column } = prepared;
-  const cell = row.values[prepared.index] ?? null;
-
-  if (predicate.op === 'isNull') {
-    return isNullish(cell, column);
-  }
-  if (predicate.op === 'notNull') {
-    return !isNullish(cell, column);
-  }
-  if (isNullish(cell, column)) {
-    return false;
-  }
-
-  const value = predicate.value;
-  if (value === undefined) {
-    return false;
-  }
-  const needle = prepared.needle ?? normalizeText(textOf(value), context.locale);
-
-  switch (predicate.op) {
-    case 'eq':
-      return column.type === 'text'
-        ? equalsNormalizedText(cell, needle, context.locale)
-        : equalsCell(cell, value, column, context.locale);
-    case 'neq':
-      return column.type === 'text'
-        ? !equalsNormalizedText(cell, needle, context.locale)
-        : !equalsCell(cell, value, column, context.locale);
-    case 'contains':
-    case 'startsWith':
-    case 'endsWith':
-      return column.type === 'text'
-        ? compareTextOp(cell, needle, predicate.op, context.locale)
-        : false;
-    case 'gt': {
-      const compared = compareNumericCell(cell, value);
-      return compared !== null && compared > 0;
-    }
-    case 'gte': {
-      const compared = compareNumericCell(cell, value);
-      return compared !== null && compared >= 0;
-    }
-    case 'lt': {
-      const compared = compareNumericCell(cell, value);
-      return compared !== null && compared < 0;
-    }
-    case 'lte': {
-      const compared = compareNumericCell(cell, value);
-      return compared !== null && compared <= 0;
-    }
-    case 'between': {
-      const second = predicate.value2;
-      if (second === undefined) {
-        return false;
-      }
-      const first = numericOf(value);
-      const last = numericOf(second);
-      const current = numericOf(cell);
-      if (first === null || last === null || current === null) {
-        return false;
-      }
-      const lower = Math.min(first, last);
-      const upper = Math.max(first, last);
-      return current >= lower && current <= upper;
-    }
-  }
+  return matchesPreparedComparison(row.values[prepared.index] ?? null, prepared.comparison);
 }
 
 /** Evaluates a predicate for one row; never throws for a valid shape. */

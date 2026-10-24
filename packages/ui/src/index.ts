@@ -25,6 +25,7 @@ export {
   barRatioForValue,
   columnDisplayLabel,
   computeBarRanges,
+  conditionalCellStyle,
   enumBadgeTone,
   formatStyledCellValue,
   presentStyledCell,
@@ -36,6 +37,9 @@ export type {
   BarRange,
   CellAlign,
   CellRenderMode,
+  ConditionalCellStyle,
+  ConditionalCellStyleOptions,
+  ConditionalIcon,
   StyledCellOptions,
   StyledCellPresentation,
 } from './table-style-format';

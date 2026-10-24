@@ -12,6 +12,7 @@ import {
 import { createImportCommand } from './commands/import';
 import { createPasteCommand } from './commands/paste';
 import { createRowInsertCommand } from './commands/rows';
+import { createStyleUpdateCommand } from './commands/styles';
 import { createTableCellSetCommand } from './commands/table-cell-set';
 import {
   createTableCreateCommand,
@@ -79,6 +80,9 @@ const ROW_SAVING_COMMANDS = new Set([
   'table.rows.insert',
 ]);
 
+/** Manifest-only document commands (no table JSONL to write). */
+const MANIFEST_SAVING_COMMANDS = new Set(['style.update']);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -119,6 +123,9 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
       store.getState().actions.markDirty(tableId);
       saveQueue.enqueue(tableId);
     },
+    onWorkspaceChanged: () => {
+      saveQueue.enqueueManifest();
+    },
   });
   const commands = createCommandBus(store, {
     logger,
@@ -127,6 +134,8 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
       const tableId = changedTableId(result);
       if (tableId !== null) {
         saveQueue.enqueue(tableId);
+      } else if (result.patches.length > 0 && MANIFEST_SAVING_COMMANDS.has(result.name)) {
+        saveQueue.enqueueManifest();
       }
     },
   });
@@ -139,6 +148,7 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
   commands.register(createPasteCommand(commandOptions));
   commands.register(createImportCommand(commandOptions));
   commands.register(createRowInsertCommand(commandOptions));
+  commands.register(createStyleUpdateCommand(commandOptions));
   commands.register(createColumnAddCommand({ now }));
   commands.register(createColumnUpdateCommand({ now }));
   commands.register(createColumnDeleteCommand({ now }));

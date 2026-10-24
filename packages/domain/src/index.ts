@@ -6,10 +6,12 @@
 export const PACKAGE_NAME = '@curve/domain' as const;
 
 export * from './column-ops';
+export * from './condition';
 export * from './errors';
 export * from './invariants';
 export * from './limits';
 export * from './migrations';
+export * from './predicate';
 export * from './schemas';
 export * from './coerce';
 export * from './factories';

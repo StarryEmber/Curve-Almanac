@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { createTableStyle } from '@curve/domain';
 import type { Row, TableMeta } from '@curve/domain';
 
 import { createCommandBus } from '../commands/bus';
 import { createPasteCommand } from '../commands/paste';
+import { createStyleUpdateCommand } from '../commands/styles';
 import { createTableCellSetCommand } from '../commands/table-cell-set';
 import { createEditHistory } from '../history/edit-history';
 import { createAppStore } from '../state/store';
@@ -248,5 +250,45 @@ describe('edit history', () => {
     expect(history.canRedo()).toBe(false);
     expect(history.undo()).toBe(false);
     expect(history.redo()).toBe(false);
+  });
+});
+
+describe('workspace-scoped history', () => {
+  it('records style.update and restores it through undo/redo', () => {
+    const style = createTableStyle({ id: 'sty_test', name: 'Original' });
+    const store = createAppStore({
+      initialState: { workspace: WORKSPACE, tableStyles: { sty_test: style } },
+    });
+    const onChanged = vi.fn();
+    const onWorkspaceChanged = vi.fn();
+    const history = createEditHistory({
+      store,
+      now: () => 1_000,
+      onChanged,
+      onWorkspaceChanged,
+    });
+    const bus = createCommandBus(store, {
+      logger,
+      onCommand: (result) => {
+        history.record(result);
+      },
+    });
+    bus.register(createStyleUpdateCommand({ now: () => new Date('2026-01-01T12:00:00.000Z') }));
+
+    const dispatched = bus.dispatch('style.update', {
+      style: { ...style, name: 'Updated' },
+    });
+    expect(dispatched.ok).toBe(true);
+    expect(history.size()).toBe(1);
+    expect(store.getState().tableStyles['sty_test']?.name).toBe('Updated');
+
+    expect(history.undo()).toBe(true);
+    expect(store.getState().tableStyles['sty_test']?.name).toBe('Original');
+    expect(onWorkspaceChanged).toHaveBeenCalledTimes(1);
+    expect(onChanged).not.toHaveBeenCalled();
+
+    expect(history.redo()).toBe(true);
+    expect(store.getState().tableStyles['sty_test']?.name).toBe('Updated');
+    expect(onWorkspaceChanged).toHaveBeenCalledTimes(2);
   });
 });

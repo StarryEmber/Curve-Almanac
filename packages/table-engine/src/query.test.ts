@@ -253,6 +253,11 @@ describe('filter operators', () => {
     ]);
   });
 
+  it('keeps number/date contains out of the filter operator whitelist', () => {
+    expect([...allowedCompareOps(table.columns[2] as ColumnDef)]).not.toContain('contains');
+    expect(ids(applyFilter(rows, table, compare('col_n', 'contains', '2')))).toEqual([]);
+  });
+
   it('treats null and empty text as null and never matches value operators', () => {
     expect(ids(applyFilter(rows, table, compare('col_site', 'isNull')))).toEqual(['row_6']);
     expect(ids(applyFilter(rows, table, compare('col_site', 'notNull')))).toEqual([

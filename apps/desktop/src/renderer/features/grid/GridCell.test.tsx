@@ -93,4 +93,68 @@ describe('GridCell', () => {
     expect(onActivate).toHaveBeenCalledWith(0, 1, false);
     expect(onBeginEdit).toHaveBeenCalledWith(0, 1);
   });
+
+  it('applies a matched conditional rule and its icon', () => {
+    render(
+      <GridCell
+        {...props({
+          conditional: {
+            ruleId: 'rule_hot',
+            label: 'Hot',
+            background: '#fde2e2',
+            foreground: '#a40000',
+            bold: true,
+            italic: true,
+            icon: 'warning',
+          },
+          conditionalIconLabel: 'Warning',
+        })}
+      />,
+    );
+
+    const cell = screen.getByRole('gridcell');
+    expect(cell.getAttribute('data-conditional-rule')).toBe('rule_hot');
+    expect(cell.style.backgroundColor).toBe('rgb(253, 226, 226)');
+    expect(cell.style.color).toBe('rgb(164, 0, 0)');
+    expect(cell.style.fontWeight).toBe('600');
+    expect(cell.style.fontStyle).toBe('italic');
+    expect(cell.getAttribute('title')).toBe('Hot');
+    const icon = cell.querySelector('.cs-grid__rule-icon');
+    expect(icon?.getAttribute('aria-label')).toBe('Warning');
+    expect(icon?.getAttribute('data-icon')).toBe('warning');
+  });
+
+  it('lets selection and errors win over conditional formatting', () => {
+    const conditional = {
+      ruleId: 'rule_hot',
+      background: '#fde2e2',
+      foreground: '#a40000',
+      bold: true,
+    };
+    const { rerender } = render(<GridCell {...props({ conditional, selected: true })} />);
+    let cell = screen.getByRole('gridcell');
+    expect(cell.getAttribute('data-conditional-rule')).toBeNull();
+    expect(cell.style.backgroundColor).toBe('');
+
+    rerender(<GridCell {...props({ conditional, errorText: 'Invalid value' })} />);
+    cell = screen.getByRole('gridcell');
+    expect(cell.getAttribute('data-conditional-rule')).toBeNull();
+    expect(cell.style.backgroundColor).toBe('');
+  });
+
+  it('does not draw a bar under a conditional background', () => {
+    render(
+      <GridCell
+        {...props({
+          render: 'bar',
+          barRatio: 0.5,
+          conditional: { ruleId: 'rule_hot', background: '#fde2e2' },
+        })}
+      />,
+    );
+
+    const cell = screen.getByRole('gridcell');
+    expect(cell.querySelector('.cs-grid__bar')).toBeNull();
+    expect(cell.textContent).toBe('42');
+  });
 });

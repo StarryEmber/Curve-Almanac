@@ -944,6 +944,21 @@ interface ImportResult {
 }
 ```
 
+**实现边界（T3.3，ADR-036）**：
+
+- 求值器在 `@curve/domain` 的 `condition.ts`：`createConditionalFormat` 一次准备列索引/谓词/比较
+  值，渲染循环只对可见行调用 `evaluateRow`；`evaluateRules` 是单次调用的便捷入口。12 种比较的
+  语义原语在 `predicate.ts`，`@curve/table-engine` 复用同一实现，不复制第二套求值逻辑。
+- number/date 的 `contains` 只在条件模式启用（`String(value)` 后按 locale 不区分大小写）；过滤器
+  的操作符白名单不变，仍不提供 number/date `contains`。
+- 缺失列的谓词分支被忽略；分支全部缺失的规则永不命中；单元格目标列缺失时该规则不适用。
+- 空值、类型不匹配、无效操作符返回 `false`，不抛异常；`isNull` 匹配 `null` 与 text `""`。
+- 渲染优先级：错误/冲突/粘贴错误 > 选中 > 条件规则（首条） > bar > 斑马纹/基础。条件背景覆盖
+  bar；行目标规则的 icon 只画在首个可见列，单元格目标只画在目标列。条件样式只影响显示，不改变
+  manifest/JSONL 字节。
+- 50 条规则 × 100 行的**纯求值**预算 ≤16ms，由 `pnpm bench` 的 `condition.rules.50x100` 硬门禁；
+  DOM 应用不计入该 16ms。
+
 ### 10.5 模板管理
 
 - 操作：应用、另存为、重命名、复制、删除、设为默认、导入、导出。
@@ -1125,6 +1140,10 @@ export interface RenderModel {
   列唯一、隐藏列属于 `columnOrder`；`table.paste` 增加可选 `rowIds/viewId` 并在命令内复核
   可见行/筛选未过期（§9.3）。`WorkspaceActions.duplicateView` 复用 `view.create`；视图状态
   变更只写 manifest，不进入撤销历史。
+- **实现边界（T3.3，ADR-036）**：新增 `style.update { style }`，只接受 `sty_` 用户样式；
+  `tableStyleSchema` 校验失败、`builtin.*`、不存在的样式或重复规则 id 都以 `E_VALIDATION`
+  拒绝。命令只替换 `state.tableStyles[id]` 并更新 workspace `updatedAt`，不写表 JSONL；保存走
+  新增的 manifest-only 队列。
 
 ### 13.2 撤销/重做
 
@@ -1145,6 +1164,9 @@ export interface RenderModel {
   T5.2 统一评估，T2.5 不另起历史栈。
 - **实现边界（T2.6，ADR-032）**：筛选/排序/隐藏列/列宽/冻结等视图状态变更不进入最小历史，
   只写 manifest；T5.2 统一全命令历史时再决定是否记录 `view.update` 及合并粒度。
+- **实现边界（T3.3，ADR-036）**：`style.update` 进入最小历史，历史条目为 workspace 作用域
+  （`tableId: null`）；undo/redo 通过 `onWorkspaceChanged` 调用 `enqueueManifest`，只写
+  manifest、不标记脏表，一次规则提交一条记录。
 
 ### 13.3 自动保存
 
@@ -1470,6 +1492,7 @@ T2.5 实现边界（ADR-031）：`file.importText` 返回原始 `Uint8Array` 与
 | 图表渲染 2k 点 | ≤ 200ms | 手工/Playwright |
 | 自动保存 100k | ≤ 500ms，且不阻塞 UI | main 写盘打点 |
 | 样式预览更新 | ≤ 100ms | 组件测试 |
+| 条件格式求值 50 规则 × 100 行 | ≤ 16ms | `pnpm bench` 的 `condition.rules.50x100`（纯求值，不含 DOM） |
 | 导入 100k CSV | ≤ 8s | E2E 计时 |
 | 粘贴 10k 单元格 | ≤ 1s（P95，软预算） | 单元基准/报告；T2.7 硬化 |
 | 内存峰值 | ≤ 600MB | `app.getAppMetrics()` 汇总 main + renderer + utility/worker 的 `privateBytes`（不含 GPU） |
@@ -1497,6 +1520,13 @@ CI 的 `bench` 作业对绝对预算硬失败、对 >20% 回归软告警；基�
 （main + renderer + utility/worker，不含 GPU）判定，实测峰值 **570MB**；`workingSetSize`
 会重复计算共享页，只作为诊断记录（711MB）。冷启动（≤2.5s，实测 997ms）与 100k 首帧
 （≤3s，`performance.measure('curve:open')` 实测 665ms）也在该 spec 中断言。
+
+T3.3 实测（2026-10-24，本机；ADR-036）：`pnpm bench` 全部门禁通过 ——
+`table.open.100k` **548ms**、`table.save.100k` **327ms**、`edit.commit.100k` **0ms**、
+`query.100k` **224ms**、`query.text-sort.100k` **302ms**、`query.cjk-sort.100k` **581ms**、
+`import.100k` **913ms**；新增 `condition.rules.50x100` P50 **1ms** / P95 **1ms**（预算 16ms，
+纯求值）。全量 E2E **65 passed**（`style.spec.ts` 含条件规则视图与 200% 缩放冒烟）；整应用
+private 内存峰值 **565MB**/600MB。
 
 ### 16.2 安全
 

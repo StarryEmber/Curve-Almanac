@@ -882,6 +882,25 @@ body {
   text-overflow: ellipsis;
 }
 
+.cs-grid__rule-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  margin-right: 4px;
+  font-size: 0.85em;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.cs-grid__rule-icon[data-icon='warning'] {
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
 .cs-grid__bar {
   position: absolute;
   top: 0;

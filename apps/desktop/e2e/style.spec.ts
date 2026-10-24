@@ -116,12 +116,63 @@ async function seedStyleWorkspace(page: Page, testInfo: TestInfo): Promise<void>
         },
         conditionalRules: [],
       };
+      const rulesStyle: WorkspaceManifest['tableStyles'][number] = {
+        ...barStyle,
+        id: 'sty_rules',
+        name: 'Rules',
+        columnOverrides: {},
+        conditionalRules: [
+          {
+            id: 'rule_hot',
+            enabled: true,
+            label: 'Hot',
+            target: { kind: 'row' },
+            when: { kind: 'compare', columnId: 'col_style_value', op: 'gt', value: 1_000_000 },
+            style: {
+              background: '#fde2e2',
+              foreground: '#a40000',
+              bold: true,
+              icon: 'warning',
+            },
+          },
+          {
+            id: 'rule_score',
+            enabled: true,
+            label: 'High score',
+            target: { kind: 'cell', columnId: 'col_style_score' },
+            when: { kind: 'compare', columnId: 'col_style_score', op: 'gte', value: 50 },
+            style: { background: '#dcfce7', italic: true, icon: 'up' },
+          },
+          {
+            id: 'rule_fallback',
+            enabled: true,
+            target: { kind: 'row' },
+            when: { kind: 'compare', columnId: 'col_style_value', op: 'gte', value: 0 },
+            style: { background: '#fef9c3' },
+          },
+          {
+            id: 'rule_disabled',
+            enabled: false,
+            target: { kind: 'row' },
+            when: { kind: 'compare', columnId: 'col_style_value', op: 'lt', value: 0 },
+            style: { background: '#ffff00' },
+          },
+          {
+            id: 'rule_missing',
+            enabled: true,
+            target: { kind: 'row' },
+            when: { kind: 'compare', columnId: 'col_style_missing', op: 'eq', value: 'x' },
+            style: { background: '#ff00ff' },
+          },
+        ],
+      };
       const styleIds = [
         ['viw_style_report', 'Report', 'builtin.report-light'],
         ['viw_style_compact', 'Compact', 'builtin.compact-light'],
         ['viw_style_dark', 'Dark', 'builtin.dark'],
         ['viw_style_finance', 'Finance', 'builtin.finance'],
         ['viw_style_bars', 'Bars', 'sty_bars'],
+        ['viw_style_rules', 'Rules', 'sty_rules'],
       ] as const;
       const views: WorkspaceManifest['views'] = styleIds.map(([viewId, title, styleId]) => ({
         id: viewId,
@@ -136,7 +187,9 @@ async function seedStyleWorkspace(page: Page, testInfo: TestInfo): Promise<void>
           hiddenColumnIds:
             viewId === 'viw_style_bars'
               ? ['col_style_name', 'col_style_day', 'col_style_flag']
-              : [],
+              : viewId === 'viw_style_rules'
+                ? ['col_style_name', 'col_style_day', 'col_style_flag']
+                : [],
           sort: [],
           frozenColumnCount: 1,
         },
@@ -163,7 +216,7 @@ async function seedStyleWorkspace(page: Page, testInfo: TestInfo): Promise<void>
           },
         ],
         views,
-        tableStyles: [barStyle],
+        tableStyles: [barStyle, rulesStyle],
         layout,
       };
       const written = await api.manifest.write({ workspaceId: manifest.id, manifest: next });
@@ -218,6 +271,7 @@ interface ComputedStyle {
   color: string;
   fontSize: string;
   fontWeight: string;
+  fontStyle: string;
   justifyContent: string;
   fontFamily: string;
   height: number;
@@ -236,6 +290,7 @@ async function computedStyleOf(page: Page, selector: string): Promise<ComputedSt
         color: style.color,
         fontSize: style.fontSize,
         fontWeight: style.fontWeight,
+        fontStyle: style.fontStyle,
         justifyContent: style.justifyContent,
         fontFamily: style.fontFamily,
         height: element.getBoundingClientRect().height,
@@ -266,6 +321,7 @@ async function selectView(page: Page, title: string, styleId: string): Promise<v
 test.describe('T3.2 table style rendering', () => {
   test('renders the four builtin templates with the style token contract', async ({
     page,
+    electronApp,
   }, testInfo) => {
     await seedStyleWorkspace(page, testInfo);
     await openSeededWorkspace(page);
@@ -340,6 +396,54 @@ test.describe('T3.2 table style rendering', () => {
     expect(barRatios[0]).toBeCloseTo(0, 1);
     expect(barRatios[5]).toBeCloseTo(1, 1);
     await capture(page, testInfo, 't3.2-bars');
+
+    // T3.3 — conditional rules: first match, row/cell targets, disabled and
+    // missing columns, and decoration precedence.
+    await selectView(page, 'Rules', 'sty_rules');
+    const hotCell = page.getByTestId('grid-cell-2-0');
+    await expect(hotCell).toHaveAttribute('data-conditional-rule', 'rule_hot');
+    const hotStyle = await computedStyle(page, 'grid-cell-2-0');
+    expect(hotStyle.backgroundColor).toBe('rgb(253, 226, 226)');
+    expect(hotStyle.color).toBe('rgb(164, 0, 0)');
+    expect(hotStyle.fontWeight).toBe('600');
+    await expect(hotCell.locator('.cs-grid__rule-icon')).toHaveAttribute('data-icon', 'warning');
+    await expect(page.getByTestId('grid-cell-2-1').locator('.cs-grid__rule-icon')).toHaveCount(0);
+
+    const fallbackStyle = await computedStyle(page, 'grid-cell-0-1');
+    expect(fallbackStyle.backgroundColor).toBe('rgb(254, 249, 195)');
+    await expect(page.getByTestId('grid-cell-1-0')).not.toHaveAttribute('data-conditional-rule');
+
+    const scoreCell = page.getByTestId('grid-cell-4-3');
+    await expect(scoreCell).toHaveAttribute('data-conditional-rule', 'rule_score');
+    const scoreStyle = await computedStyle(page, 'grid-cell-4-3');
+    expect(scoreStyle.backgroundColor).toBe('rgb(220, 252, 231)');
+    expect(scoreStyle.fontStyle).toBe('italic');
+    await expect(scoreCell.locator('.cs-grid__rule-icon')).toHaveAttribute('data-icon', 'up');
+    await capture(page, testInfo, 't3.3-rules');
+
+    // Selection wins over the rule background and removes the rule marker.
+    await hotCell.click();
+    await expect(hotCell).not.toHaveAttribute('data-conditional-rule');
+    const selectedStyle = await computedStyle(page, 'grid-cell-2-0');
+    expect(selectedStyle.backgroundColor).toBe('rgb(29, 78, 216)');
+
+    // 200% zoom keeps the decorated grid visible (keyboard navigation itself is
+    // covered by grid.spec.ts; this feature adds no new interactive control).
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      const [window] = BrowserWindow.getAllWindows();
+      window?.webContents.setZoomFactor(2);
+    });
+    await page.waitForFunction(() => window.innerWidth < 800);
+    await expect(page.getByTestId('data-grid')).toBeVisible();
+    await expect(page.getByTestId('grid-cell-0-1')).toBeVisible();
+    const zoomedFallback = await computedStyle(page, 'grid-cell-0-1');
+    expect(zoomedFallback.backgroundColor).toBe('rgb(254, 249, 195)');
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      const [window] = BrowserWindow.getAllWindows();
+      window?.webContents.setZoomFactor(1);
+    });
+    await page.waitForFunction(() => window.innerWidth >= 800);
 
     // Returning to the builtin view proves the override did not touch the schema
     // or the other views.

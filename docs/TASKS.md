@@ -896,7 +896,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t33"></a>
 ### T3.3 条件格式引擎
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T3.1、T1.1
 - 覆盖：FR-STY-04
 - 参考：SPEC §10.4
@@ -909,11 +909,32 @@ T0.2 + T5.5 → T6.4
   2. 按数组顺序短路；禁用规则跳过。
   3. 只对可见行求值；缓存列索引。
 - 验收：
-  - [ ] 所有操作符正反例；`between` 含边界。
-  - [ ] 首条命中；50 条规则 × 100 行 ≤ 16ms。
-  - [ ] 空值/类型不匹配不抛异常。
-  - [ ] 规则编辑可撤销。
-- 验证：`pnpm exec vitest run packages/domain -- --grep "condition"`
+  - [x] 所有操作符正反例；`between` 含边界。
+  - [x] 首条命中；50 条规则 × 100 行 ≤ 16ms。
+  - [x] 空值/类型不匹配不抛异常。
+  - [x] 规则编辑可撤销。
+- 验证：`pnpm exec vitest run packages/domain`（Vitest 5 不支持 `--grep`；目录全跑）+
+  `pnpm bench -- --query`。
+- 实现备注（2026-10-24，ADR-036）：
+  - 决策：比较语义原语下沉 `packages/domain/src/predicate.ts`，table-engine 的
+    `QueryContext`/缓存/排序保留并复用；`condition.ts` 的 `createConditionalFormat` 一次准备、
+    逐可见行求值，`evaluateRules` 为一次性入口。number/date 的 `contains` 只在条件模式启用；
+    过滤器白名单不变。缺失列分支忽略、全缺失规则不命中；空值/类型不匹配返回 false。
+    渲染优先级“错误/冲突/粘贴错误 > 选中 > 条件规则 > bar > 斑马纹”；条件背景覆盖 bar，
+    行 icon 只画首个可见列。新增 `style.update`（manifest-only、workspace 作用域历史）与
+    `SaveQueue.enqueueManifest`。
+  - 文件：`packages/domain/src/{predicate,condition}.ts` 与测试；`packages/table-engine/src/query.ts`；
+    `packages/app-core/src/commands/styles.ts`、`app-core.ts`、`history/edit-history.ts`、
+    `usecases/{save-queue,workspace-actions}.ts`；`packages/ui/src/table-style-format.ts`；
+    `apps/desktop/src/renderer/features/grid/{DataGrid,GridCell}.tsx`、`styles.css`、i18n；
+    `apps/desktop/e2e/style.spec.ts`；`scripts/bench.ts`；ADR-036。
+  - 实测：`pnpm verify` **131 files / 1123 tests**；coverage lines **75.82%** / statements
+    75.70% / branches 68.74% / functions 76.68%；`pnpm lint` 通过（depcruise 361 modules / 1390
+    deps / 0 violations）；`pnpm typecheck` 通过；`pnpm build` exit 0（renderer 1,446.60 kB）；
+    `pnpm e2e` **65 passed**；`pnpm bench` exit 0，`condition.rules.50x100` P50/P95 **1ms**/16ms。
+  - 残留：number/date `contains` 匹配 epoch 字符串而非显示日期；条件规则不叠加；渲染层不做
+    对比度自动校正；`style.update` 的 manifest 写入异步，撤销后由保存队列落盘；T3.4 必须用
+    `conditionCompareOps` 构建操作符列表并复用 `style.update`。
 
 <a id="t34"></a>
 ### T3.4 样式编辑器与实时预览

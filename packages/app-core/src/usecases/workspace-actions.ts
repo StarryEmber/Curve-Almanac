@@ -14,6 +14,7 @@ import type {
   ColumnDef,
   LayoutNode,
   Row,
+  TableStyle,
   UuidFactory,
 } from '@curve/domain';
 import type { WorkspaceStore } from '@curve/persistence';
@@ -58,7 +59,13 @@ export { stateToManifest } from '../state/manifest';
 
 export type ActionOutcome<T = undefined> =
   | { readonly ok: true; readonly data: T }
-  | { readonly ok: false; readonly error: AppError; readonly issue?: CellIssue };
+  | {
+      readonly ok: false;
+      readonly error: AppError;
+      readonly issue?: CellIssue;
+      /** True when the document changed but the follow-up save failed. */
+      readonly committed?: boolean;
+    };
 
 /**
  * Outcome of a structural column action (T2.3).
@@ -236,6 +243,8 @@ export interface WorkspaceActions {
   activateView(viewId: string): Promise<ActionOutcome>;
   closeView(viewId: string): Promise<ActionOutcome>;
   updateView(viewId: string, patch: ViewPatch): Promise<ActionOutcome>;
+  /** Replaces one persisted user style; manifest-only and undoable (T3.3). */
+  updateTableStyle(style: TableStyle): Promise<ActionOutcome>;
   /** Copies the current table view (filter/sort/widths/frozen) into a new tab. */
   duplicateView(viewId: string): Promise<ActionOutcome<{ viewId: string }>>;
   updateCell(
@@ -447,6 +456,17 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
       return fail(dispatched.error);
     }
     return saveManifest();
+  }
+
+  async function updateTableStyle(style: TableStyle): Promise<ActionOutcome> {
+    const dispatched = commands.dispatch('style.update', { style });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    const flushed = await saveQueue.flush();
+    return flushed.ok
+      ? { ok: true, data: undefined }
+      : { ok: false, error: flushed.error, committed: true };
   }
 
   async function duplicateView(viewId: string): Promise<ActionOutcome<{ viewId: string }>> {
@@ -1131,6 +1151,7 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     activateView,
     closeView,
     updateView,
+    updateTableStyle,
     duplicateView,
     updateCell,
     preparePaste,

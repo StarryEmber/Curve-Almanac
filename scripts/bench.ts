@@ -36,7 +36,8 @@ import { fileURLToPath } from 'node:url';
 import iconv from 'iconv-lite';
 
 import { createAppStore, createCommandBus, createTableCellSetCommand } from '@curve/app-core';
-import type { FilterPredicate, Row, SortSpec, TableMeta } from '@curve/domain';
+import { createConditionalFormat } from '@curve/domain';
+import type { ConditionalRule, FilterPredicate, Row, SortSpec, TableMeta } from '@curve/domain';
 import { validateManifest, serializeManifest } from '@curve/persistence';
 import {
   countJsonlRows,
@@ -85,6 +86,8 @@ const QUERY_BUDGET_MS = 400;
 const CJK_QUERY_BUDGET_MS = 800;
 /** SPEC §16.1: a 100k CSV import stays under 8s. */
 const IMPORT_BUDGET_MS = 8_000;
+/** TASKS T3.3: 50 conditional rules × 100 visible rows stay under 16ms. */
+const CONDITION_BUDGET_MS = 16;
 /** SPEC §16.1 ceiling; the E2E app-wide measurement owns this gate. */
 const MEMORY_BUDGET_MB = 600;
 const MEMORY_SAMPLE_MS = 50;
@@ -408,6 +411,14 @@ function runQuerySuite(table: TableMeta, rows: Row[]): SuiteResult {
   const shuffled = shuffle([...rows], BENCH_SEED + 1);
   const textSort: SortSpec[] = [{ columnId: 'col_id', direction: 'asc' }];
   const cjkSort: SortSpec[] = [{ columnId: 'col_note', direction: 'asc' }];
+  const conditionRules: ConditionalRule[] = Array.from({ length: 50 }, (_, index) => ({
+    id: `rule_bench_${String(index)}`,
+    enabled: true,
+    target: { kind: 'row' },
+    when: { kind: 'compare', columnId: 'col_id', op: 'notNull' },
+    style: { background: '#fde2e2', ...(index % 3 === 0 ? { bold: true } : {}) },
+  }));
+  const conditionRows = rows.slice(0, 100);
 
   const cases = [
     measure('query.100k', QUERY_BUDGET_MS, () => {
@@ -426,6 +437,14 @@ function runQuerySuite(table: TableMeta, rows: Row[]): SuiteResult {
       const result = queryRowIds(shuffled, table, { sort: cjkSort }, { locale: 'zh-CN' });
       if (result.visibleRows !== rows.length) {
         throw new Error('CJK-sort benchmark returned a different row count.');
+      }
+    }),
+    measure('condition.rules.50x100', CONDITION_BUDGET_MS, () => {
+      const format = createConditionalFormat(conditionRules, table.columns, { locale: 'zh-CN' });
+      for (const row of conditionRows) {
+        if (format.evaluateRow(row).rowRule === null) {
+          throw new Error('Conditional-format benchmark rule unexpectedly did not match.');
+        }
       }
     }),
   ];

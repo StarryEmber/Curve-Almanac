@@ -233,6 +233,37 @@ describe('save queue', () => {
     expect(store.getState().ui.dirtyTables).toEqual([]);
   });
 
+  it('writes only the manifest for a manifest-only change', async () => {
+    const { workspaceStore, queue } = setup();
+
+    queue.enqueueManifest();
+    const outcome = await queue.flush();
+
+    expect(outcome.ok).toBe(true);
+    expect(workspaceStore.calls).toEqual(['writeManifest']);
+    expect(workspaceStore.manifests).toHaveLength(1);
+  });
+
+  it('keeps a manifest-only write retryable', async () => {
+    const { store, workspaceStore, queue } = setup();
+    store.getState().actions.clearDirty('tbl_test');
+    workspaceStore.failManifest = true;
+
+    queue.enqueueManifest();
+    expect((await queue.flush()).ok).toBe(false);
+    expect(store.getState().ui.save.status).toBe('error');
+    expect(workspaceStore.calls).toEqual(['writeManifest']);
+
+    // A later flush must return the stored error, not wait for a stopped loop.
+    expect((await queue.flush(10)).ok).toBe(false);
+
+    workspaceStore.failManifest = false;
+    queue.retry();
+    expect((await queue.flush()).ok).toBe(true);
+    expect(workspaceStore.calls).toEqual(['writeManifest', 'writeManifest']);
+    expect(store.getState().ui.save.status).toBe('saved');
+  });
+
   it('times out without dropping the dirty marker', async () => {
     const { store, workspaceStore, queue, encode } = setup();
     encode.mockImplementationOnce(() => new Promise(() => undefined));

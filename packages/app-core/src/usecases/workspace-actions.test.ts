@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createAppError } from '@curve/domain';
+import { createAppError, createTableStyle } from '@curve/domain';
 import type { WorkspaceManifest } from '@curve/domain';
 import { createEmptyManifest } from '@curve/persistence';
 import type {
@@ -433,6 +433,23 @@ describe('workspace actions', () => {
     if (second.ok) {
       expect(core.store.getState().views[second.data.viewId]?.title).toBe('Sensors (3)');
     }
+  });
+
+  it('updates a user style, persists it and undoes through the manifest queue', async () => {
+    const { store, core } = setup();
+    const style = createTableStyle({ id: 'sty_test', name: 'Original' });
+    core.store.setState({ tableStyles: { [style.id]: style } });
+
+    const updated = await core.actions.updateTableStyle({ ...style, name: 'Updated' });
+    expect(updated.ok).toBe(true);
+    expect(core.store.getState().tableStyles['sty_test']?.name).toBe('Updated');
+    expect(store.manifests.at(-1)?.tableStyles[0]?.name).toBe('Updated');
+
+    const undone = await core.actions.undo();
+    expect(undone.ok).toBe(true);
+    expect(core.store.getState().tableStyles['sty_test']?.name).toBe('Original');
+    await core.actions.flushSaves();
+    expect(store.manifests.at(-1)?.tableStyles[0]?.name).toBe('Original');
   });
 
   it('closes the workspace and resets the document slices', async () => {

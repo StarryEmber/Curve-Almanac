@@ -6,6 +6,8 @@ import type {
   ColumnDef,
   ColumnStyleOverride,
   ColumnType,
+  ConditionalRule,
+  ConditionalRuleMatch,
   Row,
   TableStyle,
 } from '@curve/domain';
@@ -14,6 +16,7 @@ import {
   barRatioForValue,
   columnDisplayLabel,
   computeBarRanges,
+  conditionalCellStyle,
   enumBadgeTone,
   formatStyledCellValue,
   presentStyledCell,
@@ -300,5 +303,50 @@ describe('presentStyledCell', () => {
     expect(presented.render).toBe('badge');
     expect(presented.badgeTone).toBe(enumBadgeTone('open'));
     expect(presented.barRatio).toBeNull();
+  });
+});
+
+describe('conditionalCellStyle', () => {
+  const rule: ConditionalRule = {
+    id: 'rule_hot',
+    enabled: true,
+    label: 'Hot',
+    target: { kind: 'row' },
+    when: { kind: 'compare', columnId: 'col_value', op: 'gt', value: 30 },
+    style: {
+      background: '#fde2e2',
+      foreground: '#a40000',
+      bold: true,
+      italic: true,
+      icon: 'warning',
+    },
+  };
+  const match: ConditionalRuleMatch = { rule, target: 'row', columnId: null };
+
+  it('copies the matched rule style for the cell', () => {
+    expect(conditionalCellStyle(match)).toEqual({
+      ruleId: 'rule_hot',
+      label: 'Hot',
+      background: '#fde2e2',
+      foreground: '#a40000',
+      bold: true,
+      italic: true,
+      icon: 'warning',
+    });
+  });
+
+  it('omits the icon for everything but the first visible row cell', () => {
+    expect(conditionalCellStyle(match, { includeIcon: false })).toEqual({
+      ruleId: 'rule_hot',
+      label: 'Hot',
+      background: '#fde2e2',
+      foreground: '#a40000',
+      bold: true,
+      italic: true,
+    });
+  });
+
+  it('returns null when no rule matched', () => {
+    expect(conditionalCellStyle(null)).toBeNull();
   });
 });
