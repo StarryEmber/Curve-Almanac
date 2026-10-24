@@ -339,6 +339,26 @@ QueryWorkerRequest/Response; isQueryWorkerRequest/isQueryWorkerResponse
 - `QUERY_WORKER_ROW_THRESHOLD` 以上由 renderer 注入专用 query Worker；协议见
   `query-protocol.ts`，缓存/守卫在 `apps/desktop/src/renderer/query/handler.ts`。
 
+T3.6 新增（CSV 导出纯函数）：
+
+```ts
+CSV_BOM; CSV_CRLF; CSV_CHUNK_ROWS = 1_000; CSV_FILE_BASE_MAX_LENGTH = 80
+CsvValueMode = 'display' | 'raw'
+CsvExportColumn { column; valueIndex; header }
+CsvExportOptions { columns; rows; formatCell; chunkRows? }
+CsvChunk { text; rows }
+escapeCsvField(text): string
+rawCsvCellText(value, column): string
+sanitizeCsvFileNameBase(tableName): string
+csvExportFileName(tableName, now): string
+encodeCsvChunks(options): Generator<CsvChunk>
+```
+
+- `encodeCsvChunks` 首块是 BOM+表头，之后按完整行分块；`formatCell` 由 renderer 注入
+  （显示格式用 `formatStyledCellValue`，原始值用 `rawCsvCellText`），table-engine 不 import UI。
+- `packages/domain/src/format.ts` 的 `Intl.DateTimeFormat`/`NumberFormat` 按 locale/格式缓存；
+  100k 日期导出从 10s 量级降到 1.7s，不要移除缓存。
+
 ### 4.3 `@curve/persistence`
 
 `WorkspaceStore` 端口（create/open/close/readTable/writeTable/writeManifest/trash/listBackups/restore）、
@@ -490,6 +510,7 @@ apps/desktop/src/renderer/
 │  ├─ use-view-rows.ts          # T2.6 可见行解析（≤20k 主线程 / >20k Worker）
 │  └─ use-cell-editing.ts
 ├─ features/filter/             # T2.6：FilterDialog + filter-builder 文案
+├─ features/export/             # T3.6：ExportCsvDialog/use-export-csv/export-csv-plan
 ├─ features/columns/            # T2.3：ColumnsPanel/ColumnFormDialog/ColumnChangeDialog
 ├─ features/paste/              # T2.4：PasteColumnsDialog/PasteErrorDialog/PasteProgressDialog
 │  ├─ use-paste.tsx             # idle→preparing→columns/errors/applying；T2.6 传 rowIds
@@ -506,6 +527,8 @@ apps/desktop/src/renderer/
 
 - `DataGrid` 监听 `onPaste`，读 `text/plain`；编辑器打开/事件源是可编辑控件时走原生粘贴。
   锚点为选择矩形左上角；`locate` prop 让网格滚动并临时高亮第一个错误。
+- `DataGrid` 工具条还渲染“导出 CSV…”按钮与 `ExportCsvDialog`；`WorkspaceView` 传
+  `allRows={tableData.rows}` 供“全部行”范围使用。
 - `WorkspaceView` 渲染 `paste.dialogs`；`onLocate` 把错误行/列传给 `DataGrid`。
 - 所有文案走消息表；`apps/desktop/test/ui-conventions.test.ts` 会拦硬编码中文/颜色字面量/未声明令牌。
 
@@ -542,6 +565,11 @@ T3.2 新增 `apps/desktop/e2e/style.spec.ts` 1 条：seed 1 表 7 列 + 5 视图
 compact-light/dark/finance + 持久化 `sty_bars`），断言计算后的颜色/行高/字族/对齐、数字/
 日期/布尔/枚举文本、列覆盖 label/width/numberFormat、bar 比例与切回内置视图不受影响；
 每个模板 attach 一张网格截图到 `docs/reports/t3.2/`。不提交像素基线。
+
+T3.6 新增 `apps/desktop/e2e/export-csv.spec.ts` 3 条：3 行 × 6 列夹具（筛选/排序/隐藏列）验证
+BOM/CRLF/RFC 4180 与原始值切换；100k 工作区默认显示格式导出 ≤5s（实测 1,716ms）并在进度出现后
+取消、断言目标与临时文件均不存在；200% 缩放纯键盘 Enter 打开/Esc 关闭并断言对话框在视口内。
+截图 `docs/reports/t3.6/t3.6-export-dialog.png`。
 
 ### 4.9 `@curve/domain` 表格样式（T3.1）
 
@@ -741,6 +769,24 @@ apps/desktop/src/renderer/features/style/
 - E2E `template.spec.ts` 覆盖：导出 → 重启 → 新工作区导入 → 应用（12 项计算样式一致）、
   删除回退与 `Ctrl+Z`、坏文件 manifest 字节不变、200% 与键盘打开；截图在
   `docs/reports/t3.5/`。
+
+### 4.18 renderer CSV 导出（T3.6）
+
+```text
+apps/desktop/src/renderer/features/export/
+├─ ExportCsvDialog.tsx   # 容器（hook/IPC）+ 可测试的 ExportCsvDialogView
+├─ use-export-csv.ts     # 列/行计划 → 分块 append → finish/cancel、进度/错误
+└─ export-csv-plan.ts    # buildCsvExportColumns / selectCsvExportRows
+```
+
+- 入口在 `DataGrid` 工具条，`allRows` 由 `WorkspaceView` 传入；导出只读，不发命令、不进撤销、
+  不写 manifest/JSONL。
+- `useCsvExport` 用 `encodeCsvChunks`（约 1,000 行/块），每块 `await file.exportCsv({op:'append'})`
+  后 `setTimeout(0)` 让出；取消设置标志位，下一次循环调用 `cancel` 并进入 `cancelled`。
+- `file:exportCsv` 的 `begin` 返回 token/path；`finish` 返回 path/bytes/rows；`cancel` 幂等。
+  main 侧 token 只在内存，`before-quit` 清理。
+- 对话框每次打开重置为“显示格式 + 当前筛选排序”；Esc/X 关闭会取消进行中的会话（不叠加确认框）。
+- 完整 E2E 见 §4.8；100k 预算与取消见 `e2e/export-csv.spec.ts`。
 
 ---
 
@@ -1398,9 +1444,33 @@ pnpm bench
 ```
 
 **用户已于 2026-10-23 接受 M2**；TASKS M2 注记已更新为“获用户接受”，T3.1、T3.2、T3.3、T3.4、
-T3.5 已按授权完成（见 §5D/§5E/§5F/§5G/§5H）。若未来用户要求修改 M2，再回到对应 T2.x 修复。
+T3.5、T3.6 已按授权完成（见 §5D/§5E/§5F/§5G/§5H/§5I）。若未来用户要求修改 M2，再回到对应 T2.x 修复。
 
 **M2 已关闭；T3.1–T3.6 已完成，下一步等待用户授权 M3 验收演示。**
+
+---
+
+## 6A. M3 验收演示交接（待用户授权）
+
+M3 的 6 个任务（T3.1–T3.6）已完成；按 AGENTS §8，里程碑全部任务完成后运行验收演示并**停下等
+用户确认**。当前未授权，不要提前实现。
+
+建议的单条演示（可写成 `e2e/m3-acceptance.spec.ts`，先获授权）：
+
+1. 新建工作区/表，seed 或粘贴一组含 number/date/boolean/enum 的行。
+2. 依次切换 4 个内置模板，断言颜色/行高/字族/对齐/斑马纹差异（复用 `style.spec.ts` 的计算样式
+   断言）；截图 4 张。
+3. 打开样式编辑器：改密度、表头色、`sensor_a` 列 1 位小数；断言前 50 行预览 100ms 内更新；
+   一次控件一条撤销。
+4. 加条件规则“高温标红”（如 `value > 30` → 行背景红/警告图标）；断言命中/未命中行。
+5. 另存模板 → 导出 CSV（当前筛选排序）→ 新工作区导入 `.curvestyle.json` 并应用 → 断言 12 项
+   计算样式一致；再导出 CSV 断言 BOM/转义/行数。
+6. 退出 Electron 并用同一 `userData` 重启，断言模板、视图引用、筛选/排序、列宽/冻结与
+   工作区默认样式还原；输出 `docs/reports/m3/REPORT.md` 与截图，然后停下等用户接受。
+
+验收前跑：`pnpm verify`、`pnpm test:coverage`、`pnpm format:check`、`pnpm build`、`pnpm e2e`、
+`pnpm bench`。复用 T3.1–T3.6 的 seed/截图；不新增运行时依赖；不改 `formatVersion`/manifest/
+JSONL/IPC；不进入 T4.x。
 
 ---
 
