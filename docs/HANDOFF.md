@@ -2,8 +2,8 @@
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T3.6`（CSV 导出）与 **M3 验收演示**；
 > M2 已于 2026-10-23 获用户接受，M3 的 T3.1–T3.6 已全部完成并输出演示报告。最后更新：
-> 2026-10-24 · 分支 `main`；`T3.6` 代码提交 **`45e5891`**；本交接文档的提交见
-> `git log -1 -- docs/HANDOFF.md`。
+> 2026-10-24 · 分支 `main`；`T3.6` 代码提交 **`45e5891`**，M3 演示提交 **`9cac391`**；
+> 本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/m3/REPORT.md` →
 > `docs/reports/t3.6/REPORT.md` → `docs/TASKS.md` 的 M3 / T3.6 →
 > `docs/TESTPLAN.md` §2、§3、§5 → `docs/SPEC.md` §9.6、§13.1、§15.1、§16.1 →
@@ -235,6 +235,17 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
   `before-quit` 会清理未完成临时文件，取消路径也会 `unlink`。
 - 导出对话框每次打开重置为“显示格式 + 当前筛选排序”；一次只允许一个导出任务；`ExportCsvDialog`
   的容器（IPC/流式）未做组件测试，视图与 hook 有单测，完整路径由 E2E 覆盖。
+- M3 的 `m3-acceptance.spec.ts` 用 3 次 `launchCurveApp`（源工作区 → 新工作区导入 → 重启还原）；
+  每次启动只有一个 `CURVE_E2E_SAVE`，源启动先导出模板再导出 CSV（覆盖同一路径），模板先复制
+  到 `m3-report.curvestyle.json` 供第二次启动导入。
+- 模板应用/密度编辑会改变行高：`DataGrid` 在 `rowHeight` 变化时调用 `virtualizer.measure()`，
+  否则 TanStack Virtual 沿用旧测量值，行高停留旧值直到滚动/缩放。断言计算样式时用
+  `expect.poll`（属性切换与虚拟化重测差一帧），不要删掉这次重测。
+- 表头单元格文本包含排序指示器（如 `Sensor A↓`）；读取显示名请用
+  `[role="columnheader"] .cs-grid__header-label`，不要对整个单元格取 `textContent`。
+- 模板导入确认后**导入对话框与模板管理对话框同时关闭**；不要再点 `style-templates-close`。
+- 每个 Dialog 的 icon 关闭按钮都带 `aria-label="关闭"`；导出对话框的 footer 也叫“关闭”，
+  `getByRole('button', { name: '关闭' })` 会命中两个，需要 footer 时用 `.last()`。
 
 ---
 
@@ -542,11 +553,11 @@ apps/desktop/src/renderer/
 T2.5 新增 `apps/desktop/e2e/import.spec.ts` 6 条：100k GBK 分号 + 3 坏行 + 错误 CSV；错编码
 覆盖；150k 取消/100k 提示；JSON 替换 + 备份 + 原文归档 + 撤销；200k 拒绝；200% 缩放键盘。
 
-完整 E2E 现为 **71 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
+完整 E2E 现为 **72 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
 `schema.spec.ts`、T2.4 的 `paste.spec.ts`、T2.5 的 `import.spec.ts`、T2.6 的
 `filter.spec.ts`、T2.7 的 `perf.spec.ts`、T3.2/T3.4 的 `style.spec.ts`、T3.5 的
-`template.spec.ts`、T3.6 的 `export-csv.spec.ts`、M2 的 `m2-acceptance.spec.ts` 与既有
-shell/ipc/smoke/workspace/table-io 仍全绿。
+`template.spec.ts`、T3.6 的 `export-csv.spec.ts`、M2 的 `m2-acceptance.spec.ts`、
+M3 的 `m3-acceptance.spec.ts` 与既有 shell/ipc/smoke/workspace/table-io 全绿。
 
 T2.6 新增 `apps/desktop/e2e/filter.spec.ts` 6 条：2k 行筛选 + 三级排序；重开恢复筛选/排序与
 清除；同表双视图互不影响；隐藏列/恢复；100k 行 Worker 筛选+排序（`data-query-ms <= 400`）；
@@ -569,9 +580,16 @@ compact-light/dark/finance + 持久化 `sty_bars`），断言计算后的颜色/
 每个模板 attach 一张网格截图到 `docs/reports/t3.2/`。不提交像素基线。
 
 T3.6 新增 `apps/desktop/e2e/export-csv.spec.ts` 3 条：3 行 × 6 列夹具（筛选/排序/隐藏列）验证
-BOM/CRLF/RFC 4180 与原始值切换；100k 工作区默认显示格式导出 ≤5s（实测 1,716ms）并在进度出现后
-取消、断言目标与临时文件均不存在；200% 缩放纯键盘 Enter 打开/Esc 关闭并断言对话框在视口内。
-截图 `docs/reports/t3.6/t3.6-export-dialog.png`。
+BOM/CRLF/RFC 4180 与原始值切换；100k 工作区默认显示格式导出 ≤5s（T3.6 实测 1,716ms，M3 复跑
+1,646ms）并在进度出现后取消、断言目标与临时文件均不存在；200% 缩放纯键盘 Enter 打开/Esc 关闭
+并断言对话框在视口内。截图 `docs/reports/t3.6/t3.6-export-dialog.png`。
+
+M3 新增 `apps/desktop/e2e/m3-acceptance.spec.ts` 1 条（3 次启动）：seed 源/目标工作区 →
+应用 4 个内置模板（行高/颜色/字族/斑马纹）→ 编辑器改密度/表头色/列覆盖（`sensor_a` 180px、
+1 位小数，预览 2ms）→ Ctrl+Z/重做验证一次控件一条撤销 → “高温”条件规则（`> 30`，命中/未命中）
+→ 另存 `M3 Report` → 筛选/降序/冻结 2 列/Note 自适应 116px/设为默认 → 导出 `.curvestyle.json`
+与 CSV（4 行 × 6 列）→ 重启导入新工作区（12 项计算样式逐项相等 + 目标 CSV）→ 再重启验证两个
+工作区还原。报告 `docs/reports/m3/REPORT.md` 与 10 张截图；用例全量内 **11.2s**。
 
 ### 4.9 `@curve/domain` 表格样式（T3.1）
 
@@ -1387,8 +1405,56 @@ pnpm bench          exit 0；open 663ms、save 342ms、edit 0ms、query 213ms、
   全局 lines 74.90% 仍高于 70/60。
 - renderer bundle 增至约 1.62MB（+23 kB vs T3.5），T6.4 打包阶段评估拆包。
 
-**不要做**：不要提前实现 M3 验收演示或 T4.x；不要改 `formatVersion`/manifest 字段/JSONL；
-不要在 `file:exportCsv` 之外另写第二套写盘路径或第二套显示格式化。
+**不要做**：不要改 `formatVersion`/manifest 字段/JSONL；不要在 `file:exportCsv` 之外另写第二套
+写盘路径或第二套显示格式化；M3 演示已完成，不要重复实现演示脚本。
+
+---
+
+## 5J. M3 验收演示记录（已完成，等待验收）
+
+M3 演示不需要新的 ADR：不改变文件格式、IPC、公共 API 或运行时依赖，只新增一条 E2E 与一份报告。
+演示暴露并修复了一个渲染缺陷（见第 2 条）。
+
+1. **归属**：`apps/desktop/e2e/m3-acceptance.spec.ts` 单条用例、3 次启动（源工作区 → 新工作区
+   导入 → 重启还原）。工作区用 `window.api` seed（源/目标同 schema、6 行 × 6 列），模板应用、
+   样式编辑器、条件规则、另存、筛选/排序/冻结、CSV 导出、模板导入与重启全部走真实 UI。
+2. **行高缺陷（已修）**：`DataGrid` 在 `rowHeight` 变化时调用 `virtualizer.measure()`。TanStack
+   Virtual 在只有 `estimateSize` 变化时保留旧测量值，导致模板切换/密度编辑后行高停留旧值，
+   直到滚动或缩放。M3 用例在应用 `compact-light` 后立即断言行高 24px（修复前稳定复现 32px）。
+   不要删除这次重测，也不要把断言改成“滚动后再测”。
+3. **保存对话框替身**：一次启动只有一个 `CURVE_E2E_SAVE`。源启动先导出模板（`m3-work`），
+   复制为 `m3-report.curvestyle.json`，随后导出的 CSV 覆盖 `m3-work`；目标启动用独立
+   `saveFile`。不要为了多目标导出去改 main 的替身逻辑。
+4. **断言口径**：模板切换后属性与虚拟化重测差一帧，计算样式用 `expect.poll`；表头显示名读
+   `.cs-grid__header-label`（单元格文本含排序指示器）；行内容按 id 单元格查找（排序/筛选后
+   行下标会变），不要用固定 `grid-cell-<row>-<col>` 断言值。
+5. **导入流程**：确认导入会同时关闭导入对话框与模板管理对话框；不要再调用
+   `closeManager`（此时管理器已卸载）。
+6. **对话框按钮**：每个 Dialog 都有 icon 关闭（aria-label “关闭”）与 footer 动作（取消/完成/
+   导入）；导出对话框的 footer 也叫“关闭”，所以 `getByRole('button', { name: '关闭' })` 会命中
+   两个，需要 footer 时用 `.last()`，其余场景用具体动作名，避免 strict mode 冲突。
+7. **证据**：`docs/reports/m3/REPORT.md` + `m3-01`…`m3-10`（10 张 PNG）；Playwright attachment
+   含 `m3-metrics.txt`（样式 id/预览耗时/列宽/CSV 字节/JSONL SHA-256）与 `m3-contract.json`
+   （源/目标 12 项计算样式）；`test-results/` 为 gitignore。
+
+实测（2026-10-24，全量 E2E 内）：用例 **11.2s**；预览 **2ms**/100ms；12 项计算样式源/目标
+完全相等；源 CSV **211B**（5 条 CRLF 记录）、目标 **293B**（7 条）；Note 列宽 116px；
+JSONL SHA-256 `2face74e…3843c5` 重启前后不变。
+
+关键文件：
+
+```text
+apps/desktop/e2e/m3-acceptance.spec.ts
+apps/desktop/src/renderer/features/grid/DataGrid.tsx   # rowHeight 变化时 measure()
+docs/reports/m3/REPORT.md (+10 PNG)
+docs/TASKS.md（M3 验收演示注记）、CHANGELOG、AGENTS §0
+```
+
+提交：**`9cac391`**（`test(m3): add milestone acceptance demo and report`）；本交接文档的
+提交见 `git log -1 -- docs/HANDOFF.md`。
+
+**不要做**：用户验收前不要开始 T4.1；不要改 `formatVersion`/manifest 字段/JSONL/IPC；不要
+把演示脚本改成多个 test（跨启动状态必须留在同一条用例内）。
 
 ---
 
@@ -1446,7 +1512,7 @@ pnpm bench
 **用户已于 2026-10-23 接受 M2**；TASKS M2 注记已更新为“获用户接受”，T3.1、T3.2、T3.3、T3.4、
 T3.5、T3.6 已按授权完成（见 §5D/§5E/§5F/§5G/§5H/§5I）。若未来用户要求修改 M2，再回到对应 T2.x 修复。
 
-**M2 已关闭；T3.1–T3.6 已完成，下一步等待用户授权 M3 验收演示。**
+**M2 已关闭；T3.1–T3.6 已完成，M3 验收演示已执行（见 §6A），等待用户验收。**
 
 ---
 
@@ -1478,6 +1544,23 @@ M3 用例可复现）。
 `pnpm build`、`pnpm e2e`（72 passed）、`pnpm bench`（exit 0）。未改 `formatVersion`/manifest/
 JSONL/IPC；未新增运行时依赖；未进入 T4.x。
 
+实测（全量 E2E 内，本机空闲）：
+
+| 指标 | 实测 | 预算/口径 |
+|---|---:|---|
+| M3 演示用例 | **11.2s** | 无（单条，3 次启动） |
+| 样式预览 `data-preview-ms` | **2ms** | 100ms |
+| 12 项计算样式（源 vs 导入） | **逐项相等** | 全部相等 |
+| 源 CSV / 目标 CSV | **211B / 293B** | 记录数 5 / 7（CRLF） |
+| Note 列宽（自适应） | **116px** | 与重启后计算宽度一致 |
+| 100k 导出（export-csv.spec） | **1,646ms** | 5,000ms |
+| 冷启动 / 100k 打开 | **1,017ms / 637ms** | 2,500ms / 3,000ms |
+| 整应用 private 内存峰值 | **572MB** | 600MB |
+
+提交：**`9cac391`**（`test(m3): add milestone acceptance demo and report`）。
+Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings、`m3-contract.json` 与
+失败时的 trace；截图已复制到 `docs/reports/m3/`。
+
 **停点**：等待用户验收 M3；接受前不要开始 T4.1。
 
 ---
@@ -1500,7 +1583,7 @@ JSONL/IPC；未新增运行时依赖；未进入 T4.x。
 | 100k 文本排序接近 400ms | bench 波动可能超预算 | T2.7 已预计算排序键/类型数组，ASCII 253ms；中文仍 698ms/800ms |
 | query Worker 缓存最多 4 张表 | 切换更多表会重新克隆 | 记录于 ADR-032；T2.7 未改淘汰策略 |
 | 100k 首次 Worker 快照克隆 | 首次筛选/排序有额外延迟 | 不计入 `data-query-ms`；E2E `data-query-total-ms` 实测 448–490ms |
-| 整应用内存 497MB/600MB（M2 实测；T2.7 570MB；T3.5 568MB；T3.6 571MB） | CI runner 更慢/更碎片化时可能超 | 余量约 5%；超了先查是否 E2E 探针/噪声，不改预算 |
+| 整应用内存 497MB/600MB（M2 实测；T2.7 570MB；T3.5 568MB；T3.6 571MB；M3 572MB） | CI runner 更慢/更碎片化时可能超 | 余量约 5%；超了先查是否 E2E 探针/噪声，不改预算 |
 | bench 基线未提交 | 20% 回归告警不触发 | CI Windows runner 跑 `pnpm bench -- --write-baseline` 后提交 `bench/baseline.json` |
 | 100k 行撤销补丁变大 | 历史内存 | T2.7 的整数组 patch 每个编辑约 800KB；T5.2 统一历史时评估 |
 | 视图状态连续写 manifest | 拖动列宽/快速排序多次写盘 | T5.3 统一保存队列后合并 |
@@ -1528,7 +1611,7 @@ JSONL/IPC；未新增运行时依赖；未进入 T4.x。
 | 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 74.90%（T3.6 实测） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；T3.6 报告记录实测 |
+| 覆盖率 74.89%（M3 实测；T3.6 为 74.90%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；任务报告记录实测 |
 | renderer bundle 约 1.62MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
 | 100k CSV 导出 1,716ms/5s（T3.6） | 去掉 Intl formatter 缓存会退到 10s 量级 | `formatCellValue` 的 locale/格式缓存是达标关键；不要改回每单元格 `new Intl.*` |
 | CSV 临时文件残留 | 进程崩溃时 `.curve-export-*.tmp` 留在目标目录 | cancel/`before-quit` 已清理；崩溃残留需手工删除，报告已记录 |
