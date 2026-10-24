@@ -2,7 +2,7 @@
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T3.5`（模板管理与导入导出）；
 > M2 已于 2026-10-23 获用户接受。最后更新：2026-10-24 ·
-> 分支 `main`；`T3.5` 的代码提交见 `git log -1 -- docs/reports/t3.5/REPORT.md`；本文件的提交见
+> 分支 `main`；`T3.5` 代码提交 **`ac02ba8`**；本交接文档的提交见
 > `git log -1 -- docs/HANDOFF.md`。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.5/REPORT.md` →
 > `docs/TASKS.md` 的 M3 / T3.5 / T3.6 → `docs/TESTPLAN.md` §2、§3、§5 →
@@ -637,7 +637,7 @@ WorkspaceActions.createTableStyle(style, viewId?): Promise<ActionOutcome<{ style
 - 在同一命令内写 `state.tableStyles[id]`，并可选把 `view.tableView.styleId` 指向它；随后
   `SaveQueue.enqueueManifest`。`style.create`/`style.update` 都是 workspace 作用域历史。
 - T3.4 编辑器懒 fork：首次提交内置模板时调用该命令；之后用 `style.update`。T3.5 的模板
-  导入/复制必须复用这两个命令，不得另起写盘路径。
+  导入/复制/另存为已复用这两个命令，未另起写盘路径。
 
 ### 4.14 renderer 样式编辑器（T3.4）
 
@@ -1009,8 +1009,9 @@ pnpm build          exit 0；renderer 1,419.17 kB + ImportSession 42.82 kB
 残留：
 
 - `builtin.finance` 的数字右对齐/千分位由 T3.2 的列格式化实现；实际视觉快照留 T3.2。
-- 内置名称是中文规范名/回退标签；T3.4 已按 id 走 `t(key)` 本地化，T3.5 的模板列表继续复用。
-- fork 保留条件规则 id；模板导入/复制的规则 id 重新分配留 T3.5。
+- 内置名称是中文规范名/回退标签；T3.4 已按 id 走 `t(key)` 本地化，T3.5 的模板管理器/导入预览
+  继续按 id 显示内置名称。
+- fork 保留条件规则 id；T3.5 的导入/复制/另存为已统一用 `reassignStyleIdentity` 重新分配规则 id。
 - 颜色仅支持 hex，不支持 `transparent`/CSS 变量。
 
 ---
@@ -1191,9 +1192,7 @@ pnpm bench          exit 0；open 504ms、save 340ms、edit 0ms、query 192ms、
 - 规则编辑器最多 2 个条件组；更深/缺失列规则只读；规则列表不能拖拽排序，新规则追加末尾。
 - 改密度会覆盖 `cellPaddingY` 为 SPEC §10.2 预设；自定义垂直内边距不保留为密度预设。
 - 颜色仍只接受 hex；文本输入后按 Esc 会丢弃未提交值。
-- 覆盖率 lines 74.70%（新增 UI 由 E2E 覆盖），仍高于 70/60；T3.5 继续复用现有组件测试。
-
-**T3.5 开工交接清单**：
+- 覆盖率 lines 74.70%（新增 UI 由 E2E 覆盖），仍高于 70/60；T3.5 起继续复用该组件测试基线。
 
 ## 5H. T3.5 决策与实现记录（已完成）
 
@@ -1397,7 +1396,8 @@ T3.5 已按授权完成（见 §5D/§5E/§5F/§5G/§5H）。若未来用户要�
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T3.5 提交（报告 `docs/reports/t3.5/REPORT.md`）。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T3.5 交接提交（代码提交 `ac02ba8`，
+      报告 `docs/reports/t3.5/REPORT.md`）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
 - [ ] 已读 `AGENTS.md`、本文件、TASKS 的 M3/T3.5/T3.6、`docs/reports/t3.5/REPORT.md`、
