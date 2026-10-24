@@ -477,6 +477,97 @@ describe('workspace actions', () => {
     expect(store.manifests.at(-1)?.tableStyles[0]?.name).toBe('Original');
   });
 
+  it('deletes a referenced style, falls back to the default and restores it on undo', async () => {
+    const { store, core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const viewId = created.data.view.id;
+    const style = createTableStyle({ id: 'sty_doomed', name: 'Doomed' });
+    expect((await core.actions.createTableStyle(style, viewId)).ok).toBe(true);
+
+    const outcome = await core.actions.deleteTableStyle('sty_doomed');
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.data.fallbackStyleId).toBe('builtin.report-light');
+      expect(outcome.data.affectedViewIds).toEqual([viewId]);
+    }
+    expect(core.store.getState().tableStyles['sty_doomed']).toBeUndefined();
+    expect(core.store.getState().views[viewId]?.tableView?.styleId).toBe('builtin.report-light');
+    expect(store.manifests.at(-1)?.tableStyles).toEqual([]);
+
+    const undone = await core.actions.undo();
+    expect(undone.ok).toBe(true);
+    expect(core.store.getState().tableStyles['sty_doomed']).toEqual(style);
+    expect(core.store.getState().views[viewId]?.tableView?.styleId).toBe('sty_doomed');
+    await core.actions.flushSaves();
+    expect(store.manifests.at(-1)?.tableStyles).toHaveLength(1);
+  });
+
+  it('duplicates a style with a fresh identity and suffixed name', async () => {
+    const { store, core } = setup();
+    const style = createTableStyle({ id: 'sty_base', name: 'Base' });
+    core.store.setState({ tableStyles: { [style.id]: style } });
+
+    const first = await core.actions.duplicateTableStyle('sty_base');
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+    expect(first.data.styleId).not.toBe('sty_base');
+    expect(first.data.name).toBe('Base (2)');
+    expect(store.manifests.at(-1)?.tableStyles).toHaveLength(2);
+
+    const second = await core.actions.duplicateTableStyle(first.data.styleId);
+    expect(second.ok).toBe(true);
+    if (second.ok) {
+      expect(second.data.name).toBe('Base (3)');
+    }
+
+    const missing = await core.actions.duplicateTableStyle('sty_missing');
+    expect(missing.ok).toBe(false);
+  });
+
+  it('applies a style to a view or the workspace default and rejects unknown ids', async () => {
+    const { store, core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const viewId = created.data.view.id;
+
+    const toView = await core.actions.applyTableStyle('builtin.dark', {
+      kind: 'view',
+      viewId,
+    });
+    expect(toView.ok).toBe(true);
+    expect(core.store.getState().views[viewId]?.tableView?.styleId).toBe('builtin.dark');
+    expect(store.manifests.at(-1)?.views[0]?.tableView?.styleId).toBe('builtin.dark');
+
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().views[viewId]?.tableView?.styleId).toBe('builtin.report-light');
+    expect((await core.actions.redo()).ok).toBe(true);
+    expect(core.store.getState().views[viewId]?.tableView?.styleId).toBe('builtin.dark');
+
+    const toDefault = await core.actions.applyTableStyle('builtin.finance', { kind: 'default' });
+    expect(toDefault.ok).toBe(true);
+    expect(core.store.getState().workspace?.settings.defaultTableStyleId).toBe('builtin.finance');
+
+    const missing = await core.actions.applyTableStyle('sty_missing', { kind: 'default' });
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) {
+      expect(missing.error.code).toBe('E_VALIDATION');
+    }
+    const missingDelete = await core.actions.deleteTableStyle('sty_missing');
+    expect(missingDelete.ok).toBe(false);
+    if (!missingDelete.ok) {
+      expect(missingDelete.error.code).toBe('E_VALIDATION');
+    }
+  });
+
   it('closes the workspace and resets the document slices', async () => {
     const { store, core } = setup();
     expect((await core.actions.createTable('Sensors')).ok).toBe(true);

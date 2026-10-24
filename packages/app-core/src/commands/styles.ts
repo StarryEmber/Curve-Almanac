@@ -7,7 +7,14 @@
  * with `style.create`, which can atomically point a view at the copy.
  */
 
-import { createAppError, createTimestamp, isId, tableStyleSchema } from '@curve/domain';
+import {
+  DEFAULT_TABLE_STYLE_ID,
+  createAppError,
+  createTimestamp,
+  getBuiltinStyle,
+  isId,
+  tableStyleSchema,
+} from '@curve/domain';
 import type { TableStyle } from '@curve/domain';
 
 import type { CommandDefinition } from './types';
@@ -22,6 +29,18 @@ export interface StyleCreatePayload {
   style: TableStyle;
   /** Optional table view to point at the new style in the same command. */
   viewId?: string;
+}
+
+export interface StyleDeletePayload {
+  styleId: string;
+}
+
+export type StyleApplyTarget =
+  { readonly kind: 'view'; readonly viewId: string } | { readonly kind: 'default' };
+
+export interface StyleApplyPayload {
+  styleId: string;
+  target: StyleApplyTarget;
 }
 
 export interface StyleUpdateCommandOptions {
@@ -137,6 +156,143 @@ export function createStyleCreateCommand(
         view.tableView.styleId = style.id;
       }
       draft.tableStyles[style.id] = style;
+      if (draft.workspace !== null) {
+        draft.workspace.updatedAt = createTimestamp(now());
+      }
+    },
+  };
+}
+
+export interface StyleFallbackState {
+  readonly workspace: { readonly settings: { readonly defaultTableStyleId: string } } | null;
+  readonly tableStyles: Readonly<Record<string, TableStyle>>;
+}
+
+/**
+ * The style every reference falls back to when `deletedStyleId` is removed.
+ * Prefers the workspace default while it still resolves; otherwise the builtin
+ * report-light template (SPEC §10.3/§10.5).
+ */
+export function styleFallbackId(state: StyleFallbackState, deletedStyleId: string): string {
+  const preferred = state.workspace?.settings.defaultTableStyleId;
+  if (preferred !== undefined && preferred !== deletedStyleId) {
+    if (getBuiltinStyle(preferred) !== undefined) {
+      return preferred;
+    }
+    const candidate = state.tableStyles[preferred];
+    if (candidate !== undefined && !candidate.builtin) {
+      return preferred;
+    }
+  }
+  return DEFAULT_TABLE_STYLE_ID;
+}
+
+function parseDeletePayload(payload: unknown): StyleDeletePayload {
+  if (!isRecord(payload) || typeof payload['styleId'] !== 'string') {
+    invalid('style.delete expects { styleId }.');
+  }
+  const styleId = payload['styleId'];
+  if (!isId('sty', styleId)) {
+    invalid('style.delete only accepts persisted user style ids.');
+  }
+  return { styleId };
+}
+
+export function createStyleDeleteCommand(
+  options: StyleUpdateCommandOptions = {},
+): CommandDefinition<StyleDeletePayload> {
+  const now = options.now ?? ((): Date => new Date());
+
+  return {
+    name: 'style.delete',
+    parse: parseDeletePayload,
+    apply(draft: Draft<AppState>, payload: StyleDeletePayload): void {
+      const styleId = payload.styleId;
+      const existing = draft.tableStyles[styleId];
+      if (existing === undefined) {
+        invalid('The table style does not exist.');
+      }
+      if (existing.builtin) {
+        invalid('Builtin styles cannot be deleted.');
+      }
+      const fallbackId = styleFallbackId(draft, styleId);
+      for (const view of Object.values(draft.views)) {
+        if (
+          view.kind === 'table' &&
+          view.tableView !== undefined &&
+          view.tableView.styleId === styleId
+        ) {
+          view.tableView.styleId = fallbackId;
+        }
+      }
+      if (draft.workspace !== null) {
+        if (draft.workspace.settings.defaultTableStyleId === styleId) {
+          draft.workspace.settings.defaultTableStyleId = fallbackId;
+        }
+        draft.workspace.updatedAt = createTimestamp(now());
+      }
+      delete draft.tableStyles[styleId];
+    },
+  };
+}
+
+function parseApplyPayload(payload: unknown): StyleApplyPayload {
+  if (!isRecord(payload) || typeof payload['styleId'] !== 'string') {
+    invalid('style.apply expects { styleId, target }.');
+  }
+  const styleId = payload['styleId'];
+  const target = payload['target'];
+  if (!isRecord(target)) {
+    invalid('style.apply expects a target of { kind: "view" } or { kind: "default" }.');
+  }
+  if (target['kind'] === 'view') {
+    const viewId = target['viewId'];
+    if (typeof viewId !== 'string' || !isId('viw', viewId)) {
+      invalid('style.apply expects a valid viewId.');
+    }
+    return { styleId, target: { kind: 'view', viewId } };
+  }
+  if (target['kind'] === 'default') {
+    return { styleId, target: { kind: 'default' } };
+  }
+  invalid('style.apply expects a target of { kind: "view" } or { kind: "default" }.');
+}
+
+function assertStyleResolvable(state: Draft<AppState>, styleId: string): void {
+  if (getBuiltinStyle(styleId) !== undefined) {
+    return;
+  }
+  if (!isId('sty', styleId)) {
+    invalid(`Unknown table style "${styleId}".`);
+  }
+  const style = state.tableStyles[styleId];
+  if (style === undefined || style.builtin) {
+    invalid(`Unknown table style "${styleId}".`);
+  }
+}
+
+export function createStyleApplyCommand(
+  options: StyleUpdateCommandOptions = {},
+): CommandDefinition<StyleApplyPayload> {
+  const now = options.now ?? ((): Date => new Date());
+
+  return {
+    name: 'style.apply',
+    parse: parseApplyPayload,
+    apply(draft: Draft<AppState>, payload: StyleApplyPayload): void {
+      assertStyleResolvable(draft, payload.styleId);
+      if (payload.target.kind === 'view') {
+        const view = draft.views[payload.target.viewId];
+        if (view === undefined || view.kind !== 'table' || view.tableView === undefined) {
+          invalid('style.apply can only target an existing table view.');
+        }
+        view.tableView.styleId = payload.styleId;
+      } else {
+        if (draft.workspace === null) {
+          invalid('style.apply needs an open workspace for the default style.');
+        }
+        draft.workspace.settings.defaultTableStyleId = payload.styleId;
+      }
       if (draft.workspace !== null) {
         draft.workspace.updatedAt = createTimestamp(now());
       }

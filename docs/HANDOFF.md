@@ -1,37 +1,39 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T3.4`（样式编辑器与实时预览）；
+> 本文件面向**下一个实现会话**。当前会话已完成 `T3.5`（模板管理与导入导出）；
 > M2 已于 2026-10-23 获用户接受。最后更新：2026-10-24 ·
-> 分支 `main`；`T3.4` 代码提交 **`7e695bb`**；本文件的提交见
+> 分支 `main`；`T3.5` 的代码提交见 `git log -1 -- docs/reports/t3.5/REPORT.md`；本文件的提交见
 > `git log -1 -- docs/HANDOFF.md`。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.4/REPORT.md` →
-> `docs/TASKS.md` 的 M3 / T3.4 / T3.5 → `docs/TESTPLAN.md` §2、§3、§5 →
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.5/REPORT.md` →
+> `docs/TASKS.md` 的 M3 / T3.5 / T3.6 → `docs/TESTPLAN.md` §2、§3、§5 →
 > `docs/SPEC.md` §10.5、§10.6、§13.1、§13.2、§16.1 →
-> `docs/adr/037-t34-style-editor.md`（T3.4）、ADR-036（T3.3）/ADR-035/ADR-034。
+> `docs/adr/038-t35-template-management.md`（T3.5）、ADR-037/036/035/034。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
 - **当前状态**：M2 已于 2026-10-23 获用户接受；`T3.1`（样式模型）、`T3.2`（渲染管线）、
-  `T3.3`（条件格式引擎）与 `T3.4`（样式编辑器与实时预览）已完成（`docs/reports/t3.{1,2,3,4}/REPORT.md`、
-  ADR-034/035/036/037）。**下一步 T3.5（模板管理与导入导出）需等用户明确授权；不要自动开始。**
-- **本次交付**：检查器“样式”标签与宽对话框编辑器（令牌/模板/列覆盖/条件规则 + 前 50 行预览）、
-  `style.create { style, viewId? }` 懒 fork、`createTableStyle` action、条件规则两层 all/any
-  构建器、字段级校验、一次控件一条撤销、纯键盘/200% E2E 与两张截图。
-- **基线**：`pnpm verify` **133 files / 1140 tests**；coverage lines **74.70%** /
-  statements 74.59% / branches 67.35% / functions 72.97%；
-  `format:check` 通过；`pnpm build` exit 0（renderer **1,545.42 kB**，CSS 59.59 kB）；
-  `pnpm e2e` **66 passed**；`pnpm bench` **exit 0**（condition P95 **1ms**/16ms）；
-  样式预览自测 **3ms**/100ms。
+  `T3.3`（条件格式引擎）、`T3.4`（样式编辑器与实时预览）与 `T3.5`（模板管理与导入导出）已完成
+  （`docs/reports/t3.{1,2,3,4,5}/REPORT.md`、ADR-034/035/036/037/038）。
+  **下一步 T3.6（CSV 导出）需等用户明确授权；不要自动开始，也不要提前做 M3 验收。**
+- **本次交付**：`style.delete`/`style.apply` 命令（删除原子回退、可撤销 + 二次确认）、
+  `deleteTableStyle`/`applyTableStyle`/`duplicateTableStyle` action、`.curvestyle.json` 导出与
+  导入（身份重分配、名称冲突 ` (2)`、前 50 行预览、缺失列提示）、检查器“模板管理…”对话框、
+  编辑器“另存为模板…”；往返/删除回退/坏文件/200% E2E 与两张截图。
+- **基线**：`pnpm verify` **138 files / 1181 tests**；coverage lines **74.94%** /
+  statements 74.81% / branches 67.53% / functions 73.00%；
+  `format:check` 通过；`pnpm build` exit 0（renderer **1,594.18 kB**，CSS 62.86 kB）；
+  `pnpm e2e` **68 passed**；`pnpm bench` **exit 0**（condition P95 **0ms**/16ms）；
+  perf 内存 **568MB**/600MB、冷启动 **939ms**/2.5s。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
-- **停点**：T3.4 报告已输出；**等用户授权 T3.5**，不进入模板 CRUD/导入导出。
-- **接手动作**：确认工作树干净；先读 T3.4 报告与 ADR-037，再按 §5G 的“T3.5 开工交接清单”
-  确认命令/撤销边界；未授权前不要改代码或提前写模板 CRUD。
-- **T3.5 开工前**：确认模板另存/重命名/复制/删除/设为默认/导入导出的命令与撤销边界、
-  `.curvestyle.json` 校验/冲突处理、删除引用回退默认的提示；复用 `style.create`/`style.update`/
-  `forkTableStyle`，不要另写样式写盘路径或求值器。
+- **停点**：T3.5 报告已输出；**等用户授权 T3.6**，不进入 CSV 导出或 T4.x。
+- **接手动作**：确认工作树干净；先读 T3.5 报告与 ADR-038，再按 §5H 的“T3.6 开工交接清单”
+  确认导出范围/格式/流式写盘与 IPC 复用；未授权前不要改代码。
+- **T3.6 开工前**：确认 CSV 导出是否复用 `file:exportText`、原始值/显示格式与筛选范围的
+  口径、UTF-8 BOM/转义/文件名、100k 流式写入与取消；复用 `formatStyledCellValue`，不要另写
+  第二套格式化或写盘路径。
 
 ---
 
@@ -55,22 +57,23 @@
 | `T3.2` 样式渲染管线 | **已完成**（2026-10-23，`cd415d6`）；报告 `docs/reports/t3.2/REPORT.md`；ADR-035 |
 | `T3.3` 条件格式引擎 | **已完成**（2026-10-24，`0a6bedf`）；报告 `docs/reports/t3.3/REPORT.md`；ADR-036 |
 | `T3.4` 样式编辑器与实时预览 | **已完成**（2026-10-24，`7e695bb`）；报告 `docs/reports/t3.4/REPORT.md`；ADR-037 |
-| 当前里程碑 | **M3 表格外观**：T3.1–T3.4 完成；T3.5–T3.6 待推进，里程碑验收演示最后做 |
-| 下一步 | **等待用户授权 T3.5（模板管理与导入导出）**；不要自动开始 T3.5/T3.6 |
-| `pnpm verify` 基线 | **133 files / 1140 tests**；ESLint 0；depcruise **372 modules / 1461 deps / 0 violations** |
-| `pnpm test:coverage` 基线 | 全局 lines **74.70%** / statements **74.59%** / branches **67.35%** / functions **72.97%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **66 passed**（`style.spec.ts` 2 条：T3.2 模板 + T3.4 编辑器/键盘/撤销/200%）；M2 验收仍通过 |
-| `pnpm bench` 基线 | **exit 0**；open 504ms、save 340ms、edit 0ms、query 192ms、text-sort 234ms、cjk-sort 598ms、import 873ms、condition 1ms；clone 304ms（诊断） |
+| `T3.5` 模板管理与导入导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.5/REPORT.md`；ADR-038 |
+| 当前里程碑 | **M3 表格外观**：T3.1–T3.5 完成；T3.6 待推进，里程碑验收演示最后做 |
+| 下一步 | **等待用户授权 T3.6（CSV 导出）**；不要自动开始 T3.6 或 M3 验收 |
+| `pnpm verify` 基线 | **138 files / 1181 tests**；ESLint 0；depcruise **380 modules / 1503 deps / 0 violations** |
+| `pnpm test:coverage` 基线 | 全局 lines **74.94%** / statements **74.81%** / branches **67.53%** / functions **73.00%**；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **68 passed**（`style.spec.ts` 2 条、`template.spec.ts` 2 条：往返/删除回退/坏文件/200%）；M2 验收仍通过 |
+| `pnpm bench` 基线 | **exit 0**；open 352ms、save 254ms、edit 0ms、query 209ms、text-sort 248ms、cjk-sort 434ms、import 623ms、condition P95 0ms；clone 236ms（诊断） |
 | `pnpm format:check` | 通过 |
-| 构建 | `pnpm build` exit 0；renderer **1,545.42 kB** + 懒加载 ImportSession 42.82 kB；CSS 59.59 kB；table/query/import worker 220.53/236.02/270.01 kB |
+| 构建 | `pnpm build` exit 0；renderer **1,594.18 kB** + 懒加载 ImportSession 42.82 kB；CSS 62.86 kB；table/query/import worker 220.68/236.16/270.16 kB |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
 
 **用户明确要求**：
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **M2 已获用户接受；T3.1、T3.2、T3.3、T3.4 已完成**；下一步等待用户授权 T3.5。
-- 不得跨里程碑；T3.4 报告已输出，停下等用户确认，不进入 T3.5 的实现。
+- **M2 已获用户接受；T3.1、T3.2、T3.3、T3.4、T3.5 已完成**；下一步等待用户授权 T3.6。
+- 不得跨里程碑；T3.5 报告已输出，停下等用户确认，不进入 T3.6（CSV 导出）的实现。
 
 ---
 
@@ -79,16 +82,16 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/reports/t3.4/REPORT.md、
-docs/TASKS.md 的 M3 / T3.4 / T3.5、docs/TESTPLAN.md §2/§3/§5、
-docs/SPEC.md §10.5/§10.6/§13.1/§13.2/§16.1、ADR-037、ADR-036、ADR-035 与 ADR-034。
+先读 AGENTS.md、docs/HANDOFF.md、docs/reports/t3.5/REPORT.md、
+docs/TASKS.md 的 M3 / T3.5 / T3.6、docs/TESTPLAN.md §2/§3/§5、
+docs/SPEC.md §9.6/§13.1/§16.1、ADR-038、ADR-037。
 
-现状：M0、M1（已验收）、M2（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1、T3.2、T3.3、T3.4 已完成；
-pnpm verify 133 files / 1140 tests、coverage lines 74.70%、pnpm e2e 66 passed、
+现状：M0、M1（已验收）、M2（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1、T3.2、T3.3、T3.4、T3.5 已完成；
+pnpm verify 138 files / 1181 tests、coverage lines 74.94%、pnpm e2e 68 passed、
 pnpm bench exit 0。
 
-下一步：等待用户授权 T3.5（模板管理与导入导出）；确认前不要开始 T3.5 的实现。
-若用户明确授权进入 T3.5，先按 AGENTS §8 复述目标/产出/验收再开工。
+下一步：等待用户授权 T3.6（CSV 导出）；确认前不要开始 T3.6 的实现。
+若用户明确授权进入 T3.6，先按 AGENTS §8 复述目标/产出/验收再开工。
 ```
 
 ---
@@ -204,11 +207,21 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
   生成 100k×10 夹具（约 15MB，gitignore）；`perf.spec.ts` 把它复制到 `testInfo.outputPath` 再打开。
   单独跑 perf spec 前必须先执行该生成命令。
 - `perf.spec.ts` 的内存门禁用 `app.getAppMetrics().memory.privateBytes`（不含 GPU）；
-  `workingSetSize` 会重复计算共享页，只作诊断。当前峰值 565MB/600MB，余量约 6%。
+  `workingSetSize` 会重复计算共享页，只作诊断。当前 T3.5 实测峰值 568MB/600MB，余量约 5%。
 - `pnpm bench` 的 `memoryPeakMB` 是 Node 管线 RSS 趋势（约 900MB），**不是**应用内存门禁；
   600MB 只由 E2E 判定。
 - `bench/baseline.json` 需由 CI Windows runner 的 `pnpm bench -- --write-baseline` 生成后提交；
   缺失时报告 `baseline: "missing"` 并打印 `::notice`，回归比较跳过。损坏的基线直接让 bench 失败。
+- T3.5 的 `template.spec.ts` 用 `launchCurveApp({ saveFile })` 把导出落到 `.curvestyle.json`；
+  `saveFile` 是**仅测试**的 fixture 选项，默认仍是 `userDataDir/import-errors.csv`。导出走
+  `file:exportText` 的保存对话框替身，导入走 `file:importText`（`CURVE_E2E_IMPORT`）。
+- `.curvestyle.json` 导入不进入 `imports/` 归档；领域层 `MAX_STYLE_EXPORT_LENGTH` 在 JSON.parse
+  前短路，main 的 100MB 上限仍然有效。
+- `style.delete` 按 SPEC §13.1 可撤销：管理对话框的删除确认不能改写成“不可撤销”，撤销要同时
+  恢复样式、所有视图 `styleId` 与工作区默认。删除确认/模板列表使用固定 test id，
+  E2E 依赖 `style-template-*` / `style-import-*`，不要重命名。
+- 模板管理是模态对话框；导入预览复用 `StylePreview`（前 50 行），不挂 DataGrid/查询/虚拟滚动。
+  名称冲突与 ` (2)` 规则在 domain（`styleCopyName`/`resolveStyleName`），UI 只做展示与校验。
 
 ---
 
@@ -490,10 +503,11 @@ apps/desktop/src/renderer/
 T2.5 新增 `apps/desktop/e2e/import.spec.ts` 6 条：100k GBK 分号 + 3 坏行 + 错误 CSV；错编码
 覆盖；150k 取消/100k 提示；JSON 替换 + 备份 + 原文归档 + 撤销；200k 拒绝；200% 缩放键盘。
 
-完整 E2E 现为 **66 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
+完整 E2E 现为 **68 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
 `schema.spec.ts`、T2.4 的 `paste.spec.ts`、T2.5 的 `import.spec.ts`、T2.6 的
-`filter.spec.ts`、T2.7 的 `perf.spec.ts`、T3.2/T3.4 的 `style.spec.ts`、M2 的
-`m2-acceptance.spec.ts` 与既有 shell/ipc/smoke/workspace/table-io 仍全绿。
+`filter.spec.ts`、T2.7 的 `perf.spec.ts`、T3.2/T3.4 的 `style.spec.ts`、T3.5 的
+`template.spec.ts`、M2 的 `m2-acceptance.spec.ts` 与既有 shell/ipc/smoke/workspace/table-io
+仍全绿。
 
 T2.6 新增 `apps/desktop/e2e/filter.spec.ts` 6 条：2k 行筛选 + 三级排序；重开恢复筛选/排序与
 清除；同表双视图互不影响；隐藏列/恢复；100k 行 Worker 筛选+排序（`data-query-ms <= 400`）；
@@ -649,6 +663,70 @@ apps/desktop/src/renderer/features/style/
   超过两层/缺失列/不支持操作符的规则只读。
 - E2E `style.spec.ts` 第二条覆盖：键盘改密度、字号一次撤销、键盘加规则、manifest 落盘、
   200% 缩放、两张截图；不提交像素基线。
+
+### 4.15 `@curve/domain` 模板导出与身份重分配（T3.5）
+
+```ts
+STYLE_EXPORT_KIND = 'curve-table-style'; STYLE_EXPORT_VERSION = 1
+MAX_STYLE_EXPORT_LENGTH = 2_000_000
+StyleExportDocument { kind; version; exportedAt; style }
+styleExportDocumentSchema
+createStyleExportDocument(style, { now? }): StyleExportDocument
+serializeStyleExportDocument(document): string
+parseStyleExportDocument(text): { ok: true; document } | { ok: false; reason; detail? }
+cloneTableStyle(style): TableStyle
+reassignStyleIdentity(style, { name?, uuid? }): TableStyle
+styleCopyName(base, existingNames): string
+resolveStyleName(base, existingNames): string
+```
+
+- 导出文档是 `TableStyle` 的深拷贝快照；`exportedAt` 用 `isoTimestampSchema`，序列化为
+  2 空格缩进 + 结尾换行。
+- 失败原因 `json`/`tooLarge`/`version`/`document` 由解析器返回，不抛跨进程错误。
+- `reassignStyleIdentity` 生成新 `sty_`、`builtin:false`、每条规则新 `rule_`；tokens/覆盖/
+  谓词/列 ID 原样保留。`styleCopyName` 总是加后缀，`resolveStyleName` 原名空闲则保留。
+
+### 4.16 `@curve/app-core` 模板命令与 actions（T3.5）
+
+```ts
+createStyleDeleteCommand(options?): CommandDefinition<{ styleId }>
+createStyleApplyCommand(options?): CommandDefinition<{ styleId, target }>
+StyleApplyTarget = { kind: 'view'; viewId } | { kind: 'default' }
+styleFallbackId(state, deletedStyleId): string
+prepareStyleImport(text, { existingNames, uuid? }): PrepareStyleImportResult
+collectStyleColumnIds(style): string[]
+missingStyleColumns(style, table): string[]
+
+WorkspaceActions.deleteTableStyle(styleId):
+  Promise<ActionOutcome<{ fallbackStyleId; affectedViewIds }>>
+WorkspaceActions.applyTableStyle(styleId, target): Promise<ActionOutcome>
+WorkspaceActions.duplicateTableStyle(styleId):
+  Promise<ActionOutcome<{ styleId; name }>>
+```
+
+- `style.delete` 仅接受 `sty_`；同一 Immer 事务内回退所有引用视图、重置默认、删除样式。
+- `style.apply` 校验样式可解析与目标合法；`view` 只接受表视图，`default` 写工作区设置。
+- 两条命令都加入 `MANIFEST_SAVING_COMMANDS` 与 `EditHistory` 的 workspace 作用域；action 等待
+  `saveQueue.flush()`，失败返回 `committed: true`。`duplicateTableStyle` 用 domain 的名称辅助。
+
+### 4.17 renderer 模板管理与导入导出（T3.5）
+
+```text
+apps/desktop/src/renderer/features/style/
+├─ TemplateManagerDialog.tsx  # 列表、应用/默认/重命名/复制/导出/删除确认/导入入口
+├─ TemplateImportDialog.tsx   # 选择文件、解析校验、前 50 行预览、缺失列、应用选项
+├─ style-transfer.ts          # 建议文件名、BOM/UTF-8 解码、文件名提取
+├─ StylePanel.tsx             # 对话框状态 + action/IPC 接线
+└─ StyleEditorDialog.tsx      # “另存为模板…”并切换到新副本
+```
+
+- 管理对话框是模态框；删除确认在同一对话框内切换内容与 footer，不叠加第二个模态框。
+- 导入/exports 复用 `core.api.file.importText/exportText`；导出前先 `styleExportDocumentSchema`
+  构造并序列化，导入文本在领域层解析、在 app-core 做身份重分配。
+- `.curvestyle.json` 不写 `imports/`；`file:importText` 的 `.json` 扩展名判断已足够。
+- E2E `template.spec.ts` 覆盖：导出 → 重启 → 新工作区导入 → 应用（12 项计算样式一致）、
+  删除回退与 `Ctrl+Z`、坏文件 manifest 字节不变、200% 与键盘打开；截图在
+  `docs/reports/t3.5/`。
 
 ---
 
@@ -1117,17 +1195,72 @@ pnpm bench          exit 0；open 504ms、save 340ms、edit 0ms、query 192ms、
 
 **T3.5 开工交接清单**：
 
-- 先读 `docs/TASKS.md` 的 T3.5、SPEC §10.5、ADR-034/037；按 AGENTS §8 先复述目标/产出/验收。
-- 模板 CRUD 走命令总线：建议 `style.create`（复用）/`style.update`（复用），删除/设为默认/
-  导入导出是否新增 `style.delete/apply` 先写 ADR 并更新 SPEC §13.1。
-- 编辑/复制/导入模板必须重新分配样式 id 与规则 id（ADR-034 的复核条件）；名称冲突加 ` (2)`。
-- `.curvestyle.json` 先 Zod 校验（`kind/version/exportedAt/style`），任何失败不污染 manifest；
-  导入预览后确认。
-- 删除被引用模板：所有视图回退工作区默认样式并提示；不得留下悬空 `styleId`。
-- T3.5 不做 T3.6 CSV 导出；不做 T5.x 自动保存/恢复。
+## 5H. T3.5 决策与实现记录（已完成）
 
-**不要做**：不要提前实现 T3.5 的模板 CRUD/T3.6 导出；不要改 `formatVersion`/manifest 字段；
-不要在编辑器/命令之外另写样式求值或写盘路径。
+ADR-038 记录 6 组决定：
+
+1. **命令面**：复用 `style.create`/`style.update`；新增 `style.delete { styleId }` 与
+   `style.apply { styleId, target }`（`target` 为表视图或工作区默认）。不新增
+   `style.setDefault`；另存为/复制/导入落库用 `style.create`，重命名用 `style.update`。
+2. **删除可撤销（SPEC §13.1 优先）**：TASKS 原文“删除除外”与 SPEC 冲突，按 AGENTS §0 以 SPEC
+   为准；删除保留 UI 二次确认，命令在同一事务内回退所有视图与默认，并可 Ctrl+Z 恢复。
+3. **导入导出**：`kind/curve-table-style` + `version:1` + `exportedAt` + `style`；领域层
+   `styleExportDocumentSchema`/`parseStyleExportDocument` 区分 `json/tooLarge/version/document`；
+   导入总是重新分配 `sty_`/`rule_` id、强制 `builtin:false`、名称冲突 ` (2)`、缺失列只提示。
+   复用 `file:importText`/`file:exportText`，不新增 IPC，不归档到 `imports/`。
+4. **UI**：检查器“模板管理…”模态框（应用/默认/重命名/复制/导出/删除/导入）；删除确认在同一
+   对话框内切换；导入预览复用 `StylePreview` 前 50 行并可选择应用到当前视图；编辑器“另存为”
+   保存当前草稿并切换到新副本。
+5. **撤销/保存**：一次操作一条 workspace 历史；导入/复制/另存为 = `style.create`，重命名 =
+   `style.update`，应用/删除 = 新命令；全部 manifest-only，action 等待 flush，失败 `committed:true`。
+6. **范围**：不新增运行时依赖，不改 `formatVersion`/manifest 字段/JSONL/IPC/preload/CSP；
+   不做 T3.6 CSV 导出与 M3 验收。
+
+关键文件：
+
+```text
+packages/domain/src/{style-export.ts,table-style.ts} (+tests)
+packages/app-core/src/commands/styles.ts (+test)
+packages/app-core/src/validation/style-import.ts (+test)
+packages/app-core/src/{app-core.ts,history/edit-history.ts,usecases/workspace-actions.ts} (+tests)
+apps/desktop/src/renderer/features/style/{TemplateManagerDialog,TemplateImportDialog,style-transfer}.tsx
+apps/desktop/src/renderer/features/style/{StylePanel,StyleEditorDialog}.tsx (+tests)
+apps/desktop/e2e/{template.spec.ts,fixtures.ts}
+docs/adr/038-t35-template-management.md；docs/reports/t3.5/REPORT.md (+2 screenshots)
+```
+
+实测（2026-10-24）：
+
+```text
+pnpm verify         138 files / 1181 tests；ESLint 0；
+                    depcruise 380 modules / 1503 deps / 0 violations
+pnpm test:coverage  lines 74.94% / statements 74.81% / branches 67.53% / functions 73.00%
+pnpm format:check   通过
+pnpm build          exit 0；renderer 1,594.18 kB + ImportSession 42.82 kB；CSS 62.86 kB
+pnpm e2e            68 passed（template.spec 2 条：5.4s / 1.9s；内存 568MB/600MB、冷启动 939ms）
+pnpm bench          exit 0；open 352ms、save 254ms、edit 0ms、query 209ms、
+                    text-sort 248ms、cjk-sort 434ms、import 623ms、condition P95 0ms；clone 236ms
+```
+
+残留：
+
+- 导入总是新建模板，不合并/覆盖同一样式；导入预览只含前 50 行。
+- 名称冲突按持久化 `style.name` 比较；英文界面下内置模板按 id 本地化，极少数显示名可能观感重复。
+- 2,000,000 字符导入上限；模板管理为模态框，不能边看主网格边管理。
+- renderer bundle 约 1.59MB（+48.8 kB），T6.4 打包阶段评估拆包。
+- 删除可撤销的确认文案必须说明可撤销；如未来改回不可撤销，需改 SPEC §13.1 与 ADR-038。
+
+**T3.6 开工交接清单**：
+
+- 先读 `docs/TASKS.md` 的 T3.6、SPEC §9.6/§13.1/§16.1、ADR-038；按 AGENTS §8 复述目标/产出/验收。
+- 确认导出动作的归属（命令/纯读取 action）、原始值 vs 显示格式、列顺序、筛选/排序范围与
+  文件名；确认 `file:exportText` 是否够用（它需要整串内容，100k 流式导出可能需要新通道/ADR）。
+- 显示格式必须复用 `formatStyledCellValue`/样式解析，不得另写格式化；写入仍走原子写。
+- 验收预算：100k 行导出 ≤5s 且可取消；Excel 打开无乱码；引号/逗号/换行正确转义。
+- T3.6 不做 M3 验收演示；不做 T4.x 图表。
+
+**不要做**：不要提前实现 T3.6 CSV 导出、M3 验收或 T4.x；不要改 `formatVersion`/manifest 字段；
+不要在命令/编辑器之外另写样式求值或写盘路径。
 
 ---
 
@@ -1182,10 +1315,10 @@ pnpm e2e
 pnpm bench
 ```
 
-**用户已于 2026-10-23 接受 M2**；TASKS M2 注记已更新为“获用户接受”，T3.1、T3.2、T3.3、T3.4
-已按授权完成（见 §5D/§5E/§5F/§5G）。若未来用户要求修改 M2，再回到对应 T2.x 修复。
+**用户已于 2026-10-23 接受 M2**；TASKS M2 注记已更新为“获用户接受”，T3.1、T3.2、T3.3、T3.4、
+T3.5 已按授权完成（见 §5D/§5E/§5F/§5G/§5H）。若未来用户要求修改 M2，再回到对应 T2.x 修复。
 
-**M2 已关闭；T3.1–T3.4 已完成，下一步等待用户授权 T3.5。**
+**M2 已关闭；T3.1–T3.5 已完成，下一步等待用户授权 T3.6（CSV 导出）。**
 
 ---
 
@@ -1207,7 +1340,7 @@ pnpm bench
 | 100k 文本排序接近 400ms | bench 波动可能超预算 | T2.7 已预计算排序键/类型数组，ASCII 253ms；中文仍 698ms/800ms |
 | query Worker 缓存最多 4 张表 | 切换更多表会重新克隆 | 记录于 ADR-032；T2.7 未改淘汰策略 |
 | 100k 首次 Worker 快照克隆 | 首次筛选/排序有额外延迟 | 不计入 `data-query-ms`；E2E `data-query-total-ms` 实测 448–490ms |
-| 整应用内存 497MB/600MB（M2 实测；T2.7 为 570MB） | CI runner 更慢/更碎片化时可能超 | 余量约 17%；超了先查是否 E2E 探针/噪声，不改预算 |
+| 整应用内存 497MB/600MB（M2 实测；T2.7 570MB；T3.5 568MB） | CI runner 更慢/更碎片化时可能超 | 余量约 5%；超了先查是否 E2E 探针/噪声，不改预算 |
 | bench 基线未提交 | 20% 回归告警不触发 | CI Windows runner 跑 `pnpm bench -- --write-baseline` 后提交 `bench/baseline.json` |
 | 100k 行撤销补丁变大 | 历史内存 | T2.7 的整数组 patch 每个编辑约 800KB；T5.2 统一历史时评估 |
 | 视图状态连续写 manifest | 拖动列宽/快速排序多次写盘 | T5.3 统一保存队列后合并 |
@@ -1223,19 +1356,24 @@ pnpm bench
 | `builtin.finance` 数字格式 | 模板令牌无法表达右对齐/千分位 | T3.2 用全局数字规则实现（ADR-035）：number/date 默认右对齐、Intl 千分位；未扩展模型 |
 | 所有模板数字带千分位、布尔本地化 | 与 T2.x 显示不同 | 用户确认的全局数字规则；显示层变化，不改磁盘数据；E2E 断言已同步 |
 | 视觉验收无像素基线 | 跨 DPI/字体可能视觉漂移 | 按 HANDOFF §3.6 用计算样式契约 + 截图证据；需要像素基线时先评估 Windows CI 稳定性 |
-| 内置模板名称 i18n | 常量使用中文规范名 | T3.4 已按 id 走 `t(key)`；T3.5 模板列表继续复用，不直接显示 `style.name` |
-| 样式编辑器预览只含前 50 行 | 看不到筛选/虚拟滚动效果 | ADR-037；主网格虚拟化路径不变；需要筛选预览时另写 ADR |
-| 样式规则组最多 2 个 | 更深谓词只读 | `condition-builder`/UI 限制；T3.5 导入复杂模板不得静默改写 |
+| 内置模板名称 i18n | 常量使用中文规范名 | T3.4 按 id 走 `t(key)`；T3.5 管理器/导入预览同样按 id 显示，用户样式显示自身 `name` |
+| 样式编辑器/导入预览只含前 50 行 | 看不到筛选/虚拟滚动效果 | ADR-037/038；主网格虚拟化路径不变；需要筛选预览时另写 ADR |
+| 样式规则组最多 2 个 | 更深谓词只读 | `condition-builder`/UI 限制；T3.5 导入复杂模板原样保留、不静默改写 |
 | 样式编辑器密度联动内边距 | 自定义 `cellPaddingY` 会被密度预设覆盖 | 用户可随后单独调整内边距；ADR-037 已记录 |
 | 样式编辑器文本未失焦即 Esc | 丢弃本地未提交值 | “取消即丢弃”的一致语义；提交按钮/失焦才写命令 |
 | 颜色仅接受 hex | 不支持 `transparent`/CSS 变量 | 按 SPEC §10.6；需要时另写 ADR 放宽 schema |
-| fork 保留规则 id | 跨样式复制后规则 id 可能重复 | 规则在样式内求值，当前不冲突；T3.5 导入/复制时统一分配 |
+| fork 保留规则 id | 跨样式复制后规则 id 可能重复 | T3.5 的导入/复制/另存为改用 `reassignStyleIdentity` 重新分配；T3.4 的懒 fork 仍保留规则 id，规则只在所属样式内求值 |
 | 保存失败但内存已变更 | `committed: true` | UI 关闭对话框，状态栏/Toast 重试；不重复执行 |
 | 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 74.70% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；T3.4 报告记录实测 |
-| renderer bundle 约 1.55MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
+| 覆盖率 74.94% | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；T3.5 报告记录实测 |
+| renderer bundle 约 1.59MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
+| 删除可撤销与 TASKS 原文冲突 | 确认文案/验收口径可能被误读 | SPEC §13.1 优先；ADR-038 已记录，确认框必须写“可撤销” |
+| 导入总是新建模板 | 无法合并/覆盖同名样式 | ADR-038；需要合并时另写 ADR 与冲突 UI |
+| 导入文档 2,000,000 字符上限 | 极端大模板被拒 | 正常模板几 KB；上限在 JSON.parse 前短路 |
+| 名称冲突按持久化 `style.name` 比较 | 本地化显示名可能观感重复 | 管理器/导入按 id 本地化内置名称；不做静默改名 |
+| 模板管理是模态对话框 | 不能边看主网格边管理 | 应用/删除后关闭查看；需要非模态时另写 ADR |
 
 ---
 
@@ -1249,26 +1387,28 @@ pnpm bench
 - 不绕过命令总线直接改 store（撤销会坏）；不在组件里写业务逻辑。
 - 不加未经 ADR 的运行时依赖；不跳过测试、不放宽 ESLint/覆盖率规则、不用 `--no-verify`。
 - 不未经 ADR/用户确认升级 `formatVersion`、改数据格式、IPC 通道或公共 API。
-- 不在 T3.4 已完成后再顺手实现 T3.5 模板 CRUD/T3.6 CSV 导出或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
-- 不自动跨任务/跨里程碑；T3.4 已完成并输出报告，等待用户授权 T3.5，不进入 T3.5 的实现。
+- 不在 T3.5 已完成后再顺手实现 T3.6 CSV 导出、M3 验收或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
+- 不自动跨任务/跨里程碑；T3.5 已完成并输出报告，等待用户授权 T3.6，不进入 T3.6 的实现。
 
 ---
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T3.4 提交（报告 `docs/reports/t3.4/REPORT.md`）。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T3.5 提交（报告 `docs/reports/t3.5/REPORT.md`）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 M3/T3.4/T3.5、`docs/reports/t3.4/REPORT.md`、
-      TESTPLAN §2/§3/§5、SPEC §10.5/§10.6/§13.1/§13.2/§16.1、ADR-037、ADR-036、ADR-035 与 ADR-034。
-- [ ] 已确认 `pnpm verify` 基线（133 files / 1140 tests）、coverage lines 74.70%、
-      e2e 66 passed、bench exit 0、condition P95 1ms、样式预览 3ms。
+- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 M3/T3.5/T3.6、`docs/reports/t3.5/REPORT.md`、
+      TESTPLAN §2/§3/§5、SPEC §10.5/§10.6/§9.6/§13.1/§13.2/§16.1、ADR-038、ADR-037、ADR-036、
+      ADR-035 与 ADR-034。
+- [ ] 已确认 `pnpm verify` 基线（138 files / 1181 tests）、coverage lines 74.94%、
+      e2e 68 passed、bench exit 0、condition P95 0ms、样式预览 3ms。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M2 已获用户接受、T3.1–T3.4 已完成；**等待用户授权 T3.5**，不要自行进入 T3.5。
+- [ ] 已确认 M2 已获用户接受、T3.1–T3.5 已完成；**等待用户授权 T3.6**，不要自行进入 T3.6。
 - [ ] 已确认 T3.1 的 hex 颜色/内置冻结/resolve/fork；T3.2 的 20 个表变量/宽度优先级/全局数字规则/
       bar/badge；T3.3 的条件原语/`conditionCompareOps`/优先级/`style.update`；T3.4 的
-      `style.create` 懒 fork、前 50 行预览与一次控件一条撤销。
+      `style.create` 懒 fork、前 50 行预览与一次控件一条撤销；T3.5 的 `style.delete/apply`、
+      导出文档/身份重分配、删除回退与可撤销。
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`，截图提交前还原。
-- [ ] 用户明确授权 T3.5 后，先按 AGENTS §8 复述再开工；未授权则停在 T3.4。
+- [ ] 用户明确授权 T3.6 后，先按 AGENTS §8 复述再开工；未授权则停在 T3.5。

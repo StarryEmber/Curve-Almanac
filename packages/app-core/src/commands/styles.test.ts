@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { createTableStyle } from '@curve/domain';
+import { createTableStyle, DEFAULT_TABLE_STYLE_ID } from '@curve/domain';
 import type { ConditionalRule, TableStyle, ViewDef } from '@curve/domain';
 import { createEmptyManifest } from '@curve/persistence';
 
 import { createAppStore } from '../state/store';
 
 import { createCommandBus } from './bus';
-import { createStyleCreateCommand, createStyleUpdateCommand } from './styles';
+import {
+  createStyleApplyCommand,
+  createStyleCreateCommand,
+  createStyleDeleteCommand,
+  createStyleUpdateCommand,
+} from './styles';
 
 import type { AppLogger } from '../logging';
 import type { AppState } from '../state/types';
@@ -78,6 +83,8 @@ function setup(initial: TableStyle = styleWithRules()) {
   const bus = createCommandBus(store, { logger });
   bus.register(createStyleCreateCommand({ now: () => new Date('2026-10-24T00:00:00.000Z') }));
   bus.register(createStyleUpdateCommand({ now: () => new Date('2026-10-24T00:00:00.000Z') }));
+  bus.register(createStyleDeleteCommand({ now: () => new Date('2026-10-24T00:00:00.000Z') }));
+  bus.register(createStyleApplyCommand({ now: () => new Date('2026-10-24T00:00:00.000Z') }));
   return { store, bus };
 }
 
@@ -202,5 +209,155 @@ describe('style.update', () => {
     const missing = bus.dispatch('style.update', {});
     expect(missing.ok).toBe(false);
     expect(store.getState().tableStyles).toBe(before);
+  });
+});
+
+function tableViewById(id: string, styleId: string): ViewDef {
+  return {
+    id,
+    kind: 'table',
+    refId: 'tbl_test',
+    title: id,
+    tableView: {
+      tableId: 'tbl_test',
+      styleId,
+      columnOrder: [],
+      widths: {},
+      hiddenColumnIds: [],
+      sort: [],
+      frozenColumnCount: 0,
+    },
+  };
+}
+
+function workspaceWithDefault(styleId: string): NonNullable<AppState['workspace']> {
+  const workspace = workspaceState();
+  return { ...workspace, settings: { ...workspace.settings, defaultTableStyleId: styleId } };
+}
+
+describe('style.delete', () => {
+  it('removes the style, remaps every referencing view and resets a deleted default', () => {
+    const store = createAppStore({
+      initialState: {
+        workspace: workspaceWithDefault('sty_test'),
+        tableStyles: { sty_test: styleWithRules() },
+        views: {
+          viw_a: tableViewById('viw_a', 'sty_test'),
+          viw_b: tableViewById('viw_b', 'sty_test'),
+          viw_c: tableViewById('viw_c', 'builtin.dark'),
+        },
+      },
+    });
+    const bus = createCommandBus(store, { logger });
+    bus.register(createStyleDeleteCommand({ now: () => new Date('2026-10-24T00:00:00.000Z') }));
+    const before = store.getState().workspace?.updatedAt;
+
+    const outcome = bus.dispatch('style.delete', { styleId: 'sty_test' });
+    expect(outcome.ok).toBe(true);
+
+    const state = store.getState();
+    expect(state.tableStyles['sty_test']).toBeUndefined();
+    expect(state.views['viw_a']?.tableView?.styleId).toBe(DEFAULT_TABLE_STYLE_ID);
+    expect(state.views['viw_b']?.tableView?.styleId).toBe(DEFAULT_TABLE_STYLE_ID);
+    expect(state.views['viw_c']?.tableView?.styleId).toBe('builtin.dark');
+    expect(state.workspace?.settings.defaultTableStyleId).toBe(DEFAULT_TABLE_STYLE_ID);
+    expect(state.workspace?.updatedAt).not.toBe(before);
+  });
+
+  it('falls back to a surviving workspace default user style', () => {
+    const keep = createTableStyle({ id: 'sty_keep', name: 'Keep' });
+    const store = createAppStore({
+      initialState: {
+        workspace: workspaceWithDefault('sty_keep'),
+        tableStyles: { sty_test: styleWithRules(), sty_keep: keep },
+        views: { viw_a: tableViewById('viw_a', 'sty_test') },
+      },
+    });
+    const bus = createCommandBus(store, { logger });
+    bus.register(createStyleDeleteCommand({ now: () => new Date('2026-10-24T00:00:00.000Z') }));
+
+    expect(bus.dispatch('style.delete', { styleId: 'sty_test' }).ok).toBe(true);
+
+    const state = store.getState();
+    expect(state.views['viw_a']?.tableView?.styleId).toBe('sty_keep');
+    expect(state.workspace?.settings.defaultTableStyleId).toBe('sty_keep');
+    expect(state.tableStyles['sty_keep']).toBeDefined();
+  });
+
+  it('rejects builtins, missing styles and malformed payloads without changing state', () => {
+    const { store, bus } = setup();
+    const before = store.getState();
+
+    for (const payload of [
+      { styleId: 'builtin.dark' },
+      { styleId: 'sty_missing' },
+      { styleId: 'not-a-style' },
+      {},
+    ]) {
+      const outcome = bus.dispatch('style.delete', payload);
+      expect(outcome.ok).toBe(false);
+      if (!outcome.ok) {
+        expect(outcome.error.code).toBe('E_VALIDATION');
+      }
+    }
+
+    expect(store.getState().tableStyles).toBe(before.tableStyles);
+    expect(store.getState().views).toBe(before.views);
+  });
+});
+
+describe('style.apply', () => {
+  it('applies a style to one view and to the workspace default', () => {
+    const { store, bus } = setup();
+    const before = store.getState().workspace?.updatedAt;
+
+    const viewOutcome = bus.dispatch('style.apply', {
+      styleId: 'sty_test',
+      target: { kind: 'view', viewId: 'viw_test' },
+    });
+    expect(viewOutcome.ok).toBe(true);
+    expect(store.getState().views['viw_test']?.tableView?.styleId).toBe('sty_test');
+
+    const defaultOutcome = bus.dispatch('style.apply', {
+      styleId: 'builtin.dark',
+      target: { kind: 'default' },
+    });
+    expect(defaultOutcome.ok).toBe(true);
+    expect(store.getState().workspace?.settings.defaultTableStyleId).toBe('builtin.dark');
+    expect(store.getState().workspace?.updatedAt).not.toBe(before);
+    expect(store.getState().tableStyles['sty_test']).toBeDefined();
+  });
+
+  it('rejects unknown styles, missing or non-table views and malformed targets', () => {
+    const store = createAppStore({
+      initialState: {
+        workspace: workspaceState(),
+        tableStyles: { sty_test: styleWithRules() },
+        views: {
+          viw_test: tableViewById('viw_test', 'builtin.report-light'),
+          viw_chart: { id: 'viw_chart', kind: 'chart', refId: 'cht_1', title: 'Chart' },
+        },
+      },
+    });
+    const bus = createCommandBus(store, { logger });
+    bus.register(createStyleApplyCommand({ now: () => new Date('2026-10-24T00:00:00.000Z') }));
+    const before = store.getState();
+
+    const payloads: unknown[] = [
+      { styleId: 'sty_missing', target: { kind: 'view', viewId: 'viw_test' } },
+      { styleId: 'builtin.missing', target: { kind: 'default' } },
+      { styleId: 'sty_test', target: { kind: 'view', viewId: 'viw_missing' } },
+      { styleId: 'sty_test', target: { kind: 'view', viewId: 'viw_chart' } },
+      { styleId: 'sty_test', target: { kind: 'chart' } },
+      { styleId: 'sty_test' },
+      {},
+    ];
+    for (const payload of payloads) {
+      const outcome = bus.dispatch('style.apply', payload);
+      expect(outcome.ok).toBe(false);
+    }
+
+    expect(store.getState().views).toBe(before.views);
+    expect(store.getState().workspace).toBe(before.workspace);
   });
 });

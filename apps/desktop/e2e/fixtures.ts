@@ -45,7 +45,11 @@ function resolveElectronExecutable(): string {
  * keeps window state, logs and the recent list inside the per-test scratch
  * directory; the other variables redirect the dialog stand-ins.
  */
-function buildLaunchEnvironment(userDataDir: string, importFile: string): Record<string, string> {
+function buildLaunchEnvironment(
+  userDataDir: string,
+  importFile: string,
+  saveFile?: string,
+): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (typeof value === 'string') {
@@ -61,7 +65,7 @@ function buildLaunchEnvironment(userDataDir: string, importFile: string): Record
   env['CURVE_E2E_DIR'] = dialogDirectory;
   // T2.5 file stand-ins: one selected import file and one export target.
   env['CURVE_E2E_IMPORT'] = importFile;
-  env['CURVE_E2E_SAVE'] = join(userDataDir, 'import-errors.csv');
+  env['CURVE_E2E_SAVE'] = saveFile ?? join(userDataDir, 'import-errors.csv');
   return env;
 }
 
@@ -78,6 +82,8 @@ export interface LaunchCurveAppOptions {
   userDataDir: string;
   /** Absolute path returned by the E2E import fixture generator. */
   importFile: string;
+  /** Optional export target; defaults to `<userDataDir>/import-errors.csv`. */
+  saveFile?: string;
 }
 
 export interface LaunchedCurveApp {
@@ -95,7 +101,7 @@ export interface LaunchedCurveApp {
  * stays with the fixture; restart-flow callers attach their own screenshots.
  */
 export async function launchCurveApp(options: LaunchCurveAppOptions): Promise<LaunchedCurveApp> {
-  const env = buildLaunchEnvironment(options.userDataDir, options.importFile);
+  const env = buildLaunchEnvironment(options.userDataDir, options.importFile, options.saveFile);
   const launchStartedAt = Date.now();
   const electronApp = await electron.launch({
     executablePath: resolveElectronExecutable(),

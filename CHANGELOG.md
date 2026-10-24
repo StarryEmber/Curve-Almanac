@@ -370,3 +370,20 @@
   200% 缩放与 2 张编辑器截图；新增 ADR-037、SPEC §10.5/§10.6/§13.1/§13.2/§16.1、TASKS T3.4
   与 `docs/reports/t3.4/REPORT.md`；不改变 `formatVersion`、JSONL、manifest 字段、IPC、
   preload、CSP 或运行时依赖。
+- T3.5：`@curve/domain` 新增 `style-export.ts`（`styleExportDocumentSchema`、
+  `create/serialize/parseStyleExportDocument`、失败原因 `json/tooLarge/version/document`）与
+  `cloneTableStyle`/`reassignStyleIdentity`/`styleCopyName`/`resolveStyleName`；导入文档总是
+  重新分配 `sty_`/`rule_` id 并强制 `builtin:false`。
+- T3.5：`@curve/app-core` 新增 `style.delete`（原子回退所有引用视图与工作区默认）与
+  `style.apply { styleId, target }`（表视图/工作区默认），均 manifest-only 且进入 workspace
+  作用域历史；新增 `deleteTableStyle`/`applyTableStyle`/`duplicateTableStyle` action 与
+  `validation/style-import.ts`（解析、唯一名称、列引用收集、缺失列）。
+- T3.5：检查器“样式”面板新增“模板管理…”对话框（应用/设为默认/重命名/复制/导出/删除/导入，
+  删除确认列出受影响视图并显示回退结果）与导入预览对话框（真实前 50 行、缺失列提示、可选
+  应用到当前视图）；编辑器新增“另存为模板…”并切换到新副本；`.curvestyle.json` 复用
+  `file:importText`/`file:exportText`，未新增 IPC。
+- T3.5：`e2e/template.spec.ts` 覆盖导出→重启→新工作区导入→应用（12 项计算样式一致）、删除
+  回退与 Ctrl+Z 撤销、坏文件不污染 manifest、200% 缩放与键盘打开；`e2e/fixtures.ts` 增加仅
+  测试使用的 `saveFile` 选项。新增 ADR-038、SPEC §10.5/§13.1/§13.2/§16.1、TASKS T3.5 与
+  `docs/reports/t3.5/REPORT.md`；不改变 `formatVersion`、JSONL、manifest 字段、IPC、
+  preload、CSP 或运行时依赖。

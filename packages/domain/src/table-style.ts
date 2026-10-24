@@ -6,7 +6,7 @@
  * manifest and are resolved by id at render time.
  */
 
-import { createStyleId } from './factories';
+import { createRuleId, createStyleId } from './factories';
 
 import type { UuidFactory } from './factories';
 import type {
@@ -258,13 +258,75 @@ export interface ForkTableStyleOptions {
  */
 export function forkTableStyle(style: TableStyle, options: ForkTableStyleOptions = {}): TableStyle {
   return {
+    ...cloneTableStyle(style),
     id: createStyleId(options.uuid),
     name: options.name ?? forkStyleName(style.name),
     builtin: false,
+  };
+}
+
+/** Deep copy that keeps the source identity (used by the export snapshot). */
+export function cloneTableStyle(style: TableStyle): TableStyle {
+  return {
+    id: style.id,
+    name: style.name,
+    builtin: style.builtin,
     tokens: cloneTokens(style.tokens),
     columnOverrides: cloneColumnOverrides(style.columnOverrides),
     conditionalRules: cloneConditionalRules(style.conditionalRules),
   };
+}
+
+export interface ReassignStyleIdentityOptions {
+  /** Replacement name; defaults to the source name. */
+  name?: string;
+  uuid?: UuidFactory;
+}
+
+/**
+ * Copies a style into a new persisted identity (T3.5): new `sty_` id,
+ * `builtin: false`, and a fresh `rule_` id for every conditional rule. Content
+ * (tokens, overrides, predicates, column ids) is preserved verbatim so an
+ * imported template never rewrites rules it does not understand.
+ */
+export function reassignStyleIdentity(
+  style: TableStyle,
+  options: ReassignStyleIdentityOptions = {},
+): TableStyle {
+  const clone = cloneTableStyle(style);
+  return {
+    ...clone,
+    id: createStyleId(options.uuid),
+    name: options.name ?? clone.name,
+    builtin: false,
+    conditionalRules: clone.conditionalRules.map((rule) => ({
+      ...rule,
+      id: createRuleId(options.uuid),
+    })),
+  };
+}
+
+/**
+ * Always-suffixed copy name (`Sensors` → `Sensors (2)`), skipping names already
+ * in use. Mirrors `duplicateViewTitle` for templates (SPEC §10.5).
+ */
+export function styleCopyName(base: string, existingNames: Iterable<string>): string {
+  const trimmed = base.trim() === '' ? 'Style' : base.trim();
+  const used = new Set(existingNames);
+  const stemMatch = /^(.*) \((\d+)\)$/.exec(trimmed);
+  const stem = stemMatch?.[1]?.trim() ?? trimmed;
+  let index = 2;
+  while (used.has(`${stem} (${String(index)})`)) {
+    index += 1;
+  }
+  return `${stem} (${String(index)})`;
+}
+
+/** Keeps `base` when free, otherwise applies `styleCopyName` (import conflict). */
+export function resolveStyleName(base: string, existingNames: Iterable<string>): string {
+  const trimmed = base.trim() === '' ? 'Style' : base.trim();
+  const used = new Set(existingNames);
+  return used.has(trimmed) ? styleCopyName(trimmed, used) : trimmed;
 }
 
 function failMissingDefault(): never {

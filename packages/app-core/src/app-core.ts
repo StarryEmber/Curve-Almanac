@@ -12,7 +12,12 @@ import {
 import { createImportCommand } from './commands/import';
 import { createPasteCommand } from './commands/paste';
 import { createRowInsertCommand } from './commands/rows';
-import { createStyleCreateCommand, createStyleUpdateCommand } from './commands/styles';
+import {
+  createStyleApplyCommand,
+  createStyleCreateCommand,
+  createStyleDeleteCommand,
+  createStyleUpdateCommand,
+} from './commands/styles';
 import { createTableCellSetCommand } from './commands/table-cell-set';
 import {
   createTableCreateCommand,
@@ -81,7 +86,12 @@ const ROW_SAVING_COMMANDS = new Set([
 ]);
 
 /** Manifest-only document commands (no table JSONL to write). */
-const MANIFEST_SAVING_COMMANDS = new Set(['style.create', 'style.update']);
+const MANIFEST_SAVING_COMMANDS = new Set([
+  'style.create',
+  'style.update',
+  'style.delete',
+  'style.apply',
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -150,6 +160,8 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
   commands.register(createRowInsertCommand(commandOptions));
   commands.register(createStyleCreateCommand(commandOptions));
   commands.register(createStyleUpdateCommand(commandOptions));
+  commands.register(createStyleDeleteCommand(commandOptions));
+  commands.register(createStyleApplyCommand(commandOptions));
   commands.register(createColumnAddCommand({ now }));
   commands.register(createColumnUpdateCommand({ now }));
   commands.register(createColumnDeleteCommand({ now }));

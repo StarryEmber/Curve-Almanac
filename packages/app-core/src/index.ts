@@ -38,6 +38,7 @@ export * from './validation/filter-builder';
 export * from './validation/import-planning';
 export * from './validation/paste-columns';
 export * from './validation/paste-plan';
+export * from './validation/style-import';
 export * from './validation/view-state';
 export type * from './commands/types';
 export type * from './state/types';

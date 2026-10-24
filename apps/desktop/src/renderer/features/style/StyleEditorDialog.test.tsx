@@ -54,7 +54,10 @@ function userStyle(): TableStyle {
   return createTableStyle({ id: 'sty_test', name: 'Test' });
 }
 
-function renderEditor(tableStyle: TableStyle = userStyle()): {
+function renderEditor(
+  tableStyle: TableStyle = userStyle(),
+  existingNames: readonly string[] = [],
+): {
   onCreateStyle: ReturnType<typeof vi.fn>;
   onUpdateStyle: ReturnType<typeof vi.fn>;
   onClose: ReturnType<typeof vi.fn>;
@@ -70,6 +73,7 @@ function renderEditor(tableStyle: TableStyle = userStyle()): {
         view={view}
         tableStyle={tableStyle}
         rows={rows}
+        existingNames={existingNames}
         onClose={onClose}
         onCreateStyle={onCreateStyle}
         onUpdateStyle={onUpdateStyle}
@@ -188,5 +192,47 @@ describe('StyleEditorDialog', () => {
 
     expect(onUpdateStyle).not.toHaveBeenCalled();
     expect(screen.getByRole('alert').textContent).toContain('值的类型不正确');
+  });
+
+  it('saves the current draft as a new template and keeps editing the copy', async () => {
+    const { onCreateStyle, onUpdateStyle } = renderEditor(DEFAULT_TABLE_STYLE);
+    fireEvent.click(screen.getByRole('tab', { name: '模板' }));
+    fireEvent.click(screen.getByTestId('style-save-as-open'));
+
+    const input = screen.getByTestId('style-save-as-name') as HTMLInputElement;
+    expect(input.value).toBe('报告（浅） (2)');
+    fireEvent.change(input, { target: { value: 'My report' } });
+    fireEvent.click(screen.getByTestId('style-save-as-confirm'));
+
+    await waitFor(() => {
+      expect(onCreateStyle).toHaveBeenCalledTimes(1);
+    });
+    const created = onCreateStyle.mock.calls[0]?.[0] as TableStyle;
+    expect(created.name).toBe('My report');
+    expect(created.builtin).toBe(false);
+    expect(created.id.startsWith('sty_')).toBe(true);
+    await waitFor(() => {
+      expect(screen.getByTestId('style-save-as-notice').textContent).toContain('My report');
+    });
+
+    fireEvent.change(screen.getByTestId('style-density'), { target: { value: 'compact' } });
+    await waitFor(() => {
+      expect(onUpdateStyle).toHaveBeenCalledTimes(1);
+    });
+    expect((onUpdateStyle.mock.calls[0]?.[0] as TableStyle).id).toBe(created.id);
+  });
+
+  it('rejects a save-as name that is already in use', () => {
+    const { onCreateStyle } = renderEditor(userStyle(), ['My report']);
+    fireEvent.click(screen.getByRole('tab', { name: '模板' }));
+    fireEvent.click(screen.getByTestId('style-save-as-open'));
+    fireEvent.change(screen.getByTestId('style-save-as-name'), {
+      target: { value: 'My report' },
+    });
+    fireEvent.click(screen.getByTestId('style-save-as-confirm'));
+
+    expect(onCreateStyle).not.toHaveBeenCalled();
+    const alerts = screen.getAllByRole('alert').map((alert) => alert.textContent);
+    expect(alerts.join(' ')).toContain('已被其他模板使用');
   });
 });

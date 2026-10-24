@@ -978,6 +978,22 @@ interface ImportResult {
 - 导入：Zod 校验 → 重新分配 `id`/冲突名称加 ` (2)` → 预览 → 确认后写入。
 - 编辑预览：任何令牌/规则变更 100ms 内反映到预览网格；预览使用当前表前 50 行。
 
+**实现边界（T3.5，ADR-038）**：
+
+- 新增 `style.delete { styleId }` 与 `style.apply { styleId, target }`（`target` 为表视图或工作区
+  默认）；另存为/复制/导入落库复用 `style.create`，重命名复用 `style.update`。不新增
+  `style.setDefault`。
+- 删除仅限 `sty_` 用户样式；同一命令内移除样式、把所有引用视图与工作区默认改回仍可解析的默认
+  模板（被删样式正是默认时回退 `builtin.report-light`）；进入 workspace 作用域历史，因此
+  UI 二次确认后仍可用 Ctrl+Z 恢复样式与视图引用。
+- 导出文档由 `@curve/domain` 的 `styleExportDocumentSchema` 校验；`parseStyleExportDocument`
+  区分 `json`/`tooLarge`/`version`/`document` 失败。导入总是重新分配 `sty_` 与 `rule_` id、
+  强制 `builtin:false`；名称冲突按 ` (2)` 递增；跨表缺失列保留在模板中，只提示“将被忽略”。
+- 传输复用 `file:importText`/`file:exportText`，不新增 IPC/preload；`.curvestyle.json` 不归档到
+  `imports/`。导入预览复用前 50 行真实渲染管线，并可选“导入后应用到当前视图”。
+- 删除确认列出受影响视图；成功后提示回退数量与模板名。模板管理入口在检查器“样式”面板，
+  “另存为”在当前编辑器草稿上完成。
+
 ### 10.6 样式编辑器
 
 - 面板分组：模板、令牌（字体/颜色/密度/网格/圆角）、列覆盖、条件格式。
@@ -1000,8 +1016,8 @@ interface ImportResult {
   或含不支持操作符的已有规则只读，不静默改写。
 - 预览使用当前表**物理前 50 行**、当前视图的列顺序/隐藏/宽度，复用
   `TableStyleProvider`、`GridCell`、`presentStyledCell`、`createConditionalFormat` 与
-  `computeBarRanges`；不挂载编辑器/筛选/排序/虚拟滚动。T3.5 的模板 CRUD、导入导出不在
-  本任务实现。
+  `computeBarRanges`；不挂载编辑器/筛选/排序/虚拟滚动。模板 CRUD、导入导出见 §10.5 的 T3.5
+  实现边界。
 
 ---
 
@@ -1166,6 +1182,12 @@ export interface RenderModel {
   用户样式；可在同一命令内把指定表视图的 `tableView.styleId` 指向副本。`style.create` 与
   `style.update` 都是 manifest-only、workspace 作用域历史；`style.create` 用于“编辑内置模板
   时懒 fork”，避免先改视图再补样式造成悬空引用或两条撤销。T3.4 不实现 `style.delete/apply`。
+- **实现边界（T3.5，ADR-038）**：新增 `style.delete { styleId }` 与
+  `style.apply { styleId, target }`；`style.apply` 的 `target` 为
+  `{ kind: 'view', viewId }` 或 `{ kind: 'default' }`。`style.delete` 仅接受 `sty_`，在同一事务内
+  回退所有引用视图与工作区默认；两条命令都只写 manifest、进入 workspace 作用域历史。
+  模板另存为/复制/导入复用 `style.create`，重命名复用 `style.update`；`style.delete` 需要 UI
+  二次确认，但撤销可恢复样式与视图引用。
 
 ### 13.2 撤销/重做
 
@@ -1193,6 +1215,9 @@ export interface RenderModel {
   复选框每次交互提交，规则表单保存一次提交；`style.create`（首次编辑内置模板）与
   `style.update` 各产生一条 workspace 作用域历史。撤销一次只回滚最近一次控件提交；
   编辑器内的撤销被对话框焦点范围隔离，需关闭编辑器后使用全局撤销。
+- **实现边界（T3.5，ADR-038）**：`style.delete`/`style.apply` 各一条 workspace 作用域历史；
+  删除的一次撤销同时恢复样式、视图 `styleId` 与工作区默认；导入/复制/另存为各是一条
+  `style.create`，重命名是一条 `style.update`。模板管理对话框内的确认不产生额外历史。
 
 ### 13.3 自动保存
 
@@ -1561,6 +1586,14 @@ T3.4 实测（2026-10-24，本机；ADR-037）：样式编辑器本地草稿 →
 `import.100k` **873ms**、`condition.rules.50x100` P95 **1ms**/16ms。全量 E2E **66 passed**；
 `style.spec.ts` 的第二条覆盖键盘改密度/加规则、一次控件一次撤销与 200% 缩放；整应用
 private 内存峰值 **566MB**/600MB，冷启动 **1,083ms**/2.5s、100k 打开 **654ms**/3s。
+
+T3.5 实测（2026-10-24，本机；ADR-038）：模板往返 E2E（导出 → 重启 → 新工作区导入 → 应用）
+2 条通过，12 项计算样式一致，删除回退与撤销、坏文件拒绝与 200% 缩放同 spec 验证。
+`pnpm bench` 全部通过：`table.open.100k` **352ms**、`table.save.100k` **254ms**、
+`edit.commit.100k` **0ms**、`query.100k` **209ms**、`query.text-sort.100k` **248ms**、
+`query.cjk-sort.100k` **434ms**、`import.100k` **623ms**、`condition.rules.50x100` P95
+**0ms**/16ms。全量 E2E **68 passed**；perf 整应用 private 内存峰值 **568MB**/600MB、
+冷启动 **939ms**/2.5s。样式预览 100ms 预算沿用 T3.4 的 3ms 自测。
 
 ### 16.2 安全
 

@@ -980,7 +980,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t35"></a>
 ### T3.5 模板管理与导入导出
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T2.6、T3.4
 - 覆盖：FR-STY-05、FR-STY-06
 - 参考：SPEC §10.5
@@ -993,11 +993,33 @@ T0.2 + T5.5 → T6.4
   2. 导出前 Zod 校验；导入后重新分配 id。
   3. 名称冲突加 ` (2)`；非法文件给具体错误。
 - 验收：
-  - [ ] 导出→新工作区导入→应用，视觉一致。
-  - [ ] 删除被引用模板，所有视图回退默认并提示。
-  - [ ] 非法/损坏文件被拒绝，不污染 manifest。
-  - [ ] 模板操作可撤销（删除除外，需确认）。
-- 验证：`pnpm e2e -- --grep "template"`
+  - [x] 导出→新工作区导入→应用，视觉一致。
+  - [x] 删除被引用模板，所有视图回退默认并提示。
+  - [x] 非法/损坏文件被拒绝，不污染 manifest。
+  - [x] 模板操作可撤销（删除需二次确认；按 SPEC §13.1 删除同样可撤销）。
+- 验证：`pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/template.spec.ts`
+  （`pnpm e2e -- --grep "template"` 等价，但会先 build 并生成 100k 夹具）+ `pnpm verify`。
+- 实现备注（2026-10-24，ADR-038）：
+  - 决策：新增 `style.delete { styleId }` 与 `style.apply { styleId, target }`（表视图/工作区默认），
+    另存为/复制/导入落库复用 `style.create`、重命名复用 `style.update`；不新增 `style.setDefault`
+    与 IPC。删除在同一命令内回退所有引用视图与工作区默认；按 SPEC §13.1 可撤销 + UI 二次确认
+    （TASKS 原文“删除除外”与 SPEC 冲突，以 SPEC 为准并在此记录）。`.curvestyle.json` 由 domain
+    的 `styleExportDocumentSchema` 校验，解析失败区分 `json/tooLarge/version/document`；导入总是
+    重新分配 `sty_`/`rule_` id、强制 `builtin:false`、名称冲突 ` (2)`；跨表缺失列保留并只提示。
+  - 文件：`packages/domain/src/{style-export.ts,table-style.ts}` 与测试；
+    `packages/app-core/src/commands/styles.ts`、`validation/style-import.ts`、`app-core.ts`、
+    `history/edit-history.ts`、`usecases/workspace-actions.ts` 与测试；
+    `apps/desktop/src/renderer/features/style/{TemplateManagerDialog,TemplateImportDialog,style-transfer,
+    StylePanel,StyleEditorDialog}.tsx`、`styles.css`、i18n；`apps/desktop/e2e/template.spec.ts`、
+    `e2e/fixtures.ts`（仅测试的 saveFile 选项）；ADR-038 与 `docs/reports/t3.5/`。
+  - 实测：`pnpm verify` **138 files / 1181 tests**；coverage lines **74.94%** / statements 74.81% /
+    branches 67.53% / functions 73.00%；`pnpm format:check` 通过；`pnpm build` exit 0（renderer
+    **1,594.18 kB** + ImportSession 42.82 kB；CSS 62.86 kB）；`pnpm e2e` **68 passed**
+    （template 2 条；perf 内存 568MB/600MB、冷启动 939ms）；`pnpm bench` exit 0（open 352ms、
+    save 254ms、query 209ms、text-sort 248ms、cjk-sort 434ms、import 623ms、condition 0ms）。
+  - 残留：导入总是新建模板，不合并/覆盖同名样式；导入预览只含前 50 行；名称冲突按持久化
+    `style.name` 比较；2,000,000 字符上限；模板管理为模态对话框；renderer bundle 增至约 1.59MB
+    （T6.4 评估）；删除撤销的确认文案必须说明可撤销。
 
 <a id="t36"></a>
 ### T3.6 CSV 导出

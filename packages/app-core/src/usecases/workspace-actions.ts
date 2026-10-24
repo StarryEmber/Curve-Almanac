@@ -6,7 +6,14 @@
  * dispatch → write `manifest.json` → move the table file to `.trash/`.
  */
 
-import { createAppError, createColumnId, toAppError } from '@curve/domain';
+import {
+  createAppError,
+  createColumnId,
+  listBuiltinStyles,
+  reassignStyleIdentity,
+  styleCopyName,
+  toAppError,
+} from '@curve/domain';
 import type {
   AppError,
   Cell,
@@ -22,6 +29,7 @@ import { parseClipboardText } from '@curve/table-engine';
 import type { ClipboardMatrix } from '@curve/table-engine';
 
 import { activateViewInLayout } from '../commands/layout';
+import { styleFallbackId } from '../commands/styles';
 import {
   createNewTablePayload,
   createOpenTableView,
@@ -41,6 +49,7 @@ import { checkColumnDraft } from '../validation/column-draft';
 import { createPastePlanner, planPaste } from '../validation/paste-plan';
 
 import type { SaveQueue } from './save-queue';
+import type { StyleApplyTarget } from '../commands/styles';
 import type { CommandBus } from '../commands/types';
 import type { ViewPatch } from '../commands/views';
 import type { EditHistory } from '../history/edit-history';
@@ -250,6 +259,17 @@ export interface WorkspaceActions {
   createTableStyle(style: TableStyle, viewId?: string): Promise<ActionOutcome<{ styleId: string }>>;
   /** Replaces one persisted user style; manifest-only and undoable (T3.3). */
   updateTableStyle(style: TableStyle): Promise<ActionOutcome>;
+  /**
+   * Deletes a user style and points every referencing view at the fallback
+   * template in the same command (T3.5). Undo restores style and references.
+   */
+  deleteTableStyle(
+    styleId: string,
+  ): Promise<ActionOutcome<{ fallbackStyleId: string; affectedViewIds: readonly string[] }>>;
+  /** Applies a style to one table view or to the workspace default (T3.5). */
+  applyTableStyle(styleId: string, target: StyleApplyTarget): Promise<ActionOutcome>;
+  /** Copies a persisted style (or builtin) under a fresh ` (2)` identity (T3.5). */
+  duplicateTableStyle(styleId: string): Promise<ActionOutcome<{ styleId: string; name: string }>>;
   /** Copies the current table view (filter/sort/widths/frozen) into a new tab. */
   duplicateView(viewId: string): Promise<ActionOutcome<{ viewId: string }>>;
   updateCell(
@@ -488,6 +508,76 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     const flushed = await saveQueue.flush();
     return flushed.ok
       ? { ok: true, data: undefined }
+      : { ok: false, error: flushed.error, committed: true };
+  }
+
+  async function deleteTableStyle(
+    styleId: string,
+  ): Promise<ActionOutcome<{ fallbackStyleId: string; affectedViewIds: readonly string[] }>> {
+    const state = store.getState();
+    const style = state.tableStyles[styleId];
+    if (style === undefined) {
+      return fail(createAppError('E_VALIDATION', 'The table style does not exist.'));
+    }
+    if (style.builtin) {
+      return fail(createAppError('E_VALIDATION', 'Builtin styles cannot be deleted.'));
+    }
+    const affectedViewIds = Object.values(state.views)
+      .filter(
+        (view) =>
+          view.kind === 'table' &&
+          view.tableView !== undefined &&
+          view.tableView.styleId === styleId,
+      )
+      .map((view) => view.id);
+    const fallbackStyleId = styleFallbackId(state, styleId);
+    const dispatched = commands.dispatch('style.delete', { styleId });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    const flushed = await saveQueue.flush();
+    return flushed.ok
+      ? { ok: true, data: { fallbackStyleId, affectedViewIds } }
+      : { ok: false, error: flushed.error, committed: true };
+  }
+
+  async function applyTableStyle(
+    styleId: string,
+    target: StyleApplyTarget,
+  ): Promise<ActionOutcome> {
+    const dispatched = commands.dispatch('style.apply', { styleId, target });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    const flushed = await saveQueue.flush();
+    return flushed.ok
+      ? { ok: true, data: undefined }
+      : { ok: false, error: flushed.error, committed: true };
+  }
+
+  async function duplicateTableStyle(
+    styleId: string,
+  ): Promise<ActionOutcome<{ styleId: string; name: string }>> {
+    const state = store.getState();
+    const source = state.tableStyles[styleId];
+    if (source === undefined) {
+      return fail(createAppError('E_VALIDATION', 'The table style does not exist.'));
+    }
+    const names = [
+      ...listBuiltinStyles().map((style) => style.name),
+      ...Object.values(state.tableStyles).map((style) => style.name),
+    ];
+    const copy = reassignStyleIdentity(source, {
+      name: styleCopyName(source.name, names),
+      ...(uuid === undefined ? {} : { uuid }),
+    });
+    const dispatched = commands.dispatch('style.create', { style: copy });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    const flushed = await saveQueue.flush();
+    return flushed.ok
+      ? { ok: true, data: { styleId: copy.id, name: copy.name } }
       : { ok: false, error: flushed.error, committed: true };
   }
 
@@ -1175,6 +1265,9 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     updateView,
     createTableStyle,
     updateTableStyle,
+    deleteTableStyle,
+    applyTableStyle,
+    duplicateTableStyle,
     duplicateView,
     updateCell,
     preparePaste,

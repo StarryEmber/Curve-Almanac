@@ -52,6 +52,13 @@ export interface EditHistory {
   clear(): void;
 }
 
+const WORKSPACE_SCOPED_COMMANDS = new Set([
+  'style.create',
+  'style.update',
+  'style.delete',
+  'style.apply',
+]);
+
 function tableIdOf(payload: unknown): string | null {
   if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
     return null;
@@ -69,7 +76,7 @@ export function createEditHistory(options: EditHistoryOptions): EditHistory {
   const redoStack: EditHistoryEntry[] = [];
 
   const record = (result: CommandResult): void => {
-    const workspaceScoped = result.name === 'style.create' || result.name === 'style.update';
+    const workspaceScoped = WORKSPACE_SCOPED_COMMANDS.has(result.name);
     const recordable =
       result.name === 'table.cell.set' ||
       result.name === 'table.paste' ||

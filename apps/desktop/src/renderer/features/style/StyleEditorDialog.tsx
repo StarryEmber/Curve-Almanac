@@ -16,6 +16,8 @@ import {
   forkTableStyle,
   getBuiltinStyle,
   listBuiltinStyles,
+  reassignStyleIdentity,
+  styleCopyName,
   tableStyleSchema,
   toAppError,
 } from '@curve/domain';
@@ -28,7 +30,7 @@ import type {
   TableStyleTokens,
   ViewDef,
 } from '@curve/domain';
-import { Button, Dialog, Select, Tabs } from '@curve/ui';
+import { Button, Dialog, Input, Select, Tabs } from '@curve/ui';
 
 import { describeAppError } from '../../error-text';
 import { useI18n } from '../../i18n';
@@ -56,6 +58,8 @@ export interface StyleEditorDialogProps {
   view: ViewDef;
   tableStyle: TableStyle;
   rows: readonly Row[];
+  /** Persisted template names used by the "save as" form (T3.5). */
+  existingNames?: readonly string[];
   onClose: () => void;
   onCreateStyle: (style: TableStyle) => Promise<StyleCommitOutcome>;
   onUpdateStyle: (style: TableStyle) => Promise<StyleCommitOutcome>;
@@ -84,6 +88,7 @@ export function StyleEditorDialog({
   view,
   tableStyle,
   rows,
+  existingNames = [],
   onClose,
   onCreateStyle,
   onUpdateStyle,
@@ -105,6 +110,10 @@ export function StyleEditorDialog({
   const [commitError, setCommitError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
   const [previewMs, setPreviewMs] = useState<number | null>(null);
+  const [saveAsOpen, setSaveAsOpen] = useState(false);
+  const [saveAsName, setSaveAsName] = useState('');
+  const [saveAsError, setSaveAsError] = useState<string | null>(null);
+  const [saveAsNotice, setSaveAsNotice] = useState<string | null>(null);
   const changedAtRef = useRef<number | null>(null);
   const queueRef = useRef<Promise<void>>(Promise.resolve());
 
@@ -130,6 +139,10 @@ export function StyleEditorDialog({
     setCommitError(null);
     setFieldErrors({});
     setPreviewMs(null);
+    setSaveAsOpen(false);
+    setSaveAsName('');
+    setSaveAsError(null);
+    setSaveAsNotice(null);
     changedAtRef.current = null;
   }, [open, tableStyle]);
 
@@ -199,6 +212,58 @@ export function StyleEditorDialog({
   useEffect(() => {
     commitRef.current = enqueueCommit;
   }, [enqueueCommit]);
+
+  const openSaveAs = (): void => {
+    setSaveAsName(styleCopyName(styleDisplayName(sourceStyle, t), existingNames));
+    setSaveAsError(null);
+    setSaveAsNotice(null);
+    setSaveAsOpen(true);
+  };
+
+  const saveAs = async (): Promise<void> => {
+    const name = saveAsName.trim();
+    if (name === '') {
+      setSaveAsError(t('style.templates.nameRequired'));
+      return;
+    }
+    if (name.length > 80) {
+      setSaveAsError(t('style.templates.nameTooLong'));
+      return;
+    }
+    if (existingNames.includes(name)) {
+      setSaveAsError(t('style.templates.nameTaken'));
+      return;
+    }
+    setSaveAsError(null);
+    setSaveAsNotice(null);
+
+    queueRef.current = queueRef.current.then(async () => {
+      setBusy(true);
+      setCommitError(null);
+      try {
+        const copy = reassignStyleIdentity(draftRef.current, { name });
+        const outcome = await onCreateStyle(copy);
+        if (!outcome.ok && outcome.committed !== true) {
+          setSaveAsError(describeAppError(outcome.error, t));
+          return;
+        }
+        persistedIdRef.current = copy.id;
+        setPersistedId(copy.id);
+        draftRef.current = copy;
+        setDraft(copy);
+        setSourceStyle(copy);
+        setTemplateId(null);
+        lastCommittedRef.current = signature(copy);
+        setSaveAsOpen(false);
+        setSaveAsNotice(t('style.editor.savedAs', { name: copy.name }));
+      } catch (thrown) {
+        setSaveAsError(describeAppError(toAppError(thrown), t));
+      } finally {
+        setBusy(false);
+      }
+    });
+    await queueRef.current;
+  };
 
   const setFieldError = useCallback((key: string, error: string | null): void => {
     setFieldErrors((current) => {
@@ -287,6 +352,62 @@ export function StyleEditorDialog({
           </dd>
         </div>
       </dl>
+
+      <div className="cs-style-saveas">
+        <Button
+          size="sm"
+          variant="secondary"
+          data-testid="style-save-as-open"
+          disabled={busy}
+          onClick={openSaveAs}
+        >
+          {t('style.editor.saveAs')}
+        </Button>
+        {saveAsOpen ? (
+          <div className="cs-style-saveas__form">
+            <Input
+              label={t('style.editor.saveAsName')}
+              value={saveAsName}
+              error={saveAsError ?? undefined}
+              data-testid="style-save-as-name"
+              onChange={(event) => {
+                setSaveAsName(event.target.value);
+                setSaveAsError(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  void saveAs();
+                }
+              }}
+            />
+            <div className="cs-style-saveas__actions">
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={busy}
+                data-testid="style-save-as-confirm"
+                onClick={() => void saveAs()}
+              >
+                {t('style.editor.saveAsConfirm')}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setSaveAsOpen(false);
+                }}
+              >
+                {t('common.cancel')}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+        {saveAsNotice === null ? null : (
+          <p className="cs-style-hint" role="status" data-testid="style-save-as-notice">
+            {saveAsNotice}
+          </p>
+        )}
+      </div>
     </div>
   );
 

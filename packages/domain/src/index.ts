@@ -17,4 +17,5 @@ export * from './coerce';
 export * from './factories';
 export * from './format';
 export * from './table-style';
+export * from './style-export';
 export type * from './types';
