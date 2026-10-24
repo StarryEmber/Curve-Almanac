@@ -2,8 +2,8 @@
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T3.4`（样式编辑器与实时预览）；
 > M2 已于 2026-10-23 获用户接受。最后更新：2026-10-24 ·
-> 分支 `main`；`T3.4` 代码提交见 `git log -1 -- docs/HANDOFF.md` 的父提交；
-> 本文件的提交见 `git log -1 -- docs/HANDOFF.md`。
+> 分支 `main`；`T3.4` 代码提交 **`7e695bb`**；本文件的提交见
+> `git log -1 -- docs/HANDOFF.md`。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.4/REPORT.md` →
 > `docs/TASKS.md` 的 M3 / T3.4 / T3.5 → `docs/TESTPLAN.md` §2、§3、§5 →
 > `docs/SPEC.md` §10.5、§10.6、§13.1、§13.2、§16.1 →
