@@ -1,5 +1,8 @@
+import { Tabs } from '@curve/ui';
+
 import { useAppState } from '../app-core/use-app-core';
 import { ColumnsPanel } from '../features/columns/ColumnsPanel';
+import { StylePanel } from '../features/style/StylePanel';
 import { useI18n } from '../i18n';
 
 import type { ReactElement } from 'react';
@@ -22,7 +25,22 @@ export function Inspector(): ReactElement {
     >
       <h2 className="cs-inspector__title">{t('shell.inspector.title')}</h2>
       {activeTableId !== null && hasTable ? (
-        <ColumnsPanel tableId={activeTableId} />
+        <Tabs
+          label={t('shell.inspector.title')}
+          className="cs-inspector__tabs"
+          tabs={[
+            {
+              id: 'columns',
+              label: t('columns.label'),
+              content: <ColumnsPanel tableId={activeTableId} />,
+            },
+            {
+              id: 'style',
+              label: t('style.tab'),
+              content: <StylePanel />,
+            },
+          ]}
+        />
       ) : (
         <>
           <p className="cs-inspector__empty">{t('shell.inspector.empty')}</p>

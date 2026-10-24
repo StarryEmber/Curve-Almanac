@@ -66,3 +66,4 @@
 | ADR-034 | T3.1 的表格样式模型、内置模板与 fork 语义 | 已接受 | [034-t31-table-style-model.md](034-t31-table-style-model.md) |
 | ADR-035 | T3.2 的样式渲染管线、数字格式归属与视觉验证 | 已接受 | [035-t32-style-rendering.md](035-t32-style-rendering.md) |
 | ADR-036 | T3.3 的条件求值器归属、比较语义、样式优先级与撤销 | 已接受 | [036-t33-conditional-format.md](036-t33-conditional-format.md) |
+| ADR-037 | T3.4 的样式编辑器、懒 fork、预览与提交粒度 | 已接受 | [037-t34-style-editor.md](037-t34-style-editor.md) |

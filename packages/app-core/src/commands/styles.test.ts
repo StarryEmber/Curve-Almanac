@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { createTableStyle } from '@curve/domain';
-import type { ConditionalRule, TableStyle } from '@curve/domain';
+import type { ConditionalRule, TableStyle, ViewDef } from '@curve/domain';
 import { createEmptyManifest } from '@curve/persistence';
 
 import { createAppStore } from '../state/store';
 
 import { createCommandBus } from './bus';
-import { createStyleUpdateCommand } from './styles';
+import { createStyleCreateCommand, createStyleUpdateCommand } from './styles';
 
 import type { AppLogger } from '../logging';
 import type { AppState } from '../state/types';
@@ -49,17 +49,94 @@ function styleWithRules(rules: ConditionalRule[] = []): TableStyle {
   return createTableStyle({ id: 'sty_test', name: 'Test', conditionalRules: rules });
 }
 
+function tableView(styleId: string): ViewDef {
+  return {
+    id: 'viw_test',
+    kind: 'table',
+    refId: 'tbl_test',
+    title: 'Test',
+    tableView: {
+      tableId: 'tbl_test',
+      styleId,
+      columnOrder: [],
+      widths: {},
+      hiddenColumnIds: [],
+      sort: [],
+      frozenColumnCount: 0,
+    },
+  };
+}
+
 function setup(initial: TableStyle = styleWithRules()) {
   const store = createAppStore({
     initialState: {
       workspace: workspaceState(),
       tableStyles: { [initial.id]: initial },
+      views: { viw_test: tableView('builtin.report-light') },
     },
   });
   const bus = createCommandBus(store, { logger });
+  bus.register(createStyleCreateCommand({ now: () => new Date('2026-10-24T00:00:00.000Z') }));
   bus.register(createStyleUpdateCommand({ now: () => new Date('2026-10-24T00:00:00.000Z') }));
   return { store, bus };
 }
+
+describe('style.create', () => {
+  it('creates a user style and applies it to a table view in one command', () => {
+    const { store, bus } = setup();
+    const before = store.getState().workspace?.updatedAt;
+    const created = createTableStyle({
+      id: 'sty_created',
+      name: 'Created',
+      conditionalRules: [rule('rule_1')],
+    });
+
+    const outcome = bus.dispatch('style.create', {
+      style: created,
+      viewId: 'viw_test',
+    });
+    expect(outcome.ok).toBe(true);
+    const state = store.getState();
+    expect(state.tableStyles['sty_created']?.name).toBe('Created');
+    expect(state.views['viw_test']?.tableView?.styleId).toBe('sty_created');
+    expect(state.workspace?.updatedAt).not.toBe(before);
+  });
+
+  it('rejects builtins, duplicate ids and non-table views', () => {
+    const { store, bus } = setup();
+    const before = store.getState();
+
+    const builtin = bus.dispatch('style.create', {
+      style: { ...createTableStyle({ name: 'Copy' }), id: 'builtin.dark', builtin: true },
+      viewId: 'viw_test',
+    });
+    expect(builtin.ok).toBe(false);
+
+    const duplicate = bus.dispatch('style.create', {
+      style: createTableStyle({ id: 'sty_test', name: 'Duplicate' }),
+      viewId: 'viw_test',
+    });
+    expect(duplicate.ok).toBe(false);
+
+    const missingView = bus.dispatch('style.create', {
+      style: createTableStyle({ id: 'sty_missing_view', name: 'Missing view' }),
+      viewId: 'viw_missing',
+    });
+    expect(missingView.ok).toBe(false);
+
+    expect(store.getState().tableStyles).toBe(before.tableStyles);
+    expect(store.getState().views).toBe(before.views);
+  });
+
+  it('can create a style without applying it', () => {
+    const { store, bus } = setup();
+    const created = createTableStyle({ id: 'sty_unused', name: 'Unused' });
+    const outcome = bus.dispatch('style.create', { style: created });
+    expect(outcome.ok).toBe(true);
+    expect(store.getState().tableStyles['sty_unused']).toBeDefined();
+    expect(store.getState().views['viw_test']?.tableView?.styleId).toBe('builtin.report-light');
+  });
+});
 
 describe('style.update', () => {
   it('replaces the persisted style and bumps the workspace timestamp', () => {

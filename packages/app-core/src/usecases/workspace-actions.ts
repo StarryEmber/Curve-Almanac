@@ -243,6 +243,11 @@ export interface WorkspaceActions {
   activateView(viewId: string): Promise<ActionOutcome>;
   closeView(viewId: string): Promise<ActionOutcome>;
   updateView(viewId: string, patch: ViewPatch): Promise<ActionOutcome>;
+  /**
+   * Creates a user style and optionally applies it to a table view (T3.4).
+   * One command and one undo entry, manifest-only.
+   */
+  createTableStyle(style: TableStyle, viewId?: string): Promise<ActionOutcome<{ styleId: string }>>;
   /** Replaces one persisted user style; manifest-only and undoable (T3.3). */
   updateTableStyle(style: TableStyle): Promise<ActionOutcome>;
   /** Copies the current table view (filter/sort/widths/frozen) into a new tab. */
@@ -456,6 +461,23 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
       return fail(dispatched.error);
     }
     return saveManifest();
+  }
+
+  async function createTableStyle(
+    style: TableStyle,
+    viewId?: string,
+  ): Promise<ActionOutcome<{ styleId: string }>> {
+    const dispatched = commands.dispatch('style.create', {
+      style,
+      ...(viewId === undefined ? {} : { viewId }),
+    });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    const flushed = await saveQueue.flush();
+    return flushed.ok
+      ? { ok: true, data: { styleId: style.id } }
+      : { ok: false, error: flushed.error, committed: true };
   }
 
   async function updateTableStyle(style: TableStyle): Promise<ActionOutcome> {
@@ -1151,6 +1173,7 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     activateView,
     closeView,
     updateView,
+    createTableStyle,
     updateTableStyle,
     duplicateView,
     updateCell,

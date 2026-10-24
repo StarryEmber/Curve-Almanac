@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createTableStyle } from '@curve/domain';
-import type { Row, TableMeta } from '@curve/domain';
+import type { Row, TableMeta, ViewDef } from '@curve/domain';
 
 import { createCommandBus } from '../commands/bus';
 import { createPasteCommand } from '../commands/paste';
-import { createStyleUpdateCommand } from '../commands/styles';
+import { createStyleCreateCommand, createStyleUpdateCommand } from '../commands/styles';
 import { createTableCellSetCommand } from '../commands/table-cell-set';
 import { createEditHistory } from '../history/edit-history';
 import { createAppStore } from '../state/store';
@@ -290,5 +290,50 @@ describe('workspace-scoped history', () => {
     expect(history.redo()).toBe(true);
     expect(store.getState().tableStyles['sty_test']?.name).toBe('Updated');
     expect(onWorkspaceChanged).toHaveBeenCalledTimes(2);
+  });
+
+  it('records style.create with its applied view as one workspace entry', () => {
+    const view: ViewDef = {
+      id: 'viw_test',
+      kind: 'table',
+      refId: 'tbl_test',
+      title: 'Test',
+      tableView: {
+        tableId: 'tbl_test',
+        styleId: 'builtin.report-light',
+        columnOrder: [],
+        widths: {},
+        hiddenColumnIds: [],
+        sort: [],
+        frozenColumnCount: 0,
+      },
+    };
+    const store = createAppStore({
+      initialState: { workspace: WORKSPACE, views: { viw_test: view } },
+    });
+    const onWorkspaceChanged = vi.fn();
+    const history = createEditHistory({
+      store,
+      now: () => 1_000,
+      onWorkspaceChanged,
+    });
+    const bus = createCommandBus(store, {
+      logger,
+      onCommand: (result) => {
+        history.record(result);
+      },
+    });
+    bus.register(createStyleCreateCommand({ now: () => new Date('2026-01-01T12:00:00.000Z') }));
+    const created = createTableStyle({ id: 'sty_created', name: 'Created' });
+
+    const dispatched = bus.dispatch('style.create', { style: created, viewId: 'viw_test' });
+    expect(dispatched.ok).toBe(true);
+    expect(history.size()).toBe(1);
+    expect(store.getState().tableStyles['sty_created']).toBeDefined();
+
+    expect(history.undo()).toBe(true);
+    expect(store.getState().tableStyles['sty_created']).toBeUndefined();
+    expect(store.getState().views['viw_test']?.tableView?.styleId).toBe('builtin.report-light');
+    expect(onWorkspaceChanged).toHaveBeenCalledTimes(1);
   });
 });

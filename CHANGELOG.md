@@ -358,3 +358,15 @@
 - T3.3：`e2e/style.spec.ts` 增加条件规则视图（行/单元格目标、首条命中、禁用/缺失列、选中优先级、
   200% 缩放键盘冒烟）；`scripts/bench.ts` 增加 `condition.rules.50x100`（16ms 硬门禁）；新增
   ADR-036、SPEC §10.4/§13.1/§13.2/§16.1、TASKS T3.3 与 `docs/reports/t3.3/REPORT.md`。
+- T3.4：`@curve/app-core` 新增 `style.create { style, viewId? }`（原子创建 `sty_` 副本并可选
+  指向表视图）、`createTableStyle` action 与 `condition-builder.ts`（两层 all/any 草稿 ↔
+  谓词、`conditionCompareOps` 校验、`coerceCell` 归一）；`style.create` 进入 workspace
+  作用域历史与 manifest-only 保存队列。
+- T3.4：检查器新增“列 / 样式”标签与样式摘要；新增宽对话框样式编辑器（令牌/模板/列覆盖/
+  条件规则 + 前 50 行预览），文本/数字/颜色失焦或 Enter 提交、下拉/复选框/规则保存各一条
+  撤销；非法值内联报错并阻止完成；预览复用 `TableStyleProvider`/`GridCell`/
+  `presentStyledCell`/`createConditionalFormat`，实测 3ms/100ms。
+- T3.4：`e2e/style.spec.ts` 增加键盘改密度/加规则、一次控件一次撤销、磁盘 manifest 断言、
+  200% 缩放与 2 张编辑器截图；新增 ADR-037、SPEC §10.5/§10.6/§13.1/§13.2/§16.1、TASKS T3.4
+  与 `docs/reports/t3.4/REPORT.md`；不改变 `formatVersion`、JSONL、manifest 字段、IPC、
+  preload、CSP 或运行时依赖。

@@ -435,6 +435,31 @@ describe('workspace actions', () => {
     }
   });
 
+  it('creates and applies a user style in one manifest write', async () => {
+    const { store, core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const viewId = created.data.view.id;
+
+    const style = createTableStyle({ id: 'sty_created', name: 'Created' });
+    const outcome = await core.actions.createTableStyle(style, viewId);
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.data.styleId).toBe('sty_created');
+    }
+    expect(core.store.getState().tableStyles['sty_created']).toEqual(style);
+    expect(core.store.getState().views[viewId]?.tableView?.styleId).toBe('sty_created');
+    expect(store.manifests.at(-1)?.tableStyles).toContainEqual(style);
+
+    const undone = await core.actions.undo();
+    expect(undone.ok).toBe(true);
+    expect(core.store.getState().tableStyles['sty_created']).toBeUndefined();
+    expect(core.store.getState().views[viewId]?.tableView?.styleId).toBe('builtin.report-light');
+  });
+
   it('updates a user style, persists it and undoes through the manifest queue', async () => {
     const { store, core } = setup();
     const style = createTableStyle({ id: 'sty_test', name: 'Original' });

@@ -38,6 +38,8 @@ export interface GridCellProps {
   conditional?: ConditionalCellStyle | null;
   /** Localised accessibility label for the conditional icon. */
   conditionalIconLabel?: string;
+  /** Test-id prefix; the style preview uses `preview-cell` to avoid duplicates. */
+  testIdPrefix?: string;
   onActivate: (rowIndex: number, colIndex: number, extend: boolean) => void;
   onBeginEdit: (rowIndex: number, colIndex: number) => void;
 }
@@ -63,6 +65,7 @@ function GridCellComponent({
   pasteError = false,
   conditional = null,
   conditionalIconLabel,
+  testIdPrefix = 'grid-cell',
   onActivate,
   onBeginEdit,
 }: GridCellProps): ReactElement {
@@ -118,7 +121,7 @@ function GridCellComponent({
       data-render={render}
       data-badge-tone={hasBadge && badgeTone !== null ? badgeTone : undefined}
       data-conditional-rule={appliedConditional?.ruleId}
-      data-testid={`grid-cell-${rowIndex}-${colIndex}`}
+      data-testid={`${testIdPrefix}-${rowIndex}-${colIndex}`}
       title={errorText ?? appliedConditional?.label ?? undefined}
       className={[
         'cs-grid__cell',

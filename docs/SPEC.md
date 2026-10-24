@@ -985,6 +985,24 @@ interface ImportResult {
 - 修改走命令总线，可撤销；撤销粒度按一次控件提交（不是每个像素）。
 - 编辑器与网格共用 `TableStyle` 渲染管线，禁止两套样式逻辑。
 
+**实现边界（T3.4，ADR-037）**：
+
+- 检查器新增“列 / 样式”标签；样式标签显示解析后的模板、密度、规则/覆盖数量与回退警告，
+  并打开宽对话框编辑器。对话框左侧为令牌/模板/列覆盖/条件规则四组，右侧为前 50 行预览；
+  ≤1000px 视口上下堆叠，200% 缩放下仍可键盘操作。
+- 编辑内置模板时只在本地 `forkTableStyle` 生成草稿；第一次提交控件才调用新增的
+  `style.create { style, viewId? }`，在同一命令内创建 `sty_` 副本并把当前视图指向它。
+  取消不产生副本；后续提交走 `style.update`。两个命令都是 manifest-only 且进入
+  workspace 作用域历史。
+- 文本/数字/颜色输入在合法输入时更新本地草稿供预览，失焦/Enter 才提交；下拉/复选框与
+  规则保存各是一次提交。`tableStyleSchema` 是最终提交门禁；字段错误禁用“完成”。
+- 条件规则表单最多两层 all/any；操作符使用 `conditionCompareOps`。超过两层、引用缺失列
+  或含不支持操作符的已有规则只读，不静默改写。
+- 预览使用当前表**物理前 50 行**、当前视图的列顺序/隐藏/宽度，复用
+  `TableStyleProvider`、`GridCell`、`presentStyledCell`、`createConditionalFormat` 与
+  `computeBarRanges`；不挂载编辑器/筛选/排序/虚拟滚动。T3.5 的模板 CRUD、导入导出不在
+  本任务实现。
+
 ---
 
 <a id="11"></a>
@@ -1144,6 +1162,10 @@ export interface RenderModel {
   `tableStyleSchema` 校验失败、`builtin.*`、不存在的样式或重复规则 id 都以 `E_VALIDATION`
   拒绝。命令只替换 `state.tableStyles[id]` 并更新 workspace `updatedAt`，不写表 JSONL；保存走
   新增的 manifest-only 队列。
+- **实现边界（T3.4，ADR-037）**：新增 `style.create { style, viewId? }`，只接受新的 `sty_`
+  用户样式；可在同一命令内把指定表视图的 `tableView.styleId` 指向副本。`style.create` 与
+  `style.update` 都是 manifest-only、workspace 作用域历史；`style.create` 用于“编辑内置模板
+  时懒 fork”，避免先改视图再补样式造成悬空引用或两条撤销。T3.4 不实现 `style.delete/apply`。
 
 ### 13.2 撤销/重做
 
@@ -1167,6 +1189,10 @@ export interface RenderModel {
 - **实现边界（T3.3，ADR-036）**：`style.update` 进入最小历史，历史条目为 workspace 作用域
   （`tableId: null`）；undo/redo 通过 `onWorkspaceChanged` 调用 `enqueueManifest`，只写
   manifest、不标记脏表，一次规则提交一条记录。
+- **实现边界（T3.4，ADR-037）**：样式编辑器的文本/数字/颜色控件在失焦/Enter 提交，下拉/
+  复选框每次交互提交，规则表单保存一次提交；`style.create`（首次编辑内置模板）与
+  `style.update` 各产生一条 workspace 作用域历史。撤销一次只回滚最近一次控件提交；
+  编辑器内的撤销被对话框焦点范围隔离，需关闭编辑器后使用全局撤销。
 
 ### 13.3 自动保存
 
@@ -1527,6 +1553,14 @@ T3.3 实测（2026-10-24，本机；ADR-036）：`pnpm bench` 全部门禁通过
 `import.100k` **913ms**；新增 `condition.rules.50x100` P50 **1ms** / P95 **1ms**（预算 16ms，
 纯求值）。全量 E2E **65 passed**（`style.spec.ts` 含条件规则视图与 200% 缩放冒烟）；整应用
 private 内存峰值 **565MB**/600MB。
+
+T3.4 实测（2026-10-24，本机；ADR-037）：样式编辑器本地草稿 → 前 50 行预览的布局耗时
+**3ms**（预算 100ms，`data-preview-ms` 自测；不新增 bench 门禁）。`pnpm bench` 全部通过：
+`table.open.100k` **504ms**、`table.save.100k` **340ms**、`edit.commit.100k` **0ms**、
+`query.100k` **192ms**、`query.text-sort.100k` **234ms**、`query.cjk-sort.100k` **598ms**、
+`import.100k` **873ms**、`condition.rules.50x100` P95 **1ms**/16ms。全量 E2E **66 passed**；
+`style.spec.ts` 的第二条覆盖键盘改密度/加规则、一次控件一次撤销与 200% 缩放；整应用
+private 内存峰值 **566MB**/600MB，冷启动 **1,083ms**/2.5s、100k 打开 **654ms**/3s。
 
 ### 16.2 安全
 

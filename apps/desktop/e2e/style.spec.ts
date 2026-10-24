@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { expect } from '@playwright/test';
 
 import { test } from './fixtures';
@@ -18,7 +21,7 @@ import type { Page, TestInfo } from '@playwright/test';
 
 const SEED_NAME = 'Style Demo';
 
-async function seedStyleWorkspace(page: Page, testInfo: TestInfo): Promise<void> {
+async function seedStyleWorkspace(page: Page, testInfo: TestInfo): Promise<string> {
   const parent = testInfo.outputPath('style-parent');
   const result = await page.evaluate(
     async ({ dir, name }) => {
@@ -256,7 +259,7 @@ async function seedStyleWorkspace(page: Page, testInfo: TestInfo): Promise<void>
     },
     { dir: parent, name: SEED_NAME },
   );
-  void result;
+  return result.root;
 }
 
 async function openSeededWorkspace(page: Page): Promise<void> {
@@ -264,6 +267,16 @@ async function openSeededWorkspace(page: Page): Promise<void> {
   await expect(page.getByTestId('welcome')).toBeVisible();
   await page.getByTestId('recent-workspace').filter({ hasText: SEED_NAME }).first().click();
   await expect(page.getByTestId('data-grid')).toBeVisible();
+}
+
+function readManifest(root: string): WorkspaceManifest {
+  return JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8')) as WorkspaceManifest;
+}
+
+function reportStyle(root: string): WorkspaceManifest['tableStyles'][number] | undefined {
+  const manifest = readManifest(root);
+  const view = manifest.views.find((candidate) => candidate.id === 'viw_style_report');
+  return manifest.tableStyles.find((style) => style.id === view?.tableView?.styleId);
 }
 
 interface ComputedStyle {
@@ -457,5 +470,153 @@ test.describe('T3.2 table style rendering', () => {
     const provider = page.getByTestId('data-grid');
     await expect(provider).toHaveCSS('--cs-table-row-height', '32px');
     expect(reportHeader.height).toBe(32);
+  });
+
+  test('edits a style with a live 50-row preview, one undo per control and keyboard-only paths', async ({
+    page,
+    electronApp,
+  }, testInfo) => {
+    const root = await seedStyleWorkspace(page, testInfo);
+    await openSeededWorkspace(page);
+
+    const inspector = page.getByTestId('inspector');
+    const styleTab = inspector.getByRole('tab', { name: '样式' });
+    await styleTab.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('style-panel')).toBeVisible();
+    await expect(page.getByTestId('style-current-name')).toHaveText('报告（浅）');
+
+    const editButton = page.getByTestId('style-edit-open');
+    await editButton.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('style-editor')).toBeVisible();
+    const preview = page.getByTestId('style-preview');
+    await expect(preview).toHaveAttribute('data-preview-rows', '6');
+    await expect(page.getByTestId('preview-cell-2-0')).toHaveText('c');
+
+    // Keyboard-only density change: Home selects the first option. The builtin
+    // is forked lazily by the first committed control; 100ms is self-measured
+    // from the local change to the preview layout effect.
+    const density = page.getByTestId('style-density');
+    await density.focus();
+    await page.keyboard.press('Home');
+    await expect.poll(() => reportStyle(root)?.tokens.density).toBe('compact');
+    expect(reportStyle(root)?.builtin).toBe(false);
+    expect(reportStyle(root)?.id.startsWith('sty_')).toBe(true);
+    await expect
+      .poll(async () => (await preview.getAttribute('data-preview-ms')) ?? '')
+      .not.toBe('');
+    const previewMs = Number(await preview.getAttribute('data-preview-ms'));
+    expect(previewMs).toBeLessThanOrEqual(100);
+    console.log(`[t3.4] previewMs=${String(previewMs)}`);
+    const rowHeight = Number.parseFloat(
+      await preview.evaluate((element) => element.style.getPropertyValue('--cs-table-row-height')),
+    );
+    expect(rowHeight).toBeLessThan(32);
+
+    // A second committed control is exactly one more undo entry.
+    const fontSize = page.getByTestId('style-font-size');
+    await fontSize.focus();
+    await page.keyboard.press('Control+a');
+    await page.keyboard.type('14');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => reportStyle(root)?.tokens.fontSize).toBe(14);
+
+    const done = page.getByTestId('style-done');
+    await expect(done).toBeEnabled();
+    await done.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('style-editor')).toHaveCount(0);
+
+    // Undo only the font-size update: the custom style and compact density stay.
+    await page.keyboard.press('Control+z');
+    await expect.poll(() => reportStyle(root)?.tokens.fontSize).toBe(13);
+    await expect.poll(() => reportStyle(root)?.tokens.density).toBe('compact');
+
+    await editButton.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('style-editor')).toBeVisible();
+    await expect(page.getByTestId('style-density')).toHaveValue('compact');
+    await expect(page.getByTestId('style-font-size')).toHaveValue('13');
+
+    // Keyboard-only rule creation: tab to the rules group, activate the form,
+    // use native select keyboard behaviour, type the value and save with Enter.
+    const rulesTab = page.getByRole('tab', { name: '条件规则' });
+    await rulesTab.focus();
+    await page.keyboard.press('Enter');
+    await page.getByTestId('style-rule-add').focus();
+    await page.keyboard.press('Enter');
+    await page.getByTestId('style-rule-label').focus();
+    await page.keyboard.type('Hot');
+    const column = page.getByTestId('style-rule-condition-0-0-column');
+    await column.focus();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect(column).toHaveValue('col_style_value');
+    const operator = page.getByTestId('style-rule-condition-0-0-op');
+    await operator.focus();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect(operator).toHaveValue('gt');
+    const value = page.getByTestId('style-rule-condition-0-0-value');
+    await value.focus();
+    await page.keyboard.type('1000000');
+    const background = page.getByLabel('背景色');
+    await background.focus();
+    await page.keyboard.type('#fde2e2');
+    await page.keyboard.press('Tab');
+
+    const save = page.getByTestId('style-rule-save');
+    await expect(save).toBeEnabled();
+    await save.focus();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => reportStyle(root)?.conditionalRules.length).toBe(1);
+    const storedRule = reportStyle(root)?.conditionalRules[0];
+    expect(storedRule?.label).toBe('Hot');
+    expect(storedRule?.when).toMatchObject({
+      kind: 'all',
+      children: [{ kind: 'compare', columnId: 'col_style_value', op: 'gt', value: 1_000_000 }],
+    });
+
+    const hotCell = page.getByTestId('preview-cell-2-0');
+    await expect(hotCell).toHaveAttribute('data-conditional-rule', /rule_/);
+    const hotBackground = await hotCell.evaluate(
+      (element) => getComputedStyle(element).backgroundColor,
+    );
+    expect(hotBackground).toBe('rgb(253, 226, 226)');
+    const dialog = page.getByRole('dialog');
+    const rulesScreenshot = testInfo.outputPath('t3.4-style-editor-rules.png');
+    await dialog.screenshot({ path: rulesScreenshot });
+    await testInfo.attach('t3.4-style-editor-rules', {
+      path: rulesScreenshot,
+      contentType: 'image/png',
+    });
+
+    await page.getByRole('tab', { name: '令牌' }).click();
+    await expect(page.getByTestId('style-density')).toBeVisible();
+    const tokensScreenshot = testInfo.outputPath('t3.4-style-editor-tokens.png');
+    await dialog.screenshot({ path: tokensScreenshot });
+    await testInfo.attach('t3.4-style-editor-tokens', {
+      path: tokensScreenshot,
+      contentType: 'image/png',
+    });
+
+    // 200% zoom keeps the stacked editor and preview usable.
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      const [window] = BrowserWindow.getAllWindows();
+      window?.webContents.setZoomFactor(2);
+    });
+    await page.waitForFunction(() => window.innerWidth < 800);
+    await expect(page.getByTestId('style-editor')).toBeVisible();
+    await expect(preview).toBeVisible();
+    await expect(page.getByTestId('style-density')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('style-editor')).toHaveCount(0);
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      const [window] = BrowserWindow.getAllWindows();
+      window?.webContents.setZoomFactor(1);
+    });
+    await page.waitForFunction(() => window.innerWidth >= 800);
   });
 });

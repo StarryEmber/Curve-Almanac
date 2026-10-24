@@ -938,7 +938,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t34"></a>
 ### T3.4 样式编辑器与实时预览
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T3.2、T3.3
 - 覆盖：FR-STY-02、FR-STY-04
 - 参考：SPEC §10.6
@@ -951,11 +951,32 @@ T0.2 + T5.5 → T6.4
   2. 预览复用真实网格渲染管线。
   3. 规则构建器支持 all/any 嵌套（最多两层）。
 - 验收：
-  - [ ] 改任意令牌 100ms 内预览更新。
-  - [ ] 非法输入不提交且提示明确。
-  - [ ] 一次控件提交 = 一条撤销记录。
-  - [ ] 纯键盘可完成"改密度 + 加一条规则"。
-- 验证：`pnpm exec vitest run apps/desktop -- --grep "style-editor" && pnpm e2e -- --grep "style"`
+  - [x] 改任意令牌 100ms 内预览更新。
+  - [x] 非法输入不提交且提示明确。
+  - [x] 一次控件提交 = 一条撤销记录。
+  - [x] 纯键盘可完成"改密度 + 加一条规则"。
+- 验证：`pnpm exec vitest run apps/desktop/src/renderer/features/style packages/app-core/src/validation/condition-builder.test.ts`
+  + `pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/style.spec.ts`
+  （Vitest 5 不支持 TASKS 原文的 `--grep`，改为目录/文件过滤）。
+- 实现备注（2026-10-24，ADR-037）：
+  - 决策：检查器“样式”标签 + 宽对话框编辑器（左侧令牌/模板/列覆盖/条件规则，右侧前 50 行
+    预览）；编辑内置模板时本地 fork，第一次控件提交用新增 `style.create { style, viewId? }`
+    原子创建副本并指向视图，后续 `style.update`；文本/数字/颜色失焦或 Enter 提交，下拉/
+    复选框与规则保存各一次提交；非法值内联报错并禁用“完成”；规则最多两层 all/any，操作符
+    用 `conditionCompareOps`。预览复用 `TableStyleProvider`/`GridCell`/`presentStyledCell`/
+    `createConditionalFormat`/`computeBarRanges`，不挂载 DataGrid 编辑器/查询/虚拟滚动。
+  - 文件：`packages/app-core/src/commands/styles.ts`（`style.create`）、
+    `packages/app-core/src/validation/condition-builder.ts`、`app-core.ts`、`history/edit-history.ts`、
+    `usecases/workspace-actions.ts`；`apps/desktop/src/renderer/features/style/*`、
+    `shell/Inspector.tsx`、`features/grid/GridCell.tsx`（预览 test-id 前缀）、`styles.css`、i18n；
+    `apps/desktop/e2e/style.spec.ts`；ADR-037 与 `docs/reports/t3.4/`。
+  - 实测：`pnpm verify` **133 files / 1140 tests**；coverage lines **74.70%** / statements
+    74.59% / branches 67.35% / functions 72.97%；`pnpm format:check` 通过；`pnpm build` exit 0
+    （renderer 1,545.42 kB + ImportSession 42.82 kB；CSS 59.59 kB）；`pnpm e2e` **66 passed**；
+    `pnpm bench` exit 0；预览自测 **3ms**/100ms；200% 缩放与纯键盘流程通过。
+  - 残留：T3.4 不做模板另存/重命名/复制/删除/设为默认/导入导出（T3.5）；预览只取物理前
+    50 行，不支持筛选后预览；规则超过两层/缺失列只读；密度会覆盖垂直内边距为 SPEC 预设；
+    规则列表不能拖拽排序（新规则追加末尾）。
 
 <a id="t35"></a>
 ### T3.5 模板管理与导入导出

@@ -14,7 +14,8 @@
   **T3.1（表格样式模型与内置模板）已完成**（`docs/reports/t3.1/REPORT.md`、ADR-034）。
   **T3.2（样式渲染管线）已完成**（`docs/reports/t3.2/REPORT.md`、ADR-035）；
   **T3.3（条件格式引擎）已完成**（`docs/reports/t3.3/REPORT.md`、ADR-036）；
-  **下一步 T3.4 需等用户明确授权，不要自动开始。**
+  **T3.4（样式编辑器与实时预览）已完成**（`docs/reports/t3.4/REPORT.md`、ADR-037）；
+  **下一步 T3.5 需等用户明确授权，不要自动开始。**
 - 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
   `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 14 个已接线
   IPC 通道；**续作前先读 `docs/HANDOFF.md`**。
