@@ -247,6 +247,14 @@ export function DataGrid({
     rangeExtractor,
   });
 
+  // A template/editor change can alter the row height (density, font size,
+  // padding). TanStack Virtual keeps the previously measured sizes when only
+  // `estimateSize` changes, so rows would stay at the old height until the next
+  // scroll or resize. Re-measure whenever the computed row height changes.
+  useEffect(() => {
+    virtualizer.measure();
+  }, [virtualizer, rowHeight]);
+
   useEffect(() => {
     setActive((current) => ({
       row: Math.max(0, Math.min(current.row, Math.max(0, rows.length - 1))),

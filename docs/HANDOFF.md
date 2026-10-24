@@ -1,12 +1,12 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T3.6`（CSV 导出）；
-> M2 已于 2026-10-23 获用户接受，M3 的 T3.1–T3.6 已全部完成。最后更新：2026-10-24 ·
-> 分支 `main`；`T3.6` 代码提交 **`45e5891`**；本交接文档的提交见
+> 本文件面向**下一个实现会话**。当前会话已完成 `T3.6`（CSV 导出）与 **M3 验收演示**；
+> M2 已于 2026-10-23 获用户接受，M3 的 T3.1–T3.6 已全部完成并输出演示报告。最后更新：
+> 2026-10-24 · 分支 `main`；`T3.6` 代码提交 **`45e5891`**；本交接文档的提交见
 > `git log -1 -- docs/HANDOFF.md`。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t3.6/REPORT.md` →
-> `docs/TASKS.md` 的 M3 / T3.6 → `docs/TESTPLAN.md` §2、§3、§5 →
-> `docs/SPEC.md` §9.6、§13.1、§15.1、§16.1 →
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/m3/REPORT.md` →
+> `docs/reports/t3.6/REPORT.md` → `docs/TASKS.md` 的 M3 / T3.6 →
+> `docs/TESTPLAN.md` §2、§3、§5 → `docs/SPEC.md` §9.6、§13.1、§15.1、§16.1 →
 > `docs/adr/039-t36-csv-export.md`（T3.6）、ADR-038/037/036/035/034。
 
 ---
@@ -16,24 +16,26 @@
 - **当前状态**：M2 已于 2026-10-23 获用户接受；`T3.1`（样式模型）、`T3.2`（渲染管线）、
   `T3.3`（条件格式引擎）、`T3.4`（样式编辑器与实时预览）、`T3.5`（模板管理与导入导出）与
   `T3.6`（CSV 导出）已完成（`docs/reports/t3.{1,2,3,4,5,6}/REPORT.md`、ADR-034/035/036/037/038/039）。
-  **M3 任务已全部完成；下一步是 M3 验收演示，需等用户明确授权；不要自动开始。**
-- **本次交付**：`file:exportCsv` 四步流式通道（begin/append/finish/cancel）、main 临时文件
-  append→fsync→rename 与退出清理、`@curve/table-engine` 的 RFC 4180 CSV 编码/分块/文件名、
-  网格工具条“导出 CSV…”对话框（显示格式/原始值、当前筛选排序/全部行、进度/取消/完成/错误）、
-  100k 导出 1,716ms、取消无残留、200% 键盘冒烟；`formatCellValue` 的 Intl 格式化缓存。
-- **基线**：`pnpm verify` **143 files / 1232 tests**；coverage lines **74.90%** /
-  statements 74.78% / branches 67.66% / functions 73.20%；
-  `format:check` 通过；`pnpm build` exit 0（renderer **1,617.22 kB**，CSS 64.03 kB）；
-  `pnpm e2e` **71 passed**；`pnpm bench` **exit 0**（open 663ms、save 342ms、edit 0ms、
-  query 213ms、text-sort 260ms、cjk-sort 667ms、import 893ms、condition P95 1ms）；
-  perf 内存 **571MB**/600MB、冷启动 **1,025ms**/2.5s。
+  **M3 验收演示已于 2026-10-24 执行并输出报告；等待用户验收，接受前不要进入 T4.x。**
+- **本次交付**：`apps/desktop/e2e/m3-acceptance.spec.ts`（单条演示，3 次启动）覆盖 4 个内置模板
+  对比 → 编辑器改密度/表头色/列覆盖 → 一次控件一条撤销 → “高温”条件规则 → 另存模板 →
+  筛选/排序/冻结/列宽 → CSV 导出（4 行 × 6 列）→ 新工作区导入应用（12 项计算样式一致）→
+  重启还原；报告 `docs/reports/m3/REPORT.md` 与 10 张截图。演示中发现并修复“虚拟化行高不随
+  样式令牌重测”（`DataGrid` 的 `virtualizer.measure()`）。
+- **基线**：`pnpm verify` **143 files / 1232 tests**；coverage lines **74.89%** /
+  statements 74.76% / branches 67.66% / functions 73.17%；
+  `format:check` 通过；`pnpm build` exit 0（renderer **1,618.04 kB**，CSS 64.03 kB）；
+  `pnpm e2e` **72 passed**（m3 11.2s、100k 导出 1,646ms）；`pnpm bench` **exit 0**
+  （open 436ms、save 258ms、edit 0ms、query 239ms、text-sort 276ms、cjk-sort 502ms、
+  import 918ms、condition P95 0ms）；perf 内存 **572MB**/600MB、冷启动 **1,017ms**/2.5s。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
-- **停点**：T3.6 报告已输出；**等用户授权 M3 验收演示**，不进入 T4.x。
-- **接手动作**：确认工作树干净；先读 T3.6 报告与 ADR-039；按 §5I 的“M3 验收交接清单”
-  准备演示；未授权前不要改代码。
-- **M3 验收前**：确认 4 个内置模板对比、令牌/列格式编辑、条件规则“高温标红”、另存模板、
-  CSV 导出、新工作区导入应用与重启还原；复用 T3.1–T3.6 的 E2E 与截图，不新增运行时依赖。
+- **停点**：M3 报告已输出；**等用户验收 M3**，不进入 T4.x。
+- **接手动作**：确认工作树干净；先读 `docs/reports/m3/REPORT.md` 与 ADR-039；按 §6A 的
+  “M3 验收演示（已执行）”复核证据；验收通过后再领取 T4.1。
+- **M3 验收复核**：4 个内置模板对比、令牌/列格式编辑、条件规则“高温标红”、另存模板、
+  CSV 导出、新工作区导入应用与重启还原；复用 `m3-acceptance.spec.ts` 与 10 张截图，
+  不新增运行时依赖。
 
 ---
 
@@ -59,22 +61,23 @@
 | `T3.4` 样式编辑器与实时预览 | **已完成**（2026-10-24，`7e695bb`）；报告 `docs/reports/t3.4/REPORT.md`；ADR-037 |
 | `T3.5` 模板管理与导入导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.5/REPORT.md`；ADR-038 |
 | `T3.6` CSV 导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.6/REPORT.md`；ADR-039 |
-| 当前里程碑 | **M3 表格外观**：T3.1–T3.6 全部完成；M3 验收演示待用户授权 |
-| 下一步 | **等待用户授权 M3 验收演示**；不要自动开始 T4.x |
-| `pnpm verify` 基线 | **143 files / 1232 tests**；ESLint 0；depcruise **394 modules / 1584 deps / 0 violations** |
-| `pnpm test:coverage` 基线 | 全局 lines **74.90%** / statements **74.78%** / branches **67.66%** / functions **73.20%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **71 passed**（`export-csv.spec.ts` 3 条：转义/筛选排序/原始值、100k 1,716ms/取消、200% 键盘）；M2 验收仍通过 |
-| `pnpm bench` 基线 | **exit 0**；open 663ms、save 342ms、edit 0ms、query 213ms、text-sort 260ms、cjk-sort 667ms、import 893ms、condition P95 1ms；clone 333ms（诊断） |
+| M3 验收演示 | **已于 2026-10-24 执行**；`e2e/m3-acceptance.spec.ts` + `docs/reports/m3/REPORT.md`（10 张截图）；**等待用户验收** |
+| 当前里程碑 | **M3 表格外观**：T3.1–T3.6 与验收演示均已完成；等待用户接受 |
+| 下一步 | **等待用户验收 M3**；接受前不要进入 T4.x |
+| `pnpm verify` 基线 | **143 files / 1232 tests**；ESLint 0；depcruise **395 modules / 1592 deps / 0 violations** |
+| `pnpm test:coverage` 基线 | 全局 lines **74.89%** / statements **74.76%** / branches **67.66%** / functions **73.17%**；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **72 passed**（新增 `m3-acceptance.spec.ts` 1 条 11.2s；`export-csv.spec.ts` 100k 1,646ms；M2 验收仍通过） |
+| `pnpm bench` 基线 | **exit 0**；open 436ms、save 258ms、edit 0ms、query 239ms、text-sort 276ms、cjk-sort 502ms、import 918ms、condition P95 0ms；clone 256ms（诊断） |
 | `pnpm format:check` | 通过 |
-| 构建 | `pnpm build` exit 0；renderer **1,617.22 kB** + 懒加载 ImportSession 42.82 kB；CSS 64.03 kB；table/query/import worker 220.68/236.16/270.16 kB |
+| 构建 | `pnpm build` exit 0；renderer **1,618.04 kB** + 懒加载 ImportSession 42.82 kB；CSS 64.03 kB；table/query/import worker 220.68/236.16/270.16 kB |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
 
 **用户明确要求**：
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **M2 已获用户接受；T3.1–T3.6 已完成**；下一步等待用户授权 M3 验收演示。
-- 不得跨里程碑；T3.6 报告已输出，停下等用户确认，不进入 M3 验收或 T4.x。
+- **M2 已获用户接受；T3.1–T3.6 与 M3 验收演示已完成**；下一步等待用户验收 M3。
+- 不得跨里程碑；M3 报告已输出，停下等用户确认，接受前不进入 T4.x。
 
 ---
 
@@ -83,16 +86,15 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/reports/t3.6/REPORT.md、
-docs/TASKS.md 的 M3 / T3.6、docs/TESTPLAN.md §2/§3/§5、
-docs/SPEC.md §9.6/§13.1/§15.1/§16.1、ADR-039、ADR-038。
+先读 AGENTS.md、docs/HANDOFF.md、docs/reports/m3/REPORT.md、
+docs/reports/t3.6/REPORT.md、docs/TASKS.md 的 M3 / T3.6、
+docs/TESTPLAN.md §2/§3/§5、docs/SPEC.md §9.6/§13.1/§15.1/§16.1、ADR-039、ADR-038。
 
 现状：M0、M1（已验收）、M2（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1–T3.6 已完成；
-pnpm verify 143 files / 1232 tests、coverage lines 74.90%、pnpm e2e 71 passed、
-pnpm bench exit 0。
+M3 验收演示已执行（等待用户验收）；pnpm verify 143 files / 1232 tests、
+coverage lines 74.89%、pnpm e2e 72 passed、pnpm bench exit 0。
 
-下一步：M3 验收演示需等用户明确授权；确认前不要开始演示实现或 M4。
-若用户明确授权，先按 AGENTS §8 复述演示步骤/证据/验收再开工。
+下一步：等待用户验收 M3；接受前不要开始 T4.x。
 ```
 
 ---
@@ -1312,16 +1314,14 @@ pnpm bench          exit 0；open 352ms、save 254ms、edit 0ms、query 209ms、
 - renderer bundle 约 1.59MB（+48.8 kB），T6.4 打包阶段评估拆包。
 - 删除可撤销的确认文案必须说明可撤销；如未来改回不可撤销，需改 SPEC §13.1 与 ADR-038。
 
-**M3 验收交接清单**：
+**M3 验收交接清单（已执行，见 §6A）**：
 
-- 先读 `docs/TASKS.md` 的 M3 验收说明、SPEC §10.1–§10.6/§13.1/§16.1、ADR-034–ADR-039。
-- 按 TASKS 的 M3 演示脚本执行：4 个内置模板对比 → 改令牌/列格式 → 加“高温标红” →
-  另存模板 → 导出 CSV → 新工作区导入应用 → 重启还原；输出报告后停下等用户确认。
-- 复用 `style.spec.ts`/`template.spec.ts`/`export-csv.spec.ts` 的 seed 与截图，不新增运行时依赖；
-  演示可以写成单条 `m3-acceptance.spec.ts`，但必须先获用户授权。
-- 验收前跑 `pnpm verify`、`pnpm test:coverage`、`pnpm format:check`、`pnpm build`、`pnpm e2e`、
-  `pnpm bench`，并记录实际输出。
-- 不进入 T4.x；不改 `formatVersion`/manifest 字段/JSONL/IPC。
+- 已按 TASKS 的 M3 演示脚本执行：4 个内置模板对比 → 改令牌/列格式 → 加“高温标红” →
+  另存模板 → 导出 CSV → 新工作区导入应用 → 重启还原；报告 `docs/reports/m3/REPORT.md`。
+- 演示是单条 `apps/desktop/e2e/m3-acceptance.spec.ts`（3 次启动），复用 T3.1–T3.6 的 seed；
+  未新增运行时依赖，未改 `formatVersion`/manifest 字段/JSONL/IPC。
+- 演示中发现并修复“虚拟化行高不随样式令牌重测”（`DataGrid` 的 `virtualizer.measure()`），
+  详见报告 §5 与 §7 风险表。
 
 ## 5I. T3.6 决策与实现记录（已完成）
 
@@ -1450,27 +1450,35 @@ T3.5、T3.6 已按授权完成（见 §5D/§5E/§5F/§5G/§5H/§5I）。若未�
 
 ---
 
-## 6A. M3 验收演示交接（待用户授权）
+## 6A. M3 验收演示（已执行，等待用户验收）
 
-M3 的 6 个任务（T3.1–T3.6）已完成；按 AGENTS §8，里程碑全部任务完成后运行验收演示并**停下等
-用户确认**。当前未授权，不要提前实现。
+演示已于 **2026-10-24** 执行，提交为 `test(m3): add milestone acceptance demo and report`（见
+`git log -1 -- apps/desktop/e2e/m3-acceptance.spec.ts`）。单条 `e2e/m3-acceptance.spec.ts`
+（1 个 test，3 次启动，全量 E2E 内 **11.2s**）按原脚本完成：
 
-建议的单条演示（可写成 `e2e/m3-acceptance.spec.ts`，先获授权）：
+1. 通过 `window.api` seed 源/目标两个工作区（6 行 × 6 列：id/text、sensor_a/number、day/date、
+   active/boolean、status/enum、note/text），再从最近列表打开源工作区。
+2. 模板管理依次应用 4 个内置模板（同一视图），断言行高 32→24、compact 表头 12px、dark
+   `rgb(30,30,30)`/`rgb(37,37,38)`、finance 等宽 + 斑马纹 + `rgb(31,41,55)`；截图 4 张。
+3. 样式编辑器改密度 compact、表头 `#123456`、`sensor_a` 显示名/180px/1 位小数；预览
+   `data-preview-ms` 实测 **2–3ms**/100ms；关闭后 `Ctrl+Z`/`Ctrl+Shift+Z` 验证一次控件一条撤销。
+4. 加条件规则“高温”（`sensor_a > 30` → 红底/深红字/加粗/warning）；r2/r3 命中，r1/r4/r5/r6 未命中。
+5. 另存模板 `M3 Report`（新 `sty_*`，视图切换）→ 筛选 `>=20` + 降序 → 冻结 2 列 → Note 列
+   双击自适应（116px）→ 设为默认 → 导出 `.curvestyle.json` → 导出 CSV（4 行 × 6 列）。
+6. 重启后导入到新工作区并应用：导入重分配 `sty_*`/`rule_*`，12 项计算样式与源完全一致；
+   目标工作区再导出 CSV（6 行 + 表头）。再重启验证两个工作区的模板/引用/筛选/排序/列宽/冻结/
+   默认样式还原。
 
-1. 新建工作区/表，seed 或粘贴一组含 number/date/boolean/enum 的行。
-2. 依次切换 4 个内置模板，断言颜色/行高/字族/对齐/斑马纹差异（复用 `style.spec.ts` 的计算样式
-   断言）；截图 4 张。
-3. 打开样式编辑器：改密度、表头色、`sensor_a` 列 1 位小数；断言前 50 行预览 100ms 内更新；
-   一次控件一条撤销。
-4. 加条件规则“高温标红”（如 `value > 30` → 行背景红/警告图标）；断言命中/未命中行。
-5. 另存模板 → 导出 CSV（当前筛选排序）→ 新工作区导入 `.curvestyle.json` 并应用 → 断言 12 项
-   计算样式一致；再导出 CSV 断言 BOM/转义/行数。
-6. 退出 Electron 并用同一 `userData` 重启，断言模板、视图引用、筛选/排序、列宽/冻结与
-   工作区默认样式还原；输出 `docs/reports/m3/REPORT.md` 与截图，然后停下等用户接受。
+证据：`docs/reports/m3/REPORT.md` + `m3-01`…`m3-10`（10 张 PNG）；Playwright attachment
+含 `m3-metrics.txt` 与 `m3-contract.json`。演示中发现并修复“虚拟化行高不随样式令牌重测”：
+`DataGrid` 在 `rowHeight` 变化时调用 `virtualizer.measure()`（修复前 compact 行高停留在 32px，
+M3 用例可复现）。
 
-验收前跑：`pnpm verify`、`pnpm test:coverage`、`pnpm format:check`、`pnpm build`、`pnpm e2e`、
-`pnpm bench`。复用 T3.1–T3.6 的 seed/截图；不新增运行时依赖；不改 `formatVersion`/manifest/
-JSONL/IPC；不进入 T4.x。
+验收命令（已执行，结果见报告 §7）：`pnpm verify`、`pnpm test:coverage`、`pnpm format:check`、
+`pnpm build`、`pnpm e2e`（72 passed）、`pnpm bench`（exit 0）。未改 `formatVersion`/manifest/
+JSONL/IPC；未新增运行时依赖；未进入 T4.x。
+
+**停点**：等待用户验收 M3；接受前不要开始 T4.1。
 
 ---
 
@@ -1508,6 +1516,7 @@ JSONL/IPC；不进入 T4.x。
 | `builtin.finance` 数字格式 | 模板令牌无法表达右对齐/千分位 | T3.2 用全局数字规则实现（ADR-035）：number/date 默认右对齐、Intl 千分位；未扩展模型 |
 | 所有模板数字带千分位、布尔本地化 | 与 T2.x 显示不同 | 用户确认的全局数字规则；显示层变化，不改磁盘数据；E2E 断言已同步 |
 | 视觉验收无像素基线 | 跨 DPI/字体可能视觉漂移 | 按 HANDOFF §3.6 用计算样式契约 + 截图证据；需要像素基线时先评估 Windows CI 稳定性 |
+| 样式/模板切换的行高 | TanStack Virtual 保留旧测量，行高停留旧值 | M3 已在 `rowHeight` 变化时 `virtualizer.measure()`（`DataGrid`）；新增行高来源时确认仍触发重测 |
 | 内置模板名称 i18n | 常量使用中文规范名 | T3.4 按 id 走 `t(key)`；T3.5 管理器/导入预览同样按 id 显示，用户样式显示自身 `name` |
 | 样式编辑器/导入预览只含前 50 行 | 看不到筛选/虚拟滚动效果 | ADR-037/038；主网格虚拟化路径不变；需要筛选预览时另写 ADR |
 | 样式规则组最多 2 个 | 更深谓词只读 | `condition-builder`/UI 限制；T3.5 导入复杂模板原样保留、不静默改写 |
@@ -1545,30 +1554,31 @@ JSONL/IPC；不进入 T4.x。
 - 不绕过命令总线直接改 store（撤销会坏）；不在组件里写业务逻辑。
 - 不加未经 ADR 的运行时依赖；不跳过测试、不放宽 ESLint/覆盖率规则、不用 `--no-verify`。
 - 不未经 ADR/用户确认升级 `formatVersion`、改数据格式、IPC 通道或公共 API。
-- 不在 T3.6 已完成后再顺手实现 M3 验收演示、T4.x 或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
-- 不自动跨任务/跨里程碑；T3.6 已完成并输出报告，等待用户授权 M3 验收演示。
+- 不在 T3.6 已完成后再顺手实现 T4.x 或 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
+- 不自动跨任务/跨里程碑；M3 演示已完成并输出报告，等待用户验收后再领取 T4.1。
 
 ---
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T3.6 交接提交（报告
-      `docs/reports/t3.6/REPORT.md`，ADR-039）。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 M3 演示提交（报告
+      `docs/reports/m3/REPORT.md`、`e2e/m3-acceptance.spec.ts`）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、TASKS 的 M3/T3.6、`docs/reports/t3.6/REPORT.md`、
-      TESTPLAN §2/§3/§5、SPEC §9.6/§13.1/§15.1/§16.1、ADR-039、ADR-038、ADR-037、ADR-036、
-      ADR-035 与 ADR-034。
-- [ ] 已确认 `pnpm verify` 基线（143 files / 1232 tests）、coverage lines 74.90%、
-      e2e 71 passed、bench exit 0、condition P95 1ms、100k 导出 1,716ms。
+- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/m3/REPORT.md`、TASKS 的 M3/T3.6、
+      `docs/reports/t3.6/REPORT.md`、TESTPLAN §2/§3/§5、SPEC §9.6/§13.1/§15.1/§16.1、
+      ADR-039、ADR-038、ADR-037、ADR-036、ADR-035 与 ADR-034。
+- [ ] 已确认 `pnpm verify` 基线（143 files / 1232 tests）、coverage lines 74.89%、
+      e2e 72 passed、bench exit 0、condition P95 0ms、100k 导出 1,646ms。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M2 已获用户接受、T3.1–T3.6 已完成；**等待用户授权 M3 验收演示**，不要自行进入演示。
+- [ ] 已确认 M2 已获用户接受、T3.1–T3.6 已完成、**M3 验收演示已执行并等待用户验收**；
+      接受前不要自行进入 T4.x。
 - [ ] 已确认 T3.1 的 hex 颜色/内置冻结/resolve/fork；T3.2 的 20 个表变量/宽度优先级/全局数字规则/
       bar/badge；T3.3 的条件原语/`conditionCompareOps`/优先级/`style.update`；T3.4 的
       `style.create` 懒 fork、前 50 行预览与一次控件一条撤销；T3.5 的 `style.delete/apply`、
       导出文档/身份重分配、删除回退与可撤销；T3.6 的 `file:exportCsv` 四步协议、
-      BOM/CRLF/RFC4180、原始值/显示格式与 5s 预算。
+      BOM/CRLF/RFC4180、原始值/显示格式与 5s 预算；M3 的 `virtualizer.measure()` 行高重测。
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
-- [ ] 已确认 E2E 写盘断言使用 `expect.poll`，截图提交前还原。
-- [ ] 用户明确授权 M3 验收演示后，先按 AGENTS §8 复述再开工；未授权则停在 T3.6。
+- [ ] 已确认 E2E 写盘断言使用 `expect.poll`；`m3` 截图写入 `docs/reports/m3/`，`m0` 截图提交前还原。
+- [ ] 用户验收 M3 后，先按 AGENTS §8 复述 T4.1 再开工；未接受则停在 M3。

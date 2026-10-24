@@ -399,3 +399,11 @@
   导出只读、不进撤销、不改 manifest/JSONL；`e2e/export-csv.spec.ts` 覆盖转义/筛选排序/
   原始值切换/100k 1,716ms 预算/取消无残留/200% 键盘；新增 ADR-039、SPEC §9.6/§15.1/§15.4/
   §16.1、TASKS T3.6 与 `docs/reports/t3.6/`。
+- M3：新增 `apps/desktop/e2e/m3-acceptance.spec.ts`（单条演示，3 次启动）覆盖 4 个内置模板对比、
+  样式编辑器（密度/表头色/列覆盖）、一次控件一条撤销、条件规则“高温标红”、另存模板、筛选/排序/
+  冻结/列宽、CSV 导出、新工作区导入应用（12 项计算样式一致）与重启还原；报告
+  `docs/reports/m3/REPORT.md` 与 10 张截图。
+- M3：修复虚拟化行高不随样式令牌重测 —— 应用/编辑导致 `rowHeight` 变化时，TanStack Virtual
+  仍沿用旧测量值，行高停留在旧值直到滚动/缩放；`DataGrid` 在 `rowHeight` 变化时调用
+  `virtualizer.measure()`。M3 用例断言 `compact-light` 应用后行高立即为 24px（修复前为复现失败）。
+  不改变数据格式、IPC、公共 API 或运行时依赖。
