@@ -129,6 +129,8 @@ T2.1–T2.5 全程 `danger-full-access`，审批提示已关闭——**不要使
   `$env:CURVE_E2E_NO_SANDBOX = '1'`（只被 `apps/desktop/e2e/fixtures.ts` 读取，不影响应用
   `webPreferences.sandbox`）。
 - 跑 E2E 前先 `pnpm build`（`pnpm e2e` 自带 build）。
+- 全量 E2E 必须独占 CPU：跑之前确认没有外部程序占用（T4.2 实测外部游戏占 ~7.7 核时
+  `grid.spec` 的 100k 首帧 1045/1062ms 超 1000ms 预算，暂停后 72 passed）。不要为通过改预算。
 - `pnpm exec playwright test --config apps/desktop/playwright.config.ts <spec>` 可直接跑单个 spec；
   PowerShell 下 `--grep "a|b"` 会被 cmd 拆开，一次只跑一个模式。
 - E2E 会重写 `docs/reports/m0/*.png`。提交前用
@@ -175,7 +177,8 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
   编辑器超时：先单跑确认；T2.4 已修复虚拟行未挂载时焦点丢失（100ms 安全重试，编辑器打开时
   不抢焦点）。**跑全量 E2E 时不要同时跑 verify/coverage/另一套 Electron**：T3.2 实测并发时
   200% 缩放用例会因焦点重试延迟失败，独占 CPU 后 65 passed。不要放宽超时或删除断言。
-- Vitest 过滤用 `--testNamePattern`，不要用 `-- --grep`。
+- Vitest 过滤用 `pnpm exec vitest run <path> --testNamePattern <pattern>`，不要写成
+  `-- --grep`（Vitest 5 不报错但也不过滤，会把整包都跑一遍；T3.4/T4.2 都踩过）。
 - E2E 在 UI 更新后等 manifest/JSONL 落盘时使用 `expect.poll`；新增编辑/保存测试也要这样等
   磁盘，不要直接读文件后立刻断言（渲染状态先于异步写盘）。
 - E2E 粘贴用 `page.evaluate` 派发带 `DataTransfer` 的合成 `ClipboardEvent`（`e2e/paste.spec.ts`
@@ -1646,8 +1649,19 @@ pnpm bench          exit 0；open 542ms、save 314ms、edit 0ms、query 223ms、
 
 **T4.3 交接提示（ECharts 适配器）**：
 
-- 只消费 `RenderModel`：不得读表/Store、不得 import `@curve/table-engine`/`@curve/chart-model`
-  之外的应用内部路径；`chart-echarts` 是唯一允许 import ECharts 的包。
+- `packages/chart-echarts` 仍是 **T0.1 占位包**（`index.ts` 只有 `PACKAGE_NAME`）：`package.json`
+  已声明 `@curve/domain`/`@curve/chart-model`，但 **`echarts` 尚未安装**（根与 desktop 都没有）。
+  T4.3 需在 `packages/chart-echarts/package.json` 增加 `echarts` 运行时依赖；ADR-004 与
+  SPEC §4.1/§5 已授权该依赖（“主版本锁定、按需引入”），任务 ADR 里记录版本、体积与按需
+  注册范围（`echarts/core` + Line/Scatter/Bar + 需要的组件）。
+- `packages/chart-echarts/tsconfig.json` 目前**没有 `references`**。一旦 import
+  `@curve/chart-model`/`@curve/domain` 的类型，按 T4.1 的经验补 `references`
+  （否则 `tsc -b` 会把兄弟包的 `.d.ts` 生成到 `src/` 并让 `pnpm lint` 报错）。
+- 本机没有 symlink 权限（§3.4）：`pnpm install` 报 `ERR_PNPM_EPERM` 时，从报错里取
+  target/link 用 `cmd /c mklink /J` 预建（如 `packages\chart-echarts\node_modules\echarts`）
+  再重跑；`pnpm-lock.yaml` 随任务提交。
+- 只消费 `RenderModel`：不得读表/Store；`chart-echarts` 是唯一允许 import ECharts 的包，
+  `chart-model` 的 `no-echarts` 边界测试与 depcruise 规则继续生效。
 - 采样已完成，**不要**在适配器里再做 LTTB 或点数判断；`meta.sampled` 只用于徽标。
 - line 系列必须按"非空值成对"渲染：`null` 即 absence，适配器不得插值/补 0；这套模型无法区分
   "原始缺口"与"被采样略过"（ADR-041 代价），断点渲染策略要在 T4.3 的 ADR 里写清楚。
@@ -1655,6 +1669,8 @@ pnpm bench          exit 0；open 542ms、save 314ms、edit 0ms、query 223ms、
   （TESTPLAN §2 / T4.3 验收）；不要只断言"渲染不报错"。
 - 生命周期：`render/update/resize/dispose/toPNG`，单测用实例计数证明 dispose 无泄漏；
   DOM/ECharts 只在 `chart-echarts`，组件层（T4.4）只渲染容器。
+- 被 renderer 引用后 `pnpm build` 的 renderer chunk 会变大（当前 1,618.04 kB 未含 echarts）；
+  在 T4.3 报告里记录体积，T6.4 再评估拆包。
 
 ---
 
@@ -1763,7 +1779,8 @@ JSONL/IPC；未新增运行时依赖。接受前复核（2026-10-24）：`pnpm v
 Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings、`m3-contract.json` 与
 失败时的 trace；截图已复制到 `docs/reports/m3/`。
 
-**停点（已解除）**：M3 已于 2026-10-24 获用户接受并关闭；下一任务 T4.1（M4 图表）。
+**停点（已解除）**：M3 已于 2026-10-24 获用户接受并关闭；此后 T4.1、T4.2 已完成（见 §5K/§5L），
+M4 下一任务是 T4.3（ECharts 适配器）。
 
 ---
 
@@ -1774,7 +1791,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 会话策略回到 `workspace-write` | `verify`/E2E 报 EPERM | 切 `danger-full-access`，不改项目配置 |
 | Windows 无 symlink 权限 | `pnpm install` 失败 | 按 §3.4 用 junction 补齐；不要删 node_modules/切 linker |
 | 全量 E2E 偶发 grid/edit 键盘超时 | 全量非零 | 单跑确认；T2.4 已修复焦点丢失；不放宽超时/不删断言 |
-| 外部程序占满 CPU（如游戏/聊天工具） | verify 5s 超时、100k grid 首帧 >1s | 先确认 CPU（`Get-Counter '\Processor(_Total)\% Processor Time'`）；暂停外部程序后重跑，不改预算 |
+| 外部程序占满 CPU（如游戏/聊天工具） | verify 5s 超时、100k grid 首帧 >1s | 先确认 CPU（`Get-Counter '\Processor(_Total)\% Processor Time'` 与按进程 CPU 增量）；T4.2 实测外部游戏占 ~7.7 核时 `grid.spec` 首帧 1045/1062ms 超 1000ms 预算、单跑也复现；暂停后全量 72 passed。暂停外部程序后重跑，不改预算 |
 | 100k 行结构变更同步执行 | UI 短暂无响应 | T2.3 已记录；未纳入 T2.7 预算，后续按需 Worker 化 |
 | 10 万级粘贴命令阶段同步 | UI 可能短暂无响应 | T2.4 10k 实测远低于预算；T2.7 未改命令阶段 |
 | 10 万级导入命令阶段同步 | 提交时短暂占用主线程 | T2.5/T2.7 bench 核心管线 P95 878ms（8s 预算）；命令阶段仍同步 |
@@ -1785,7 +1802,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 100k 文本排序接近 400ms | bench 波动可能超预算 | T2.7 已预计算排序键/类型数组，ASCII 253ms；中文仍 698ms/800ms |
 | query Worker 缓存最多 4 张表 | 切换更多表会重新克隆 | 记录于 ADR-032；T2.7 未改淘汰策略 |
 | 100k 首次 Worker 快照克隆 | 首次筛选/排序有额外延迟 | 不计入 `data-query-ms`；E2E `data-query-total-ms` 实测 448–490ms |
-| 整应用内存 497MB/600MB（M2 实测；T2.7 570MB；T3.5 568MB；T3.6 571MB；M3 572MB） | CI runner 更慢/更碎片化时可能超 | 余量约 5%；超了先查是否 E2E 探针/噪声，不改预算 |
+| 整应用内存 497MB/600MB（M2 实测；T2.7 570MB；T3.5 568MB；T3.6 571MB；M3 572MB；T4.2 571MB） | CI runner 更慢/更碎片化时可能超 | 余量约 5%；超了先查是否 E2E 探针/噪声，不改预算 |
 | bench 基线未提交 | 20% 回归告警不触发 | CI Windows runner 跑 `pnpm bench -- --write-baseline` 后提交 `bench/baseline.json` |
 | 100k 行撤销补丁变大 | 历史内存 | T2.7 的整数组 patch 每个编辑约 800KB；T5.2 统一历史时评估 |
 | 视图状态连续写 manifest | 拖动列宽/快速排序多次写盘 | T5.3 统一保存队列后合并 |
@@ -1813,7 +1830,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 75.34%（T4.1 实测；M3 为 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`render-model.ts` 97.54%；任务报告记录实测 |
+| 覆盖率 75.55%（T4.2 实测；T4.1 75.34%、M3 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`sampling.ts` 93.24%、`render-model.ts` 96.96%；任务报告记录实测 |
 | renderer bundle 约 1.62MB（+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩 |
 | 100k CSV 导出 1,716ms/5s（T3.6） | 去掉 Intl formatter 缓存会退到 10s 量级 | `formatCellValue` 的 locale/格式缓存是达标关键；不要改回每单元格 `new Intl.*` |
 | CSV 临时文件残留 | 进程崩溃时 `.curve-export-*.tmp` 留在目标目录 | cancel/`before-quit` 已清理；崩溃残留需手工删除，报告已记录 |
@@ -1849,6 +1866,10 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 - 不加未经 ADR 的运行时依赖；不跳过测试、不放宽 ESLint/覆盖率规则、不用 `--no-verify`。
 - 不未经 ADR/用户确认升级 `formatVersion`、改数据格式、IPC 通道或公共 API。
 - 不在 T3.6 已完成后再顺手实现 T5.x 的自动保存/恢复；不把 10 万行整体放进 React state。
+- 不在 `chart-echarts` 里再采样：LTTB 只在 `resolveSeries` 内做一次（ADR-041）。
+- 不把 `null` 当 0、不插值补齐断点，也不为“看起来连续”修改 `RenderSeries.values` 类型；
+  被采样略过的 null 与真实缺口同形是 ADR-041 已接受的代价。
+- 不把 `sampled` 当成“采样已启用”：只有至少一个系列真的被降采样时才为 true。
 - 不自动跨任务/跨里程碑；M3 已验收并关闭，M4 的 T4.1–T4.6 完成后运行验收演示，停下等用户确认。
 
 ---
@@ -1876,4 +1897,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
       T4.2 的 `lttbIndices`/`sampleSeriesIndices`、共享 X 轴并集与 `meta.sampled` 口径。
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`；`m3` 截图写入 `docs/reports/m3/`，`m0` 截图提交前还原。
+- [ ] 已确认 `echarts` **尚未安装**、`packages/chart-echarts` 仍是占位包，且其 `tsconfig.json`
+      没有 `references`（T4.3 需要新增依赖 + references，见 §5L 的 T4.3 交接提示）。
+- [ ] 跑全量 E2E 前已确认没有外部程序占满 CPU（§3.3/§7）。
 - [ ] T4.3 开工前按 AGENTS §8 复述目标/涉及文件/验收命令，再测试先行。

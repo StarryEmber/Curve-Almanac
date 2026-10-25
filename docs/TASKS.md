@@ -1074,12 +1074,16 @@ T0.2 + T5.5 → T6.4
 报告 `docs/reports/m3/REPORT.md` 与 10 张截图。演示中发现并修复“虚拟化行高不随样式令牌重测”
 （`DataGrid` 在行高变化时 `virtualizer.measure()`），`pnpm e2e` **72 passed**。接受前复核：
 `pnpm verify` 143 files / 1232 tests、`pnpm build` exit 0、`m3-acceptance` 单跑 1 passed、
-全量 `pnpm e2e` 72 passed。**M3 已关闭，下一任务 T4.1。**
+全量 `pnpm e2e` 72 passed。**M3 已关闭；此后 T4.1、T4.2 已完成，M4 下一任务 T4.3。**
 
 ---
 
 <a id="m4"></a>
 ## M4 图表
+
+> 状态（2026-10-25）：`T4.1`（RenderModel 与宽/长表映射）与 `T4.2`（LTTB 采样与缺失值语义）
+> 已完成；`T4.3`（ECharts 适配器）起继续。M4 验收演示在 T4.1–T4.6 全部完成后执行，停下等
+> 用户确认。
 
 <a id="t41"></a>
 ### T4.1 RenderModel 与宽/长表映射
