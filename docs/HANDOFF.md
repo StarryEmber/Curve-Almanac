@@ -3,8 +3,8 @@
 > 本文件面向**下一个实现会话**。当前会话已完成 `T4.3`（ECharts 适配器），
 > M4 自 `T4.4` 继续；M3 已于 2026-10-24 获用户接受。最后更新：
 > 2026-10-25 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
-> T4.2 代码 **`247093d`**、T4.3 代码见 `git log -1 -- packages/chart-echarts`
-> （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
+> T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**（本交接文档的提交见
+> `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t4.3/REPORT.md` →
 > `docs/TASKS.md` 的 M4 / T4.4 → `docs/SPEC.md` §11.3–§11.5、§16.1 →
 > `docs/adr/042-t43-echarts-adapter.md` → ADR-041、ADR-040（RenderModel 口径）。
@@ -1806,7 +1806,7 @@ esbuild 体积        echarts 子集 606.0 kB min / 206 kB gzip；
 - toolbox 标题为 ECharts 英文默认值；动画关闭；dataZoom 滑块常驻。
 - 按需注册仍带 toolbox 全部 feature 实现；T4.4 接线后 renderer chunk 增大，T6.4 评估拆包。
 
-提交：见 `git log -1 -- packages/chart-echarts`（`feat(chart): add ECharts adapter (T4.3)`）；
+提交：**`7a9b665`**（`feat(chart): add the ECharts adapter with option golden snapshots (T4.3)`）；
 本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`。
 
 **T4.4 交接提示（图表创建与检查器）**：
@@ -2045,7 +2045,7 @@ M4 下一任务是 T4.3（ECharts 适配器）。
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T4.3 提交（报告
+- [ ] `git status --short` 干净；`git log --oneline -3` 包含 T4.3 代码提交 **`7a9b665`**（报告
       `docs/reports/t4.3/REPORT.md`）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
