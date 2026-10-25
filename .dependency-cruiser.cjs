@@ -47,6 +47,14 @@ module.exports = {
       to: { path: '(^|/)echarts(/|$)' },
     },
     {
+      name: 'only-chart-echarts-imports-echarts',
+      severity: 'error',
+      comment:
+        'Only chart-echarts may import ECharts at all; everything else consumes RenderModel (SPEC §4.2, ADR-042).',
+      from: { path: '^(?!packages/chart-echarts/)' },
+      to: { path: '(^|/)echarts(/|$)' },
+    },
+    {
       name: 'persistence-no-electron',
       severity: 'error',
       comment:

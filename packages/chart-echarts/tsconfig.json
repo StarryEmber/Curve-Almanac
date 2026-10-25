@@ -4,7 +4,12 @@
     "composite": true,
     "rootDir": "src",
     "outDir": "dist-types",
-    "tsBuildInfoFile": "dist-types/tsconfig.tsbuildinfo"
+    "tsBuildInfoFile": "dist-types/tsconfig.tsbuildinfo",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    // The T4.3 boundary test reads workspace sources with node:fs/url; the
+    // production modules themselves import no Node builtins.
+    "types": ["node"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../domain" }, { "path": "../chart-model" }]
 }

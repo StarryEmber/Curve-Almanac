@@ -439,3 +439,28 @@
 - T4.2：17 条采样单测（含 100k→2k、峰值保留、null 语义与属性测试）+ 9 条 RenderModel 集成
   用例；`pnpm verify` **145 files / 1302 tests**；coverage 全局 lines **75.55%** / branches
   **68.41%**（`sampling.ts` lines 93.24% / `render-model.ts` 96.96%）；黄金快照未变。
+- T4.3：`@curve/chart-echarts` 从占位包变为唯一消费 `RenderModel` 的 ECharts 适配器；新增唯一
+  运行时依赖 `echarts@^6.1.0`（安装 6.1.0），按需注册 Line/Scatter/Bar + Grid/Tooltip/Legend/
+  DataZoom/Toolbox + CanvasRenderer（幂等，9 个 installer），不 import 全量入口。
+- T4.3：`toEChartsOption(model, { locale? })` 纯函数（唯一 option 构造点）：`number`→`value`、
+  `time`→`time`、`text`→`category`；类目轴 `xAxis.data` + 对齐数组，数值/时间轴 `[x, y]` 对；
+  调色板/系列色、线宽/平滑/点/网格/图例/从零开始/精度逐项映射；tooltip（HTML + 用户文本转义、
+  X 单位、Y 固定精度）、dataZoom（inside + slider）、toolbox 框选缩放；`animation: false`。
+- T4.3：null 断点裁决（ADR-042 §3）：未采样 `connectNulls: false`（真实缺口断开，SPEC §11.2.4
+  与 TASKS "null 断点不连 line"）；`meta.sampled=true` 时 `connectNulls: true`（ADR-041 的共享
+  X 轴并集使"被采样略过"与真实缺口不可区分；真实缺口被连线是已接受代价）。适配器不再采样。
+- T4.3：`createChartRenderer({ locale? })` 生命周期 `render/update/resize/dispose/toPNG`；`update`
+  用 `setOption(..., { notMerge:false, replaceMerge:['series','xAxis','yAxis'] })`；空模型不创建
+  实例；错误返回 `AppError`（`E_UNKNOWN`/`E_EXPORT_FAILED`）；`activeChartInstanceCount()` 证明
+  dispose 无泄漏；`toPNG({ scale=2, background })` 返回 data URL（2x、排除 toolbox）。
+- T4.3：`resolveChartTheme(background)` 按 WCAG 相对亮度推导 light/dark（颜色为与 `@curve/ui`
+  令牌同值的常量，不 import `@curve/ui`）；`escapeHtmlText` 保证 tooltip 无 HTML 注入。
+- T4.3：新增 dependency-cruiser 规则 `only-chart-echarts-imports-echarts` 与包内边界测试
+  （扫描 `packages/*/src`、`apps/*/src`、`plugins/*/src`、`scripts` 与 workspace `package.json`）。
+- T4.3：6 条 option 黄金快照 + 24 条 option 断言 + 15 条格式化 + 16 条生命周期（mock
+  `echarts/core`）+ 6 条主题 + 2 条真实 ECharts SSR/SVG 冒烟 + 注册/边界测试；`pnpm verify`
+  **152 files / 1369 tests**；coverage 全局 lines **76.09%** / branches **69.04%**
+  （`chart-echarts/src` lines **99.56%**）；`pnpm build` exit 0（renderer 1,618.04 kB 未变；
+  `chart-echarts` 尚未被 renderer 引用）；`pnpm e2e` **72 passed**（3.2m）；`pnpm bench` exit 0。
+  新增 ADR-042、SPEC §11.4 实现边界、TASKS T4.3 与 `docs/reports/t4.3/REPORT.md`；未改
+  `RenderModel`/`formatVersion`/manifest/JSONL/IPC/preload/CSP。

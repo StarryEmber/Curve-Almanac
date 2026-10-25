@@ -1162,6 +1162,31 @@ export interface RenderModel {
 - 空数据：不创建实例，渲染空态；实例创建失败必须捕获并显示错误态。
 - 不允许在 React 组件里直接拼 option；option 只允许出现在 `chart-echarts` 包。
 
+**实现边界（T4.3，ADR-042）**：
+
+- `echarts@^6.1.0`（实测 **6.1.0**）是 `@curve/chart-echarts` 唯一新增运行时依赖；按需注册
+  `LineChart`/`ScatterChart`/`BarChart` + `Grid`/`Tooltip`/`Legend`/`DataZoom`/`Toolbox` +
+  `CanvasRenderer`，不 import 全量 `echarts` 入口。注册子集 606.0 kB minified / 206 kB gzip。
+- `toEChartsOption(model, { locale? })` 是唯一 option 构造点（纯函数）；`x.type` 的 `number`
+  映射到 ECharts `value`、`time` → `time`、`text` → `category`；类目轴给 `xAxis.data` +
+  对齐数组，数值/时间轴给 `[x, y]` 对（`null` 保留为空点）。
+- null 断点：`meta.sampled === false` 时 `connectNulls: false`（真实缺口断开，§11.2.4）；
+  `meta.sampled === true` 时 `connectNulls: true`（ADR-041 的共享 X 轴并集无法区分"被采样
+  略过"与真实缺口，采样图必须跨过；真实缺口也会被连线，是已接受的代价）。适配器不再采样。
+- 主题：`resolveChartTheme(background)` 按 WCAG 相对亮度推导 light/dark，颜色为与 `@curve/ui`
+  令牌同值的常量（不 import `@curve/ui`）；`animation: false` 使渲染与 PNG 确定。
+- 交互：tooltip（`renderMode: 'html'`，对用户可控文本做 HTML 转义；X 单位/格式化、Y 固定
+  `numberDigits` 精度）、`dataZoom`（inside + slider）、toolbox 的 `dataZoom`（框选缩放）。
+- 生命周期：`createChartRenderer({ locale? })` 惰性 `init`，提供 `render`/`update`/`resize`/
+  `dispose`/`toPNG`；`update` 用 `setOption(option, { notMerge:false,
+  replaceMerge:['series','xAxis','yAxis'] })` 合并；空模型（无系列 / x 为空 / `sourcePoints=0`）
+  不创建实例；失败返回 `{ ok:false, error }`（渲染 `E_UNKNOWN`、导出 `E_EXPORT_FAILED`）；
+  `activeChartInstanceCount()` 供泄漏测试。
+- `toPNG({ scale = 2, background: 'transparent'|'light'|'dark' })` 返回 data URL（默认 2x、
+  `excludeComponents: ['toolbox']`）；文件名与写盘由 T4.5 负责。
+- **Y 轴单位不在 `RenderModel`**（`RenderSeries` 没有 `unit`）：tooltip 只显示 X 单位与 Y 精度；
+  需要 Y 单位时先扩展 §11.3 契约并写 ADR。toolbox 标题暂用 ECharts 英文默认值（T4.5 本地化）。
+
 ### 11.5 图表 UI
 
 - 左侧"图表"列表：新建、复制、重命名、删除。

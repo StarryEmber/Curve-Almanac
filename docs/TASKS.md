@@ -1081,9 +1081,9 @@ T0.2 + T5.5 → T6.4
 <a id="m4"></a>
 ## M4 图表
 
-> 状态（2026-10-25）：`T4.1`（RenderModel 与宽/长表映射）与 `T4.2`（LTTB 采样与缺失值语义）
-> 已完成；`T4.3`（ECharts 适配器）起继续。M4 验收演示在 T4.1–T4.6 全部完成后执行，停下等
-> 用户确认。
+> 状态（2026-10-25）：`T4.1`（RenderModel 与宽/长表映射）、`T4.2`（LTTB 采样与缺失值语义）与
+> `T4.3`（ECharts 适配器）已完成；下一任务 `T4.4`（图表创建与检查器）。M4 验收演示在
+> T4.1–T4.6 全部完成后执行，停下等用户确认。
 
 <a id="t41"></a>
 ### T4.1 RenderModel 与宽/长表映射
@@ -1177,7 +1177,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t43"></a>
 ### T4.3 ECharts 适配器
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T4.1、T0.4
 - 覆盖：FR-CHT-03、FR-CHT-04
 - 参考：SPEC §11.4
@@ -1191,11 +1191,48 @@ T0.2 + T5.5 → T6.4
   2. `setOption(option, { notMerge: false })` 更新；`dispose` 清理。
   3. 背景 auto 跟应用主题；导出 2x。
 - 验收：
-  - [ ] 4 个调色板/深浅背景 option 快照通过。
-  - [ ] resize 不变形；dispose 无泄漏（实例计数为 0）。
-  - [ ] tooltip 显示单位/精度；null 断点不连 line。
-  - [ ] 包外无 echarts 引用。
+  - [x] 4 个调色板/深浅背景 option 快照通过。
+  - [x] resize 不变形；dispose 无泄漏（实例计数为 0）。
+  - [x] tooltip 显示单位/精度；null 断点不连 line。
+  - [x] 包外无 echarts 引用。
 - 验证：`pnpm exec vitest run packages/chart-echarts`
+
+  实现备注（2026-10-25，ADR-042）：
+  - 依赖：`echarts@^6.1.0`（安装 6.1.0）是 `@curve/chart-echarts` 唯一新增运行时依赖；按需注册
+    `LineChart`/`ScatterChart`/`BarChart` + `Grid`/`Tooltip`/`Legend`/`DataZoom`/`Toolbox` +
+    `CanvasRenderer`（9 个 installer，幂等）。注册子集实测 606.0 kB minified / 206 kB gzip；
+    适配器完整 bundle（含 domain/zod/chart-model）1.0 MB / 304 kB gzip。T4.3 尚未被 renderer
+    引用，`pnpm build` 产物保持 1,618.04 kB。
+  - option：`toEChartsOption(model, { locale? })` 纯函数；`x.type` `number`→ECharts `value`、
+    `time`→`time`、`text`→`category`；类目轴用 `xAxis.data` + 对齐数组，数值/时间轴用 `[x, y]`
+    对；`style`（palette/lineWidth/smooth/showSymbol/showGrid/legend/yStartAtZero/numberDigits）
+    逐项映射；tooltip（HTML + 转义、X 单位、Y 固定精度）、`dataZoom`（inside + slider）、
+    toolbox 框选缩放；`animation: false`。
+  - 断点策略（解决 TASKS 与 ADR-041 的冲突）：`meta.sampled === false` → `connectNulls: false`
+    （真实缺口断开，符合 SPEC §11.2.4 与"null 断点不连 line"）；`meta.sampled === true` →
+    `connectNulls: true`（ADR-041 §4：采样后的 null 与真实缺口不可区分，采样图必须跨过）。
+  - 主题：`resolveChartTheme(background)` 用 WCAG 相对亮度推导 light/dark（支持 hex/rgb/rgba，
+    未知语法按 light），颜色为与 `@curve/ui` 令牌同值的常量，不 import `@curve/ui`。
+  - 生命周期：`createChartRenderer({ locale? })` 惰性 `init`；`render`（同一容器再渲染=重新挂载）、
+    `update`（`setOption(..., { notMerge:false, replaceMerge:['series','xAxis','yAxis'] })`）、
+    `resize`、`dispose`（幂等）、`toPNG({ scale=2, background })`；空模型不创建实例；错误返回
+    `{ ok:false, error }`（`E_UNKNOWN`/`E_EXPORT_FAILED`）；`activeChartInstanceCount()` 证明
+    dispose 后为 0。
+  - 文件：`packages/chart-echarts/src/{theme,format,option,registration,renderer}.ts` 与
+    `option.test.ts`（6 条黄金快照 + 24 条断言）、`option.ssr.test.ts`（2 条真实 ECharts
+    SSR/SVG 冒烟）、`format.test.ts`（15）、`theme.test.ts`（6）、`renderer.test.ts`（16，
+    mock `echarts/core`）、`registration.test.ts`（1）、`boundary.test.ts`（2，扫描
+    workspace + 包清单）；`package.json`/`tsconfig.json`（references、DOM lib、
+    `types:["node"]`）；`.dependency-cruiser.cjs` 新增 `only-chart-echarts-imports-echarts`。
+  - 实测：`pnpm exec vitest run packages/chart-echarts` **8 files / 68 tests**；`pnpm verify`
+    **152 files / 1369 tests**、depcruise 416 modules / 1655 deps / 0 violations；coverage 全局
+    lines **76.09%** / branches 69.04%，`chart-echarts/src` lines **99.56%**（option/renderer/
+    theme/registration 100%）；`pnpm build` exit 0（renderer 1,618.04 kB 未变）；`pnpm e2e`
+    72 passed（3.2m）；`pnpm bench` exit 0（chart.sample P95 21ms/50ms）。
+  - 残留：Y 单位不在 RenderModel（tooltip 只有 X 单位 + Y 精度），需要时扩展契约并写 ADR；
+    toolbox 标题为 ECharts 英文默认值（T4.5 本地化）；`resize` 的像素级"不变形"由 T4.5/T4.6
+    的 E2E 验证（T4.3 单测证明委托与不重建 option）；采样图的真实缺口也会被连线（ADR-041
+    代价）；动画关闭；dataZoom 滑块常驻。详见 ADR-042"代价/复核条件"。
 
 <a id="t44"></a>
 ### T4.4 图表创建与检查器

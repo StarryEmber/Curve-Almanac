@@ -58,6 +58,13 @@
 | `ui/components` | 焦点陷阱/Esc/键盘/ARIA | Dialog、Toast、Tabs、Grid |
 | `ipc` | 信封、校验、错误映射 | 非法载荷、未知通道、异常转 `E_UNKNOWN` |
 
+> T4.3 实现：`packages/chart-echarts` 的 `option.test.ts` 有 **6 条 option 黄金快照**
+> （4 调色板 + 深色背景 + 采样缺口）与 24 条 option 断言；`option.ssr.test.ts` 用真实
+> ECharts 6.1.0 的 SVG/SSR 渲染验证 option 被接受，并断言未采样缺口为 2 个子路径、
+> `meta.sampled=true` 时为 1 个子路径；生命周期单测 mock `echarts/core`（dispose 后实例计数
+> 为 0），`boundary.test.ts` 扫描 workspace 确保包外无 echarts 引用。像素/布局仍由 T4.5/T4.6
+> 的 E2E 覆盖。
+
 ---
 
 ## 3. E2E 场景

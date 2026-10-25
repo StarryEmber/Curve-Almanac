@@ -11,7 +11,8 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@curve/chart-model": "workspace:*",
     "@curve/domain": "workspace:*",
-    "@curve/chart-model": "workspace:*"
+    "echarts": "^6.1.0"
   }
 }

@@ -2,8 +2,13 @@
  * @curve/chart-echarts — the only package allowed to import ECharts.
  *
  * Consumes RenderModel and produces ECharts options / renderer lifecycles.
- * It must never read tables or application stores directly (ADR-004).
- *
- * Placeholder export created in T0.1; the real public API lands in T4.3.
+ * It must never read tables or application stores directly (ADR-004/ADR-042).
  */
+
 export const PACKAGE_NAME = '@curve/chart-echarts' as const;
+
+export * from './format';
+export * from './option';
+export * from './registration';
+export * from './renderer';
+export * from './theme';
