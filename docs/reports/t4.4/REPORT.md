@@ -126,6 +126,16 @@ SelectOption.disabled?: boolean
 每交互一条撤销、复制/打开/删除失败的 `setError`、200% 缩放键盘（Enter 开向导、方向键/End 切
 检查器标签）、重命名/删除对话框、`renderer` 首次/防抖/卸载生命周期（4 条组件测试）。
 
+**截图证据**（E2E 生成后复制到本目录）：
+
+![新建图表向导与实时预览](t4.4-new-chart.png)
+
+![长表图表视图（3 系列、深色背景、色盲友好调色板、X/Y 轴名）](t4.4-chart-view.png)
+
+![删除映射列后的可操作错误态与内嵌重映射](t4.4-chart-error.png)
+
+![200% 缩放下键盘打开的向导](t4.4-wizard-zoom.png)
+
 ## 6. 验证命令与结果
 
 > 本节数字在本机（Windows、空闲 CPU）实测；`pnpm e2e` 独占 CPU 运行。
@@ -199,3 +209,6 @@ T4.4 的 4 项验收全部通过：宽/长映射由 RenderModel 契约与 E2E �
 全新 id/视图且源/副本互不影响。`pnpm verify` 全绿、`pnpm e2e` 全绿、`pnpm bench` exit 0；
 新增 ADR-043、SPEC §11.2/§11.3/§11.4/§11.5/§13.1/§13.2 实现边界与 4 条 E2E。下一步 T4.5
 （图表交互、空态与 PNG 导出），仍是一次只推进一个任务。
+
+提交：**`862063f`**（`feat(chart): add the chart list, wizard and inspector (T4.4)`）；
+本报告的交接提交见 `git log -1 -- docs/HANDOFF.md`。
