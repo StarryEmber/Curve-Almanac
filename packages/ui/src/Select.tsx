@@ -7,6 +7,8 @@ import type { ReactElement, SelectHTMLAttributes } from 'react';
 export interface SelectOption {
   value: string;
   label: string;
+  /** Rendered as `disabled` on the `<option>` (T4.4 chart layouts). */
+  disabled?: boolean;
 }
 
 export interface SelectProps extends Omit<
@@ -54,7 +56,7 @@ export function Select({
         aria-describedby={describedBy.length > 0 ? describedBy : undefined}
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={option.value} value={option.value} disabled={option.disabled === true}>
             {option.label}
           </option>
         ))}

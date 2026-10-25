@@ -21,7 +21,8 @@
   `docs/reports/m3/REPORT.md`）；里程碑 M3 已关闭。**T4.1（RenderModel 与宽/长表映射）已完成**
   （`docs/reports/t4.1/REPORT.md`、ADR-040）；**T4.2（LTTB 采样与缺失值语义）已完成**
   （`docs/reports/t4.2/REPORT.md`、ADR-041）；**T4.3（ECharts 适配器）已完成**
-  （`docs/reports/t4.3/REPORT.md`、ADR-042）；下一任务 T4.4（图表创建与检查器）。
+  （`docs/reports/t4.3/REPORT.md`、ADR-042）；**T4.4（图表创建与检查器）已完成**
+  （`docs/reports/t4.4/REPORT.md`、ADR-043）；下一任务 T4.5（图表交互、空态与 PNG 导出）。
 - 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
   `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 15 个已接线
   IPC 通道；**续作前先读 `docs/HANDOFF.md`**。

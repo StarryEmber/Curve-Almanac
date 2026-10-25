@@ -1081,9 +1081,9 @@ T0.2 + T5.5 → T6.4
 <a id="m4"></a>
 ## M4 图表
 
-> 状态（2026-10-25）：`T4.1`（RenderModel 与宽/长表映射）、`T4.2`（LTTB 采样与缺失值语义）与
-> `T4.3`（ECharts 适配器）已完成；下一任务 `T4.4`（图表创建与检查器）。M4 验收演示在
-> T4.1–T4.6 全部完成后执行，停下等用户确认。
+> 状态（2026-10-25）：`T4.1`（RenderModel 与宽/长表映射）、`T4.2`（LTTB 采样与缺失值语义）、
+> `T4.3`（ECharts 适配器）与 `T4.4`（图表创建与检查器）已完成；下一任务 `T4.5`（图表交互、
+> 空态与 PNG 导出）。M4 验收演示在 T4.1–T4.6 全部完成后执行，停下等用户确认。
 
 <a id="t41"></a>
 ### T4.1 RenderModel 与宽/长表映射
@@ -1236,7 +1236,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t44"></a>
 ### T4.4 图表创建与检查器
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T4.3、T2.6
 - 覆盖：FR-CHT-01、FR-CHT-02、FR-CHT-03
 - 参考：SPEC §11.5
@@ -1249,11 +1249,44 @@ T0.2 + T5.5 → T6.4
   2. 非法映射即时提示，不创建。
   3. 修改 120ms 防抖更新，`setOption` merge。
 - 验收：
-  - [ ] 宽表多 Y、长表系列拆分均正确。
-  - [ ] 检查器所有项生效并持久化，重启保留。
-  - [ ] 列被删后图表进入可操作错误态。
-  - [ ] 复制图表生成新 id，互不影响。
+  - [x] 宽表多 Y、长表系列拆分均正确。
+  - [x] 检查器所有项生效并持久化，重启保留。
+  - [x] 列被删后图表进入可操作错误态。
+  - [x] 复制图表生成新 id，互不影响。
 - 验证：`pnpm e2e -- --grep "chart"`
+
+  实现备注（2026-10-25，ADR-043）：
+  - 命令/用例：新增 `chart.create { chart, view }`、`chart.update { chart }`、
+    `chart.delete { chartId }`（manifest-only、workspace 作用域历史）与
+    `createChart/updateChart/deleteChart/duplicateChart/openChart` actions；创建严格校验
+    映射/筛选/排序并在同一事务内建视图入 layout；更新允许悬空映射（列删除后的修复路径）、
+    覆盖 `createdAt`、刷新 `updatedAt`、标题同步图表视图标题；删除级联视图与 layout 引用；
+    默认 `sampling { enabled, 5000, 2000 }`。`duplicateChart` 用新 `cht_`/`viw_` 与 ` (2)`
+    标题，`openChart` 激活或重建标签页。
+  - RenderModel 扩展：`y?: { label?: string }`（来自 `ChartOptions.yLabel`）与
+    `RenderStyle.connectNulls = sampled || layout === 'long'`；适配器映射 `yAxis.name`、
+    `grid.bottom` 72（X 轴名避开 dataZoom）；6 条 option + 2 条 RenderModel 黄金快照有意更新。
+    长表的 null 是共享 X 轴的表达产物，跨过；宽表未采样仍断线。
+  - UI：侧栏图表列表（新建/打开/复制/重命名/删除）、新建向导（表→类型/名称→映射/列→实时预览）、
+    检查器四组（数据/映射/外观/坐标轴）、`ChartView`/`ChartCanvas`（首次 render + 120ms 防抖
+    update + resize + dispose）、错误态内嵌重映射（与检查器共用 `ChartMappingFields`）、
+    `data-chart-*` 渲染契约；删除 `ChartPlaceholder`。图表读全表行 + 图表自身 filter/sort；
+    列删除不自动重映射；复制/新建要求映射有效。
+  - 文件：`packages/app-core/src/{commands/charts.ts,app-core.ts,history/edit-history.ts,
+    usecases/workspace-actions.ts,index.ts}`、`packages/chart-model/src/render-model.ts`、
+    `packages/chart-echarts/src/option.ts`、`packages/ui/src/Select.tsx`、
+    `apps/desktop/src/renderer/features/charts/*`、`shell/{Sidebar,Inspector}.tsx`、
+    `features/workspace/WorkspaceView.tsx`、`i18n/messages/*`、`styles.css`、
+    `apps/desktop/{package.json,tsconfig.web.json}`、`e2e/{chart.spec.ts,schema.spec.ts}`。
+  - 实测：`pnpm verify` **159 files / 1434 tests**；coverage 全局 lines **75.89%** /
+    statements 75.75% / branches 68.76% / functions 74.28%（`chart-model/src` lines 95.93%、
+    `chart-echarts/src` 99.57%、`app-core/src` 98.41%）；`format:check` 通过；`pnpm build`
+    exit 0（renderer **3,209.97 kB**、CSS 70.66 kB）；`pnpm e2e` **76 passed**（chart.spec
+    4 条：6.2s/3.9s/2.8s/2.8s）；`pnpm bench` exit 0（chart.resolve-sample P95 75ms/300ms、
+    chart.sample P95 5ms/50ms）。
+  - 残留：长表跨过真实缺口；坏图表不可复制；Y 轴名单一/无单位；图表全表解析成本（T4.6）；
+    每提交 flush manifest；主 chunk +1.59MB（T6.4）；aria 摘要/三种空态/PNG/toolbox 本地化属
+    T4.5；图表与表格选中行联动（SHOULD）未实现。详见 ADR-043“代价/复核条件”。
 
 <a id="t45"></a>
 ### T4.5 图表交互、空态与 PNG 导出

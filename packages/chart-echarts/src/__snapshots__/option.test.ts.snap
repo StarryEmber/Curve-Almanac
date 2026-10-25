@@ -35,7 +35,7 @@ exports[`ECharts option golden snapshots > matches a dark background 1`] = `
     },
   ],
   "grid": {
-    "bottom": 56,
+    "bottom": 72,
     "containLabel": false,
     "left": 64,
     "right": 24,
@@ -246,7 +246,7 @@ exports[`ECharts option golden snapshots > matches a sampled multi-series model 
     },
   ],
   "grid": {
-    "bottom": 56,
+    "bottom": 72,
     "containLabel": false,
     "left": 64,
     "right": 24,
@@ -457,7 +457,7 @@ exports[`ECharts option golden snapshots > matches the colorblind palette on a l
     },
   ],
   "grid": {
-    "bottom": 56,
+    "bottom": 72,
     "containLabel": false,
     "left": 64,
     "right": 24,
@@ -668,7 +668,7 @@ exports[`ECharts option golden snapshots > matches the default palette on a ligh
     },
   ],
   "grid": {
-    "bottom": 56,
+    "bottom": 72,
     "containLabel": false,
     "left": 64,
     "right": 24,
@@ -879,7 +879,7 @@ exports[`ECharts option golden snapshots > matches the muted palette on a light 
     },
   ],
   "grid": {
-    "bottom": 56,
+    "bottom": 72,
     "containLabel": false,
     "left": 64,
     "right": 24,
@@ -1090,7 +1090,7 @@ exports[`ECharts option golden snapshots > matches the vivid palette on a light 
     },
   ],
   "grid": {
-    "bottom": 56,
+    "bottom": 72,
     "containLabel": false,
     "left": 64,
     "right": 24,

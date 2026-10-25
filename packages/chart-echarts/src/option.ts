@@ -58,6 +58,15 @@ function axisNameOf(axis: RenderXAxis): string | undefined {
   return axis.unit === undefined || axis.unit.length === 0 ? label : `${label} (${axis.unit})`;
 }
 
+/** Value-axis name from `RenderModel.y` (T4.4, ADR-043); absent by default. */
+function yAxisNameOf(model: RenderModel): string | undefined {
+  const label = model.y?.label;
+  if (label === undefined || label.length === 0) {
+    return undefined;
+  }
+  return label;
+}
+
 function paletteColorOf(model: RenderModel, index: number): string | undefined {
   const palette = model.style.palette;
   if (palette.length === 0) {
@@ -166,9 +175,9 @@ function buildSeries(model: RenderModel, series: RenderSeries, index: number): C
     showSymbol: model.style.showSymbol,
     symbol: 'circle',
     symbolSize: 4,
-    // ADR-042 §3: real gaps break the line until the model was sampled; sampled
-    // models bridge nulls because sampling-induced nulls are indistinguishable.
-    connectNulls: model.meta.sampled,
+    // ADR-042 §3/ADR-043: real gaps break the line; sampled and long-layout
+    // models bridge nulls because those positions are representation artifacts.
+    connectNulls: model.style.connectNulls,
     lineStyle: { width: model.style.lineWidth, ...(color === undefined ? {} : { color }) },
     ...itemStyle,
     emphasis: { focus: 'series' },
@@ -203,12 +212,22 @@ export function toEChartsOption(model: RenderModel, options: ChartOptionOptions 
   const formatters = createChartFormatters(model, { locale: options.locale });
   const axisLabelFormatter = axisLabelFormatterOf(formatters);
   const name = axisNameOf(model.x);
+  const yName = yAxisNameOf(model);
   const legendRight = model.style.legend === 'right';
 
   const xAxis = buildXAxis(model, theme, axisLabelFormatter, name);
 
   const yAxis: YAxisComponentOption = {
     type: 'value',
+    ...(yName === undefined
+      ? {}
+      : {
+          name: yName,
+          nameLocation: 'middle' as const,
+          nameRotate: 90,
+          nameGap: 48,
+          nameTextStyle: { color: theme.mutedText },
+        }),
     scale: !model.style.yStartAtZero,
     axisLine: { show: false },
     axisTick: { show: false },
@@ -246,10 +265,11 @@ export function toEChartsOption(model: RenderModel, options: ChartOptionOptions 
     color: [...model.style.palette],
     textStyle: { color: theme.text },
     grid: {
-      left: 64,
+      left: yName === undefined ? 64 : 80,
       right: legendRight ? 128 : 24,
       top: model.style.legend === 'top' ? 44 : 16,
-      bottom: 56,
+      // Leaves room for the x-axis name above the dataZoom slider (T4.4).
+      bottom: 72,
       containLabel: false,
     },
     legend: buildLegend(model.style.legend, theme),

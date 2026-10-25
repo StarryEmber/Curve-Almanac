@@ -4,6 +4,7 @@ import { createTableStyle } from '@curve/domain';
 import type { Row, TableMeta, ViewDef } from '@curve/domain';
 
 import { createCommandBus } from '../commands/bus';
+import { createChartCreateCommand, createNewChartPayload } from '../commands/charts';
 import { createPasteCommand } from '../commands/paste';
 import { createStyleCreateCommand, createStyleUpdateCommand } from '../commands/styles';
 import { createTableCellSetCommand } from '../commands/table-cell-set';
@@ -335,5 +336,57 @@ describe('workspace-scoped history', () => {
     expect(store.getState().tableStyles['sty_created']).toBeUndefined();
     expect(store.getState().views['viw_test']?.tableView?.styleId).toBe('builtin.report-light');
     expect(onWorkspaceChanged).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('chart history', () => {
+  it('records chart.create and restores the chart, view and layout through undo/redo', () => {
+    const store = createAppStore({
+      initialState: {
+        workspace: WORKSPACE,
+        tables: { [TABLE.id]: { table: TABLE, rows: ROWS } },
+        layout: { type: 'pane', viewIds: [], activeViewId: null },
+      },
+    });
+    const onChanged = vi.fn();
+    const onWorkspaceChanged = vi.fn();
+    const history = createEditHistory({
+      store,
+      now: () => 1_000,
+      onChanged,
+      onWorkspaceChanged,
+    });
+    const bus = createCommandBus(store, {
+      logger,
+      onCommand: (result) => {
+        history.record(result);
+      },
+    });
+    bus.register(createChartCreateCommand({ now: () => new Date('2026-01-01T12:00:00.000Z') }));
+    const payload = createNewChartPayload({
+      table: TABLE,
+      title: 'Readings chart',
+      kind: 'line',
+      mapping: { layout: 'wide', xColumnId: 'col_id', yColumnIds: ['col_value'] },
+      now: new Date('2026-01-01T12:00:00.000Z'),
+      uuid: () => 'history',
+    });
+
+    expect(bus.dispatch('chart.create', payload).ok).toBe(true);
+    expect(history.size()).toBe(1);
+    expect(store.getState().views['viw_history']).toBeDefined();
+    expect(store.getState().layout).toMatchObject({ viewIds: ['viw_history'] });
+
+    expect(history.undo()).toBe(true);
+    expect(store.getState().charts['cht_history']).toBeUndefined();
+    expect(store.getState().views['viw_history']).toBeUndefined();
+    expect(store.getState().layout).toMatchObject({ viewIds: [], activeViewId: null });
+    expect(onWorkspaceChanged).toHaveBeenCalledTimes(1);
+    expect(onChanged).not.toHaveBeenCalled();
+
+    expect(history.redo()).toBe(true);
+    expect(store.getState().charts['cht_history']).toBeDefined();
+    expect(store.getState().layout).toMatchObject({ viewIds: ['viw_history'] });
+    expect(onWorkspaceChanged).toHaveBeenCalledTimes(2);
   });
 });

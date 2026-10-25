@@ -52,6 +52,17 @@ export interface RenderXAxis {
   unit?: string;
 }
 
+/**
+ * Optional y-axis naming (T4.4, ADR-043).
+ *
+ * Only `ChartOptions.yLabel` reaches the model: wide-layout charts draw one
+ * value axis for several y columns, so there is no single column label to
+ * derive it from. Absent until the chart names its y axis.
+ */
+export interface RenderYAxis {
+  label?: string;
+}
+
 /** Rendering options copied from `ChartSpec.options`. */
 export interface RenderStyle {
   palette: string[];
@@ -63,6 +74,15 @@ export interface RenderStyle {
   legend: 'top' | 'right' | 'bottom' | 'none';
   numberDigits: number;
   yStartAtZero: boolean;
+  /**
+   * Whether the line series must bridge `null` positions (T4.4, ADR-043).
+   *
+   * True for sampled models (ADR-042 §3) and for long-layout charts: a long
+   * chart splits one shared x axis into per-series arrays, so "another series
+   * owns this row" is a structural null, not a missing value. Wide, unsampled
+   * charts keep `false`, which keeps SPEC §11.2.4 real gaps broken.
+   */
+  connectNulls: boolean;
 }
 
 /** Sampling/scale metadata; warnings are always showable (SPEC §11.3). */
@@ -77,6 +97,8 @@ export interface RenderMeta {
 export interface RenderModel {
   kind: ChartKind;
   x: RenderXAxis;
+  /** Present only when the chart names its value axis (T4.4, ADR-043). */
+  y?: RenderYAxis;
   series: RenderSeries[];
   style: RenderStyle;
   meta: RenderMeta;
@@ -336,6 +358,17 @@ function xAxisType(column: ColumnDef): RenderXAxis['type'] {
     return 'time';
   }
   return column.type === 'text' ? 'category' : 'number';
+}
+
+/**
+ * Optional value-axis name from `ChartOptions.yLabel` (T4.4, ADR-043).
+ *
+ * A whitespace-only label is treated as "not set" so a cleared input never
+ * draws an empty axis name; the field stays absent for unnamed axes.
+ */
+function renderYAxis(options: ChartSpec['options']): RenderYAxis | undefined {
+  const label = options.yLabel?.trim();
+  return label === undefined || label.length === 0 ? undefined : { label };
 }
 
 function renderXValue(cell: Cell, column: ColumnDef): number | string {
@@ -623,12 +656,14 @@ export function resolveSeries(
     sampling.enabled && sourcePoints > sampling.threshold
       ? sampleModel(xAxis.values, samplingCoordinates(xAxis.values, xAxis.type), series, sampling)
       : null;
+  const yAxis = renderYAxis(spec.options);
 
   return {
     ok: true,
     model: {
       kind: spec.kind,
       x: sampled === null ? xAxis : { ...xAxis, values: sampled.xValues },
+      ...(yAxis === undefined ? {} : { y: yAxis }),
       series: sampled === null ? series : sampled.series,
       style: {
         palette,
@@ -643,6 +678,7 @@ export function resolveSeries(
         legend: spec.options.legend,
         numberDigits: spec.options.numberDigits,
         yStartAtZero: spec.options.yStartAtZero,
+        connectNulls: sampled !== null || mapping.layout === 'long',
       },
       meta: {
         sampled: sampled !== null,

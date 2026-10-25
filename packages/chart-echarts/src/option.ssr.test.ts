@@ -41,14 +41,28 @@ function makeModel(overrides: Partial<RenderModel> = {}): RenderModel {
       legend: 'top',
       numberDigits: 2,
       yStartAtZero: false,
+      connectNulls: false,
     },
     meta: { sampled: false, sourcePoints: 4, renderedPoints: 4, warnings: [] },
     ...overrides,
   };
 }
 
-function sampledModel(): RenderModel {
+/** Sampled/long-layout models mark their null positions as structural (ADR-043). */
+function connectedModel(): RenderModel {
   return makeModel({
+    style: {
+      palette: ['#2563eb'],
+      background: '#ffffff',
+      showGrid: true,
+      lineWidth: 2,
+      smooth: false,
+      showSymbol: true,
+      legend: 'top',
+      numberDigits: 2,
+      yStartAtZero: false,
+      connectNulls: true,
+    },
     meta: { sampled: true, sourcePoints: 4, renderedPoints: 4, warnings: [] },
   });
 }
@@ -72,13 +86,13 @@ function lineSubpathCounts(svg: string): number[] {
 }
 
 describe('ECharts SVG server rendering (option validity)', () => {
-  it('breaks a real gap and connects the same gap only once the model was sampled', () => {
+  it('breaks a real gap and connects it when the model marks the gap as structural', () => {
     const chart = init(null, undefined, { renderer: 'svg', ssr: true, width: 600, height: 400 });
     try {
       chart.setOption(toEChartsOption(makeModel()));
       const gapSvg = chart.renderToSVGString();
 
-      chart.setOption(toEChartsOption(sampledModel()), {
+      chart.setOption(toEChartsOption(connectedModel()), {
         notMerge: false,
         replaceMerge: ['series', 'xAxis', 'yAxis'],
       });

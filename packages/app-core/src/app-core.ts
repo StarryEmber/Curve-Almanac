@@ -4,6 +4,11 @@ import type { JsonlDecodeResult } from '@curve/table-engine';
 
 import { createCommandBus } from './commands/bus';
 import {
+  createChartCreateCommand,
+  createChartDeleteCommand,
+  createChartUpdateCommand,
+} from './commands/charts';
+import {
   createColumnAddCommand,
   createColumnDeleteCommand,
   createColumnReorderCommand,
@@ -91,6 +96,9 @@ const MANIFEST_SAVING_COMMANDS = new Set([
   'style.update',
   'style.delete',
   'style.apply',
+  'chart.create',
+  'chart.update',
+  'chart.delete',
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -162,6 +170,9 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
   commands.register(createStyleUpdateCommand(commandOptions));
   commands.register(createStyleDeleteCommand(commandOptions));
   commands.register(createStyleApplyCommand(commandOptions));
+  commands.register(createChartCreateCommand(commandOptions));
+  commands.register(createChartUpdateCommand(commandOptions));
+  commands.register(createChartDeleteCommand(commandOptions));
   commands.register(createColumnAddCommand({ now }));
   commands.register(createColumnUpdateCommand({ now }));
   commands.register(createColumnDeleteCommand({ now }));

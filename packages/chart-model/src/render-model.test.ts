@@ -907,7 +907,41 @@ describe('resolveSeries — style', () => {
       legend: 'right',
       numberDigits: 3,
       yStartAtZero: true,
+      connectNulls: false,
     });
+  });
+
+  it('connects structural nulls only for long layouts and sampled models', () => {
+    const wide = modelOf(resolveSeries(TABLE, ROWS, makeSpec()));
+    expect(wide.style.connectNulls).toBe(false);
+
+    const long = modelOf(
+      resolveSeries(
+        TABLE,
+        ROWS,
+        makeSpec({
+          mapping: {
+            layout: 'long',
+            xColumnId: 'col_day',
+            seriesColumnId: 'col_site',
+            yColumnId: 'col_a',
+          },
+        }),
+      ),
+    );
+    expect(long.style.connectNulls).toBe(true);
+
+    const sampled = modelOf(
+      resolveSeries(
+        TABLE,
+        ROWS,
+        makeSpec({
+          options: { ...OPTIONS, sampling: { enabled: true, threshold: 1, target: 1 } },
+        }),
+      ),
+    );
+    expect(sampled.meta.sampled).toBe(true);
+    expect(sampled.style.connectNulls).toBe(true);
   });
 
   it('resolves every palette id', () => {
@@ -967,6 +1001,37 @@ describe('resolveSeries — style', () => {
 
     expect(model.series).toHaveLength(9);
     expect(model.series[8]?.color).toBe(CHART_PALETTES.default[0]);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Value-axis label (T4.4, ADR-043)                                           */
+/* -------------------------------------------------------------------------- */
+
+describe('resolveSeries — y axis label', () => {
+  it('omits the y axis when the chart does not name it', () => {
+    const model = modelOf(resolveSeries(TABLE, ROWS, makeSpec()));
+    expect(model.y).toBeUndefined();
+    expect('y' in model).toBe(false);
+  });
+
+  it('carries the chart y label into the model', () => {
+    const model = modelOf(
+      resolveSeries(TABLE, ROWS, makeSpec({ options: { ...OPTIONS, yLabel: 'Value (kW)' } })),
+    );
+    expect(model.y).toEqual({ label: 'Value (kW)' });
+  });
+
+  it('trims the label and drops a whitespace-only value', () => {
+    const trimmed = modelOf(
+      resolveSeries(TABLE, ROWS, makeSpec({ options: { ...OPTIONS, yLabel: '  Load  ' } })),
+    );
+    expect(trimmed.y).toEqual({ label: 'Load' });
+
+    const blank = modelOf(
+      resolveSeries(TABLE, ROWS, makeSpec({ options: { ...OPTIONS, yLabel: '   ' } })),
+    );
+    expect(blank.y).toBeUndefined();
   });
 });
 

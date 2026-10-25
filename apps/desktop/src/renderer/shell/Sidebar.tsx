@@ -1,6 +1,7 @@
 import { Tabs } from '@curve/ui';
 
 import { useAppState } from '../app-core/use-app-core';
+import { ChartList } from '../features/charts/ChartList';
 import { TableList } from '../features/tables/TableList';
 import { useI18n } from '../i18n';
 
@@ -33,7 +34,12 @@ export function Sidebar(): ReactElement {
           {
             id: 'charts',
             label: t('shell.nav.charts'),
-            content: <NavEmpty message={t('shell.nav.empty.charts')} />,
+            content:
+              workspace === null ? (
+                <NavEmpty message={t('shell.nav.empty.charts')} />
+              ) : (
+                <ChartList />
+              ),
           },
           {
             id: 'styles',

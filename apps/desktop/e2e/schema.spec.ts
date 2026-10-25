@@ -405,12 +405,18 @@ test.describe('T2.3 column management', () => {
     });
 
     await page.getByRole('tab', { name: 'Note chart' }).click();
-    const placeholder = page.getByTestId('chart-placeholder');
-    await expect(placeholder).toBeVisible();
-    await expect(placeholder).toContainText('列已删除：col_note');
+    const chartView = page.getByTestId('chart-view');
+    await expect(chartView).toBeVisible();
+    await expect(chartView).toHaveAttribute('data-chart-state', 'missing-columns');
+    await expect(page.getByTestId('chart-error')).toContainText('列已删除：col_note');
+    await expect(page.getByTestId('chart-remap')).toBeVisible();
 
     await openSeededWorkspace(page, 'Schema Delete', false);
-    await expect(page.getByTestId('chart-placeholder')).toContainText('列已删除：col_note');
+    await expect(page.getByTestId('chart-view')).toHaveAttribute(
+      'data-chart-state',
+      'missing-columns',
+    );
+    await expect(page.getByTestId('chart-error')).toContainText('列已删除：col_note');
     await expect(page.getByTestId('workspace-view')).toBeVisible();
   });
 

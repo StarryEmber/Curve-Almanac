@@ -16,6 +16,8 @@ interface AxisView {
   boundaryGap?: boolean;
   scale?: boolean;
   nameLocation?: string;
+  nameRotate?: number;
+  nameGap?: number;
   splitLine?: { show?: boolean };
   axisLabel?: { hideOverlap?: boolean; formatter?: unknown };
 }
@@ -36,6 +38,7 @@ interface OptionView {
   animation?: boolean;
   backgroundColor?: string;
   color?: string[];
+  grid?: { left?: number; right?: number; top?: number };
   xAxis?: AxisView;
   yAxis?: AxisView;
   series?: SeriesView[];
@@ -68,6 +71,7 @@ function baseStyle(): RenderModel['style'] {
     legend: 'top',
     numberDigits: 2,
     yStartAtZero: false,
+    connectNulls: false,
   };
 }
 
@@ -116,7 +120,13 @@ describe('ECharts option golden snapshots', () => {
   it('matches a sampled multi-series model with gaps', () => {
     const model = makeModel({
       meta: { sampled: true, sourcePoints: 6, renderedPoints: 4, warnings: [] },
-      style: { ...baseStyle(), lineWidth: 3, smooth: true, showSymbol: false },
+      style: {
+        ...baseStyle(),
+        lineWidth: 3,
+        smooth: true,
+        showSymbol: false,
+        connectNulls: true,
+      },
     });
     expect(toEChartsOption(model)).toMatchSnapshot();
   });
@@ -172,6 +182,21 @@ describe('toEChartsOption — axes and data', () => {
     expect(viewOf(toEChartsOption(zeroBased)).yAxis?.scale).toBe(false);
   });
 
+  it('names the value axis only when the model carries a y label', () => {
+    const unnamed = viewOf(toEChartsOption(makeModel()));
+    expect(unnamed.yAxis?.name).toBeUndefined();
+    expect(unnamed.grid?.left).toBe(64);
+
+    const named = viewOf(toEChartsOption(makeModel({ y: { label: 'Load (kW)' } })));
+    expect(named.yAxis).toMatchObject({
+      name: 'Load (kW)',
+      nameLocation: 'middle',
+      nameRotate: 90,
+      nameGap: 48,
+    });
+    expect(named.grid?.left).toBe(80);
+  });
+
   it('hides split lines when showGrid is false and never draws category split lines', () => {
     const hidden = makeModel({ style: { ...baseStyle(), showGrid: false } });
     const hiddenView = viewOf(toEChartsOption(hidden));
@@ -223,12 +248,10 @@ describe('toEChartsOption — series', () => {
     expect(view.series?.[0]?.type).toBe('bar');
   });
 
-  it('connects nulls only when the model was sampled', () => {
+  it('connects nulls only when the model asks for it', () => {
     expect(viewOf(toEChartsOption(makeModel())).series?.[0]?.connectNulls).toBe(false);
-    const sampled = makeModel({
-      meta: { sampled: true, sourcePoints: 6, renderedPoints: 4, warnings: [] },
-    });
-    expect(viewOf(toEChartsOption(sampled)).series?.[0]?.connectNulls).toBe(true);
+    const connected = makeModel({ style: { ...baseStyle(), connectNulls: true } });
+    expect(viewOf(toEChartsOption(connected)).series?.[0]?.connectNulls).toBe(true);
   });
 
   it('falls back to the palette order when a series has no explicit colour', () => {

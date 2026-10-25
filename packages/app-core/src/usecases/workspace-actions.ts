@@ -9,6 +9,7 @@
 import {
   createAppError,
   createColumnId,
+  createViewId,
   listBuiltinStyles,
   reassignStyleIdentity,
   styleCopyName,
@@ -17,17 +18,25 @@ import {
 import type {
   AppError,
   Cell,
+  ChartKind,
+  ChartMapping,
+  ChartOptions,
+  ChartSpec,
   ColumnChangeFailure,
   ColumnDef,
+  FilterPredicate,
   LayoutNode,
   Row,
+  SortSpec,
   TableStyle,
   UuidFactory,
+  ViewDef,
 } from '@curve/domain';
 import type { WorkspaceStore } from '@curve/persistence';
 import { parseClipboardText } from '@curve/table-engine';
 import type { ClipboardMatrix } from '@curve/table-engine';
 
+import { createNewChartPayload, duplicateChartTitle } from '../commands/charts';
 import { activateViewInLayout } from '../commands/layout';
 import { styleFallbackId } from '../commands/styles';
 import {
@@ -49,6 +58,7 @@ import { checkColumnDraft } from '../validation/column-draft';
 import { createPastePlanner, planPaste } from '../validation/paste-plan';
 
 import type { SaveQueue } from './save-queue';
+import type { ChartCreatePayload } from '../commands/charts';
 import type { StyleApplyTarget } from '../commands/styles';
 import type { CommandBus } from '../commands/types';
 import type { ViewPatch } from '../commands/views';
@@ -231,6 +241,19 @@ export type ImportApplyOutcome =
       readonly committed?: boolean;
     };
 
+/** New-chart wizard input (T4.4); ids/timestamps/defaults are built in app-core. */
+export interface ChartCreateRequest {
+  tableId: string;
+  /** Defaults to the table name in the wizard; must be 1–80 characters. */
+  title: string;
+  kind: ChartKind;
+  mapping: ChartMapping;
+  /** Merged over `DEFAULT_CHART_OPTIONS`. */
+  options?: Partial<ChartOptions>;
+  filter?: FilterPredicate;
+  sort?: SortSpec[];
+}
+
 export interface WorkspaceActionsOptions {
   store: AppStore;
   commands: CommandBus;
@@ -270,6 +293,18 @@ export interface WorkspaceActions {
   applyTableStyle(styleId: string, target: StyleApplyTarget): Promise<ActionOutcome>;
   /** Copies a persisted style (or builtin) under a fresh ` (2)` identity (T3.5). */
   duplicateTableStyle(styleId: string): Promise<ActionOutcome<{ styleId: string; name: string }>>;
+  /** Creates a chart and its first view in one command (T4.4). */
+  createChart(
+    request: ChartCreateRequest,
+  ): Promise<ActionOutcome<{ chartId: string; viewId: string }>>;
+  /** Replaces one chart definition; manifest-only and undoable (T4.4). */
+  updateChart(chart: ChartSpec): Promise<ActionOutcome>;
+  /** Deletes a chart and every view that shows it, in one command (T4.4). */
+  deleteChart(chartId: string): Promise<ActionOutcome>;
+  /** Copies a chart under a fresh id/title and opens a new chart view (T4.4). */
+  duplicateChart(chartId: string): Promise<ActionOutcome<{ chartId: string; viewId: string }>>;
+  /** Activates the chart's view, creating one when the tab was closed (T4.4). */
+  openChart(chartId: string): Promise<ActionOutcome<{ viewId: string; created: boolean }>>;
   /** Copies the current table view (filter/sort/widths/frozen) into a new tab. */
   duplicateView(viewId: string): Promise<ActionOutcome<{ viewId: string }>>;
   updateCell(
@@ -579,6 +614,156 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     return flushed.ok
       ? { ok: true, data: { styleId: copy.id, name: copy.name } }
       : { ok: false, error: flushed.error, committed: true };
+  }
+
+  async function createChart(
+    request: ChartCreateRequest,
+  ): Promise<ActionOutcome<{ chartId: string; viewId: string }>> {
+    const state = store.getState();
+    const tableData = state.tables[request.tableId];
+    if (tableData === undefined) {
+      return fail(
+        createAppError('E_TABLE_NOT_FOUND', 'The table does not exist.', {
+          detail: `table=${request.tableId}`,
+        }),
+      );
+    }
+    let payload: ChartCreatePayload;
+    try {
+      payload = createNewChartPayload({
+        table: tableData.table,
+        title: request.title,
+        kind: request.kind,
+        mapping: request.mapping,
+        ...(request.options === undefined ? {} : { options: request.options }),
+        ...(request.filter === undefined ? {} : { filter: request.filter }),
+        ...(request.sort === undefined ? {} : { sort: request.sort }),
+        now: now(),
+        ...(uuid === undefined ? {} : { uuid }),
+      });
+    } catch (thrown) {
+      return fail(toAppError(thrown));
+    }
+    const dispatched = commands.dispatch('chart.create', payload);
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    const flushed = await saveQueue.flush();
+    return flushed.ok
+      ? { ok: true, data: { chartId: payload.chart.id, viewId: payload.view.id } }
+      : { ok: false, error: flushed.error, committed: true };
+  }
+
+  async function updateChart(chart: ChartSpec): Promise<ActionOutcome> {
+    const dispatched = commands.dispatch('chart.update', { chart });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    const flushed = await saveQueue.flush();
+    return flushed.ok
+      ? { ok: true, data: undefined }
+      : { ok: false, error: flushed.error, committed: true };
+  }
+
+  async function deleteChart(chartId: string): Promise<ActionOutcome> {
+    const dispatched = commands.dispatch('chart.delete', { chartId });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    const flushed = await saveQueue.flush();
+    return flushed.ok
+      ? { ok: true, data: undefined }
+      : { ok: false, error: flushed.error, committed: true };
+  }
+
+  /**
+   * Duplicates one chart under a fresh `cht_` id and opens its own tab.
+   *
+   * The copy keeps mapping/filter/sort/options so the two charts can diverge
+   * independently; the strict mapping check of `chart.create` still applies, so
+   * a chart whose mapped column vanished has to be repaired before copying.
+   */
+  async function duplicateChart(
+    chartId: string,
+  ): Promise<ActionOutcome<{ chartId: string; viewId: string }>> {
+    const state = store.getState();
+    const source = state.charts[chartId];
+    if (source === undefined) {
+      return fail(createAppError('E_VALIDATION', 'The chart does not exist.'));
+    }
+    const tableData = state.tables[source.tableId];
+    if (tableData === undefined) {
+      return fail(createAppError('E_TABLE_NOT_FOUND', 'The chart table does not exist.'));
+    }
+    let payload: ChartCreatePayload;
+    try {
+      payload = createNewChartPayload({
+        table: tableData.table,
+        title: duplicateChartTitle(
+          source.title,
+          Object.values(state.charts).map((chart) => chart.title),
+        ),
+        kind: source.kind,
+        mapping: source.mapping,
+        options: source.options,
+        ...(source.filter === undefined ? {} : { filter: source.filter }),
+        sort: source.sort,
+        now: now(),
+        ...(uuid === undefined ? {} : { uuid }),
+      });
+    } catch (thrown) {
+      return fail(toAppError(thrown));
+    }
+    const dispatched = commands.dispatch('chart.create', payload);
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    const flushed = await saveQueue.flush();
+    return flushed.ok
+      ? { ok: true, data: { chartId: payload.chart.id, viewId: payload.view.id } }
+      : { ok: false, error: flushed.error, committed: true };
+  }
+
+  async function openChart(
+    chartId: string,
+  ): Promise<ActionOutcome<{ viewId: string; created: boolean }>> {
+    const state = store.getState();
+    const chart = state.charts[chartId];
+    if (chart === undefined) {
+      return fail(createAppError('E_VALIDATION', 'The chart does not exist.'));
+    }
+    const existing = Object.values(state.views).find(
+      (view) => view.kind === 'chart' && view.refId === chartId,
+    );
+    if (existing !== undefined) {
+      const layout = cloneLayout(state.layout);
+      activateViewInLayout(layout, existing.id);
+      const dispatched = commands.dispatch('view.layout', { layout });
+      if (!dispatched.ok) {
+        return fail(dispatched.error);
+      }
+      const saved = await saveManifest();
+      if (!saved.ok) {
+        return fail(saved.error);
+      }
+      return { ok: true, data: { viewId: existing.id, created: false } };
+    }
+
+    const view: ViewDef = {
+      id: createViewId(uuid),
+      kind: 'chart',
+      refId: chartId,
+      title: chart.title,
+    };
+    const dispatched = commands.dispatch('view.create', { view });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    const saved = await saveManifest();
+    if (!saved.ok) {
+      return fail(saved.error);
+    }
+    return { ok: true, data: { viewId: view.id, created: true } };
   }
 
   async function duplicateView(viewId: string): Promise<ActionOutcome<{ viewId: string }>> {
@@ -1268,6 +1453,11 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     deleteTableStyle,
     applyTableStyle,
     duplicateTableStyle,
+    createChart,
+    updateChart,
+    deleteChart,
+    duplicateChart,
+    openChart,
     duplicateView,
     updateCell,
     preparePaste,

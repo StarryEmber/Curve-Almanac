@@ -57,6 +57,9 @@ const WORKSPACE_SCOPED_COMMANDS = new Set([
   'style.update',
   'style.delete',
   'style.apply',
+  'chart.create',
+  'chart.update',
+  'chart.delete',
 ]);
 
 function tableIdOf(payload: unknown): string | null {

@@ -11,6 +11,7 @@ export const PACKAGE_NAME = '@curve/app-core' as const;
 export * from './logging';
 export * from './app-core';
 export * from './commands/bus';
+export * from './commands/charts';
 export * from './commands/column-views';
 export * from './commands/columns';
 export * from './commands/layout';

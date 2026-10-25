@@ -1297,37 +1297,393 @@ body {
   font-size: var(--cs-font-size-xs);
 }
 
-/* -------------------------------------------------------- Chart placeholder */
+/* ------------------------------------------------------------ T4.4 charts */
 
-.cs-chart-placeholder {
+.cs-chart-view {
   display: flex;
   flex: 1;
   flex-direction: column;
-  align-items: flex-start;
   gap: var(--cs-space-2);
-  max-width: 52ch;
-  margin: auto;
-  padding: var(--cs-space-4);
+  min-width: 0;
+  min-height: 0;
+  padding: var(--cs-space-3) var(--cs-space-4);
+  overflow: auto;
 }
 
-.cs-chart-placeholder__title {
+.cs-chart-view__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cs-space-2);
+}
+
+.cs-chart-view__title {
   margin: 0;
   font-size: var(--cs-font-size-lg);
 }
 
-.cs-chart-placeholder__body,
-.cs-chart-placeholder__hint {
-  margin: 0;
+.cs-chart-view__meta {
   color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-sm);
 }
 
-.cs-chart-placeholder__error {
+.cs-chart-view__badge {
+  padding: 0 var(--cs-space-2);
+  border: 1px solid var(--cs-color-warning-default);
+  border-radius: var(--cs-radius-pill);
+  color: var(--cs-color-warning-default);
+  font-size: var(--cs-font-size-xs);
+}
+
+.cs-chart-view__error {
+  display: grid;
+  gap: var(--cs-space-1);
   margin: 0;
   padding: var(--cs-space-2) var(--cs-space-3);
   border: 1px solid var(--cs-color-danger-default);
   border-radius: var(--cs-radius-md);
   background: var(--cs-color-danger-soft);
   color: var(--cs-color-danger-fg);
+}
+
+.cs-chart-view__error p {
+  margin: 0;
+}
+
+.cs-chart-view__issues {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding-left: var(--cs-space-4);
+}
+
+.cs-chart-view__remap {
+  display: grid;
+  gap: var(--cs-space-2);
+  max-width: 460px;
+  padding: var(--cs-space-3);
+  border: 1px solid var(--cs-color-border-subtle);
+  border-radius: var(--cs-radius-md);
+  background: var(--cs-color-bg-muted);
+}
+
+.cs-chart-view__remap-title {
+  margin: 0;
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-chart-view__hint {
+  margin: 0;
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-xs);
+}
+
+.cs-chart-view__empty {
+  margin: 0;
+  color: var(--cs-color-fg-muted);
+}
+
+.cs-chart-view__warnings {
+  padding-top: var(--cs-space-2);
+  border-top: 1px solid var(--cs-color-border-subtle);
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-xs);
+}
+
+.cs-chart-view__warnings ul {
+  margin: 0;
+  padding-left: var(--cs-space-4);
+}
+
+.cs-chart-canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 220px;
+  border: 1px solid var(--cs-color-border-subtle);
+  border-radius: var(--cs-radius-md);
+  background: var(--cs-color-bg-surface);
+}
+
+.cs-chart-canvas__host {
+  position: absolute;
+  inset: 0;
+}
+
+.cs-chart-canvas__error {
+  margin: var(--cs-space-2);
+  color: var(--cs-color-danger-fg);
+  font-size: var(--cs-font-size-sm);
+}
+
+/* Chart list (sidebar) */
+
+.cs-chart-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-2);
+  min-width: 0;
+}
+
+.cs-chart-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cs-space-2);
+}
+
+.cs-chart-list__title {
+  margin: 0;
+  font-size: var(--cs-font-size-sm);
+  font-weight: var(--cs-font-weight-semibold);
+}
+
+.cs-chart-list__empty {
+  margin: 0;
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-chart-list__items {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cs-chart-list__item {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-1);
+  border-radius: var(--cs-radius-sm);
+}
+
+.cs-chart-list__item[data-active='true'] {
+  background: var(--cs-color-accent-soft);
+}
+
+.cs-chart-list__open {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--cs-space-1) var(--cs-space-2);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cs-chart-list__open:focus-visible {
+  outline: 2px solid var(--cs-color-focus-ring);
+  outline-offset: -2px;
+}
+
+.cs-chart-list__name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cs-chart-list__kind {
+  color: var(--cs-color-fg-subtle);
+  font-size: var(--cs-font-size-xs);
+}
+
+.cs-chart-list__actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+/* New-chart wizard */
+
+.cs-dialog.cs-chart-new {
+  width: min(920px, calc(100vw - 32px));
+}
+
+.cs-chart-new__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--cs-space-4);
+}
+
+@media (max-width: 1000px) {
+  .cs-chart-new__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.cs-chart-new__controls,
+.cs-chart-new__preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-2);
+  min-width: 0;
+}
+
+.cs-chart-new__preview .cs-chart-canvas {
+  min-height: 260px;
+}
+
+.cs-chart-new__heading {
+  margin: var(--cs-space-1) 0 0;
+  font-size: var(--cs-font-size-sm);
+  font-weight: var(--cs-font-weight-semibold);
+}
+
+.cs-chart-new__hint {
+  margin: 0;
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-chart-new__error {
+  margin: 0;
+  color: var(--cs-color-danger-fg);
+  font-size: var(--cs-font-size-sm);
+}
+
+/* Chart inspector */
+
+.cs-chart-inspector {
+  gap: var(--cs-space-2);
+}
+
+.cs-chart-inspector > .cs-tabs__list {
+  flex-wrap: wrap;
+  gap: 1px;
+}
+
+.cs-chart-inspector__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-3);
+  min-width: 0;
+}
+
+.cs-chart-inspector__heading {
+  margin: 0;
+  font-size: var(--cs-font-size-sm);
+  font-weight: var(--cs-font-weight-semibold);
+}
+
+.cs-chart-inspector__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-1);
+  padding-top: var(--cs-space-2);
+  border-top: 1px solid var(--cs-color-border-subtle);
+}
+
+.cs-chart-inspector__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cs-space-2);
+}
+
+.cs-chart-inspector__hint {
+  margin: 0;
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-xs);
+}
+
+.cs-chart-facts {
+  display: grid;
+  gap: var(--cs-space-1);
+  margin: 0;
+}
+
+.cs-chart-facts__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--cs-space-2);
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-chart-facts__row dt {
+  color: var(--cs-color-fg-subtle);
+}
+
+.cs-chart-facts__row dd {
+  margin: 0;
+  color: var(--cs-color-fg-default);
+  overflow-wrap: anywhere;
+}
+
+.cs-chart-mapping {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-2);
+  min-width: 0;
+}
+
+.cs-chart-mapping__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cs-chart-mapping__missing {
+  color: var(--cs-color-danger-fg);
+  font-family: var(--cs-font-mono);
+  font-size: var(--cs-font-size-xs);
+}
+
+.cs-chart-mapping__issues {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: var(--cs-space-2);
+  border: 1px solid var(--cs-color-danger-default);
+  border-radius: var(--cs-radius-sm);
+  background: var(--cs-color-danger-soft);
+  color: var(--cs-color-danger-fg);
+  font-size: var(--cs-font-size-xs);
+  list-style: none;
+}
+
+.cs-chart-check {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-2);
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-chart-sort {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cs-chart-sort__row {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-1);
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-chart-sort__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* T2.5 import wizard */

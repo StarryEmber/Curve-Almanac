@@ -464,3 +464,26 @@
   `chart-echarts` 尚未被 renderer 引用）；`pnpm e2e` **72 passed**（3.2m）；`pnpm bench` exit 0。
   新增 ADR-042、SPEC §11.4 实现边界、TASKS T4.3 与 `docs/reports/t4.3/REPORT.md`；未改
   `RenderModel`/`formatVersion`/manifest/JSONL/IPC/preload/CSP。
+- T4.4：`@curve/app-core` 新增 `chart.create { chart, view }`、`chart.update { chart }`、
+  `chart.delete { chartId }` 命令与 `createChart/updateChart/deleteChart/duplicateChart/openChart`
+  actions：manifest-only、workspace 作用域撤销；创建严格校验映射/筛选/排序并原子建视图入 layout，
+  更新允许悬空映射用于修复、覆盖 `createdAt`、刷新 `updatedAt`、标题同步视图标题，删除级联
+  视图/layout；`DEFAULT_CHART_OPTIONS`（sampling 5000/2000）与 `duplicateChartTitle` 在 app-core。
+- T4.4：`@curve/chart-model` 扩展 `RenderModel`：`y?: { label?: string }`（来自
+  `ChartOptions.yLabel`）与 `RenderStyle.connectNulls = sampled || layout === 'long'`；
+  `@curve/chart-echarts` 适配器改为读 `style.connectNulls`、映射 `yAxis.name`、`grid.bottom` 72
+  （X 轴名避开 dataZoom）。2 条 RenderModel 与 6 条 option 黄金快照有意更新（ADR-043）。
+- T4.4：renderer 新增图表层 `features/charts/*`：侧栏图表列表（新建/打开/复制/重命名/删除）、
+  新建向导（选表→映射→列→实时预览，非法映射禁用创建）、检查器四组（数据/映射/外观/坐标轴）、
+  `ChartView`/`ChartCanvas`（首次 render + 120ms 防抖 update + resize + dispose，不重建实例）、
+  列删除后的可操作错误态与内嵌重映射（共用 `ChartMappingFields`）、`data-chart-*` 渲染契约；
+  删除 `ChartPlaceholder`，`Sidebar`/`Inspector`/`WorkspaceView` 接入图表视图。
+- T4.4：desktop 新增 `@curve/chart-model`/`@curve/chart-echarts` workspace 依赖与 tsconfig
+  references；`@curve/ui` 的 `SelectOption` 支持 `disabled`。未新增第三方运行时依赖，未改
+  `formatVersion`/manifest 字段/JSONL/IPC/preload/CSP/`ChartSpec`。
+- T4.4：`e2e/chart.spec.ts` 4 条（向导+四组检查器+重启、删列重映射、复制独立性、200% 键盘）；
+  `e2e/schema.spec.ts` 的图表错误态改用 `chart-view[data-chart-state]` + `chart-error`。
+  `pnpm verify` **159 files / 1434 tests**；coverage 全局 lines **75.89%**；`pnpm build` exit 0
+  （renderer **3,209.97 kB**、CSS 70.66 kB）；`pnpm e2e` **76 passed**；`pnpm bench` exit 0。
+  新增 ADR-043、SPEC §11.2–§11.5/§13.1/§13.2 实现边界、TASKS T4.4 与
+  `docs/reports/t4.4/REPORT.md`（4 张截图）。

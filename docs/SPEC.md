@@ -1066,6 +1066,11 @@ interface ImportResult {
 6. 同一系列的点数 > `sampling.threshold` 且启用采样时，执行 LTTB 到 `target`。
 7. 采样后保留首尾点；`meta.sampled=true`，UI 显示"已采样"徽标。
 
+> **实现边界（T4.4，ADR-043）**：长表映射把"该行属于其它系列"编码为 `null`（共享 X 轴 +
+> 逐系列数组）。这些 null 是表达产物而非缺失值，`RenderStyle.connectNulls=true` 让长表折线
+> 跨过它们；宽表未采样时仍按第 4 条断线。代价是长表自身真实的 null 也会被跨过（与采样图
+> 同类）。采样图的断点策略见 §11.4。
+
 ### 11.3 RenderModel 契约
 
 ```ts
@@ -1084,6 +1089,8 @@ export interface RenderModel {
     label?: string;
     unit?: string;
   };
+  /** 仅当 `ChartOptions.yLabel` 去空白后非空时存在（T4.4）。 */
+  y?: { label?: string };
   series: RenderSeries[];
   style: {
     palette: string[];
@@ -1095,6 +1102,8 @@ export interface RenderModel {
     legend: 'top' | 'right' | 'bottom' | 'none';
     numberDigits: number;
     yStartAtZero: boolean;
+    /** 采样图与长表为 true；宽表未采样为 false（T4.4）。 */
+    connectNulls: boolean;
   };
   meta: {
     sampled: boolean;
@@ -1153,6 +1162,18 @@ export interface RenderModel {
 - 性能门禁：`pnpm bench -- --sample` —— `chart.sample.100k`（单系列 100k→2k）≤ 50ms；
   `chart.resolve-sample.100k`（100k×10、2 个 Y 系列，含解析）≤ 300ms（§16.1）。
 
+**实现边界（T4.4，ADR-043）**：
+
+- `RenderModel.y` 仅由 `ChartOptions.yLabel` 产生（去空白、空串不产生字段）；Y 单位仍不在模型
+  里，需要时另写 ADR。`RenderStyle.connectNulls` 由 chart-model 计算：
+  `meta.sampled === true || mapping.layout === 'long'`；宽表未采样保持 `false`。
+- 图表读取该表**全部行**，行序由图表自身 `filter`/`sort` 决定，不跟随表格视图的筛选/排序
+  （ADR-008 的视图状态分离）。
+- 图表视图把渲染契约暴露为 `data-chart-*`（kind/layout/x 类型与标签、Y 标签、系列名与数量、
+  source/rendered points、sampled、样式项），供 E2E 与无障碍摘要使用；不是持久化字段。
+- 列被删除后图表进入可操作错误态（`missing-columns` + 内嵌重映射），不自动改写映射；
+  `chart.update` 允许悬空引用以便修复，`chart.create` 要求映射有效。
+
 ### 11.4 ECharts 适配器
 
 - 按需引入 `echarts/core` + `LineChart/ScatterChart/BarChart` + 必要组件。
@@ -1173,6 +1194,11 @@ export interface RenderModel {
 - null 断点：`meta.sampled === false` 时 `connectNulls: false`（真实缺口断开，§11.2.4）；
   `meta.sampled === true` 时 `connectNulls: true`（ADR-041 的共享 X 轴并集无法区分"被采样
   略过"与真实缺口，采样图必须跨过；真实缺口也会被连线，是已接受的代价）。适配器不再采样。
+  **T4.4（ADR-043）起**适配器只读 `RenderStyle.connectNulls`（采样图与长表为 true，宽表未
+  采样为 false），不再直接判断 `meta.sampled`。
+- Y 轴名：`RenderModel.y.label` 映射为 `yAxis.name`（`nameLocation:'middle'`、
+  `nameRotate:90`、`nameGap:48`，有名称时 `grid.left` 80）；无标签时不产生轴名。
+  `grid.bottom` 为 72，保证 X 轴名不被 dataZoom 滑块遮住（T4.4，ADR-043）。
 - 主题：`resolveChartTheme(background)` 按 WCAG 相对亮度推导 light/dark，颜色为与 `@curve/ui`
   令牌同值的常量（不 import `@curve/ui`）；`animation: false` 使渲染与 PNG 确定。
 - 交互：tooltip（`renderMode: 'html'`，对用户可控文本做 HTML 转义；X 单位/格式化、Y 固定
@@ -1194,6 +1220,24 @@ export interface RenderModel {
 - 检查器分组：数据（表/筛选/排序）、映射、外观（线宽/平滑/点/调色板/图例/网格）、坐标轴（标签/从零开始）、导出。
 - 修改 120ms 防抖更新；更新不得重建整个实例（用 `setOption` merge）。
 - 图表与表格联动：在表格选中行时，图表高亮对应点（v1 可选，SHOULD）。
+
+**实现边界（T4.4，ADR-043）**：
+
+- 侧栏"图表"标签列出图表（新建/打开/复制/重命名/删除）；点击行激活既有视图，标签页被关闭时
+  用 `view.create` 重建。复制经 `chart.create` 生成新 `cht_`/`viw_` 与 ` (2)` 标题，源/副本
+  互不影响；删除二次确认并可由 Ctrl+Z 撤销。
+- 新建向导：选表 → 类型/名称 → 映射与列（只列 `canBeChartX/Y/Series` 兼容列，布局不可表达时置灰）
+  → 右侧实时预览 → 创建；映射不完整/非法时创建按钮禁用，`chart.create` 再次强校验。
+- 检查器四组（数据/映射/外观/坐标轴）在图表视图激活时替换表格的列/样式标签；下拉与复选框一次
+  交互一条 `chart.update`，文本/数字在失焦/Enter 提交，非法值内联报错。`ChartMappingFields` 同时
+  用于检查器与错误态重映射。
+- 更新路径：首次 `renderer.render()`，之后 120ms 防抖 `renderer.update()`（`setOption` merge，
+  `replaceMerge:` 见 §11.4）；容器尺寸变化 `resize()`，卸载 `dispose()`；适配器错误内联显示。
+- 图表标签标题跟随图表标题（`chart.update` 内同步）；一个图表最多一个视图（§12）。
+- 列被删除：`missing-columns` 错误态 + 缺失列 id + 内嵌重映射，不自动改写映射（§19）；修复后
+  重启仍为正常态。
+- `chart.create/update/delete` 均 manifest-only、workspace 作用域可撤销（§13.1/§13.2）；
+  不改变 `formatVersion`/JSONL/IPC/preload/CSP。
 
 ### 11.6 导出
 
@@ -1274,6 +1318,13 @@ export interface RenderModel {
   回退所有引用视图与工作区默认；两条命令都只写 manifest、进入 workspace 作用域历史。
   模板另存为/复制/导入复用 `style.create`，重命名复用 `style.update`；`style.delete` 需要 UI
   二次确认，但撤销可恢复样式与视图引用。
+- **实现边界（T4.4，ADR-043）**：新增 `chart.create { chart, view }`、`chart.update { chart }`、
+  `chart.delete { chartId }`，均 manifest-only、workspace 作用域可撤销。`chart.create` 校验
+  `chartSpecSchema`、表存在与映射/筛选/排序，并在同一事务内创建图表 + 首个视图入 layout；
+  `chart.update` 只校验 schema 与表存在，**允许悬空列引用**以便修复，写入时覆盖 `createdAt`、
+  刷新 `updatedAt`，标题变化同步该图表视图标题；`chart.delete` 级联删除图表视图与 layout 引用。
+  复制/打开/重命名/删除由 `WorkspaceActions.duplicateChart/openChart` 组合上述命令实现
+  （复制用新 `cht_`/`viw_` 与 ` (2)` 标题）。
 
 ### 13.2 撤销/重做
 
@@ -1304,6 +1355,10 @@ export interface RenderModel {
 - **实现边界（T3.5，ADR-038）**：`style.delete`/`style.apply` 各一条 workspace 作用域历史；
   删除的一次撤销同时恢复样式、视图 `styleId` 与工作区默认；导入/复制/另存为各是一条
   `style.create`，重命名是一条 `style.update`。模板管理对话框内的确认不产生额外历史。
+- **实现边界（T4.4，ADR-043）**：`chart.create/update/delete` 各一条 workspace 作用域历史
+  （`tableId: null`），undo/redo 只改内存文档并触发 manifest 保存；检查器每个控件一次提交对应
+  一条记录（文本/数字失焦或 Enter、下拉/复选框每次交互）。复制图表是一条 `chart.create`，
+  重命名为一条 `chart.update`，删除的一条撤销同时恢复图表、视图与 layout 引用。
 
 ### 13.3 自动保存
 

@@ -9,7 +9,7 @@ import { Button } from '@curve/ui';
 
 import { useAppState, useRendererCore } from '../../app-core/use-app-core';
 import { useI18n } from '../../i18n';
-import { ChartPlaceholder } from '../charts/ChartPlaceholder';
+import { ChartView } from '../charts/ChartView';
 import { DataGrid } from '../grid/DataGrid';
 import { useViewRows } from '../grid/use-view-rows';
 import { usePaste } from '../paste/use-paste';
@@ -176,7 +176,7 @@ export function WorkspaceView(): ReactElement {
         aria-label={view?.title ?? t('tabs.label')}
       >
         {view?.kind === 'chart' ? (
-          <ChartPlaceholder view={view} />
+          <ChartView key={view.id} view={view} />
         ) : view === undefined || tableData === undefined ? (
           <div className="cs-workspace__empty" data-testid="workspace-empty">
             <h2 className="cs-workspace__empty-title">{t('tabs.empty.title')}</h2>

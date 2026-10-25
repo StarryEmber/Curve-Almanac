@@ -33,6 +33,7 @@ exports[`RenderModel golden snapshot > matches the fixture model for a long enum
   ],
   "style": {
     "background": "#1e1e1e",
+    "connectNulls": true,
     "legend": "top",
     "lineWidth": 2,
     "numberDigits": 2,
@@ -96,6 +97,7 @@ exports[`RenderModel golden snapshot > matches the fixture model for a wide date
   ],
   "style": {
     "background": "#ffffff",
+    "connectNulls": false,
     "legend": "top",
     "lineWidth": 2,
     "numberDigits": 2,

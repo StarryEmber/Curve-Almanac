@@ -16,6 +16,8 @@
   },
   "devDependencies": {
     "@curve/app-core": "workspace:*",
+    "@curve/chart-echarts": "workspace:*",
+    "@curve/chart-model": "workspace:*",
     "@curve/domain": "workspace:*",
     "@curve/persistence": "workspace:*",
     "@curve/table-engine": "workspace:*",

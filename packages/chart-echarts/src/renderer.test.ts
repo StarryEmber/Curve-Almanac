@@ -50,6 +50,7 @@ function makeModel(overrides: Partial<RenderModel> = {}): RenderModel {
       legend: 'top',
       numberDigits: 2,
       yStartAtZero: false,
+      connectNulls: false,
     },
     meta: { sampled: false, sourcePoints: 5, renderedPoints: 5, warnings: [] },
     ...overrides,
