@@ -22,10 +22,10 @@
 5. `createChartRenderer({ locale? })` 生命周期：惰性 `init`、`render`/`update`（merge +
    `replaceMerge`）/`resize`/`dispose`/`toPNG`；空数据不创建实例；错误返回结构化
    `AppError`；`activeChartInstanceCount()` 证明 dispose 无泄漏。
-6. 6 条 option 黄金快照（4 调色板 + 深色背景 + 采样缺口）、24 条 option 断言、15 条格式化单测、
+6. 24 条 option 测试（含 6 条黄金快照：4 调色板 + 深色背景 + 采样缺口）、15 条格式化单测、
    16 条生命周期单测（mock `echarts/core`）、6 条主题单测、注册幂等测试、2 条真实 ECharts
-   SSR（SVG）冒烟测试、包边界测试（扫描 workspace 源码与包清单）。新增 dependency-cruiser 规则：
-   只有 `chart-echarts` 可以 import echarts。
+   SSR（SVG）冒烟测试、2 条包边界测试（扫描 workspace 源码与包清单）。新增 dependency-cruiser
+   规则：只有 `chart-echarts` 可以 import echarts。
 7. 不改变 `RenderModel` 形状、`formatVersion`/manifest/JSONL/IPC/preload/CSP；不新增 IPC/命令。
 
 ## 2. 关键文件

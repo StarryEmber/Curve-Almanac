@@ -32,9 +32,14 @@
   （chart.resolve-sample P95 81ms/300ms、chart.sample P95 21ms/50ms）。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
-- **停点**：T4.3 已完成；下一任务 T4.4，一次只推进一个任务。
-- **接手动作**：确认工作树干净；读 TASKS 的 M4/T4.4、SPEC §11.5、TESTPLAN E6 与
-  `docs/reports/t4.3/REPORT.md`（含 ADR-042 的代价与复核条件）；按协议先复述，再测试先行。
+- **停点**：T4.3 已完成并提交；工作树干净；下一任务 T4.4，一次只推进一个任务。
+- **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`，无需重新 install）；
+  读 TASKS 的 M4/T4.4、SPEC §11.5、TESTPLAN E6 与 `docs/reports/t4.3/REPORT.md`（含 ADR-042
+  的代价与复核条件）；按协议先复述，再测试先行。
+- **T4.4 速览**：产出图表列表 + 新建向导（选表→映射→列→预览）+ 检查器（数据/映射/外观/坐标轴）
+  + 图表 CRUD/复制/持久化/视图联动；验收重点是宽/长映射、检查器项重启后保留、列删除后的可操作
+  错误态、复制图表新 id 互不影响。更新用 120ms 防抖 + `renderer.update()`（不得重建实例）；
+  `pnpm e2e --grep` 在 PowerShell 下会按 `|` 拆分，一次只跑一个模式。
 - **M4 验收复核**：T4.4–T4.6 完成后运行 M4 验收演示（TESTPLAN E6），停下等用户确认。
 
 ---
@@ -169,6 +174,10 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
 
 - DSH 的 shell 是 **Windows PowerShell 5.1**：`Get-Content` 默认按 GBK 解码无 BOM 的 UTF-8 文件；
   `Set-Content -Encoding UTF8` 会写入 BOM。源码与文档一律用 `read`/`write`/`edit` 工具修改。
+- T4.3 实测：用 `Get-Content | Set-Content` 往返改写一个 UTF-8 无 BOM 的 `.ts`，即使事后用 .NET
+  去掉 BOM，文件里的中文/`§`/`→` 注释也会变成乱码（GBK 解码后写回）。万不得已用 PowerShell 时，
+  必须用 `[System.IO.File]::ReadAllText/WriteAllText` + `UTF8Encoding($false)`，按 `\n` 拆分以保持
+  LF，改完用 `read` 复查含非 ASCII 的行（或跑一遍 U+FFFD 扫描）。
 - `[System.IO.File]::ReadAllBytes('相对路径')` 按**进程 CWD**（`D:\DSH_Work_Space`）解析；需要绝对路径。
 - pnpm 的 stdout 被 PowerShell 当成错误流时会打印红字，**结论看 `$LASTEXITCODE`**；必要时重定向到文件再检索。
 - 截图是设备像素（125% DPI）：窗口 1440×816 → 页面 1426×779 CSS px → PNG 1783×943。
@@ -1693,7 +1702,8 @@ ADR-041 记录 7 组决定（无需变更文件格式、IPC 或运行时依赖�
    贡献全部非空下标（不丢点），被采样系列在其它系列位置为 `null`、非空点数 ≤ target。
    被否决的替代方案（整图共用一个下标子集）会抹平逐系列峰值。
 4. **缺失值**：null 不参与三角面积、不会成为保留下标、采样后仍为 null；被采样略过的位置也是
-   null（模型只有两种状态，T4.3 只能按非空成对渲染）。采样不新增/删除/重排 warning。
+   null（模型只有两种状态）；T4.3 已按 ADR-042 §3 处理（未采样断开、已采样跨过）。
+   采样不新增/删除/重排 warning。
 5. **meta**：`sourcePoints` 采样前非空 Y 总数；`renderedPoints` 采样后非空 Y 总数；
    `sampled` 只在真的降采样时为 true；未采样时模型与 T4.1 完全一致。
 6. **基准**：新增 `sample` suite（`pnpm bench -- --sample`）：`chart.resolve-sample.100k`
@@ -1932,8 +1942,8 @@ JSONL/IPC；未新增运行时依赖。接受前复核（2026-10-24）：`pnpm v
 Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings、`m3-contract.json` 与
 失败时的 trace；截图已复制到 `docs/reports/m3/`。
 
-**停点（已解除）**：M3 已于 2026-10-24 获用户接受并关闭；此后 T4.1、T4.2 已完成（见 §5K/§5L），
-M4 下一任务是 T4.3（ECharts 适配器）。
+**停点（已解除）**：M3 已于 2026-10-24 获用户接受并关闭；此后 T4.1、T4.2、T4.3 已完成
+（见 §5K/§5L/§5M），M4 下一任务是 T4.4（图表创建与检查器）。
 
 ---
 
@@ -2002,7 +2012,7 @@ M4 下一任务是 T4.3（ECharts 适配器）。
 | 图表调色板为 chart-model 常量 | 不能跟随主题令牌 | ADR-040；需要令牌化时改常量并写 ADR，不涉及 manifest |
 | T4.1 `sourcePoints` 不含断点 | T4.2 采样预算口径易混淆 | 采样后 `renderedPoints ≤ sourcePoints`，按 ADR-040 的口径报告，不改预算 |
 | T4.2 采样后 x 并集大于 target | 多系列时 x 位置变多，可能影响渲染预算 | ADR-041：逐系列 ≤ target、并集上界 `Σ max(threshold,target)`；T4.6 复核，超预算改共用下标或 per-series x（先 ADR） |
-| T4.2 被采样略过的 null 与真实缺口同形 | 适配器无法只断真实缺口 | ADR-041 代价；T4.3 按非空成对渲染，需要结构化 gap 时另写 ADR |
+| T4.2 被采样略过的 null 与真实缺口同形 | 适配器无法只断真实缺口 | ADR-041 代价；T4.3 已按 ADR-042 §3 处理（未采样断开 / 已采样跨过）；需要结构化 gap 时另写 ADR |
 | T4.2 未采样系列贡献全部非空点 | 极端多小系列时采样收益下降 | 有意取舍（不丢未采样数据）；T4.6 若超预算再评估 |
 | `scripts/bench.ts` 依赖 `@curve/chart-model` | 重装依赖可能出现 symlink 权限错误 | 根 devDependency（仅 bench）；按 §3.4 预建 junction 后 `pnpm install` |
 | T4.3 按需注册仍带 toolbox feature 实现 | bundle 606.0 kB min / 206 kB gzip | ADR-042：只启用 dataZoom feature；T4.4 接线后记录 renderer 增量，T6.4 评估拆包 |

@@ -1074,7 +1074,7 @@ T0.2 + T5.5 → T6.4
 报告 `docs/reports/m3/REPORT.md` 与 10 张截图。演示中发现并修复“虚拟化行高不随样式令牌重测”
 （`DataGrid` 在行高变化时 `virtualizer.measure()`），`pnpm e2e` **72 passed**。接受前复核：
 `pnpm verify` 143 files / 1232 tests、`pnpm build` exit 0、`m3-acceptance` 单跑 1 passed、
-全量 `pnpm e2e` 72 passed。**M3 已关闭；此后 T4.1、T4.2 已完成，M4 下一任务 T4.3。**
+全量 `pnpm e2e` 72 passed。**M3 已关闭；此后 T4.1、T4.2、T4.3 已完成，M4 下一任务 T4.4。**
 
 ---
 
@@ -1219,7 +1219,7 @@ T0.2 + T5.5 → T6.4
     `{ ok:false, error }`（`E_UNKNOWN`/`E_EXPORT_FAILED`）；`activeChartInstanceCount()` 证明
     dispose 后为 0。
   - 文件：`packages/chart-echarts/src/{theme,format,option,registration,renderer}.ts` 与
-    `option.test.ts`（6 条黄金快照 + 24 条断言）、`option.ssr.test.ts`（2 条真实 ECharts
+    `option.test.ts`（24 条，含 6 条黄金快照）、`option.ssr.test.ts`（2 条真实 ECharts
     SSR/SVG 冒烟）、`format.test.ts`（15）、`theme.test.ts`（6）、`renderer.test.ts`（16，
     mock `echarts/core`）、`registration.test.ts`（1）、`boundary.test.ts`（2，扫描
     workspace + 包清单）；`package.json`/`tsconfig.json`（references、DOM lib、

@@ -457,7 +457,7 @@
   令牌同值的常量，不 import `@curve/ui`）；`escapeHtmlText` 保证 tooltip 无 HTML 注入。
 - T4.3：新增 dependency-cruiser 规则 `only-chart-echarts-imports-echarts` 与包内边界测试
   （扫描 `packages/*/src`、`apps/*/src`、`plugins/*/src`、`scripts` 与 workspace `package.json`）。
-- T4.3：6 条 option 黄金快照 + 24 条 option 断言 + 15 条格式化 + 16 条生命周期（mock
+- T4.3：24 条 option 测试（含 6 条黄金快照）+ 15 条格式化 + 16 条生命周期（mock
   `echarts/core`）+ 6 条主题 + 2 条真实 ECharts SSR/SVG 冒烟 + 注册/边界测试；`pnpm verify`
   **152 files / 1369 tests**；coverage 全局 lines **76.09%** / branches **69.04%**
   （`chart-echarts/src` lines **99.56%**）；`pnpm build` exit 0（renderer 1,618.04 kB 未变；
