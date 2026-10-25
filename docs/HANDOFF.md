@@ -2,9 +2,8 @@
 
 > 本文件面向**下一个实现会话**。当前会话已完成 `T4.2`（LTTB 采样与缺失值语义），
 > M4 自 `T4.3` 继续；M3 已于 2026-10-24 获用户接受。最后更新：
-> 2026-10-25 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**。
-> T4.2 的代码提交见 `git log -1 -- packages/chart-model/src/sampling.ts`；本交接文档的提交见
-> `git log -1 -- docs/HANDOFF.md`。
+> 2026-10-25 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
+> T4.2 代码 **`247093d`**（本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t4.2/REPORT.md` →
 > `docs/TASKS.md` 的 M4 / T4.3 → `docs/SPEC.md` §11.2–§11.4、§16.1 →
 > `docs/adr/041-t42-lttb-sampling.md` → ADR-040（RenderModel 口径）。
@@ -60,7 +59,7 @@
 | `T3.6` CSV 导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.6/REPORT.md`；ADR-039 |
 | M3 验收演示 | **已获用户接受**（2026-10-24）；`e2e/m3-acceptance.spec.ts` + `docs/reports/m3/REPORT.md`（10 张截图） |
 | `T4.1` RenderModel 与宽/长表映射 | **已完成**（2026-10-24，`06858d4`）；报告 `docs/reports/t4.1/REPORT.md`；ADR-040 |
-| `T4.2` LTTB 采样与缺失值语义 | **已完成**（2026-10-25，见 `git log -1 -- packages/chart-model/src/sampling.ts`）；报告 `docs/reports/t4.2/REPORT.md`；ADR-041 |
+| `T4.2` LTTB 采样与缺失值语义 | **已完成**（2026-10-25，`247093d`）；报告 `docs/reports/t4.2/REPORT.md`；ADR-041 |
 | 当前里程碑 | **M4 图表**：T4.1、T4.2 已完成，下一 T4.3 |
 | 下一步 | **T4.3 ECharts 适配器** |
 | `pnpm verify` 基线 | **145 files / 1302 tests**；ESLint 0；depcruise 400 modules / 1609 deps / 0 violations |
@@ -1641,6 +1640,9 @@ pnpm bench          exit 0；open 542ms、save 314ms、edit 0ms、query 223ms、
 - 被采样略过的 null 与原始缺口不可区分；T4.3 只能按非空成对渲染（真实断点也会连线）。
 - category 轴按下标采样；未采样系列贡献全部非空点，极端多小系列时采样收益下降。
 - 重复 X 面积为 0 时按"每桶首个"确定性选中（已有重复 X warning）。
+
+提交：**`247093d`**（`feat(chart): add LTTB sampling with shared-x alignment (T4.2)`）；
+本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`。
 
 **T4.3 交接提示（ECharts 适配器）**：
 
