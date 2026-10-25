@@ -11,6 +11,9 @@ importers:
       '@curve/app-core':
         specifier: workspace:*
         version: link:packages/app-core
+      '@curve/chart-model':
+        specifier: workspace:*
+        version: link:packages/chart-model
       '@curve/domain':
         specifier: workspace:*
         version: link:packages/domain

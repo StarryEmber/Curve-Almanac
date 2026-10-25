@@ -70,3 +70,4 @@
 | ADR-038 | T3.5 的模板 CRUD、删除回退、导入导出与身份重分配 | 已接受 | [038-t35-template-management.md](038-t35-template-management.md) |
 | ADR-039 | T3.6 的 CSV 导出、流式 IPC、原始/显示值与文件名 | 已接受 | [039-t36-csv-export.md](039-t36-csv-export.md) |
 | ADR-040 | T4.1 的 RenderModel、宽/长表映射、调色板与空值口径 | 已接受 | [040-t41-render-model.md](040-t41-render-model.md) |
+| ADR-041 | T4.2 的 LTTB 采样、共享 X 轴对齐与缺失值语义 | 已接受 | [041-t42-lttb-sampling.md](041-t42-lttb-sampling.md) |

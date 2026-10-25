@@ -12,3 +12,4 @@ export const PACKAGE_NAME = '@curve/chart-model' as const;
 
 export * from './palettes';
 export * from './render-model';
+export * from './sampling';

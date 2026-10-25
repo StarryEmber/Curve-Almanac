@@ -1,36 +1,38 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已完成 `T4.1`（RenderModel 与宽/长表映射），
-> M4 自 `T4.2` 继续；M3 已于 2026-10-24 获用户接受。最后更新：
-> 2026-10-24 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t4.1/REPORT.md` →
-> `docs/TASKS.md` 的 M4 / T4.2 → `docs/SPEC.md` §11.1–§11.3、§16.1 →
-> `docs/adr/040-t41-render-model.md` → ADR-032（筛选/排序语义）。
+> 本文件面向**下一个实现会话**。当前会话已完成 `T4.2`（LTTB 采样与缺失值语义），
+> M4 自 `T4.3` 继续；M3 已于 2026-10-24 获用户接受。最后更新：
+> 2026-10-25 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**。
+> T4.2 的代码提交见 `git log -1 -- packages/chart-model/src/sampling.ts`；本交接文档的提交见
+> `git log -1 -- docs/HANDOFF.md`。
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t4.2/REPORT.md` →
+> `docs/TASKS.md` 的 M4 / T4.3 → `docs/SPEC.md` §11.2–§11.4、§16.1 →
+> `docs/adr/041-t42-lttb-sampling.md` → ADR-040（RenderModel 口径）。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
-- **当前状态**：M2 已于 2026-10-23 获用户接受；`T3.1`（样式模型）、`T3.2`（渲染管线）、
-  `T3.3`（条件格式引擎）、`T3.4`（样式编辑器与实时预览）、`T3.5`（模板管理与导入导出）与
-  `T3.6`（CSV 导出）已完成（`docs/reports/t3.{1,2,3,4,5,6}/REPORT.md`、ADR-034/035/036/037/038/039）。
-  **M3 已于 2026-10-24 获用户接受；`T4.1`（RenderModel 与宽/长表映射）已完成，下一任务 T4.2。**
-- **本次交付**：`@curve/chart-model` 的 `resolveSeries`（宽表每 Y 列一条、长表按系列列首次出现
-  分组；稳定 id、重名后缀、enum label、`(空)` 组；映射/筛选/排序校验复用 table-engine；
-  缺失 X 丢行、null 断点、非数值 Y、重复 X、>20 系列截断的聚合 warning）与 `palettes.ts`
-  （4×8 调色板 + auto 背景解析）；2 条 RenderModel 黄金快照。报告 `docs/reports/t4.1/REPORT.md`。
-- **基线**：`pnpm verify` **144 files / 1276 tests**；coverage lines **75.34%** /
-  statements 75.23% / branches 68.21% / functions 73.74%（`render-model.ts` lines 97.54%）；
-  `format:check` 通过；`pnpm build` exit 0（renderer **1,618.04 kB**，CSS 64.03 kB，未变）；
-  `pnpm e2e` **72 passed**（3.9m）；`pnpm bench` **exit 0**
-  （open 572ms、save 381ms、edit 1ms、query 227ms、text-sort 340ms、cjk-sort 680ms、
-  import 928ms、condition P95 1ms）。
+- **当前状态**：M2 已于 2026-10-23 获用户接受；`T3.1`–`T3.6` 已完成（ADR-034/035/036/037/
+  038/039）；**M3 已于 2026-10-24 获用户接受**；`T4.1`（RenderModel 与宽/长表映射）与
+  `T4.2`（LTTB 采样与缺失值语义）已完成，下一任务 **T4.3（ECharts 适配器）**。
+- **本次交付**：`@curve/chart-model` 新增 `sampling.ts`（`lttbIndices`、`sampleSeriesIndices`）
+  并接入 `resolveSeries`：逐系列 LTTB 到 `target`、保首尾非空点、null 不参与三角面积；采样后
+  `x.values` 取各系列保留下标的升序并集（未采样系列贡献全部非空下标），`meta.sampled/
+  renderedPoints` 更新、`sourcePoints` 与 warning 顺序不变；`pnpm bench -- --sample` 新增
+  `chart.resolve-sample.100k`（P95 93ms/300ms）与 `chart.sample.100k`（P95 4ms/50ms）。
+  报告 `docs/reports/t4.2/REPORT.md`、ADR-041。
+- **基线**：`pnpm verify` **145 files / 1302 tests**；coverage lines **75.55%** /
+  statements 75.46% / branches 68.41% / functions 73.96%（`sampling.ts` lines 93.24%、
+  `render-model.ts` 96.96%）；`format:check` 通过；`pnpm build` exit 0（renderer
+  **1,618.04 kB**，CSS 64.03 kB，未变）；`pnpm e2e` **72 passed**；`pnpm bench` **exit 0**
+  （含新 sample suite；其余 suite 与 T4.1 基线同量级）。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
-- **停点**：T4.1 已完成；下一任务 T4.2（LTTB 采样与缺失值语义），一次只推进一个任务。
-- **接手动作**：确认工作树干净；读 TASKS 的 M4/T4.2、SPEC §11.2、TESTPLAN §5.1（图表预算）与
-  `docs/reports/t4.1/REPORT.md`；按协议先复述，再测试先行。
-- **M4 验收复核**：T4.1–T4.6 完成后运行 M4 验收演示（TESTPLAN E6），停下等用户确认。
+- **停点**：T4.2 已完成；下一任务 T4.3（ECharts 适配器），一次只推进一个任务。
+- **接手动作**：确认工作树干净；读 TASKS 的 M4/T4.3、SPEC §11.4、TESTPLAN §2/§5.1 与
+  `docs/reports/t4.2/REPORT.md`（含 ADR-041 的代价与复核条件）；按协议先复述，再测试先行。
+- **M4 验收复核**：T4.3–T4.6 完成后运行 M4 验收演示（TESTPLAN E6），停下等用户确认。
 
 ---
 
@@ -58,12 +60,13 @@
 | `T3.6` CSV 导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.6/REPORT.md`；ADR-039 |
 | M3 验收演示 | **已获用户接受**（2026-10-24）；`e2e/m3-acceptance.spec.ts` + `docs/reports/m3/REPORT.md`（10 张截图） |
 | `T4.1` RenderModel 与宽/长表映射 | **已完成**（2026-10-24，`06858d4`）；报告 `docs/reports/t4.1/REPORT.md`；ADR-040 |
-| 当前里程碑 | **M4 图表**：T4.1 已完成，下一 T4.2 |
-| 下一步 | **T4.2 LTTB 采样与缺失值语义** |
-| `pnpm verify` 基线 | **144 files / 1276 tests**；ESLint 0；depcruise 0 violations |
-| `pnpm test:coverage` 基线 | 全局 lines **75.34%** / statements **75.23%** / branches **68.21%** / functions **73.74%**；`render-model.ts` lines **97.54%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **72 passed**（3.9m；T4.1 未改 UI/E2E，M3 用例仍通过） |
-| `pnpm bench` 基线 | **exit 0**；open 572ms、save 381ms、edit 1ms、query 227ms、text-sort 340ms、cjk-sort 680ms、import 928ms、condition P95 1ms |
+| `T4.2` LTTB 采样与缺失值语义 | **已完成**（2026-10-25，见 `git log -1 -- packages/chart-model/src/sampling.ts`）；报告 `docs/reports/t4.2/REPORT.md`；ADR-041 |
+| 当前里程碑 | **M4 图表**：T4.1、T4.2 已完成，下一 T4.3 |
+| 下一步 | **T4.3 ECharts 适配器** |
+| `pnpm verify` 基线 | **145 files / 1302 tests**；ESLint 0；depcruise 400 modules / 1609 deps / 0 violations |
+| `pnpm test:coverage` 基线 | 全局 lines **75.55%** / statements **75.46%** / branches **68.41%** / functions **73.96%**；`sampling.ts` lines **93.24%**、`render-model.ts` **96.96%**；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **72 passed**（T4.2 未改 UI/E2E，M3 用例仍通过） |
+| `pnpm bench` 基线 | **exit 0**；新增 sample suite：`chart.resolve-sample.100k` P95 **93ms**/300ms、`chart.sample.100k` P95 **4ms**/50ms；open 542ms、save 314ms、edit 0ms、query 223ms、text-sort 276ms、cjk-sort 636ms、import 830ms、condition P95 1ms |
 | `pnpm format:check` | 通过 |
 | 构建 | `pnpm build` exit 0；renderer **1,618.04 kB** + 懒加载 ImportSession 42.82 kB；CSS 64.03 kB；table/query/import worker 220.68/236.16/270.16 kB |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
@@ -72,7 +75,7 @@
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **M1/M2/M3 均已获用户接受；T3.1–T3.6、M3 验收演示与 T4.1 已完成**；下一步 T4.2。
+- **M1/M2/M3 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1 与 T4.2 已完成**；下一步 T4.3。
 - 不得跨里程碑；M4 全部任务完成后运行验收演示，停下等用户确认。
 
 ---
@@ -82,13 +85,13 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/reports/t4.1/REPORT.md、docs/TASKS.md 的 M4 / T4.2、
-docs/SPEC.md §11.2、docs/adr/040-t41-render-model.md、ADR-032（筛选/排序语义）。
+先读 AGENTS.md、docs/HANDOFF.md、docs/reports/t4.2/REPORT.md、docs/TASKS.md 的 M4 / T4.3、
+docs/SPEC.md §11.3–§11.4、docs/adr/041-t42-lttb-sampling.md、ADR-040（RenderModel 口径）。
 
-现状：M0、M1（已验收）、M2（已验收）、M3（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1–T3.6 与 T4.1 已完成；
-pnpm verify 144 files / 1276 tests、coverage lines 75.34%、pnpm e2e 72 passed、pnpm bench exit 0。
+现状：M0、M1（已验收）、M2（已验收）、M3（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1–T3.6、T4.1 与 T4.2 已完成；
+pnpm verify 145 files / 1302 tests、coverage lines 75.55%、pnpm e2e 72 passed、pnpm bench exit 0。
 
-下一步：T4.2（LTTB 采样与缺失值语义）；一次只推进一个任务。
+下一步：T4.3（ECharts 适配器）；一次只推进一个任务。
 ```
 
 ---
@@ -243,6 +246,18 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
 - T4.1 的 RenderModel 黄金快照在 `packages/chart-model/src/__snapshots__/`；只有在**有意**改
   `RenderModel` 契约时才用 `pnpm exec vitest run packages/chart-model -u` 更新，并在任务报告里
   写明变化，不要用更新快照掩盖回归。
+- T4.2 的采样语义见 ADR-041：`lttbIndices`/`sampleSeriesIndices` 只接受**对齐**的 x/y 数组
+  （长度不一致抛 `RangeError`），返回升序原始下标；`null` 永不被保留。
+- 采样后 `RenderModel.x.values` 是**各系列保留下标的并集**，不是 target 长度；断言点数请按
+  "每个系列的非空点数 ≤ target"，不要断言 `x.values.length ≤ target`。
+- `meta.sampled` 只在**至少一个系列真的被降采样**时为 true；阈值内/target 不小于点数/关闭
+  采样时模型与 T4.1 完全一致（含 x 长度与 null 位置），别把"启用采样"当成"已采样"。
+- `pnpm bench -- --sample` 的 suite 名是 `sample`（与 `--sample` 同名）；`pnpm bench` 全量已
+  包含它。`chart.resolve-sample.100k` 是 100k×10 + 2 个 Y 系列的**解析+采样**，纯采样看
+  `chart.sample.100k`；`chart.resolve-unsampled.100k` 只是诊断，不设门禁。
+- `scripts/bench.ts` 现在依赖 workspace 包 `@curve/chart-model`（根 `devDependencies`，仅 bench）；
+  若本机重装依赖出现 `ERR_PNPM_EPERM`，按 §3.4 先 `cmd /c mklink /J` 预建
+  `node_modules\@curve\chart-model` 再 `pnpm install`。
 
 ---
 
@@ -826,9 +841,33 @@ ChartResolveOptions { locale?; theme?: 'light' | 'dark'; background? }
 - 失败一次返回全部 issue（不抛异常）；warning 走 `meta.warnings`（英文聚合文案）。
 - 宽表 `id=列 id`、长表 `id=<seriesColumnId>:<存储值>`；`(空)` 组合并 null 与空串；
   `> MAX_CHART_SERIES` 截断并 warning。
-- `sourcePoints=renderedPoints=非空 Y 值数`、`sampled=false`（T4.2 采样后改写）。
+- `sourcePoints` = 非空 Y 值数；T4.2 起 `sampled`/`renderedPoints` 由采样器改写（见 §4.20）。
 - 完整语义、代价与复核条件见 `docs/adr/040-t41-render-model.md` 与
   `docs/reports/t4.1/REPORT.md`；2 条黄金快照在 `packages/chart-model/src/__snapshots__/`。
+
+### 4.20 `@curve/chart-model` LTTB 采样（T4.2）
+
+```ts
+SamplingOptions { enabled; threshold; target }            // = ChartOptions['sampling']
+lttbIndices(x: readonly number[], y: readonly (number | null)[], target: number): number[]
+sampleSeriesIndices(
+  x: readonly number[],
+  values: readonly (number | null)[],
+  options: SamplingOptions,
+): number[] | null
+```
+
+- `lttbIndices`：升序原始下标、保留首尾**非空**点、null 不参与三角面积、`target<3` 退化、
+  `target ≥ 非空点数` 返回全部非空下标；target 非法/数组长度不一致抛 `RangeError`。
+- `sampleSeriesIndices`：`enabled && 非空点数 > threshold && 非空点数 > target` 才返回下标，
+  否则 `null`（原样渲染）。
+- `resolveSeries` 的接入：number/time 用存储数值（date epoch ms）、category 用行下标；采样
+  只取子序列；采样后 `x.values` = 各系列保留下标的**升序并集**（未采样系列贡献全部非空下标，
+  被采样系列在其它系列位置为 null）；`meta.sampled=true`、`renderedPoints ≤ sourcePoints`；
+  warning 文本与顺序不变。未触发采样时模型与 T4.1 完全一致。
+- 采样只在 `resolveSeries` 内做一次；`chart-echarts` 不得再采样。
+- 完整决策、代价与复核条件见 `docs/adr/041-t42-lttb-sampling.md` 与
+  `docs/reports/t4.2/REPORT.md`；基准见 `pnpm bench -- --sample`。
 
 ---
 
@@ -1545,6 +1584,78 @@ M3 验收记录为 **`4ec9653`**。
 
 ---
 
+## 5L. T4.2 LTTB 采样与缺失值语义（已完成）
+
+ADR-041 记录 7 组决定（无需变更文件格式、IPC 或运行时依赖）：
+
+1. **API**：`lttbIndices(x, y, target)` 返回升序原始下标（保首尾非空点、null 不参与面积、
+   `target<3` 退化、`target≥点数` 原样返回、非法入参抛 `RangeError`）；`sampleSeriesIndices`
+   逐系列判定 `enabled && 非空点数 > threshold && 非空点数 > target`，否则 `null`。
+2. **x 坐标**：number/time 用存储数值（date epoch ms），category 用有序行下标；采样只取子序列，
+   永不重排（含用户 `sort`）。
+3. **共享 X 轴对齐（关键）**：采样后 `x.values` 取各系列保留下标的**升序并集**；未采样系列
+   贡献全部非空下标（不丢点），被采样系列在其它系列位置为 `null`、非空点数 ≤ target。
+   被否决的替代方案（整图共用一个下标子集）会抹平逐系列峰值。
+4. **缺失值**：null 不参与三角面积、不会成为保留下标、采样后仍为 null；被采样略过的位置也是
+   null（模型只有两种状态，T4.3 只能按非空成对渲染）。采样不新增/删除/重排 warning。
+5. **meta**：`sourcePoints` 采样前非空 Y 总数；`renderedPoints` 采样后非空 Y 总数；
+   `sampled` 只在真的降采样时为 true；未采样时模型与 T4.1 完全一致。
+6. **基准**：新增 `sample` suite（`pnpm bench -- --sample`）：`chart.resolve-sample.100k`
+   预算 300ms（SPEC §16.1）、`chart.sample.100k` 预算 50ms（TASKS T4.2）、
+   `chart.resolve-unsampled.100k` 仅诊断。
+7. **范围**：不新增运行时依赖、不改 `RenderModel` 形状/`formatVersion`/manifest/JSONL/IPC；
+   不做 ECharts option（T4.3）与图表 UI（T4.4）。
+
+关键文件：
+
+```text
+packages/chart-model/src/sampling.ts (+ sampling.test.ts)   # LTTB + 逐系列判定
+packages/chart-model/src/{render-model.ts,index.ts} (+ render-model.test.ts 集成用例)
+scripts/bench.ts（sample suite 与 --sample）、scripts/tsconfig.json、package.json / pnpm-lock.yaml
+docs/adr/041-t42-lttb-sampling.md
+docs/reports/t4.2/REPORT.md
+docs/SPEC.md §11.3（实现边界）、docs/TASKS.md（T4.2）、CHANGELOG、HANDOFF
+```
+
+实测（2026-10-25，本机）：
+
+```text
+pnpm verify         145 files / 1302 tests；ESLint 0；
+                    depcruise 400 modules / 1609 deps / 0 violations
+pnpm test:coverage  lines 75.55% / statements 75.46% / branches 68.41% / functions 73.96%
+                    sampling.ts lines 93.24%（branch 81.25%）/ render-model.ts 96.96%
+pnpm format:check   通过
+pnpm build          exit 0；renderer 1,618.04 kB（未变）+ ImportSession 42.82 kB；CSS 64.03 kB
+pnpm e2e            72 passed（未改 UI/E2E）
+pnpm bench -- --sample
+                    chart.resolve-sample.100k P50 82ms / P95 93ms、预算 300ms
+                    chart.sample.100k P50 4ms / P95 4ms、预算 50ms
+                    chart.resolve-unsampled.100k P50 55ms（诊断）
+pnpm bench          exit 0；open 542ms、save 314ms、edit 0ms、query 223ms、
+                    text-sort 276ms、cjk-sort 636ms、import 830ms、condition P95 1ms
+```
+
+残留：
+
+- 采样后 x 并集可大于 target（上界约 `Σ max(threshold, target)`）；T4.6 复核 2k 点渲染与内存。
+- 被采样略过的 null 与原始缺口不可区分；T4.3 只能按非空成对渲染（真实断点也会连线）。
+- category 轴按下标采样；未采样系列贡献全部非空点，极端多小系列时采样收益下降。
+- 重复 X 面积为 0 时按"每桶首个"确定性选中（已有重复 X warning）。
+
+**T4.3 交接提示（ECharts 适配器）**：
+
+- 只消费 `RenderModel`：不得读表/Store、不得 import `@curve/table-engine`/`@curve/chart-model`
+  之外的应用内部路径；`chart-echarts` 是唯一允许 import ECharts 的包。
+- 采样已完成，**不要**在适配器里再做 LTTB 或点数判断；`meta.sampled` 只用于徽标。
+- line 系列必须按"非空值成对"渲染：`null` 即 absence，适配器不得插值/补 0；这套模型无法区分
+  "原始缺口"与"被采样略过"（ADR-041 代价），断点渲染策略要在 T4.3 的 ADR 里写清楚。
+- 黄金快照：option 序列化后 `toMatchSnapshot`，覆盖 4 个调色板 + light/dark 背景 + null 断点
+  （TESTPLAN §2 / T4.3 验收）；不要只断言"渲染不报错"。
+- 生命周期：`render/update/resize/dispose/toPNG`，单测用实例计数证明 dispose 无泄漏；
+  DOM/ECharts 只在 `chart-echarts`，组件层（T4.4）只渲染容器。
+
+---
+
 ## 6. M2 验收演示（已获用户接受）
 
 单条 `apps/desktop/e2e/m2-acceptance.spec.ts`（一个 test）已按 ADR-033 §7 执行完毕：
@@ -1718,6 +1829,10 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 长表 null 与空串合并为 `(空)` | 图上无法区分二者 | ADR-040；数据仍完整保留，需要区分时扩展系列 id 语义并写 ADR |
 | 图表调色板为 chart-model 常量 | 不能跟随主题令牌 | ADR-040；需要令牌化时改常量并写 ADR，不涉及 manifest |
 | T4.1 `sourcePoints` 不含断点 | T4.2 采样预算口径易混淆 | 采样后 `renderedPoints ≤ sourcePoints`，按 ADR-040 的口径报告，不改预算 |
+| T4.2 采样后 x 并集大于 target | 多系列时 x 位置变多，可能影响渲染预算 | ADR-041：逐系列 ≤ target、并集上界 `Σ max(threshold,target)`；T4.6 复核，超预算改共用下标或 per-series x（先 ADR） |
+| T4.2 被采样略过的 null 与真实缺口同形 | 适配器无法只断真实缺口 | ADR-041 代价；T4.3 按非空成对渲染，需要结构化 gap 时另写 ADR |
+| T4.2 未采样系列贡献全部非空点 | 极端多小系列时采样收益下降 | 有意取舍（不丢未采样数据）；T4.6 若超预算再评估 |
+| `scripts/bench.ts` 依赖 `@curve/chart-model` | 重装依赖可能出现 symlink 权限错误 | 根 devDependency（仅 bench）；按 §3.4 预建 junction 后 `pnpm install` |
 
 ---
 
@@ -1738,23 +1853,25 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T4.1 提交（报告
-      `docs/reports/t4.1/REPORT.md`）。
+- [ ] `git status --short` 干净；`git log --oneline -3` 顶部为 T4.2 提交（报告
+      `docs/reports/t4.2/REPORT.md`）。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t4.1/REPORT.md`、`docs/TASKS.md` 的 M4/T4.2、
-      `docs/SPEC.md §11.2` 与 `docs/adr/040-t41-render-model.md`。
-- [ ] 已确认 `pnpm verify` 基线（144 files / 1276 tests）、coverage lines 75.34%、
-      e2e 72 passed、bench exit 0、condition P95 1ms、100k 导出 1,670ms。
+- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t4.2/REPORT.md`、`docs/TASKS.md` 的 M4/T4.3、
+      `docs/SPEC.md §11.3–§11.4` 与 `docs/adr/041-t42-lttb-sampling.md`。
+- [ ] 已确认 `pnpm verify` 基线（145 files / 1302 tests）、coverage lines 75.55%、
+      e2e 72 passed、bench exit 0、`chart.sample.100k` P95 4ms。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M1/M2/M3 均已获用户接受、T3.1–T3.6 与 T4.1 已完成；下一步为 T4.2，一次只推进一个任务。
+- [ ] 已确认 M1/M2/M3 均已获用户接受、T3.1–T3.6、T4.1 与 T4.2 已完成；下一步为 T4.3，
+      一次只推进一个任务。
 - [ ] 已确认 T3.1 的 hex 颜色/内置冻结/resolve/fork；T3.2 的 20 个表变量/宽度优先级/全局数字规则/
       bar/badge；T3.3 的条件原语/`conditionCompareOps`/优先级/`style.update`；T3.4 的
       `style.create` 懒 fork、前 50 行预览与一次控件一条撤销；T3.5 的 `style.delete/apply`、
       导出文档/身份重分配、删除回退与可撤销；T3.6 的 `file:exportCsv` 四步协议、
       BOM/CRLF/RFC4180、原始值/显示格式与 5s 预算；M3 的 `virtualizer.measure()` 行高重测；
-      T4.1 的 `resolveSeries` 映射/校验/空值口径、4 调色板与 `sourcePoints` 定义。
+      T4.1 的 `resolveSeries` 映射/校验/空值口径、4 调色板与 `sourcePoints` 定义；
+      T4.2 的 `lttbIndices`/`sampleSeriesIndices`、共享 X 轴并集与 `meta.sampled` 口径。
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`；`m3` 截图写入 `docs/reports/m3/`，`m0` 截图提交前还原。
-- [ ] T4.2 开工前按 AGENTS §8 复述目标/涉及文件/验收命令，再测试先行。
+- [ ] T4.3 开工前按 AGENTS §8 复述目标/涉及文件/验收命令，再测试先行。

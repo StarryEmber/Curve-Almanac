@@ -1,4 +1,4 @@
-# bench/ — 10 万行性能基准（T2.7）
+# bench/ — 10 万行性能基准（T2.7 / T4.2）
 
 `pnpm bench` 运行 SPEC §16.1 的纯管线预算；Electron 端到端预算在
 `apps/desktop/e2e/perf.spec.ts`（`pnpm e2e`）里跑。本目录整体被 gitignore，
@@ -7,11 +7,12 @@
 ## 命令
 
 ```powershell
-pnpm bench                      # 全部 suite：table-io / edit / query / import
+pnpm bench                      # 全部 suite：table-io / edit / query / import / sample
 pnpm bench -- --table-io        # 打开/保存/编码/解码
 pnpm bench -- --edit            # 命令总线 1000 次单元格提交
 pnpm bench -- --query           # 筛选+排序、ASCII 文本、中文文本、克隆诊断
 pnpm bench -- --import          # 100k GBK CSV 导入管线
+pnpm bench -- --sample          # RenderModel 解析 + LTTB 采样（T4.2）
 pnpm bench -- --write-baseline  # 用本次结果刷新 bench/baseline.json
 ```
 
@@ -41,7 +42,10 @@ pnpm bench -- --write-baseline  # 用本次结果刷新 bench/baseline.json
 | `query.text-sort.100k`（ASCII，打乱） | 400ms | 硬 |
 | `query.cjk-sort.100k`（全中文姓名，打乱） | 800ms | 硬（ADR-033 单列） |
 | `import.100k`（GBK CSV parse + plan + JSONL） | 8,000ms | 硬 |
+| `chart.resolve-sample.100k`（100k×10、2 个 Y 系列的解析 + LTTB，T4.2） | 300ms | 硬（SPEC §16.1） |
+| `chart.sample.100k`（单系列 100k→2,000 的纯 LTTB，T4.2） | 50ms | 硬（TASKS T4.2） |
 | `query.sync-clone.100k` | — | 诊断，不计门禁 |
+| `chart.resolve-unsampled.100k`（关闭采样的解析） | — | 诊断，不计门禁 |
 
 内存：bench 每 50ms 采样进程 RSS/heap 峰值，只作趋势；600MB 门禁由
 `e2e/perf.spec.ts` 用 `app.getAppMetrics()` 的 `privateBytes` 汇总 main + renderer +
@@ -73,3 +77,8 @@ utility/worker（不含 GPU）来判定（`workingSetSize` 会重复计算共享
 - `query.sync-clone.100k` 用 `structuredClone` 模拟 query Worker 首次快照的
   postMessage 成本，只是诊断：`data-query-ms` 仍只含 filter+sort，端到端趋势看
   E2E 的 `data-query-total-ms`。
+- `chart.resolve-sample.100k` 每次测量都跑完整 `resolveSeries`（筛选/排序/映射 + 逐系列
+  LTTB）；纯采样成本看 `chart.sample.100k`，`chart.resolve-unsampled.100k` 只是解析基线。
+  采样语义与口径见 `docs/adr/041-t42-lttb-sampling.md`。
+- 每个 suite 在独立子进程里跑（T2.7），新增 `sample` suite 也遵守这一约束，避免前序堆状态
+  影响采样/解析的 P95。

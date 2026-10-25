@@ -424,3 +424,18 @@
   ECharts/React/Electron，不改 `formatVersion`/manifest/JSONL/IPC。
 - T4.1：`pnpm verify` 144 files / 1276 tests；coverage 全局 lines 75.34% / branches 68.21%
   （`render-model.ts` 97.54% / `palettes.ts` 90.9%）；`pnpm format:check` 通过。
+- T4.2：`@curve/chart-model` 新增 `sampling.ts`：`lttbIndices(x, y, target)`（升序原始下标、
+  保留首尾非空点、null/非有限值不参与三角面积、`target<3` 退化、`target≥点数` 原样返回）与
+  `sampleSeriesIndices(x, values, options)`（逐系列判定 `enabled && 非空点数 > threshold &&
+  非空点数 > target`）；number/time 用存储数值、category 用行下标，采样只取子序列不重排。
+- T4.2：`resolveSeries` 接入采样：采样后 `x.values` 取各系列保留下标的升序并集（未采样系列
+  贡献全部非空下标，不因邻居采样丢点；被采样系列在其它系列位置为 null、非空点数 ≤ target），
+  `meta.sampled` / `renderedPoints`（≤ `sourcePoints`）更新，warning 文本与顺序不变；
+  未触发采样时保持 T4.1 原样输出。新增 ADR-041 与 SPEC §11.3 实现边界。
+- T4.2：`pnpm bench -- --sample` 新增 suite：`chart.resolve-sample.100k`（100k×10、2 个 Y
+  系列，含解析）P95 **93ms**/300ms、`chart.sample.100k`（单系列 100k→2k）P95 **4ms**/50ms，
+  另加 `chart.resolve-unsampled.100k` 诊断（55ms）；根 `devDependencies` 增加 workspace 包
+  `@curve/chart-model`（仅 bench 用）。
+- T4.2：17 条采样单测（含 100k→2k、峰值保留、null 语义与属性测试）+ 9 条 RenderModel 集成
+  用例；`pnpm verify` **145 files / 1302 tests**；coverage 全局 lines **75.55%** / branches
+  **68.41%**（`sampling.ts` lines 93.24% / `render-model.ts` 96.96%）；黄金快照未变。

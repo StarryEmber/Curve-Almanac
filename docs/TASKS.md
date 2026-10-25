@@ -1125,7 +1125,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t42"></a>
 ### T4.2 LTTB 采样与缺失值语义
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T4.1
 - 覆盖：FR-CHT-05
 - 参考：SPEC §11.2
@@ -1138,11 +1138,38 @@ T0.2 + T5.5 → T6.4
   2. 记录 `sourcePoints/renderedPoints/sampled`。
   3. 采样关闭时原样输出。
 - 验收：
-  - [ ] 100k → 2k 点，首尾保留，峰值形状肉眼可辨。
-  - [ ] 采样耗时 ≤ 50ms/系列。
-  - [ ] null 不参与采样三角计算，输出仍为 null。
-  - [ ] 属性测试：输出点数 ≤ target 且 x 单调。
-- 验证：`pnpm exec vitest run packages/chart-model -- --grep "sample" && pnpm bench -- --sample`
+  - [x] 100k → 2k 点，首尾保留，峰值形状肉眼可辨。
+  - [x] 采样耗时 ≤ 50ms/系列。
+  - [x] null 不参与采样三角计算，输出仍为 null。
+  - [x] 属性测试：输出点数 ≤ target 且 x 单调。
+- 验证：`pnpm exec vitest run packages/chart-model --testNamePattern sample && pnpm bench -- --sample`
+  （Vitest 5 用 `--testNamePattern` 过滤；`-- --grep` 不会过滤，见 HANDOFF §3.6）
+
+  实现备注（2026-10-25，ADR-041）：
+  - 决策：`sampling.ts` 新增 `lttbIndices(x, y, target)`（升序原始下标、保留首尾**非空**点、
+    null/非有限值不参与三角面积、`target<3` 退化、`target≥点数` 原样返回）与
+    `sampleSeriesIndices(x, values, options)`（逐系列判定 `enabled && 非空点数 > threshold &&
+    非空点数 > target`）。number/time 轴用存储数值、category 轴用行下标采样；采样只取
+    子序列，不重排（用户 `sort` 亦然）。
+  - 共享 X 轴对齐：采样后 `x.values` 取各系列保留下标的升序并集；未采样系列贡献全部非空
+    下标（不因邻居采样丢点），被采样系列在其它系列的位置为 `null`、其非空点数 ≤ target；
+    `x.values.length` 可大于 target（上界约 `Σ max(threshold, target)`）。只有真的降采样时
+    才改写模型，否则保持 T4.1 原样输出。
+  - meta：`sourcePoints` 仍为采样前非空 Y 总数、`renderedPoints` 为采样后非空 Y 总数
+    （≤ sourcePoints）、`sampled` 由采样器置位；warning 文本与顺序完全沿用 T4.1。
+  - 文件：`packages/chart-model/src/sampling.ts`、`render-model.ts`（集成）、`index.ts`、
+    `sampling.test.ts`（17 条，含 100k→2k 与属性测试）、`render-model.test.ts`（+9 条集成）；
+    `scripts/bench.ts` 新增 `sample` suite 与 `--sample`；根 `devDependencies` 增加 workspace 包
+    `@curve/chart-model`（仅 bench 用）、`scripts/tsconfig.json` 增加 project reference。
+  - 实测：`pnpm bench -- --sample` —— `chart.resolve-sample.100k`（100k×10、2 个 Y 系列，
+    含解析）P50 **82ms** / P95 **93ms**（预算 300ms）；`chart.sample.100k`（单系列 100k→2k）
+    P50 **4ms** / P95 **4ms**（预算 50ms）；`chart.resolve-unsampled.100k` P50 **55ms**
+    （仅诊断）。`pnpm verify` **145 files / 1302 tests**；coverage 全局 lines **75.55%** /
+    statements 75.46% / branches 68.41% / functions 73.96%（`sampling.ts` lines **93.24%**、
+    `render-model.ts` **96.96%**）；`pnpm e2e` **72 passed**。
+  - 残留：多系列采样后 x 并集可能长于 target（T4.6 复核渲染/内存）；被采样略过的 null 与
+    原始缺口不可区分（T4.3 只能按非空成对渲染）；category 轴按下标采样；未采样系列贡献
+    全部非空点，极端多小系列时采样收益下降。详见 ADR-041“代价/复核条件”。
 
 <a id="t43"></a>
 ### T4.3 ECharts 适配器

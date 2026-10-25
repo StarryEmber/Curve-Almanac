@@ -1132,6 +1132,27 @@ export interface RenderModel {
 - warning 为英文开发者文案（与 manifest/workspace warning 一致），按“X 丢行 → 重复 X →
   非数值 Y（按列）→ 系列截断”的固定顺序聚合，UI 负责展示与本地化。
 
+**实现边界（T4.2，ADR-041）**：
+
+- 采样归属：只在 `resolveSeries` 内执行一次（`@curve/chart-model`）；`@curve/chart-echarts`
+  不得再采样。`lttbIndices(x, y, target)` 与 `sampleSeriesIndices(x, values, options)` 是
+  公开纯函数，供基准/检查器复用；LTTB 返回升序原始下标。
+- 触发（逐系列）：`sampling.enabled && 非空点数 > threshold && 非空点数 > target`。
+  `target < 3` 退化为首点（1）或首尾点（2）；`target ≥ 非空点数` 原样输出。任一序列被
+  降采样时 `meta.sampled = true`，否则为 `false`。
+- x 坐标：number/time 用存储数值（date 为 epoch ms），category 用有序行下标；采样只取
+  子序列，永不重排（用户 `sort` 亦然）。
+- 共享 X 轴对齐：采样后 `x.values` 取各系列保留下标的**升序并集**；未采样系列贡献它的
+  全部非空下标（不因邻居被采样而丢点）；被采样系列在并集中属于其它系列的位置为 `null`，
+  其非空点数 ≤ `target`。`x.values.length` 可大于 target（上界约
+  `Σ max(threshold, target)`）。
+- 缺失值：`null` 不参与三角面积、不会成为保留下标、采样后仍为 `null`（断点语义不变）；
+  采样不新增、不删除、不重排 warning。
+- meta：`sourcePoints` 为采样前非空 Y 总数（ADR-040），`renderedPoints` 为采样后非空 Y
+  总数，恒 `≤ sourcePoints`；“已采样”徽标只读 `meta.sampled`。
+- 性能门禁：`pnpm bench -- --sample` —— `chart.sample.100k`（单系列 100k→2k）≤ 50ms；
+  `chart.resolve-sample.100k`（100k×10、2 个 Y 系列，含解析）≤ 300ms（§16.1）。
+
 ### 11.4 ECharts 适配器
 
 - 按需引入 `echarts/core` + `LineChart/ScatterChart/BarChart` + 必要组件。
@@ -1665,6 +1686,13 @@ RFC 4180 引号/逗号/换行、当前筛选/排序、隐藏列排除、原始�
 **260ms**、`query.cjk-sort.100k` **667ms**、`import.100k` **893ms**、
 `condition.rules.50x100` P95 **1ms**/16ms。全量 E2E **71 passed**；perf 整应用 private
 内存峰值 **571MB**/600MB、冷启动 **1,025ms**/2.5s。
+
+T4.2 实测（2026-10-25，本机；ADR-041）：`pnpm bench -- --sample` 新增两个门禁用例 ——
+`chart.resolve-sample.100k`（100k×10、2 个 Y 系列的完整解析 + LTTB）P50 **82ms** /
+P95 **93ms**（预算 300ms），单系列纯采样 `chart.sample.100k`（100k→2,000）P50 **4ms** /
+P95 **4ms**（预算 50ms）；`chart.resolve-unsampled.100k` P50 55ms 只作诊断。采样后的模型
+保持 `renderedPoints ≤ sourcePoints`（ADR-040 口径），逐系列非空点数 ≤ target；2k 点渲染
+预算（§16.1 第二行）由 T4.6 判定。
 
 ### 16.2 安全
 

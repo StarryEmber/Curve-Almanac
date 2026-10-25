@@ -13,7 +13,8 @@
     { "path": "../packages/domain" },
     { "path": "../packages/table-engine" },
     { "path": "../packages/persistence" },
-    { "path": "../packages/app-core" }
+    { "path": "../packages/app-core" },
+    { "path": "../packages/chart-model" }
   ],
   "include": ["**/*.ts"]
 }

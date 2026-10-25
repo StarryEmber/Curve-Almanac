@@ -658,6 +658,219 @@ describe('resolveSeries — filter and sort', () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* LTTB sampling (T4.2, SPEC §11.2.6–7)                                       */
+/* -------------------------------------------------------------------------- */
+
+const SAMPLE_COLUMNS: ColumnDef[] = [
+  { id: 'col_x', key: 'x', label: 'X', type: 'number', role: 'x' },
+  { id: 'col_y1', key: 'y1', label: 'Y1', type: 'number', role: 'y' },
+  { id: 'col_y2', key: 'y2', label: 'Y2', type: 'number', role: 'none' },
+  { id: 'col_site', key: 'site', label: 'Site', type: 'text', role: 'series' },
+  { id: 'col_note', key: 'note', label: 'Note', type: 'text', role: 'none' },
+];
+
+const SAMPLE_TABLE: TableMeta = {
+  ...TABLE,
+  id: 'tbl_sample',
+  name: 'Sample',
+  columns: SAMPLE_COLUMNS,
+  primaryKey: 'col_x',
+};
+
+/** y1 is dense, y2 only every tenth row: they exercise both sampling branches. */
+function sampleRows(count = 200): Row[] {
+  const rows: Row[] = [];
+  for (let index = 0; index < count; index += 1) {
+    rows.push({
+      id: `row_${String(index)}`,
+      values: [
+        index,
+        (index % 50) * 2,
+        index % 10 === 0 ? 100 - index : null,
+        index % 2 === 0 ? 'east' : 'west',
+        `note-${String(index)}`,
+      ],
+    });
+  }
+  return rows;
+}
+
+const SAMPLE: ChartOptions['sampling'] = { enabled: true, threshold: 50, target: 20 };
+
+function sampleSpec(overrides: Partial<ChartSpec> = {}): ChartSpec {
+  return makeSpec({
+    tableId: SAMPLE_TABLE.id,
+    mapping: { layout: 'wide', xColumnId: 'col_x', yColumnIds: ['col_y1', 'col_y2'] },
+    options: { ...OPTIONS, sampling: SAMPLE },
+    ...overrides,
+  });
+}
+
+function nonNullCount(values: readonly (number | null)[]): number {
+  return values.filter((value) => value !== null).length;
+}
+
+describe('resolveSeries — LTTB sampling', () => {
+  it('samples each dense series down to the target and records the metadata', () => {
+    const rows = sampleRows();
+    const model = modelOf(resolveSeries(SAMPLE_TABLE, rows, sampleSpec()));
+
+    expect(model.meta.sampled).toBe(true);
+    expect(model.meta.sourcePoints).toBe(220);
+    expect(model.meta.renderedPoints).toBe(40);
+    expect(model.meta.renderedPoints).toBeLessThan(model.meta.sourcePoints);
+    expect(nonNullCount(model.series[0]?.values ?? [])).toBe(20);
+    expect(nonNullCount(model.series[1]?.values ?? [])).toBe(20);
+    expect(model.meta.warnings).toEqual([]);
+  });
+
+  it('keeps the first and last point of every series', () => {
+    const model = modelOf(resolveSeries(SAMPLE_TABLE, sampleRows(), sampleSpec()));
+
+    expect(model.x.values[0]).toBe(0);
+    expect(model.x.values[model.x.values.length - 1]).toBe(199);
+
+    const values = model.series[0]?.values ?? [];
+    expect(values[0]).toBe(0);
+    expect(values[values.length - 1]).toBe(98);
+  });
+
+  it('never drops the real points of a series that is under the threshold', () => {
+    const model = modelOf(resolveSeries(SAMPLE_TABLE, sampleRows(), sampleSpec()));
+    const keptX = new Set(model.x.values);
+
+    for (let index = 0; index < 200; index += 10) {
+      expect(keptX.has(index)).toBe(true);
+    }
+    expect(model.series[1]?.values[model.x.values.indexOf(10)]).toBe(90);
+    model.x.values.forEach((x, index) => {
+      if (Number(x) % 10 !== 0) {
+        expect(model.series[1]?.values[index]).toBeNull();
+      }
+    });
+  });
+
+  it('renders the shared x axis in ascending order after sampling', () => {
+    const model = modelOf(resolveSeries(SAMPLE_TABLE, sampleRows(), sampleSpec()));
+    const xs = model.x.values.map((value) => Number(value));
+    expect(xs.length).toBeGreaterThan(SAMPLE.target);
+    expect(xs.length).toBeLessThanOrEqual(40);
+    for (let index = 1; index < xs.length; index += 1) {
+      expect(xs[index]).toBeGreaterThan(xs[index - 1] ?? -1);
+    }
+  });
+
+  it('leaves the model untouched when sampling is disabled', () => {
+    const rows = sampleRows();
+    const model = modelOf(
+      resolveSeries(
+        SAMPLE_TABLE,
+        rows,
+        sampleSpec({ options: { ...OPTIONS, sampling: { ...SAMPLE, enabled: false } } }),
+      ),
+    );
+
+    expect(model.meta).toEqual({
+      sampled: false,
+      sourcePoints: 220,
+      renderedPoints: 220,
+      warnings: [],
+    });
+    expect(model.x.values).toHaveLength(200);
+    expect(model.series[0]?.values).toHaveLength(200);
+  });
+
+  it('does not sample when the series stays below the threshold or target', () => {
+    const small = modelOf(
+      resolveSeries(
+        SAMPLE_TABLE,
+        sampleRows(),
+        sampleSpec({ options: { ...OPTIONS, sampling: { ...SAMPLE, threshold: 500 } } }),
+      ),
+    );
+    expect(small.meta.sampled).toBe(false);
+    expect(small.meta.renderedPoints).toBe(220);
+
+    const largeTarget = modelOf(
+      resolveSeries(
+        SAMPLE_TABLE,
+        sampleRows(),
+        sampleSpec({
+          options: { ...OPTIONS, sampling: { enabled: true, threshold: 50, target: 500 } },
+        }),
+      ),
+    );
+    expect(largeTarget.meta.sampled).toBe(false);
+    expect(largeTarget.x.values).toHaveLength(200);
+  });
+
+  it('samples a category x axis while keeping the physical order', () => {
+    const rows = sampleRows();
+    const model = modelOf(
+      resolveSeries(
+        SAMPLE_TABLE,
+        rows,
+        sampleSpec({
+          mapping: { layout: 'wide', xColumnId: 'col_note', yColumnIds: ['col_y1'] },
+        }),
+      ),
+    );
+
+    expect(model.x.type).toBe('category');
+    expect(model.meta.sampled).toBe(true);
+    expect(nonNullCount(model.series[0]?.values ?? [])).toBe(20);
+
+    const expected = rows.map((row) => String(row.values[4]));
+    const sampled = model.x.values.map((value) => String(value));
+    let cursor = 0;
+    for (const label of sampled) {
+      while (cursor < expected.length && expected[cursor] !== label) {
+        cursor += 1;
+      }
+      expect(cursor).toBeLessThan(expected.length);
+      cursor += 1;
+    }
+  });
+
+  it('samples every long-layout series independently', () => {
+    const rows = sampleRows();
+    const model = modelOf(
+      resolveSeries(
+        SAMPLE_TABLE,
+        rows,
+        sampleSpec({
+          mapping: {
+            layout: 'long',
+            xColumnId: 'col_x',
+            seriesColumnId: 'col_site',
+            yColumnId: 'col_y1',
+          },
+        }),
+      ),
+    );
+
+    expect(model.series.map((series) => series.id)).toEqual(['col_site:east', 'col_site:west']);
+    for (const series of model.series) {
+      expect(nonNullCount(series.values)).toBe(20);
+    }
+    expect(model.meta.sourcePoints).toBe(200);
+    expect(model.meta.renderedPoints).toBe(40);
+    expect(model.meta.sampled).toBe(true);
+  });
+
+  it('keeps the T4.1 warnings while sampling', () => {
+    const rows = sampleRows();
+    const broken: Row = { id: 'row_broken', values: [200, 'n/a', null, 'east', 'note-broken'] };
+    const model = modelOf(resolveSeries(SAMPLE_TABLE, [...rows, broken], sampleSpec()));
+
+    expect(model.meta.sampled).toBe(true);
+    expect(model.meta.warnings).toEqual([
+      'Column "Y1" has 1 non-numeric value(s); they are rendered as gaps.',
+    ]);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* Style (SPEC §11.3)                                                         */
 /* -------------------------------------------------------------------------- */
 

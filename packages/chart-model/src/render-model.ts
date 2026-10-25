@@ -1,11 +1,11 @@
 /**
- * Chart-agnostic RenderModel (T4.1, SPEC §11.1–§11.3, ADR-040).
+ * Chart-agnostic RenderModel (T4.1/T4.2, SPEC §11.1–§11.3, ADR-040/ADR-041).
  *
  * `@curve/chart-model` turns one table snapshot + one `ChartSpec` into the
  * RenderModel consumed by `@curve/chart-echarts`. It must stay pure and free of
  * ECharts/React/Electron imports; the only workspace dependencies are
  * `@curve/domain` and `@curve/table-engine` (filter/sort semantics live there,
- * ADR-032).
+ * ADR-032). LTTB downsampling also happens here (never in the adapter).
  */
 
 import type {
@@ -26,6 +26,9 @@ import {
 } from '@curve/table-engine';
 
 import { resolveChartBackground, resolvePalette } from './palettes';
+import { sampleSeriesIndices } from './sampling';
+
+import type { SamplingOptions } from './sampling';
 
 /** SPEC §11.1 / §11.2: at most this many series are rendered. */
 export const MAX_CHART_SERIES = 20;
@@ -366,6 +369,95 @@ function collectRows(table: TableMeta, rows: readonly Row[], xColumn: ColumnDef)
   return { rows: kept, skipped };
 }
 
+/** Numeric coordinate used by LTTB; category axes keep their point index (ADR-041). */
+function samplingCoordinates(
+  xValues: readonly (number | string)[],
+  type: RenderXAxis['type'],
+): number[] {
+  if (type === 'category') {
+    return xValues.map((_value, index) => index);
+  }
+  return xValues.map((value) => {
+    if (typeof value !== 'number') {
+      // renderXValue only emits numbers for number/time axes.
+      throw new Error('A number/time chart axis must hold numeric x values.');
+    }
+    return value;
+  });
+}
+
+interface SampledModel {
+  xValues: (number | string)[];
+  series: RenderSeries[];
+  renderedPoints: number;
+}
+
+/**
+ * Downsamples every series independently and re-aligns them on one x axis
+ * (SPEC §11.2.6–7, ADR-041).
+ *
+ * The RenderModel has a single shared `x.values`, so the sampled model keeps
+ * the ascending union of the per-series retained indices: each sampled series
+ * keeps only its own LTTB picks, while a series that stayed under the threshold
+ * contributes every one of its real points. Returns `null` when no series was
+ * downsampled, so the T4.1 model passes through untouched.
+ */
+function sampleModel(
+  xValues: readonly (number | string)[],
+  coordinates: readonly number[],
+  series: readonly RenderSeries[],
+  options: SamplingOptions,
+): SampledModel | null {
+  const retained = series.map((entry) => sampleSeriesIndices(coordinates, entry.values, options));
+  if (retained.every((indices) => indices === null)) {
+    return null;
+  }
+
+  const positions = new Set<number>();
+  series.forEach((entry, seriesIndex) => {
+    const indices = retained[seriesIndex];
+    if (indices === null || indices === undefined) {
+      entry.values.forEach((value, pointIndex) => {
+        if (value !== null) {
+          positions.add(pointIndex);
+        }
+      });
+      return;
+    }
+    for (const pointIndex of indices) {
+      positions.add(pointIndex);
+    }
+  });
+
+  const ordered = [...positions].sort((left, right) => left - right);
+  const retainedSets = retained.map((indices) => (indices === null ? null : new Set(indices)));
+  let renderedPoints = 0;
+  const sampledSeries = series.map((entry, seriesIndex) => {
+    const keep = retainedSets[seriesIndex] ?? null;
+    const values = ordered.map((pointIndex) => {
+      const value = entry.values[pointIndex] ?? null;
+      if (value === null || (keep !== null && !keep.has(pointIndex))) {
+        return null;
+      }
+      renderedPoints += 1;
+      return value;
+    });
+    return { ...entry, values };
+  });
+
+  return {
+    xValues: ordered.map((pointIndex) => {
+      const value = xValues[pointIndex];
+      if (value === undefined) {
+        throw new Error(`Chart sampling retained the out-of-range x index ${String(pointIndex)}.`);
+      }
+      return value;
+    }),
+    series: sampledSeries,
+    renderedPoints,
+  };
+}
+
 /**
  * Resolves one chart into its RenderModel (SPEC §11.3).
  *
@@ -526,12 +618,18 @@ export function resolveSeries(
     xAxis.unit = xColumn.unit;
   }
 
+  const sampling = spec.options.sampling;
+  const sampled =
+    sampling.enabled && sourcePoints > sampling.threshold
+      ? sampleModel(xAxis.values, samplingCoordinates(xAxis.values, xAxis.type), series, sampling)
+      : null;
+
   return {
     ok: true,
     model: {
       kind: spec.kind,
-      x: xAxis,
-      series,
+      x: sampled === null ? xAxis : { ...xAxis, values: sampled.xValues },
+      series: sampled === null ? series : sampled.series,
       style: {
         palette,
         background: resolveChartBackground(spec.options.background, {
@@ -547,9 +645,9 @@ export function resolveSeries(
         yStartAtZero: spec.options.yStartAtZero,
       },
       meta: {
-        sampled: false,
+        sampled: sampled !== null,
         sourcePoints,
-        renderedPoints: sourcePoints,
+        renderedPoints: sampled === null ? sourcePoints : sampled.renderedPoints,
         warnings,
       },
     },

@@ -1,5 +1,5 @@
 /**
- * Performance benchmark harness (TESTPLAN §5, TASKS T2.7).
+ * Performance benchmark harness (TESTPLAN §5, TASKS T2.7/T4.2).
  *
  * Usage:
  *   pnpm bench                    # every suite
@@ -7,6 +7,7 @@
  *   pnpm bench -- --edit          # cell commit through the command bus
  *   pnpm bench -- --query         # filter/sort, ASCII + CJK text, clone cost
  *   pnpm bench -- --import        # 100k GBK CSV import pipeline
+ *   pnpm bench -- --sample        # RenderModel resolve + LTTB sampling
  *   pnpm bench -- --write-baseline  # refresh bench/baseline.json
  *
  * The script is dependency-free beyond `tsx` (dev tooling): it generates its
@@ -36,8 +37,16 @@ import { fileURLToPath } from 'node:url';
 import iconv from 'iconv-lite';
 
 import { createAppStore, createCommandBus, createTableCellSetCommand } from '@curve/app-core';
+import { lttbIndices, resolveSeries } from '@curve/chart-model';
 import { createConditionalFormat } from '@curve/domain';
-import type { ConditionalRule, FilterPredicate, Row, SortSpec, TableMeta } from '@curve/domain';
+import type {
+  ChartSpec,
+  ConditionalRule,
+  FilterPredicate,
+  Row,
+  SortSpec,
+  TableMeta,
+} from '@curve/domain';
 import { validateManifest, serializeManifest } from '@curve/persistence';
 import {
   countJsonlRows,
@@ -88,6 +97,10 @@ const CJK_QUERY_BUDGET_MS = 800;
 const IMPORT_BUDGET_MS = 8_000;
 /** TASKS T3.3: 50 conditional rules × 100 visible rows stay under 16ms. */
 const CONDITION_BUDGET_MS = 16;
+/** SPEC §16.1: resolving + sampling a 100k-point chart stays under 300ms. */
+const CHART_RESOLVE_BUDGET_MS = 300;
+/** TASKS T4.2: LTTB sampling one 100k-point series stays under 50ms. */
+const CHART_SAMPLE_BUDGET_MS = 50;
 /** SPEC §16.1 ceiling; the E2E app-wide measurement owns this gate. */
 const MEMORY_BUDGET_MB = 600;
 const MEMORY_SAMPLE_MS = 50;
@@ -108,7 +121,7 @@ const fixtureDirectory = join(benchDirectory, '.fixtures', '100k-workspace');
 const tempDirectory = join(benchDirectory, '.tmp');
 
 interface SuiteResult {
-  name: 'table-io' | 'edit' | 'query' | 'import';
+  name: 'table-io' | 'edit' | 'query' | 'import' | 'sample';
   cases: BenchCase[];
   diagnostics: BenchDiagnostic[];
   rows: number;
@@ -577,6 +590,132 @@ function runImportSuite(): SuiteResult {
   };
 }
 
+/** SPEC §11.3 fixture: a wide line chart with two dense y series. */
+function benchChartSpec(tableId: string): ChartSpec {
+  return {
+    id: 'cht_bench',
+    title: 'Bench chart',
+    kind: 'line',
+    tableId,
+    mapping: { layout: 'wide', xColumnId: 'col_time', yColumnIds: ['col_a', 'col_c'] },
+    sort: [],
+    options: {
+      smooth: false,
+      showSymbol: false,
+      lineWidth: 2,
+      paletteId: 'default',
+      background: 'auto',
+      showGrid: true,
+      legend: 'top',
+      yStartAtZero: false,
+      numberDigits: 1,
+      sampling: { enabled: true, threshold: 2_000, target: 2_000 },
+    },
+    version: 1,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+/**
+ * One chart spec resolved twice: once end to end (filter/sort/mapping + LTTB)
+ * and once with sampling disabled, plus the raw sampler on a single 100k series.
+ * The 300ms budget is the SPEC §16.1 resolve+sample entry (T4.6 owns rendering).
+ */
+function runChartSuite(table: TableMeta, rows: Row[]): SuiteResult {
+  const spec = benchChartSpec(table.id);
+  const unsampled: ChartSpec = {
+    ...spec,
+    options: { ...spec.options, sampling: { ...spec.options.sampling, enabled: false } },
+  };
+
+  const resolveModel = (candidate: ChartSpec) => {
+    const result = resolveSeries(table, rows, candidate);
+    if (!result.ok) {
+      throw new Error(
+        `Chart benchmark failed: ${result.issues.map((issue) => issue.code).join(', ')}`,
+      );
+    }
+    return result.model;
+  };
+
+  const sampledModel = resolveModel(spec);
+  if (!sampledModel.meta.sampled) {
+    throw new Error('Chart benchmark did not sample the 100k fixture.');
+  }
+  if (sampledModel.meta.renderedPoints >= sampledModel.meta.sourcePoints) {
+    throw new Error('Chart benchmark sampling did not reduce the point count.');
+  }
+  if (sampledModel.series.length !== 2) {
+    throw new Error(`Chart benchmark resolved ${String(sampledModel.series.length)} series.`);
+  }
+  for (const series of sampledModel.series) {
+    const points = series.values.filter((value) => value !== null).length;
+    if (points > spec.options.sampling.target) {
+      throw new Error(`Chart benchmark kept ${String(points)} points in one series.`);
+    }
+  }
+  if (sampledModel.x.values.length > rows.length) {
+    throw new Error('Chart benchmark grew the x axis while sampling.');
+  }
+
+  // Raw sampler input: the same 100k series the resolve path samples.
+  const xIndex = table.columns.findIndex((column) => column.id === 'col_time');
+  const yIndex = table.columns.findIndex((column) => column.id === 'col_a');
+  const xValues: number[] = [];
+  const yValues: (number | null)[] = [];
+  for (const row of rows) {
+    const x = row.values[xIndex];
+    const y = row.values[yIndex];
+    if (typeof x === 'number' && typeof y === 'number') {
+      xValues.push(x);
+      yValues.push(y);
+    }
+  }
+
+  const cases = [
+    measure('chart.resolve-sample.100k', CHART_RESOLVE_BUDGET_MS, () => {
+      const model = resolveModel(spec);
+      if (!model.meta.sampled) {
+        throw new Error('Chart resolve+sample benchmark lost its sampled flag.');
+      }
+    }),
+    measure('chart.sample.100k', CHART_SAMPLE_BUDGET_MS, () => {
+      const indices = lttbIndices(xValues, yValues, spec.options.sampling.target);
+      if (indices.length !== spec.options.sampling.target) {
+        throw new Error(`Chart sampler kept ${String(indices.length)} points.`);
+      }
+    }),
+  ];
+
+  const unsampledSamples: number[] = [];
+  for (let index = 0; index < MEASURED_RUNS; index += 1) {
+    const started = performance.now();
+    const model = resolveModel(unsampled);
+    unsampledSamples.push(performance.now() - started);
+    if (model.meta.sampled || model.x.values.length !== rows.length) {
+      throw new Error('Chart resolve benchmark produced a sampled model without sampling.');
+    }
+  }
+  const unsampledSummary = summarizeSamples(unsampledSamples);
+
+  return {
+    name: 'sample',
+    cases,
+    diagnostics: [
+      {
+        name: 'chart.resolve-unsampled.100k',
+        p50: unsampledSummary.p50,
+        p95: unsampledSummary.p95,
+        unit: 'ms',
+      },
+    ],
+    rows: rows.length,
+    columns: table.columns.length,
+    bytes: 0,
+  };
+}
+
 function loadBaseline(): ReturnType<typeof parseBaseline> | null {
   if (!existsSync(baselinePath)) {
     return null;
@@ -592,7 +731,13 @@ function loadBaseline(): ReturnType<typeof parseBaseline> | null {
 
 type SuiteName = SuiteResult['name'];
 
-const SUITE_NAMES: readonly SuiteName[] = Object.freeze(['table-io', 'edit', 'query', 'import']);
+const SUITE_NAMES: readonly SuiteName[] = Object.freeze([
+  'table-io',
+  'edit',
+  'query',
+  'import',
+  'sample',
+]);
 
 function isSuiteName(value: string | undefined): value is SuiteName {
   return value !== undefined && (SUITE_NAMES as readonly string[]).includes(value);
@@ -612,6 +757,8 @@ function runSingleSuite(name: SuiteName): SuiteResult {
       return runEditSuite(table, rows);
     case 'query':
       return runQuerySuite(table, rows);
+    case 'sample':
+      return runChartSuite(table, rows);
   }
 }
 
@@ -697,17 +844,18 @@ function main(argv: readonly string[]): number {
   const wantEdit = argv.includes('--edit');
   const wantQuery = argv.includes('--query');
   const wantImport = argv.includes('--import');
+  const wantSample = argv.includes('--sample');
   const writeBaseline = argv.includes('--write-baseline');
 
   if (argv.includes('--help')) {
     console.log(
       'Usage: pnpm bench [-- --table-io] [-- --edit] [-- --query] [-- --import] ' +
-        '[-- --write-baseline]',
+        '[-- --sample] [-- --write-baseline]',
     );
     return 0;
   }
 
-  const anySuite = wantTableIo || wantEdit || wantQuery || wantImport;
+  const anySuite = wantTableIo || wantEdit || wantQuery || wantImport || wantSample;
   const selected = SUITE_NAMES.filter((name) => {
     if (!anySuite) {
       return true;
@@ -721,6 +869,8 @@ function main(argv: readonly string[]): number {
         return wantQuery;
       case 'import':
         return wantImport;
+      case 'sample':
+        return wantSample;
     }
   });
 
