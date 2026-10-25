@@ -72,7 +72,7 @@
 | `T4.1` RenderModel 与宽/长表映射 | **已完成**（2026-10-24，`06858d4`）；报告 `docs/reports/t4.1/REPORT.md`；ADR-040 |
 | `T4.2` LTTB 采样与缺失值语义 | **已完成**（2026-10-25，`247093d`）；报告 `docs/reports/t4.2/REPORT.md`；ADR-041 |
 | `T4.3` ECharts 适配器 | **已完成**（2026-10-25，`7a9b665`）；报告 `docs/reports/t4.3/REPORT.md`；ADR-042 |
-| `T4.4` 图表创建与检查器 | **已完成**（2026-10-25）；报告 `docs/reports/t4.4/REPORT.md`；ADR-043 |
+| `T4.4` 图表创建与检查器 | **已完成**（2026-10-25，`862063f`）；报告 `docs/reports/t4.4/REPORT.md`；ADR-043 |
 | 当前里程碑 | **M4 图表**：T4.1–T4.4 已完成，下一 T4.5 |
 | 下一步 | **T4.5 图表交互、空态与 PNG 导出** |
 | `pnpm verify` 基线 | **159 files / 1434 tests**；ESLint 0；depcruise 435 modules / 1791 deps / 0 violations |
@@ -2154,7 +2154,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | Playwright 合成快速拖动列宽 | 最后一步与 `pointerup` 提交可能差一步 | M2 验收用 `dblclick` autofit 提交确定值；T5.3 统一保存队列时复核 |
 | 筛选对话框只支持单层 | 嵌套谓词只读 | ADR-032；如需嵌套 UI 另写 ADR |
 | 结构变更不可撤销 | 误操作需手工恢复 | 确认框 + 磁盘备份；T5.2 统一历史 |
-| 图表/样式悬空引用 | 图表错误占位；样式求值忽略 | 样式覆盖/规则列引用按 SPEC §6.6.7 保留；T3.2/T3.3 求值时忽略缺失列，T4.x 图表重映射 |
+| 图表/样式悬空引用 | 图表进入错误态；样式求值忽略 | 样式覆盖/规则列引用按 SPEC §6.6.7 保留；T4.4 对图表提供 `missing-columns` + 内嵌重映射，修复后持久化 |
 | 条件规则 number/date `contains` | 匹配 epoch 字符串，不是显示日期 | 按 SPEC §10.4“字符串化”字面实现；需要显示文本匹配时另写 ADR |
 | 条件规则不叠加 | 多条规则只有首条生效 | SPEC §10.4；需要叠加时扩展 `ConditionalRule.style`/合并语义并写 ADR |
 | 条件背景覆盖 bar | 同时启用时 bar 不可见 | ADR-036 的优先级决定；需要并存时重定视觉规则 |
@@ -2189,7 +2189,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 名称冲突按持久化 `style.name` 比较 | 本地化显示名可能观感重复 | 管理器/导入按 id 本地化内置名称；不做静默改名 |
 | 模板管理是模态对话框 | 不能边看主网格边管理 | 应用/删除后关闭查看；需要非模态时另写 ADR |
 | 图表 X 缺失行被丢弃 | 图表点数少于表格行数 | ADR-040：number/date X 缺失行丢弃并聚合 warning；需要在图上保留占位时另写 ADR |
-| 图表 warning 为英文聚合文案 | UI 无法逐行定位、未本地化 | 与 workspace/manifest warning 一致；T4.4/T4.5 展示时再映射，不得吞掉 |
+| 图表 warning 为英文聚合文案 | UI 无法逐行定位、未本地化 | 与 workspace/manifest warning 一致；T4.4 在图表视图原样展示（不吞掉），本地化留后续 |
 | 长表 null 与空串合并为 `(空)` | 图上无法区分二者 | ADR-040；数据仍完整保留，需要区分时扩展系列 id 语义并写 ADR |
 | 图表调色板为 chart-model 常量 | 不能跟随主题令牌 | ADR-040；需要令牌化时改常量并写 ADR，不涉及 manifest |
 | T4.1 `sourcePoints` 不含断点 | T4.2 采样预算口径易混淆 | 采样后 `renderedPoints ≤ sourcePoints`，按 ADR-040 的口径报告，不改预算 |
@@ -2197,9 +2197,9 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | T4.2 被采样略过的 null 与真实缺口同形 | 适配器无法只断真实缺口 | ADR-041 代价；T4.3 已按 ADR-042 §3 处理（未采样断开 / 已采样跨过）；需要结构化 gap 时另写 ADR |
 | T4.2 未采样系列贡献全部非空点 | 极端多小系列时采样收益下降 | 有意取舍（不丢未采样数据）；T4.6 若超预算再评估 |
 | `scripts/bench.ts` 依赖 `@curve/chart-model` | 重装依赖可能出现 symlink 权限错误 | 根 devDependency（仅 bench）；按 §3.4 预建 junction 后 `pnpm install` |
-| T4.3 按需注册仍带 toolbox feature 实现 | bundle 606.0 kB min / 206 kB gzip | ADR-042：只启用 dataZoom feature；T4.4 接线后记录 renderer 增量，T6.4 评估拆包 |
+| T4.3 按需注册仍带 toolbox feature 实现 | bundle 606.0 kB min / 206 kB gzip | ADR-042：只启用 dataZoom feature；T4.4 已接入 renderer（主 chunk 3,209.97 kB），T6.4 评估拆包 |
 | 采样图真实缺口也被连线 | 图上无法区分真实缺口与采样略过 | ADR-042 §3：未采样断开、已采样连线（ADR-041 接受的代价）；需要真实断点时改 RenderModel 结构化 gap + ADR |
-| Y 轴单位不在 `RenderModel` | tooltip/轴名只有 X 单位 + Y 精度 | ADR-042“代价”；扩展 SPEC §11.3 的 `RenderSeries.unit` 并写 ADR，不在组件里绕过 |
+| Y 轴单位不在 `RenderModel` | tooltip 只有 X 单位 + Y 精度（T4.4 已补 Y 轴名 `y.label`，单位仍缺） | ADR-043：`RenderModel.y.label` 只来自 `options.yLabel`；需要 Y 单位/逐列轴名时扩展 SPEC §11.3 的 `RenderSeries.unit` 并写 ADR，不在组件里绕过 |
 | toolbox 英文标题/动画关闭/滑块常驻 | 中文界面少量英文、无入场动画 | T4.5 决定本地化/交互；动画关闭是为 2k 点与 PNG 确定性（ADR-042） |
 | canvas 无法在 jsdom 单测 | 真实像素/布局未在单测覆盖 | 生命周期 mock `echarts/core`；`option.ssr.test.ts` 用真实 ECharts SSR/SVG；像素与 resize 由 T4.5/T4.6 E2E |
 | `[x, null]` 空点语义依赖 ECharts 版本 | 升级主版本可能改变断点/连线 | 版本锁 6.1.0；SSR 测试断言 2 子路径/1 子路径；升级 ECharts 主版本需重跑并写 ADR |
@@ -2236,45 +2236,55 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
   会硬失败）。
 - 不在组件/检查器里拼 option；option 只经 `toEChartsOption`，绘制只经 `createChartRenderer`。
 - 不把 `'number'` 写进 ECharts 的 `xAxis.type`（必须是 `value`）；不把 `null` 变成 0 或插值。
-- 不擅自改断点策略：未采样 `connectNulls:false`、已采样 `connectNulls:true`（ADR-042 §3）；
-  需要真实断点先改 RenderModel 并写 ADR。
+- 不擅自改断点策略：`RenderStyle.connectNulls` 由 chart-model 计算（采样图/长表 `true`、宽表未采样
+  `false`）；不要在适配器/组件里按 `meta.sampled` 或布局重算，也不要为“看起来连续”改成永远 true
+  （ADR-042 §3、ADR-043）。
 - 不在 `chart-echarts` 里读表、Store 或命令总线；它只消费 `RenderModel`。
 - 不在 jsdom 里 `init` 真实 canvas 渲染器（没有 2D context）；单测用 mock 或 SSR/SVG。
 - 不把用户可控文本（系列名/类目值）未转义地拼进 tooltip HTML；统一走 `escapeHtmlText`。
-- 不自动跨任务/跨里程碑；M3 已验收并关闭，M4 的 T4.1–T4.6 完成后运行验收演示，停下等用户确认。
+- 不在检查器/组件里维护图表文档副本或直接改 store；所有变更走 `chart.update`（命令总线，撤销）。
+- 不在模型变化时重建图表实例：首次 `ChartCanvas.render()`，之后只走 120ms 防抖 `update()`；
+  不要在 React 里另建 `ChartRenderer` 或反复 `dispose/init`。
+- 不给 `chart.update` 加严格映射校验（列删除后的逐步修复路径），也不让 `chart.create` 接受非法
+  映射；复制/向导仍必须严格校验。
+- 不把 `ChartOptions.yLabel` 绕过 `RenderModel.y.label` 直接写进 option；Y 单位/逐列轴名需要新
+  契约与 ADR。
+- 不自动跨任务/跨里程碑；M3 已验收并关闭，M4 的 T4.5、T4.6 完成后运行验收演示，停下等用户确认。
 
 ---
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 包含 T4.3 代码提交 **`7a9b665`**（报告
-      `docs/reports/t4.3/REPORT.md`）。
+- [ ] `git status --short` 干净；`git log --oneline -3` 包含 T4.4 代码提交 **`862063f`**（报告
+      `docs/reports/t4.4/REPORT.md`）与交接提交 **`0713149`**。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t4.3/REPORT.md`、`docs/TASKS.md` 的 M4/T4.4、
-      `docs/SPEC.md §11.3–§11.5` 与 `docs/adr/042-t43-echarts-adapter.md`。
-- [ ] 已确认 `pnpm verify` 基线（152 files / 1369 tests）、coverage lines 76.09%、
-      e2e 72 passed、bench exit 0、`chart.sample.100k` P95 21ms、`chart.resolve-sample.100k` P95 81ms。
+- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t4.4/REPORT.md`、`docs/TASKS.md` 的 M4/T4.5、
+      `docs/SPEC.md §11.3–§11.6`、`docs/adr/043-t44-chart-creation-inspector.md`
+      （并按需回看 ADR-042/041/040）。
+- [ ] 已确认 `pnpm verify` 基线（**159 files / 1434 tests**）、coverage lines **75.89%**、
+      `pnpm e2e` **76 passed**、`pnpm bench` exit 0、`chart.sample.100k` P95 **5ms**、
+      `chart.resolve-sample.100k` P95 **75ms**。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M1/M2/M3 均已获用户接受、T3.1–T3.6、T4.1、T4.2 与 T4.3 已完成；下一步为 T4.4，
-      一次只推进一个任务。
-- [ ] 已确认 T3.1 的 hex 颜色/内置冻结/resolve/fork；T3.2 的 20 个表变量/宽度优先级/全局数字规则/
-      bar/badge；T3.3 的条件原语/`conditionCompareOps`/优先级/`style.update`；T3.4 的
-      `style.create` 懒 fork、前 50 行预览与一次控件一条撤销；T3.5 的 `style.delete/apply`、
-      导出文档/身份重分配、删除回退与可撤销；T3.6 的 `file:exportCsv` 四步协议、
-      BOM/CRLF/RFC4180、原始值/显示格式与 5s 预算；M3 的 `virtualizer.measure()` 行高重测；
-      T4.1 的 `resolveSeries` 映射/校验/空值口径、4 调色板与 `sourcePoints` 定义；
-      T4.2 的 `lttbIndices`/`sampleSeriesIndices`、共享 X 轴并集与 `meta.sampled` 口径。
-- [ ] 已确认 T4.3：`echarts@6.1.0` 已安装且只属于 `chart-echarts`；`chart-echarts` 不再是占位包，
-      `tsconfig.json` 有 domain/chart-model references、DOM lib 与 `types:["node"]`；
-      `toEChartsOption` 是唯一 option 构造点（`number→value`/`time`/`category`、`[x, y]` 对）；
-      断点为"未采样断开 / 已采样连线"；tooltip 为 HTML + `escapeHtmlText`；生命周期为
-      `render/update/resize/dispose/toPNG` 且空模型不建实例；`activeChartInstanceCount()` 为 0
-      证明无泄漏；depcruise `only-chart-echarts-imports-echarts` 生效。
+- [ ] 已确认 M1/M2/M3 均已获用户接受、T3.1–T3.6、T4.1–T4.4 已完成；下一步为 T4.5
+      （图表交互、空态与 PNG 导出），一次只推进一个任务。
+- [ ] 已确认 T4.4：`chart.create { chart, view }`/`chart.update { chart }`/`chart.delete { chartId }`
+      为 manifest-only、workspace 作用域撤销；`createChart/updateChart/deleteChart/duplicateChart/
+      openChart` 的失败/committed 语义；`DEFAULT_CHART_OPTIONS` 的 sampling 5000/2000；
+      `RenderModel.y.label` 与 `RenderStyle.connectNulls`（采样图/长表 true、宽表未采样 false）；
+      `ChartView/ChartCanvas` 首次 render + 120ms 防抖 update + resize + dispose；`data-chart-*`
+      渲染契约；列删除后的 `missing-columns` 可重映射错误态；`ChartPlaceholder` 已删除。
+- [ ] 已确认 T4.3 的 `echarts@6.1.0` 只属于 `chart-echarts`，T4.4 只通过 `ChartCanvas` 使用适配器；
+      depcruise `only-chart-echarts-imports-echarts` 生效；option 只经 `toEChartsOption`。
+- [ ] 已确认 T4.1/T4.2 的映射/采样口径未变：`resolveSeries` 仍是唯一解析/采样入口，
+      `meta.sampled` 只表示“真的降采样”，采样后 `renderedPoints ≤ sourcePoints`。
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
-- [ ] 已确认 E2E 写盘断言使用 `expect.poll`；`m3` 截图写入 `docs/reports/m3/`，`m0` 截图提交前还原。
-- [ ] 已确认 `chart-echarts` 尚未被 renderer 引用（renderer 仍 1,618.04 kB）；T4.4 接线后记录
-      新的 renderer chunk 尺寸（§5M 的 T4.4 交接提示）。
-- [ ] 跑全量 E2E 前已确认没有外部程序占满 CPU（§3.3/§7）。
-- [ ] T4.4 开工前按 AGENTS §8 复述目标/涉及文件/验收命令，再测试先行。
+- [ ] 已确认 E2E 写盘断言使用 `expect.poll`；`m0` 截图提交前还原；`docs/reports/t4.4/*.png`
+      （4 张）已提交。
+- [ ] 已确认 renderer 主 chunk 为 **3,209.97 kB**（ECharts 已接入）、CSS 70.66 kB；
+      T6.4 评估拆包，T4.5 不再改图表层架构或重建实例。
+- [ ] 跑全量 E2E 前已确认没有外部程序占满 CPU（§3.3/§7）；T4.4 全量曾偶发 grid 200% 焦点失败，
+      单跑可过，不放宽断言。
+- [ ] T4.5 开工前按 AGENTS §8 复述目标/涉及文件/验收命令，再测试先行（三种空态、缩放/图例/
+      tooltip、PNG 导出、aria 摘要与“查看数据表”、toolbox 本地化）。
