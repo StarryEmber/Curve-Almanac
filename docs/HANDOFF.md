@@ -4,7 +4,8 @@
 > 全部完成；下一步是 **M4 验收演示**（TESTPLAN E6），执行并输出报告后停下等用户确认。
 > 最后更新：2026-10-26 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
-> T4.5 代码 **`fd68789`**（T4.6 代码哈希见 `git log -1 -- docs/HANDOFF.md`）。
+> T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**（本交接文档的提交见
+> `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t4.6/REPORT.md` →
 > `docs/TASKS.md` 的 M4（T4.6 备注）→ `docs/SPEC.md` §11.3、§11.5、§16.1 →
 > `docs/adr/045-t46-chart-performance.md` → ADR-044 → ADR-043 → ADR-042 → ADR-041 → ADR-040。
@@ -77,7 +78,7 @@
 | `T4.3` ECharts 适配器 | **已完成**（2026-10-25，`7a9b665`）；报告 `docs/reports/t4.3/REPORT.md`；ADR-042 |
 | `T4.4` 图表创建与检查器 | **已完成**（2026-10-25，`862063f`）；报告 `docs/reports/t4.4/REPORT.md`；ADR-043 |
 | `T4.5` 图表交互、空态与 PNG 导出 | **已完成**（2026-10-26，`fd68789`）；报告 `docs/reports/t4.5/REPORT.md`；ADR-044 |
-| `T4.6` 图表性能硬化 | **已完成**（2026-10-26）；报告 `docs/reports/t4.6/REPORT.md`；ADR-045 |
+| `T4.6` 图表性能硬化 | **已完成**（2026-10-26，`0fc37aa`）；报告 `docs/reports/t4.6/REPORT.md`；ADR-045 |
 | 当前里程碑 | **M4 图表**：T4.1–T4.6 全部完成；下一步 **M4 验收演示**（停下等用户确认） |
 | 下一步 | **M4 验收演示**（TESTPLAN E6）；验收通过后进入 M5（T5.1） |
 | `pnpm verify` 基线 | **163 files / 1505 tests**；ESLint 0；depcruise 446 modules / 1867 deps / 0 violations |
@@ -2338,6 +2339,9 @@ chart-perf 实测     resolve 47ms / update 89ms；样式提交 resolve 0ms / up
 - `data-chart-*` 新增 5 个诊断属性；改名需同步 SPEC §11.5 与 `chart-perf`。
 - `longtask` 门禁在不支持该 API 的浏览器上跳过断言。
 - bench suite 更名会让旧的 `sample` 名称从报告消失（`--sample` 仍可用）；基线仍未生成。
+
+提交：**`0fc37aa`**（`feat(chart): harden chart performance with cached data and deferred
+resolve (T4.6)`）；本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`。
 
 ---
 
