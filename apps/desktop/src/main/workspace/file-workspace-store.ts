@@ -820,6 +820,10 @@ export class FileWorkspaceStore implements WorkspaceStore {
 
     const target = join(backupsDirectory, fileName);
     try {
+      // A workspace copied from another machine or restored from a backup can
+      // miss the SPEC §7.1 `backups/` folder; the backup is best-effort
+      // metadata, so recreate the directory instead of failing the save.
+      await mkdir(backupsDirectory, { recursive: true });
       await this.writeFile(target, content.toString('utf8'));
     } catch (error) {
       throw toFsError('E_FS_WRITE', 'Cannot write the workspace backup.', error);

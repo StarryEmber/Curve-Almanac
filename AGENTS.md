@@ -23,7 +23,9 @@
   （`docs/reports/t4.2/REPORT.md`、ADR-041）；**T4.3（ECharts 适配器）已完成**
   （`docs/reports/t4.3/REPORT.md`、ADR-042）；**T4.4（图表创建与检查器）已完成**
   （`docs/reports/t4.4/REPORT.md`、ADR-043）；**T4.5（图表交互、空态与 PNG 导出）已完成**
-  （`docs/reports/t4.5/REPORT.md`、ADR-044）；下一任务 T4.6（图表性能硬化）。
+  （`docs/reports/t4.5/REPORT.md`、ADR-044）；**T4.6（图表性能硬化）已完成**
+  （`docs/reports/t4.6/REPORT.md`、ADR-045）。M4 的 T4.1–T4.6 全部完成，下一动作是
+  **M4 验收演示**（TESTPLAN E6），执行并输出报告后停下等用户确认。
 - 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
   `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 15 个已接线
   IPC 通道；**续作前先读 `docs/HANDOFF.md`**。

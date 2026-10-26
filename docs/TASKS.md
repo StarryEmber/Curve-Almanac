@@ -1082,8 +1082,8 @@ T0.2 + T5.5 → T6.4
 ## M4 图表
 
 > 状态（2026-10-26）：`T4.1`（RenderModel 与宽/长表映射）、`T4.2`（LTTB 采样与缺失值语义）、
-> `T4.3`（ECharts 适配器）、`T4.4`（图表创建与检查器）与 `T4.5`（图表交互、空态与 PNG 导出）
-> 已完成；下一任务 `T4.6`（图表性能硬化）。M4 验收演示在 T4.6 完成后执行，停下等用户确认。
+> `T4.3`（ECharts 适配器）、`T4.4`（图表创建与检查器）、`T4.5`（图表交互、空态与 PNG 导出）与
+> `T4.6`（图表性能硬化）已完成；M4 验收演示待执行（TESTPLAN E6），执行后停下等用户确认。
 
 <a id="t41"></a>
 ### T4.1 RenderModel 与宽/长表映射
@@ -1343,7 +1343,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t46"></a>
 ### T4.6 图表性能硬化
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T4.2、T4.5
 - 覆盖：FR-CHT-05、NFR-01
 - 参考：SPEC §16.1
@@ -1356,10 +1356,53 @@ T0.2 + T5.5 → T6.4
   2. 避免每次更新重建实例；避免重复 resolve。
   3. 大表切换映射时显示 loading，不冻结输入。
 - 验收：
-  - [ ] 预算达标；连续拖动缩放不卡顿。
-  - [ ] 切换表/映射无内存泄漏（10 次后实例数稳定）。
-  - [ ] 回归 >20% 报警。
+  - [x] 预算达标；连续拖动缩放不卡顿。
+  - [x] 切换表/映射无内存泄漏（10 次后实例数稳定）。
+  - [x] 回归 >20% 报警。
 - 验证：`pnpm bench -- --chart && pnpm e2e -- --grep "chart-perf"`
+
+  实现备注（2026-10-26，ADR-045）：
+  - 解析/样式拆分：`@curve/chart-model` 新增 `resolveChartData`（行集 → x/系列值/meta，不含颜色与
+    样式）与 `renderChartModel`（调色板/背景/线宽/图例/精度/Y 轴名/kind），`resolveSeries` 变成
+    二者组合且输出不变（黄金快照未动）。样式提交不再重新筛选/排序/采样。
+  - 数据缓存：`features/charts/chart-data-cache.ts` 的 `createChartDataCache`（容量 2、LRU、
+    `rows` 引用 + 数据键双重命中）；键含表结构签名、mapping/filter/sort/sampling/locale，不含
+    样式字段与 `xLabel`（`xLabel` 改为样式段应用）。`ChartView` 与新建向导各自持有一份，
+    卸载即释放。
+  - 延迟解析：`useChartRenderStatus` 在行数 > `CHART_DEFER_RESOLVE_ROW_THRESHOLD = 20_000` 且缓存
+    未命中时先渲染 loading（`role="status"`、`data-chart-pending="true"`），在 `setTimeout(0)`
+    中解析；首次挂载与切换映射/标签页同样适用。小表/缓存命中同步解析。不引入图表 Worker。
+  - 诊断契约：`data-chart-pending`/`data-chart-resolve-ms`（chart-view）与
+    `data-chart-update-ms`/`data-chart-update-count`/`data-chart-instances`（chart-canvas）。
+  - 交互合并：`datazoom`/`legendselectchanged` 的状态发布按 `requestAnimationFrame` 合并，
+    工具栏动作仍立即发布；`dispatchInteraction`/`update` 行为不变。
+  - 解析分配优化（实现级，语义不变）：默认数值/时间 X 排序改为“坐标数组 + 下标排序”，
+    去掉每行 `{row,index,value}` 装饰对象；无筛选时不再先复制整表行。
+  - 修复任务中暴露的主进程缺陷：`FileWorkspaceStore.copyToBackup` 直接写 `backups/`，而复制/
+    恢复的工作区可能没有该目录，导致 100k 图表工作区的每次 `manifest:write`/`table:write`
+    备份失败（`E_FS_WRITE`/ENOENT）且 UI 只弹 Toast。保存前 `mkdir(recursive)`，新增
+    “备份目录缺失时保存仍成功”的回归测试；修复后切换场景内存从 605–612MB 回落到 584–592MB
+    （失败保存的重试/错误状态不再累积）。
+  - 基准：`sample` suite 更名 `chart`（`--chart`，`--sample` 保留别名），新增
+    `chart.option.2k`（50ms）与 `chart.restyle.100k`（20ms）；渲染/更新预算由
+    `e2e/chart-perf.spec.ts` 的 `data-chart-update-ms` 判定。根 `devDependencies` 增加 workspace 包
+    `@curve/chart-echarts`（仅 bench 读 `toEChartsOption`），`scripts/tsconfig.json` 增加引用与
+    `DOM` lib。
+  - 文件：`packages/chart-model/src/{render-model.ts,index.ts}` 与测试；
+    `apps/desktop/src/renderer/features/charts/{chart-data-cache,use-chart-render-status,
+    chart-view-model,ChartView,ChartCanvas,NewChartDialog}.tsx/ts` 与测试；
+    `apps/desktop/src/main/workspace/file-workspace-store.ts`（+test）；
+    `i18n/messages/*`、`styles.css`；`scripts/bench.ts`、`scripts/tsconfig.json`、`bench/README.md`、
+    根 `package.json`、`pnpm-lock.yaml`；`apps/desktop/e2e/chart-perf.spec.ts`。
+  - 实测：`pnpm bench -- --chart` —— `chart.resolve-sample.100k` P50 **59ms** / P95 **63ms**
+    （预算 300ms）、`chart.sample.100k` P95 **2ms**（50ms）、`chart.option.2k` P95 **1ms**（50ms）、
+    `chart.restyle.100k` P95 **0ms**（20ms）；`chart.resolve-unsampled.100k` P95 51ms（诊断）。
+    `chart-perf` E2E：`resolveMs=47`、`updateMs=89`（200ms 预算）、样式提交
+    `resolveMs=0`/`updateMs=14`、10 次连点缩放无 >50ms 长任务、切换 11 次后
+    `data-chart-instances=1`、切换后 private 峰值 589–591MB（≤600MB）、初始 470MB。
+    `pnpm verify` **163 files / 1505 tests**；coverage 全局 lines **76.47%**；`pnpm e2e`
+    **81 passed**；`pnpm bench` exit 0（全量 memoryPeakMB 914，Node 趋势）。详见
+    `docs/reports/t4.6/REPORT.md`。
 
 **M4 验收演示**：同一张表建宽表折线 + 长表多系列 → 缩放/图例/tooltip → 100k 点采样徽标 → 导出 PNG → 重启还原。输出报告后停下。
 

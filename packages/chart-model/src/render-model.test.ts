@@ -11,10 +11,17 @@ import {
   canBeChartSeries,
   canBeChartX,
   canBeChartY,
+  renderChartModel,
+  resolveChartData,
   resolveSeries,
   validateChartMapping,
 } from '@curve/chart-model';
-import type { ChartIssue, ChartResolveResult } from '@curve/chart-model';
+import type {
+  ChartDataResult,
+  ChartIssue,
+  ChartResolveResult,
+  ResolvedChartData,
+} from '@curve/chart-model';
 import type { ChartOptions, ChartSpec, ColumnDef, Row, TableMeta } from '@curve/domain';
 
 const ISO = '2026-01-01T00:00:00.000Z';
@@ -1032,6 +1039,112 @@ describe('resolveSeries — y axis label', () => {
       resolveSeries(TABLE, ROWS, makeSpec({ options: { ...OPTIONS, yLabel: '   ' } })),
     );
     expect(blank.y).toBeUndefined();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Split resolve: data vs style (T4.6, ADR-045)                               */
+/* -------------------------------------------------------------------------- */
+
+function dataOf(result: ChartDataResult): ResolvedChartData {
+  if (!result.ok) {
+    throw new Error(result.issues.map((issue) => issue.message).join('; '));
+  }
+  return result.data;
+}
+
+describe('resolveChartData / renderChartModel (T4.6 split)', () => {
+  it('composes into exactly the same RenderModel as resolveSeries', () => {
+    const spec = makeSpec({ options: { ...OPTIONS, xLabel: 'Timestamp' } });
+    const data = dataOf(resolveChartData(TABLE, ROWS, spec, { theme: 'dark' }));
+    const model = renderChartModel(data, spec, { theme: 'dark' });
+    expect(model).toEqual(modelOf(resolveSeries(TABLE, ROWS, spec, { theme: 'dark' })));
+  });
+
+  it('keeps row-derived data independent of palette, background, kind and line style', () => {
+    const base = makeSpec();
+    const styled = makeSpec({
+      kind: 'bar',
+      options: {
+        ...OPTIONS,
+        paletteId: 'vivid',
+        background: 'dark',
+        lineWidth: 5,
+        smooth: true,
+        showSymbol: true,
+        legend: 'right',
+        showGrid: false,
+        numberDigits: 4,
+        yStartAtZero: true,
+        yLabel: 'Load',
+      },
+    });
+    const plain = dataOf(resolveChartData(TABLE, ROWS, base));
+    const decorated = dataOf(resolveChartData(TABLE, ROWS, styled));
+    expect(decorated).toEqual(plain);
+    expect(plain.series.every((series) => !('color' in series))).toBe(true);
+
+    const model = renderChartModel(plain, styled);
+    expect(model.kind).toBe('bar');
+    expect(model.y).toEqual({ label: 'Load' });
+    expect(model.series[0]?.color).toBe(CHART_PALETTES.vivid[0]);
+    expect(model.style.palette).toEqual([...CHART_PALETTES.vivid]);
+    expect(model.style.background).toBe(CHART_BACKGROUNDS.dark);
+    expect(model.style.lineWidth).toBe(5);
+    expect(model.style.legend).toBe('right');
+    expect(model.style.showGrid).toBe(false);
+    expect(model.style.numberDigits).toBe(4);
+    expect(model.style.yStartAtZero).toBe(true);
+  });
+
+  it('treats the x label override as presentation, not data', () => {
+    const data = dataOf(resolveChartData(TABLE, ROWS, makeSpec()));
+    expect(data.x.columnLabel).toBe('Day');
+    expect(data.x).not.toHaveProperty('label');
+
+    const model = renderChartModel(
+      data,
+      makeSpec({ options: { ...OPTIONS, xLabel: 'Timestamp' } }),
+    );
+    expect(model.x.label).toBe('Timestamp');
+    expect(model.x.unit).toBeUndefined();
+    expect(model.x.values).toBe(data.x.values);
+  });
+
+  it('reuses the resolved arrays and meta by reference', () => {
+    const data = dataOf(resolveChartData(TABLE, ROWS, makeSpec()));
+    const model = renderChartModel(data, makeSpec({ options: { ...OPTIONS, paletteId: 'muted' } }));
+    expect(model.x.values).toBe(data.x.values);
+    expect(model.series[0]?.values).toBe(data.series[0]?.values);
+    expect(model.meta).toBe(data.meta);
+  });
+
+  it('samples in the data step and marks connectNulls for sampled models', () => {
+    const spec = makeSpec({
+      options: { ...OPTIONS, sampling: { enabled: true, threshold: 1, target: 1 } },
+    });
+    const data = dataOf(resolveChartData(TABLE, ROWS, spec));
+    expect(data.meta.sampled).toBe(true);
+    expect(data.meta.renderedPoints).toBeLessThan(data.meta.sourcePoints);
+
+    const model = renderChartModel(data, spec);
+    expect(model.meta).toBe(data.meta);
+    expect(model.style.connectNulls).toBe(true);
+  });
+
+  it('returns the same validation issues as resolveSeries', () => {
+    const bad = makeSpec({
+      tableId: 'tbl_other',
+      mapping: { layout: 'wide', xColumnId: 'col_gone', yColumnIds: [] },
+    });
+    const dataIssues = resolveChartData(TABLE, ROWS, bad);
+    const modelIssues = resolveSeries(TABLE, ROWS, bad);
+    expect(dataIssues.ok).toBe(false);
+    expect(modelIssues.ok).toBe(false);
+    if (dataIssues.ok || modelIssues.ok) {
+      throw new Error('expected both resolves to fail');
+    }
+    expect(dataIssues.issues).toEqual(modelIssues.issues);
   });
 });
 

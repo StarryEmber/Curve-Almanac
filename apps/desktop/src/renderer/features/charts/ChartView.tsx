@@ -12,12 +12,12 @@
  * (ADR-044). Interaction state lives only in this view: it is never persisted.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { isEmptyModel } from '@curve/chart-echarts';
 import type { ChartInteractionAction, ChartInteractionState } from '@curve/chart-echarts';
 import type { RenderModel } from '@curve/chart-model';
-import type { ChartMapping, ChartSpec, ViewDef } from '@curve/domain';
+import type { ChartMapping, ChartSpec, Row, ViewDef } from '@curve/domain';
 import { Button } from '@curve/ui';
 
 import { useAppState, useRendererCore } from '../../app-core/use-app-core';
@@ -31,18 +31,21 @@ import {
   mappingIssueLabel,
   mappingPathLabel,
 } from './chart-text';
-import { chartRenderStatus } from './chart-view-model';
 import { ChartCanvas } from './ChartCanvas';
 import { DeleteChartDialog } from './ChartDialogs';
 import { ChartEmptyState } from './ChartEmptyState';
 import { ChartExportDialog } from './ChartExportDialog';
 import { ChartMappingFields } from './ChartMappingFields';
 import { useChartEditor } from './use-chart-editor';
+import { useChartRenderStatus } from './use-chart-render-status';
 
 import type { ChartCanvasHandle } from './ChartCanvas';
 import type { ReactElement } from 'react';
 
 const EMPTY_INTERACTION: ChartInteractionState = { zoom: null, hiddenSeries: [] };
+
+/** Stable empty row set: a missing table must not re-trigger the resolve effect. */
+const NO_ROWS: readonly Row[] = [];
 
 /**
  * RenderModel summary fields exposed as `data-chart-*` (T4.4 E2E/a11y
@@ -84,17 +87,23 @@ export function ChartView({ view }: { view: ViewDef }): ReactElement {
   const table = tableData?.table;
   const rows = tableData?.rows;
 
-  const status = useMemo(
-    () =>
-      chartRenderStatus({
-        chart,
-        table,
-        rows: rows ?? [],
-        locale,
-        theme: resolved,
-      }),
-    [chart, table, rows, locale, resolved],
-  );
+  const { status, pending, resolveMs } = useChartRenderStatus({
+    chart,
+    table,
+    rows: rows ?? NO_ROWS,
+    locale,
+    theme: resolved,
+  });
+  /** Read-only performance/diagnostics contract (T4.6, ADR-045). */
+  const diagnostics = {
+    'data-chart-pending': pending ? 'true' : 'false',
+    'data-chart-resolve-ms': String(Math.round(resolveMs)),
+  };
+  const loadingLine = pending ? (
+    <p className="cs-chart-view__loading" role="status" data-testid="chart-loading">
+      {t('chart.view.loading')}
+    </p>
+  ) : null;
 
   const canvasRef = useRef<ChartCanvasHandle>(null);
   const remapRef = useRef<HTMLDivElement>(null);
@@ -109,8 +118,8 @@ export function ChartView({ view }: { view: ViewDef }): ReactElement {
   // Subscribe after ChartCanvas mounts (child effects run first). The canvas
   // keeps this subscription across locale-driven renderer rebuilds. `emptyModel`
   // participates so an empty → ready transition (filter change) subscribes too.
-  const statusKind = status.kind;
-  const emptyModel = status.kind === 'ready' ? isEmptyModel(status.model) : true;
+  const statusKind = status === null ? 'loading' : status.kind;
+  const emptyModel = status !== null && status.kind === 'ready' ? isEmptyModel(status.model) : true;
   useEffect(() => {
     const handle = canvasRef.current;
     if (handle === null) {
@@ -157,17 +166,43 @@ export function ChartView({ view }: { view: ViewDef }): ReactElement {
     setDeleteError(describeAppError(outcome.error, t));
   };
 
+  if (status === null) {
+    // First resolve of a big table (ADR-045): paint the loading status before
+    // the row scan runs, so switching a mapping or a chart tab never freezes.
+    return (
+      <section
+        className="cs-chart-view"
+        data-testid="chart-view"
+        data-chart-state="loading"
+        {...diagnostics}
+        data-chart-pending="true"
+        aria-label={title}
+      >
+        <header className="cs-chart-view__header">
+          <h2 className="cs-chart-view__title" data-testid="chart-title">
+            {title}
+          </h2>
+        </header>
+        <p className="cs-chart-view__loading" role="status" data-testid="chart-loading">
+          {t('chart.view.loading')}
+        </p>
+      </section>
+    );
+  }
+
   if (status.kind === 'missing-chart' || status.kind === 'error') {
     return (
       <section
         className="cs-chart-view"
         data-testid="chart-view"
         data-chart-state={status.kind}
+        {...diagnostics}
         aria-label={title}
       >
         <header className="cs-chart-view__header">
           <h2 className="cs-chart-view__title">{title}</h2>
         </header>
+        {loadingLine}
         <p className="cs-chart-view__error" role="alert" data-testid="chart-error">
           {status.kind === 'missing-chart'
             ? t('chart.view.missingChart')
@@ -184,11 +219,13 @@ export function ChartView({ view }: { view: ViewDef }): ReactElement {
         data-testid="chart-view"
         data-chart-state="missing-table"
         data-chart-empty="no-table"
+        {...diagnostics}
         aria-label={title}
       >
         <header className="cs-chart-view__header">
           <h2 className="cs-chart-view__title">{title}</h2>
         </header>
+        {loadingLine}
         <p className="cs-chart-view__error" role="alert" data-testid="chart-error">
           {t('chart.view.missingTable')}
         </p>
@@ -219,7 +256,14 @@ export function ChartView({ view }: { view: ViewDef }): ReactElement {
 
   if (chart === undefined || table === undefined) {
     // Guarded by the status branches above; keeps TypeScript narrowing simple.
-    return <section className="cs-chart-view" data-testid="chart-view" />;
+    return (
+      <section
+        className="cs-chart-view"
+        data-testid="chart-view"
+        {...diagnostics}
+        aria-label={title}
+      />
+    );
   }
 
   if (status.kind === 'missing-columns' || status.kind === 'invalid') {
@@ -230,11 +274,13 @@ export function ChartView({ view }: { view: ViewDef }): ReactElement {
         data-testid="chart-view"
         data-chart-state={status.kind}
         data-chart-empty="unmapped"
+        {...diagnostics}
         aria-label={title}
       >
         <header className="cs-chart-view__header">
           <h2 className="cs-chart-view__title">{title}</h2>
         </header>
+        {loadingLine}
         <div className="cs-chart-view__error" role="alert" data-testid="chart-error">
           <p>
             {status.kind === 'missing-columns'
@@ -316,12 +362,14 @@ export function ChartView({ view }: { view: ViewDef }): ReactElement {
         data-chart-state="empty"
         data-chart-empty="no-data"
         {...attributes}
+        {...diagnostics}
         data-chart-zoom-start=""
         data-chart-zoom-end=""
         data-chart-hidden-series=""
         aria-label={canvasLabel}
       >
         {header}
+        {loadingLine}
         <ChartEmptyState
           kind="no-data"
           title={t('chart.empty.noData.title')}
@@ -339,12 +387,14 @@ export function ChartView({ view }: { view: ViewDef }): ReactElement {
       data-testid="chart-view"
       data-chart-state="ready"
       {...attributes}
+      {...diagnostics}
       data-chart-zoom-start={zoomStart}
       data-chart-zoom-end={zoomEnd}
       data-chart-hidden-series={interaction.hiddenSeries.join('|')}
       aria-label={title}
     >
       {header}
+      {loadingLine}
 
       <div
         className="cs-chart-toolbar"

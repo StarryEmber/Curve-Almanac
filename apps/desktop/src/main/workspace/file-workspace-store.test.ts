@@ -283,6 +283,43 @@ describe('FileWorkspaceStore tables and backups', () => {
     });
   });
 
+  it('recreates a missing backups directory instead of failing the save', async () => {
+    // Regression: a workspace copied from another machine (or a bench fixture
+    // generated elsewhere) may not contain `backups/`. Every manifest/table
+    // save used to fail with E_FS_WRITE/ENOENT because the backup copy did not
+    // create the directory.
+    const harness = createHarness();
+    const { parent, root } = workspacePath(harness);
+    const created = await harness.store.create({ dir: parent, name: 'Demo' });
+    await harness.store.close({ workspaceId: created.id });
+    rmSync(join(root, 'backups'), { recursive: true, force: true });
+
+    const opened = await harness.store.open({ dir: root });
+    const withTable = await addTable(harness.store, opened.manifest);
+    rmSync(join(root, 'backups'), { recursive: true, force: true });
+
+    const saved = await harness.store.writeManifest({
+      workspaceId: withTable.id,
+      manifest: { ...withTable, updatedAt: '2026-10-21T00:00:00.000Z' },
+    });
+    expect(saved).toEqual({ ok: true });
+    expect(existsSync(join(root, 'backups'))).toBe(true);
+    expect(
+      (JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8')) as WorkspaceManifest)
+        .updatedAt,
+    ).toBe('2026-10-21T00:00:00.000Z');
+
+    // A table save goes through the same backup helper.
+    await expect(
+      harness.store.writeTable({ workspaceId: created.id, tableId: 'tbl_1', jsonl: 'v1\n' }),
+    ).resolves.toEqual({ bytes: 3 });
+    await expect(
+      harness.store.writeTable({ workspaceId: created.id, tableId: 'tbl_1', jsonl: 'v2\n' }),
+    ).resolves.toEqual({ bytes: 3 });
+    expect(readdirSync(join(root, 'backups')).length).toBeGreaterThan(0);
+    await expect(harness.store.close({ workspaceId: created.id })).resolves.toEqual({ ok: true });
+  });
+
   it('rejects path escapes and invalid table ids', async () => {
     const harness = createHarness();
     const { parent } = workspacePath(harness);

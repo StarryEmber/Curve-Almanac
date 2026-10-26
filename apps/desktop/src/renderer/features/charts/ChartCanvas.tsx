@@ -11,11 +11,16 @@
  * the imperative surface the chart toolbar and export dialog use: interaction
  * state/dispatch and a "flush the pending debounce, wait for a paint, then
  * toPNG" export (ADR-044).
+ *
+ * T4.6 (ADR-045) adds the read-only performance contract (`data-chart-update-ms`,
+ * `data-chart-update-count`, `data-chart-instances`) and coalesces the
+ * ECharts-driven interaction publications to one per animation frame, so
+ * dragging the dataZoom slider does not re-render React on every mouse event.
  */
 
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
-import { createChartRenderer } from '@curve/chart-echarts';
+import { activeChartInstanceCount, createChartRenderer } from '@curve/chart-echarts';
 import type {
   ChartInteractionAction,
   ChartInteractionState,
@@ -34,6 +39,15 @@ import type { ReactElement, Ref } from 'react';
 export const CHART_UPDATE_DEBOUNCE_MS = 120;
 
 const EMPTY_INTERACTION: ChartInteractionState = { zoom: null, hiddenSeries: [] };
+
+interface CanvasDiagnostics {
+  /** Whole milliseconds of the last `render()`/`update()` call. */
+  updateMs: number;
+  /** Monotonic counter; E2E waits for it to observe one real update. */
+  updateCount: number;
+  /** Live ECharts instances at the last render/update (leak assertion). */
+  instances: number;
+}
 
 /**
  * Waits for one full browser frame after the pending model was applied. Two
@@ -88,15 +102,65 @@ export function ChartCanvas({
   const latestModelRef = useRef<RenderModel>(model);
   const timerRef = useRef<number | null>(null);
   const listenersRef = useRef(new Set<(state: ChartInteractionState) => void>());
+  const frameRef = useRef<number | null>(null);
+  const queuedInteractionRef = useRef<ChartInteractionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [interaction, setInteraction] = useState<ChartInteractionState>(EMPTY_INTERACTION);
+  const [diagnostics, setDiagnostics] = useState<CanvasDiagnostics>({
+    updateMs: 0,
+    updateCount: 0,
+    instances: 0,
+  });
 
-  const publishInteraction = useCallback((next: ChartInteractionState): void => {
-    setInteraction(next);
-    for (const listener of [...listenersRef.current]) {
-      listener(next);
+  const cancelScheduledFrame = useCallback((): void => {
+    if (frameRef.current !== null) {
+      if (typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(frameRef.current);
+      }
+      frameRef.current = null;
     }
+    queuedInteractionRef.current = null;
   }, []);
+
+  const publishInteraction = useCallback(
+    (next: ChartInteractionState): void => {
+      // A direct publish (toolbar action / update result) supersedes a queued
+      // ECharts event so the DOM never shows an older window afterwards.
+      cancelScheduledFrame();
+      setInteraction(next);
+      for (const listener of [...listenersRef.current]) {
+        listener(next);
+      }
+    },
+    [cancelScheduledFrame],
+  );
+
+  /**
+   * ECharts emits `datazoom` on every pointer move while the slider is dragged.
+   * Publishing each event re-renders the whole chart view; one publish per
+   * frame keeps the drag smooth and still delivers the latest state.
+   */
+  const scheduleInteraction = useCallback(
+    (next: ChartInteractionState): void => {
+      if (typeof requestAnimationFrame !== 'function') {
+        publishInteraction(next);
+        return;
+      }
+      queuedInteractionRef.current = next;
+      if (frameRef.current !== null) {
+        return;
+      }
+      frameRef.current = requestAnimationFrame(() => {
+        frameRef.current = null;
+        const queued = queuedInteractionRef.current;
+        queuedInteractionRef.current = null;
+        if (queued !== null) {
+          publishInteraction(queued);
+        }
+      });
+    },
+    [publishInteraction],
+  );
 
   const refreshInteraction = useCallback((): void => {
     const renderer = rendererRef.current;
@@ -119,7 +183,14 @@ export function ChartCanvas({
     if (renderer === null || appliedModelRef.current === latestModelRef.current) {
       return;
     }
+    const started = performance.now();
     const outcome = renderer.update(latestModelRef.current);
+    const elapsed = performance.now() - started;
+    setDiagnostics((previous) => ({
+      updateMs: Math.round(elapsed),
+      updateCount: previous.updateCount + 1,
+      instances: activeChartInstanceCount(),
+    }));
     if (outcome.ok) {
       appliedModelRef.current = latestModelRef.current;
       setError(null);
@@ -149,14 +220,21 @@ export function ChartCanvas({
         },
       });
     rendererRef.current = renderer;
+    const started = performance.now();
     const outcome = renderer.render(host, latestModelRef.current);
+    const elapsed = performance.now() - started;
+    setDiagnostics({
+      updateMs: Math.round(elapsed),
+      updateCount: 1,
+      instances: activeChartInstanceCount(),
+    });
     if (outcome.ok) {
       appliedModelRef.current = latestModelRef.current;
       setError(null);
     } else {
       setError(outcome.error.message);
     }
-    const unsubscribe = renderer.onInteractionChange(publishInteraction);
+    const unsubscribe = renderer.onInteractionChange(scheduleInteraction);
     refreshInteraction();
 
     const observer =
@@ -170,12 +248,21 @@ export function ChartCanvas({
     return () => {
       observer?.disconnect();
       unsubscribe();
+      cancelScheduledFrame();
       renderer.dispose();
       rendererRef.current = null;
       appliedModelRef.current = null;
       clearTimer();
     };
-  }, [clearTimer, injected, locale, publishInteraction, refreshInteraction, t]);
+  }, [
+    cancelScheduledFrame,
+    clearTimer,
+    injected,
+    locale,
+    refreshInteraction,
+    scheduleInteraction,
+    t,
+  ]);
 
   useEffect(() => {
     const listeners = listenersRef.current;
@@ -260,6 +347,9 @@ export function ChartCanvas({
       data-chart-zoom-start={interaction.zoom?.start ?? ''}
       data-chart-zoom-end={interaction.zoom?.end ?? ''}
       data-chart-hidden-series={interaction.hiddenSeries.join('|')}
+      data-chart-update-ms={diagnostics.updateMs}
+      data-chart-update-count={diagnostics.updateCount}
+      data-chart-instances={diagnostics.instances}
     >
       <div ref={hostRef} className="cs-chart-canvas__host" role="img" aria-label={label} />
       {error === null ? null : (

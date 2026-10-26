@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ChartSpec, ColumnDef, Row, TableMeta } from '@curve/domain';
 
+import { createChartDataCache } from './chart-data-cache';
 import {
   CHART_PREVIEW_TIMESTAMP,
   buildChartMapping,
@@ -206,6 +207,79 @@ describe('chartRenderStatus', () => {
     });
     const status = chartRenderStatus({ chart: makeChart(), table: TABLE, rows: exploding });
     expect(status).toEqual({ kind: 'error', message: 'boom' });
+  });
+});
+
+describe('chartRenderStatus with the data cache (T4.6)', () => {
+  it('reuses the row-derived data for a style-only change', () => {
+    const cache = createChartDataCache();
+    const first = chartRenderStatus({ chart: makeChart(), table: TABLE, rows: ROWS }, { cache });
+    const styled = chartRenderStatus(
+      {
+        chart: makeChart({
+          kind: 'bar',
+          options: { ...OPTIONS, paletteId: 'vivid', lineWidth: 4, yLabel: 'Load' },
+        }),
+        table: TABLE,
+        rows: ROWS,
+      },
+      { cache },
+    );
+    expect(first.kind).toBe('ready');
+    expect(styled.kind).toBe('ready');
+    if (first.kind !== 'ready' || styled.kind !== 'ready') {
+      return;
+    }
+    expect(cache.size).toBe(1);
+    expect(styled.model.series[0]?.values).toBe(first.model.series[0]?.values);
+    expect(styled.model.x.values).toBe(first.model.x.values);
+    expect(styled.model.meta).toBe(first.model.meta);
+    expect(styled.model.kind).toBe('bar');
+    expect(styled.model.y).toEqual({ label: 'Load' });
+    expect(styled.model.style.lineWidth).toBe(4);
+    expect(styled.model.series[0]?.color).not.toBe(first.model.series[0]?.color);
+  });
+
+  it('re-resolves when the rows array changes', () => {
+    const cache = createChartDataCache();
+    const first = chartRenderStatus({ chart: makeChart(), table: TABLE, rows: ROWS }, { cache });
+    const edited = chartRenderStatus(
+      {
+        chart: makeChart(),
+        table: TABLE,
+        rows: ROWS.map((row, index) => (index === 0 ? { ...row, values: [...row.values] } : row)),
+      },
+      { cache },
+    );
+    if (first.kind !== 'ready' || edited.kind !== 'ready') {
+      throw new Error('expected both statuses to be ready');
+    }
+    expect(edited.model.series[0]?.values).not.toBe(first.model.series[0]?.values);
+    expect(cache.size).toBe(2);
+  });
+
+  it('does not cache invalid mappings', () => {
+    const cache = createChartDataCache();
+    const chart = makeChart({
+      mapping: { layout: 'wide', xColumnId: 'col_time', yColumnIds: ['col_id'] },
+    });
+    expect(chartRenderStatus({ chart, table: TABLE, rows: ROWS }, { cache }).kind).toBe('invalid');
+    expect(cache.size).toBe(0);
+  });
+
+  it('keeps the uncached path identical to the cached one', () => {
+    const cached = chartRenderStatus(
+      { chart: makeChart(), table: TABLE, rows: ROWS, locale: 'zh-CN', theme: 'dark' },
+      { cache: createChartDataCache() },
+    );
+    const plain = chartRenderStatus({
+      chart: makeChart(),
+      table: TABLE,
+      rows: ROWS,
+      locale: 'zh-CN',
+      theme: 'dark',
+    });
+    expect(cached).toEqual(plain);
   });
 });
 

@@ -508,3 +508,32 @@
   （renderer **3,238.36 kB**、CSS 72.19 kB）；`pnpm e2e` **79 passed**；`pnpm bench` exit 0。
   新增 ADR-044、SPEC §11.4–§11.6/§15.1 实现边界、TASKS T4.5 与
   `docs/reports/t4.5/REPORT.md`（3 张截图）。
+- T4.6：`@curve/chart-model` 把解析拆成公开两步：`resolveChartData`（行集 → x/系列值/meta，
+  不含颜色与样式）与 `renderChartModel`（palette/background/线宽/图例/精度/Y 轴名/kind）；
+  `resolveSeries` 保持为二者组合、输出不变（黄金快照未动）。默认数值/时间 X 排序改为
+  “坐标数组 + 下标排序”，无筛选时不再复制整表行，减少 100k 解析的临时分配。
+- T4.6：renderer 新增 `chart-data-cache.ts`（容量 2、LRU、`rows` 引用 + 数据键双重命中；
+  键不含样式字段与 `xLabel`）与 `useChartRenderStatus`（>20,000 行且缓存未命中时先渲染
+  loading，再在 `setTimeout(0)` 中解析；小表/缓存命中同步）。`ChartView`/`NewChartDialog`
+  各自持有缓存，卸载即释放；样式提交不再重新筛选/排序/采样。
+- T4.6：性能诊断契约 `data-chart-pending`/`data-chart-resolve-ms`（chart-view）与
+  `data-chart-update-ms`/`data-chart-update-count`/`data-chart-instances`（chart-canvas）；
+  ECharts `datazoom`/`legendselectchanged` 的状态发布按 `requestAnimationFrame` 合并
+  （每帧最多一次 React 更新），工具栏动作仍立即发布。
+- T4.6：bench `sample` suite 更名 `chart`（`--chart`，`--sample` 保留别名），新增
+  `chart.option.2k`（50ms）与 `chart.restyle.100k`（20ms，样式复用不重解析）；根
+  `devDependencies` 增加 workspace 包 `@curve/chart-echarts`（仅 bench），
+  `scripts/tsconfig.json` 增加引用与 `DOM` lib。`e2e/chart-perf.spec.ts` 2 条：100k 图上
+  `resolve ≤300ms`、`update ≤200ms`、样式提交缓存命中、10 次连点缩放无 >50ms 长任务；
+  5 次映射 + 6 次标签切换后实例数恒为 1、出现 loading、100k 图表工作区 private 470MB
+  （切换后峰值 589–591MB，≤600MB）。
+- T4.6：`pnpm verify` **163 files / 1505 tests**；coverage 全局 lines **76.47%** /
+  statements 76.34% / branches 69.21% / functions 74.99%；`pnpm build` exit 0
+  （renderer **3,251.27 kB**、CSS 72.31 kB）；`pnpm e2e` **81 passed**；`pnpm bench` exit 0。
+  新增 ADR-045、SPEC §11.3/§11.5/§16.1 实现边界、TASKS T4.6 与
+  `docs/reports/t4.6/REPORT.md`。
+- T4.6（修复）：`FileWorkspaceStore.copyToBackup` 在 `backups/` 不存在时（复制/恢复的工作区、
+  `scripts/gen-100k.ts` 生成的工作区）直接写备份会 `E_FS_WRITE`(ENOENT)，导致所有
+  `manifest:write`/`table:write` 保存失败且 UI 只弹 Toast。现在写入前 `mkdir(recursive)`，
+  `file-workspace-store.test.ts` 新增“备份目录缺失时保存仍成功”的回归测试；修复后 100k 图表
+  11 次切换的 private 内存从 605–612MB 回落到 584–592MB。

@@ -13,12 +13,14 @@ import { I18nProvider } from '../../i18n';
 import { ThemeProvider } from '../../theme/ThemeProvider';
 
 import { ChartView } from './ChartView';
+import { CHART_DEFER_RESOLVE_ROW_THRESHOLD } from './use-chart-render-status';
 
 import type { RendererCore } from '../../app-core/renderer-core';
 
 vi.mock('@curve/chart-echarts', () => ({
   isEmptyModel: (model: RenderModel): boolean =>
     model.series.length === 0 || model.x.values.length === 0 || model.meta.sourcePoints === 0,
+  activeChartInstanceCount: () => 1,
   createChartRenderer: () => ({
     state: 'idle',
     render: () => ({ ok: true, state: 'ready' }),
@@ -164,6 +166,35 @@ describe('ChartView', () => {
     expect(screen.getByTestId('chart-title').textContent).toBe('Readings chart');
     expect(screen.getByTestId('chart-canvas')).toBeTruthy();
     expect(screen.queryByTestId('chart-sampled-badge')).toBeNull();
+    // T4.6 diagnostics contract (ADR-045).
+    expect(view.getAttribute('data-chart-pending')).toBe('false');
+    expect(Number(view.getAttribute('data-chart-resolve-ms'))).toBeGreaterThanOrEqual(0);
+    expect(screen.queryByTestId('chart-loading')).toBeNull();
+    expect(screen.getByTestId('chart-canvas').getAttribute('data-chart-instances')).toBe('1');
+  });
+
+  it('shows a loading state for a big table before the first resolve lands', async () => {
+    const rows: Row[] = Array.from(
+      { length: CHART_DEFER_RESOLVE_ROW_THRESHOLD + 1 },
+      (_value, index) => ({
+        id: `row_${String(index)}`,
+        values: [`r${String(index)}`, index, index],
+      }),
+    );
+    mount(
+      makeChart({ mapping: { layout: 'wide', xColumnId: 'col_time', yColumnIds: ['col_a'] } }),
+      rows,
+    );
+    const view = screen.getByTestId('chart-view');
+    expect(view.getAttribute('data-chart-state')).toBe('loading');
+    expect(view.getAttribute('data-chart-pending')).toBe('true');
+    expect(screen.getByTestId('chart-loading').textContent).toBe('正在解析图表…');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('chart-view').getAttribute('data-chart-state')).toBe('ready');
+    });
+    expect(screen.getByTestId('chart-view').getAttribute('data-chart-pending')).toBe('false');
+    expect(screen.queryByTestId('chart-loading')).toBeNull();
   });
 
   it('derives the chart aria summary and toolbar from the RenderModel', () => {

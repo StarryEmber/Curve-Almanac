@@ -7,7 +7,7 @@
  * validates, so an invalid chart is never persisted.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import type { ChartCreateRequest } from '@curve/app-core';
 import { validateChartMapping } from '@curve/chart-model';
@@ -20,11 +20,13 @@ import { describeAppError } from '../../error-text';
 import { useI18n } from '../../i18n';
 import { useTheme } from '../../theme/ThemeProvider';
 
+import { createChartDataCache } from './chart-data-cache';
 import { chartKindLabel } from './chart-text';
 import { buildChartMapping, chartRenderStatus, createPreviewChart } from './chart-view-model';
 import { ChartCanvas } from './ChartCanvas';
 import { ChartMappingFields } from './ChartMappingFields';
 
+import type { ChartDataCache } from './chart-data-cache';
 import type { ReactElement } from 'react';
 
 export type NewChartOutcome = { ok: true } | { ok: false; error: AppError };
@@ -64,6 +66,13 @@ export function NewChartDialogView({
   const [error, setError] = useState<string | null>(null);
 
   const tableData = tables.find((entry) => entry.table.id === tableId);
+  // T4.6 (ADR-045): the preview reuses row-derived data, so typing a title or
+  // switching the chart kind does not re-resolve a 100k-row table.
+  const dataCacheRef = useRef<ChartDataCache | null>(null);
+  if (dataCacheRef.current === null) {
+    dataCacheRef.current = createChartDataCache();
+  }
+  const dataCache = dataCacheRef.current;
 
   const changeTable = (nextId: string): void => {
     const nextData = tables.find((entry) => entry.table.id === nextId);
@@ -85,19 +94,22 @@ export function NewChartDialogView({
     if (tableData === undefined || mapping === null) {
       return null;
     }
-    return chartRenderStatus({
-      chart: createPreviewChart({
-        tableId: tableData.table.id,
-        title,
-        kind,
-        mapping,
-      }),
-      table: tableData.table,
-      rows: tableData.rows,
-      locale,
-      theme: resolved,
-    });
-  }, [kind, locale, mapping, resolved, tableData, title]);
+    return chartRenderStatus(
+      {
+        chart: createPreviewChart({
+          tableId: tableData.table.id,
+          title,
+          kind,
+          mapping,
+        }),
+        table: tableData.table,
+        rows: tableData.rows,
+        locale,
+        theme: resolved,
+      },
+      { cache: dataCache },
+    );
+  }, [dataCache, kind, locale, mapping, resolved, tableData, title]);
 
   const canCreate =
     !busy &&

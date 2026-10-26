@@ -807,6 +807,7 @@ export const enUS: Record<MessageKey, string> = {
     'Chart mappings are not rewritten automatically; pick the columns again to restore the chart.',
   'chart.view.empty': 'This data has no plottable points.',
   'chart.view.error': 'Chart rendering failed: {message}',
+  'chart.view.loading': 'Resolving chart…',
   'chart.view.sampled': 'Sampled',
   'chart.view.seriesCount': '{count} series',
   'chart.view.points': '{points} points',

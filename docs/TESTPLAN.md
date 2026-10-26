@@ -149,6 +149,13 @@
 > 文件名、像素颜色，键盘 + 200% 缩放）、`no-data`/`unmapped` 空态与行动按钮。`no-table`
 > 是防御态，合法 manifest 无法打开（`checkChartInto` 为错误），由 ChartView 组件测试覆盖；
 > 完整 PNG 报告与截图见 `docs/reports/t4.5/`。M4 验收演示仍由 T4.6 后执行。
+>
+> T4.6 覆盖性能部分（ADR-045）：`apps/desktop/e2e/chart-perf.spec.ts` 2 条——100k 采样图上
+> `data-chart-resolve-ms ≤ 300`、`data-chart-update-ms ≤ 200`、样式提交（调色板）不重新解析、
+> 10 次连点缩放无 >200ms 长任务；5 次映射切换 + 6 次标签切换后 `data-chart-instances = 1`、
+> 切换期间出现 loading（`data-chart-pending="true"`）、100k 图表工作区 private ≤600MB。
+> 纯管线四段耗时由 `pnpm bench -- --chart` 记录（解析+采样/纯采样/option/样式复用）。
+> M4 验收演示在 T4.6 完成后执行。
 
 ### E7 布局与撤销
 

@@ -7,7 +7,8 @@
  *   pnpm bench -- --edit          # cell commit through the command bus
  *   pnpm bench -- --query         # filter/sort, ASCII + CJK text, clone cost
  *   pnpm bench -- --import        # 100k GBK CSV import pipeline
- *   pnpm bench -- --sample        # RenderModel resolve + LTTB sampling
+ *   pnpm bench -- --chart         # RenderModel resolve + LTTB + option + restyle
+ *   pnpm bench -- --sample        # alias of --chart (T4.2 compatibility)
  *   pnpm bench -- --write-baseline  # refresh bench/baseline.json
  *
  * The script is dependency-free beyond `tsx` (dev tooling): it generates its
@@ -37,7 +38,8 @@ import { fileURLToPath } from 'node:url';
 import iconv from 'iconv-lite';
 
 import { createAppStore, createCommandBus, createTableCellSetCommand } from '@curve/app-core';
-import { lttbIndices, resolveSeries } from '@curve/chart-model';
+import { toEChartsOption } from '@curve/chart-echarts';
+import { lttbIndices, renderChartModel, resolveChartData, resolveSeries } from '@curve/chart-model';
 import { createConditionalFormat } from '@curve/domain';
 import type {
   ChartSpec,
@@ -101,6 +103,17 @@ const CONDITION_BUDGET_MS = 16;
 const CHART_RESOLVE_BUDGET_MS = 300;
 /** TASKS T4.2: LTTB sampling one 100k-point series stays under 50ms. */
 const CHART_SAMPLE_BUDGET_MS = 50;
+/**
+ * T4.6: building the ECharts option for a 2k-point model. The 200ms render
+ * budget (SPEC §16.1) is measured in Electron (`data-chart-update-ms`); this
+ * node-side gate catches an accidental O(rows) option build early.
+ */
+const CHART_OPTION_BUDGET_MS = 50;
+/**
+ * T4.6: re-applying style to already resolved data (the cache-hit path of a
+ * palette/line-width commit). Must stay far below a re-resolve.
+ */
+const CHART_RESTYLE_BUDGET_MS = 20;
 /** SPEC §16.1 ceiling; the E2E app-wide measurement owns this gate. */
 const MEMORY_BUDGET_MB = 600;
 const MEMORY_SAMPLE_MS = 50;
@@ -121,7 +134,7 @@ const fixtureDirectory = join(benchDirectory, '.fixtures', '100k-workspace');
 const tempDirectory = join(benchDirectory, '.tmp');
 
 interface SuiteResult {
-  name: 'table-io' | 'edit' | 'query' | 'import' | 'sample';
+  name: 'table-io' | 'edit' | 'query' | 'import' | 'chart';
   cases: BenchCase[];
   diagnostics: BenchDiagnostic[];
   rows: number;
@@ -618,9 +631,16 @@ function benchChartSpec(tableId: string): ChartSpec {
 }
 
 /**
- * One chart spec resolved twice: once end to end (filter/sort/mapping + LTTB)
- * and once with sampling disabled, plus the raw sampler on a single 100k series.
- * The 300ms budget is the SPEC §16.1 resolve+sample entry (T4.6 owns rendering).
+ * The four chart stages of T4.6 (ADR-045): resolve, sample, option and the
+ * style-only restyle a cache hit performs. Real rendering/update cost is
+ * measured in Electron by `e2e/chart-perf.spec.ts` (`data-chart-update-ms`),
+ * because only a browser has the canvas and paint pipeline.
+ *
+ * - `chart.resolve-sample.100k` — SPEC §16.1 resolve+sample budget (300ms);
+ * - `chart.sample.100k` — T4.2 single-series LTTB budget (50ms);
+ * - `chart.option.2k` — option construction for the sampled 2k-point model;
+ * - `chart.restyle.100k` — `renderChartModel` on cached data (no row scan);
+ * - `chart.resolve-unsampled.100k` — diagnostic only.
  */
 function runChartSuite(table: TableMeta, rows: Row[]): SuiteResult {
   const spec = benchChartSpec(table.id);
@@ -659,6 +679,28 @@ function runChartSuite(table: TableMeta, rows: Row[]): SuiteResult {
     throw new Error('Chart benchmark grew the x axis while sampling.');
   }
 
+  // The data half once, reused by the restyle case: this is exactly what the
+  // renderer cache hands out on a palette/line-width commit.
+  const resolvedData = resolveChartData(table, rows, spec);
+  if (!resolvedData.ok) {
+    throw new Error(
+      `Chart benchmark data resolve failed: ${resolvedData.issues
+        .map((issue) => issue.code)
+        .join(', ')}`,
+    );
+  }
+  const restyledSpec: ChartSpec = {
+    ...spec,
+    kind: 'bar',
+    options: {
+      ...spec.options,
+      paletteId: 'vivid',
+      lineWidth: 5,
+      smooth: true,
+      yLabel: 'Load',
+    },
+  };
+
   // Raw sampler input: the same 100k series the resolve path samples.
   const xIndex = table.columns.findIndex((column) => column.id === 'col_time');
   const yIndex = table.columns.findIndex((column) => column.id === 'col_a');
@@ -686,6 +728,21 @@ function runChartSuite(table: TableMeta, rows: Row[]): SuiteResult {
         throw new Error(`Chart sampler kept ${String(indices.length)} points.`);
       }
     }),
+    measure('chart.option.2k', CHART_OPTION_BUDGET_MS, () => {
+      const option = toEChartsOption(sampledModel);
+      if (!Array.isArray(option.series) || option.series.length !== 2) {
+        throw new Error('Chart option benchmark lost its series.');
+      }
+    }),
+    measure('chart.restyle.100k', CHART_RESTYLE_BUDGET_MS, () => {
+      const model = renderChartModel(resolvedData.data, restyledSpec);
+      if (model.kind !== 'bar' || model.series.length !== 2 || model.y === undefined) {
+        throw new Error('Chart restyle benchmark produced the wrong model.');
+      }
+      if (model.series[0]?.values !== resolvedData.data.series[0]?.values) {
+        throw new Error('Chart restyle benchmark copied the resolved data.');
+      }
+    }),
   ];
 
   const unsampledSamples: number[] = [];
@@ -700,7 +757,7 @@ function runChartSuite(table: TableMeta, rows: Row[]): SuiteResult {
   const unsampledSummary = summarizeSamples(unsampledSamples);
 
   return {
-    name: 'sample',
+    name: 'chart',
     cases,
     diagnostics: [
       {
@@ -736,7 +793,7 @@ const SUITE_NAMES: readonly SuiteName[] = Object.freeze([
   'edit',
   'query',
   'import',
-  'sample',
+  'chart',
 ]);
 
 function isSuiteName(value: string | undefined): value is SuiteName {
@@ -757,7 +814,7 @@ function runSingleSuite(name: SuiteName): SuiteResult {
       return runEditSuite(table, rows);
     case 'query':
       return runQuerySuite(table, rows);
-    case 'sample':
+    case 'chart':
       return runChartSuite(table, rows);
   }
 }
@@ -844,18 +901,20 @@ function main(argv: readonly string[]): number {
   const wantEdit = argv.includes('--edit');
   const wantQuery = argv.includes('--query');
   const wantImport = argv.includes('--import');
-  const wantSample = argv.includes('--sample');
+  // `--sample` is the T4.2 command; T4.6 renamed the suite to `chart` and keeps
+  // the old flag as an alias so documented verification commands still work.
+  const wantChart = argv.includes('--chart') || argv.includes('--sample');
   const writeBaseline = argv.includes('--write-baseline');
 
   if (argv.includes('--help')) {
     console.log(
       'Usage: pnpm bench [-- --table-io] [-- --edit] [-- --query] [-- --import] ' +
-        '[-- --sample] [-- --write-baseline]',
+        '[-- --chart | -- --sample] [-- --write-baseline]',
     );
     return 0;
   }
 
-  const anySuite = wantTableIo || wantEdit || wantQuery || wantImport || wantSample;
+  const anySuite = wantTableIo || wantEdit || wantQuery || wantImport || wantChart;
   const selected = SUITE_NAMES.filter((name) => {
     if (!anySuite) {
       return true;
@@ -869,8 +928,8 @@ function main(argv: readonly string[]): number {
         return wantQuery;
       case 'import':
         return wantImport;
-      case 'sample':
-        return wantSample;
+      case 'chart':
+        return wantChart;
     }
   });
 

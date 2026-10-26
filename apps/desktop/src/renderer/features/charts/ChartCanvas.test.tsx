@@ -23,6 +23,7 @@ import type { ReactElement, RefObject } from 'react';
 import type { Mock } from 'vitest';
 
 vi.mock('@curve/chart-echarts', () => ({
+  activeChartInstanceCount: vi.fn(() => 1),
   createChartRenderer: vi.fn(),
 }));
 
@@ -45,6 +46,8 @@ interface FakeRenderer extends Omit<
   getInteractionState: Mock<() => ChartInteractionState>;
   dispatchInteraction: Mock<(action: ChartInteractionAction) => void>;
   onInteractionChange: Mock<(listener: (state: ChartInteractionState) => void) => () => void>;
+  /** Test seam: simulates an ECharts `datazoom`/`legendselectchanged` event. */
+  emitInteraction: (state: ChartInteractionState) => void;
 }
 
 function fakeRenderer(
@@ -68,6 +71,11 @@ function fakeRenderer(
         listeners.delete(listener);
       };
     }),
+    emitInteraction: (state: ChartInteractionState) => {
+      for (const listener of [...listeners]) {
+        listener(state);
+      }
+    },
     dispose: vi.fn(),
   };
 }
@@ -117,6 +125,7 @@ function mountWithHandle(
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe('ChartCanvas', () => {
@@ -253,5 +262,99 @@ describe('ChartCanvas', () => {
     );
     expect(renderer.toPNG).toHaveBeenCalledWith({ scale: 2, background: 'dark' });
     expect(outcome).toEqual({ ok: true, dataUrl: 'data:image/png;base64,AAAA' });
+  });
+
+  it('exposes the update timing, update count and live instance count', () => {
+    vi.useFakeTimers();
+    const renderer = fakeRenderer();
+    const view = mount(makeModel('A'), renderer);
+    const canvas = screen.getByTestId('chart-canvas');
+    expect(canvas.getAttribute('data-chart-update-count')).toBe('1');
+    expect(canvas.getAttribute('data-chart-instances')).toBe('1');
+    expect(Number(canvas.getAttribute('data-chart-update-ms'))).toBeGreaterThanOrEqual(0);
+
+    view.rerender(
+      <I18nProvider initialLocale="zh-CN">
+        <ChartCanvas model={makeModel('B')} label="Chart" renderer={renderer} />
+      </I18nProvider>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(CHART_UPDATE_DEBOUNCE_MS);
+    });
+    expect(screen.getByTestId('chart-canvas').getAttribute('data-chart-update-count')).toBe('2');
+    expect(screen.getByTestId('chart-canvas').getAttribute('data-chart-instances')).toBe('1');
+  });
+
+  it('coalesces ECharts interaction events into one publication per frame', () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 1;
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      const id = nextFrame;
+      nextFrame += 1;
+      frames.set(id, callback);
+      return id;
+    });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      frames.delete(id);
+    });
+    const flushFrames = (): void => {
+      for (const [id, callback] of [...frames]) {
+        frames.delete(id);
+        callback(0);
+      }
+    };
+
+    const renderer = fakeRenderer();
+    const { handle } = mountWithHandle(makeModel(), renderer);
+    const listener = vi.fn();
+    const unsubscribe = handle.current?.subscribeInteraction(listener);
+
+    act(() => {
+      renderer.emitInteraction({ zoom: { start: 10, end: 90 }, hiddenSeries: [] });
+      renderer.emitInteraction({ zoom: { start: 20, end: 80 }, hiddenSeries: ['A'] });
+    });
+    expect(listener).not.toHaveBeenCalled();
+    expect(frames.size).toBe(1);
+
+    act(() => {
+      flushFrames();
+    });
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({ zoom: { start: 20, end: 80 }, hiddenSeries: ['A'] });
+    expect(screen.getByTestId('chart-canvas').getAttribute('data-chart-hidden-series')).toBe('A');
+
+    unsubscribe?.();
+  });
+
+  it('publishes toolbar actions immediately and cancels a queued event', () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 1;
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      const id = nextFrame;
+      nextFrame += 1;
+      frames.set(id, callback);
+      return id;
+    });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      frames.delete(id);
+    });
+
+    const renderer = fakeRenderer();
+    const { handle } = mountWithHandle(makeModel(), renderer);
+    const listener = vi.fn();
+    const unsubscribe = handle.current?.subscribeInteraction(listener);
+
+    act(() => {
+      renderer.emitInteraction({ zoom: { start: 30, end: 70 }, hiddenSeries: [] });
+    });
+    act(() => {
+      handle.current?.dispatchInteraction({ type: 'reset-view' });
+    });
+    expect(renderer.dispatchInteraction).toHaveBeenCalledWith({ type: 'reset-view' });
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({ zoom: { start: 0, end: 100 }, hiddenSeries: [] });
+    expect(frames.size).toBe(0);
+
+    unsubscribe?.();
   });
 });

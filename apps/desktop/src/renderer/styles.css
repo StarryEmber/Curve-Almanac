@@ -1383,6 +1383,12 @@ body {
   color: var(--cs-color-fg-muted);
 }
 
+.cs-chart-view__loading {
+  margin: 0;
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-sm);
+}
+
 .cs-chart-view__warnings {
   padding-top: var(--cs-space-2);
   border-top: 1px solid var(--cs-color-border-subtle);

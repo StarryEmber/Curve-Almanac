@@ -4,6 +4,11 @@
  * Pure helpers shared by the chart view, the remap panel and the new-chart
  * wizard: mapping/layout construction, missing-column detection, invalid-mapping
  * classification and RenderModel resolution. Components only render this state.
+ *
+ * T4.6 (ADR-045): resolution goes through `chart-data-cache.ts`, so style-only
+ * edits reuse the cached row-derived data and never re-filter/re-sample 100k
+ * rows. The cache is optional, which keeps `chartRenderStatus` usable as a pure
+ * helper in tests and in one-off previews.
  */
 
 import { defaultChartOptions, findMissingChartColumns } from '@curve/app-core';
@@ -11,6 +16,7 @@ import {
   canBeChartSeries,
   canBeChartX,
   canBeChartY,
+  renderChartModel,
   resolveSeries,
   validateChartMapping,
 } from '@curve/chart-model';
@@ -24,6 +30,10 @@ import type {
   Row,
   TableMeta,
 } from '@curve/domain';
+
+import { resolveChartDataCached } from './chart-data-cache';
+
+import type { ChartDataCache } from './chart-data-cache';
 
 /** Fixed timestamp for the wizard preview chart (never persisted). */
 export const CHART_PREVIEW_TIMESTAMP = '2026-01-01T00:00:00.000Z';
@@ -42,6 +52,14 @@ export interface ChartRenderInput {
   rows: readonly Row[];
   locale?: string;
   theme?: 'light' | 'dark';
+}
+
+export interface ChartRenderOptions {
+  /**
+   * Optional row-derived data cache (T4.6, ADR-045). With a cache, style-only
+   * changes skip the filter/sort/sampling scan for the same row set.
+   */
+  cache?: ChartDataCache;
 }
 
 function firstCompatible(
@@ -136,8 +154,15 @@ export function canUseChartLayout(table: TableMeta, layout: ChartMapping['layout
  * the remap panel can name it) before the generic type/role validation, and
  * any resolve failure falls back to a catchable `error` instead of crashing the
  * view (SPEC §6.6.4 "must not crash").
+ *
+ * The row-derived half goes through `options.cache` when provided (T4.6);
+ * `renderChartModel` then applies palette/background/line styling. A cache hit
+ * is O(series), which is what makes style-only commits cheap on 100k tables.
  */
-export function chartRenderStatus(input: ChartRenderInput): ChartRenderStatus {
+export function chartRenderStatus(
+  input: ChartRenderInput,
+  options: ChartRenderOptions = {},
+): ChartRenderStatus {
   const { chart, table, rows } = input;
   if (chart === undefined) {
     return { kind: 'missing-chart' };
@@ -153,13 +178,21 @@ export function chartRenderStatus(input: ChartRenderInput): ChartRenderStatus {
   if (mappingIssues.length > 0) {
     return { kind: 'invalid', issues: mappingIssues };
   }
+  const resolveOptions = {
+    ...(input.locale === undefined ? {} : { locale: input.locale }),
+    ...(input.theme === undefined ? {} : { theme: input.theme }),
+  };
   try {
-    const resolved = resolveSeries(table, rows, chart, {
-      ...(input.locale === undefined ? {} : { locale: input.locale }),
-      ...(input.theme === undefined ? {} : { theme: input.theme }),
-    });
+    if (options.cache === undefined) {
+      // No cache: one combined resolve, exactly the pre-T4.6 behaviour.
+      const resolved = resolveSeries(table, rows, chart, resolveOptions);
+      return resolved.ok
+        ? { kind: 'ready', model: resolved.model }
+        : { kind: 'invalid', issues: resolved.issues };
+    }
+    const resolved = resolveChartDataCached(options.cache, table, rows, chart, resolveOptions);
     return resolved.ok
-      ? { kind: 'ready', model: resolved.model }
+      ? { kind: 'ready', model: renderChartModel(resolved.data, chart, resolveOptions) }
       : { kind: 'invalid', issues: resolved.issues };
   } catch (thrown) {
     return {

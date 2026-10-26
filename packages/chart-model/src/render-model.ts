@@ -6,6 +6,12 @@
  * ECharts/React/Electron imports; the only workspace dependencies are
  * `@curve/domain` and `@curve/table-engine` (filter/sort semantics live there,
  * ADR-032). LTTB downsampling also happens here (never in the adapter).
+ *
+ * T4.6 (ADR-045) splits the work in two public steps: `resolveChartData` keeps
+ * only row-derived output (x values, series values, sampling metadata) and
+ * `renderChartModel` applies palette/background/line styling. `resolveSeries`
+ * composes them and produces the same RenderModel as before, so a style-only
+ * change can reuse resolved data instead of re-filtering 100k rows.
  */
 
 import type {
@@ -103,6 +109,43 @@ export interface RenderModel {
   style: RenderStyle;
   meta: RenderMeta;
 }
+
+/**
+ * Row-derived series without presentation fields (T4.6, ADR-045).
+ *
+ * `resolveChartData` emits these; `renderChartModel` adds `color` from the
+ * palette. Data resolution therefore never depends on palette, background or
+ * line styling, which lets the renderer cache the expensive part.
+ */
+export interface ResolvedSeries {
+  id: string;
+  name: string;
+  values: (number | null)[];
+}
+
+/** Row-derived x axis; the chart's `xLabel` override is applied by the style step. */
+export interface ResolvedXAxis {
+  values: (number | string)[];
+  type: RenderXAxis['type'];
+  /** Stored column label, used when the chart does not override it. */
+  columnLabel: string;
+  unit?: string;
+}
+
+/**
+ * Everything in a RenderModel that depends on the row set, mapping, filter,
+ * sort, sampling and locale — never on palette/background/line styling
+ * (T4.6, ADR-045).
+ */
+export interface ResolvedChartData {
+  x: ResolvedXAxis;
+  series: ResolvedSeries[];
+  meta: RenderMeta;
+}
+
+/** Outcome of `resolveChartData`; failures carry every issue at once. */
+export type ChartDataResult =
+  { ok: true; data: ResolvedChartData } | { ok: false; issues: ChartIssue[] };
 
 /** Structured mapping/query failure; mirrors the other domain issue shapes. */
 export interface ChartIssue {
@@ -329,15 +372,25 @@ function numericX(cell: Cell): number {
   throw new Error('Invalid x value reached the RenderModel.');
 }
 
-/** Stable ascending sort used when the chart has no explicit `sort`. */
-function sortRowsByX(rows: readonly Row[], xIndex: number): Row[] {
-  return rows
-    .map((row, index) => ({ row, index, value: numericX(row.values[xIndex] ?? null) }))
-    .sort((left, right) => {
-      const compared = left.value - right.value;
-      return compared === 0 ? left.index - right.index : compared;
-    })
-    .map((entry) => entry.row);
+/**
+ * Ascending index order for the default number/time-x path (T4.6).
+ *
+ * The previous implementation decorated every row with `{ row, index, value }`
+ * and sorted those objects: on 100k rows that is ~100k allocations per resolve,
+ * and a chart resolve runs on every mapping switch. Sorting indices over a flat
+ * coordinate array keeps the exact same order (stable: equal x keeps the
+ * original index) with allocation proportional to two number arrays.
+ */
+function ascendingOrderByX(coordinates: readonly number[]): number[] {
+  const order = new Array<number>(coordinates.length);
+  for (let index = 0; index < coordinates.length; index += 1) {
+    order[index] = index;
+  }
+  order.sort((left, right) => {
+    const compared = (coordinates[left] ?? 0) - (coordinates[right] ?? 0);
+    return compared === 0 ? left - right : compared;
+  });
+  return order;
 }
 
 function countDuplicates(values: readonly (number | string)[]): number {
@@ -419,9 +472,9 @@ function samplingCoordinates(
   });
 }
 
-interface SampledModel {
+interface SampledData {
   xValues: (number | string)[];
-  series: RenderSeries[];
+  series: ResolvedSeries[];
   renderedPoints: number;
 }
 
@@ -435,12 +488,12 @@ interface SampledModel {
  * contributes every one of its real points. Returns `null` when no series was
  * downsampled, so the T4.1 model passes through untouched.
  */
-function sampleModel(
+function sampleData(
   xValues: readonly (number | string)[],
   coordinates: readonly number[],
-  series: readonly RenderSeries[],
+  series: readonly ResolvedSeries[],
   options: SamplingOptions,
-): SampledModel | null {
+): SampledData | null {
   const retained = series.map((entry) => sampleSeriesIndices(coordinates, entry.values, options));
   if (retained.every((indices) => indices === null)) {
     return null;
@@ -491,19 +544,8 @@ function sampleModel(
   };
 }
 
-/**
- * Resolves one chart into its RenderModel (SPEC §11.3).
- *
- * Order of operations (SPEC §11.2): chart filter → drop unusable numeric x rows
- * → chart sort (or ascending x) → series grouping. Failures return structured
- * issues; warnings that still produce a chart go to `meta.warnings`.
- */
-export function resolveSeries(
-  table: TableMeta,
-  rows: readonly Row[],
-  spec: ChartSpec,
-  options: ChartResolveOptions = {},
-): ChartResolveResult {
+/** Request-level validation shared by the data and combined resolve paths. */
+function validateResolveRequest(table: TableMeta, spec: ChartSpec): ChartIssue[] {
   const issues: ChartIssue[] = [];
   if (spec.tableId !== table.id) {
     issues.push({
@@ -517,6 +559,25 @@ export function resolveSeries(
     issues.push(...validateFilterPredicate(table, spec.filter));
   }
   issues.push(...validateSortSpecs(table, spec.sort));
+  return issues;
+}
+
+/**
+ * Resolves the row-derived part of one chart (T4.6, ADR-045).
+ *
+ * Order of operations (SPEC §11.2): chart filter → drop unusable numeric x rows
+ * → chart sort (or ascending x) → series grouping → LTTB. The result carries no
+ * colours or style tokens, so a palette/line-style change can reuse it without
+ * re-filtering, re-sorting or re-sampling 100k rows. Failures return structured
+ * issues; warnings that still produce a chart go to `meta.warnings`.
+ */
+export function resolveChartData(
+  table: TableMeta,
+  rows: readonly Row[],
+  spec: ChartSpec,
+  options: ChartResolveOptions = {},
+): ChartDataResult {
+  const issues = validateResolveRequest(table, spec);
   if (issues.length > 0) {
     return { ok: false, issues };
   }
@@ -524,20 +585,35 @@ export function resolveSeries(
   const mapping = spec.mapping;
   const xColumn = requireColumn(table, mapping.xColumnId);
   const locale = options.locale;
+  // No filter: `collectRows` already builds its own array, so copying first
+  // would double the 100k-row allocation on every resolve (T4.6).
   const filtered =
-    spec.filter === undefined ? [...rows] : applyFilter(rows, table, spec.filter, { locale });
+    spec.filter === undefined ? rows : applyFilter(rows, table, spec.filter, { locale });
   const collected = collectRows(table, filtered, xColumn);
   const xIndex = table.columns.findIndex((column) => column.id === xColumn.id);
 
-  const ordered =
-    spec.sort.length > 0
-      ? applySort(collected.rows, table, spec.sort, { locale })
-      : xColumn.type === 'text'
-        ? collected.rows
-        : sortRowsByX(collected.rows, xIndex);
-
-  const xValues = ordered.map((row) => renderXValue(row.values[xIndex] ?? null, xColumn));
-  const palette = resolvePalette(spec.options.paletteId);
+  let ordered: Row[];
+  let xValues: (number | string)[];
+  if (spec.sort.length > 0) {
+    ordered = applySort(collected.rows, table, spec.sort, { locale });
+    xValues = ordered.map((row) => renderXValue(row.values[xIndex] ?? null, xColumn));
+  } else if (xColumn.type === 'text') {
+    ordered = collected.rows;
+    xValues = ordered.map((row) => renderXValue(row.values[xIndex] ?? null, xColumn));
+  } else {
+    // Default numeric/time order: sort indices over flat coordinates (T4.6).
+    const coordinates = collected.rows.map((row) => numericX(row.values[xIndex] ?? null));
+    const order = ascendingOrderByX(coordinates);
+    const rowsByIndex = collected.rows;
+    ordered = order.map((index) => {
+      const row = rowsByIndex[index];
+      if (row === undefined) {
+        throw new Error(`Chart ordering lost row index ${String(index)}.`);
+      }
+      return row;
+    });
+    xValues = order.map((index) => coordinates[index] ?? 0);
+  }
   const usedNames = new Set<string>();
   const warnings: string[] = [];
 
@@ -553,7 +629,7 @@ export function resolveSeries(
     );
   }
 
-  const series: RenderSeries[] = [];
+  const series: ResolvedSeries[] = [];
   if (mapping.layout === 'wide') {
     const yColumns = mapping.yColumnIds.map((columnId) => requireColumn(table, columnId));
     const renderedColumns = yColumns.slice(0, MAX_CHART_SERIES);
@@ -571,12 +647,11 @@ export function resolveSeries(
       });
       renderedSeries.push({ column, values });
     });
-    renderedSeries.forEach((entry, seriesIndex) => {
+    renderedSeries.forEach((entry) => {
       series.push({
         id: entry.column.id,
         name: uniqueSeriesName(entry.column.label, usedNames),
         values: entry.values,
-        color: paletteColor(palette, seriesIndex),
       });
     });
     for (const column of renderedColumns) {
@@ -618,12 +693,11 @@ export function resolveSeries(
       }
     }
     const renderedKeys = groupKeys.slice(0, MAX_CHART_SERIES);
-    renderedKeys.forEach((key, seriesIndexValue) => {
+    renderedKeys.forEach((key) => {
       series.push({
         id: `${seriesColumn.id}:${key}`,
         name: uniqueSeriesName(seriesNameOf(firstCells.get(key) ?? null, seriesColumn), usedNames),
         values: yValues.map((value, rowIndex) => (rowKeys[rowIndex] === key ? value : null)),
-        color: paletteColor(palette, seriesIndexValue),
       });
     });
     if (nonNumericCount > 0) {
@@ -642,10 +716,10 @@ export function resolveSeries(
     (total, entry) => total + entry.values.filter((value) => value !== null).length,
     0,
   );
-  const xAxis: RenderXAxis = {
+  const xAxis: ResolvedXAxis = {
     values: xValues,
     type: xAxisType(xColumn),
-    label: spec.options.xLabel ?? xColumn.label,
+    columnLabel: xColumn.label,
   };
   if (xColumn.unit !== undefined) {
     xAxis.unit = xColumn.unit;
@@ -654,32 +728,14 @@ export function resolveSeries(
   const sampling = spec.options.sampling;
   const sampled =
     sampling.enabled && sourcePoints > sampling.threshold
-      ? sampleModel(xAxis.values, samplingCoordinates(xAxis.values, xAxis.type), series, sampling)
+      ? sampleData(xAxis.values, samplingCoordinates(xAxis.values, xAxis.type), series, sampling)
       : null;
-  const yAxis = renderYAxis(spec.options);
 
   return {
     ok: true,
-    model: {
-      kind: spec.kind,
+    data: {
       x: sampled === null ? xAxis : { ...xAxis, values: sampled.xValues },
-      ...(yAxis === undefined ? {} : { y: yAxis }),
       series: sampled === null ? series : sampled.series,
-      style: {
-        palette,
-        background: resolveChartBackground(spec.options.background, {
-          theme: options.theme,
-          background: options.background,
-        }),
-        showGrid: spec.options.showGrid,
-        lineWidth: spec.options.lineWidth,
-        smooth: spec.options.smooth,
-        showSymbol: spec.options.showSymbol,
-        legend: spec.options.legend,
-        numberDigits: spec.options.numberDigits,
-        yStartAtZero: spec.options.yStartAtZero,
-        connectNulls: sampled !== null || mapping.layout === 'long',
-      },
       meta: {
         sampled: sampled !== null,
         sourcePoints,
@@ -688,4 +744,72 @@ export function resolveSeries(
       },
     },
   };
+}
+
+/**
+ * Applies chart presentation to resolved data (T4.6, ADR-045).
+ *
+ * Only palette/background/line styling, the value-axis name and `kind` come
+ * from the spec; the data arrays are shared by reference with `data` and must
+ * not be mutated. `connectNulls` keeps the ADR-043 rule
+ * (`sampled || layout === 'long'`) so sampled and long charts bridge the null
+ * positions that are representation artifacts.
+ */
+export function renderChartModel(
+  data: ResolvedChartData,
+  spec: ChartSpec,
+  options: ChartResolveOptions = {},
+): RenderModel {
+  const palette = resolvePalette(spec.options.paletteId);
+  const yAxis = renderYAxis(spec.options);
+  return {
+    kind: spec.kind,
+    x: {
+      values: data.x.values,
+      type: data.x.type,
+      label: spec.options.xLabel ?? data.x.columnLabel,
+      ...(data.x.unit === undefined ? {} : { unit: data.x.unit }),
+    },
+    ...(yAxis === undefined ? {} : { y: yAxis }),
+    series: data.series.map((series, index) => ({
+      ...series,
+      color: paletteColor(palette, index),
+    })),
+    style: {
+      palette,
+      background: resolveChartBackground(spec.options.background, {
+        theme: options.theme,
+        background: options.background,
+      }),
+      showGrid: spec.options.showGrid,
+      lineWidth: spec.options.lineWidth,
+      smooth: spec.options.smooth,
+      showSymbol: spec.options.showSymbol,
+      legend: spec.options.legend,
+      numberDigits: spec.options.numberDigits,
+      yStartAtZero: spec.options.yStartAtZero,
+      connectNulls: data.meta.sampled || spec.mapping.layout === 'long',
+    },
+    meta: data.meta,
+  };
+}
+
+/**
+ * Resolves one chart into its RenderModel (SPEC §11.3).
+ *
+ * Composes `resolveChartData` + `renderChartModel`; the output is unchanged
+ * from T4.1–T4.4 (T4.6 only split the call, ADR-045), so callers and golden
+ * snapshots keep working. The rendered data part is reused by reference.
+ */
+export function resolveSeries(
+  table: TableMeta,
+  rows: readonly Row[],
+  spec: ChartSpec,
+  options: ChartResolveOptions = {},
+): ChartResolveResult {
+  const resolved = resolveChartData(table, rows, spec, options);
+  if (!resolved.ok) {
+    return resolved;
+  }
+  return { ok: true, model: renderChartModel(resolved.data, spec, options) };
 }

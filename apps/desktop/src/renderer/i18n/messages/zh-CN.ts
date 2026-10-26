@@ -806,6 +806,7 @@ export const zhCN = {
   'chart.view.remapHint': '图表映射不会被自动修改；重新选择列后图表自动恢复。',
   'chart.view.empty': '当前数据没有可绘制的点。',
   'chart.view.error': '图表渲染失败：{message}',
+  'chart.view.loading': '正在解析图表…',
   'chart.view.sampled': '已采样',
   'chart.view.seriesCount': '{count} 条系列',
   'chart.view.points': '{points} 个点',

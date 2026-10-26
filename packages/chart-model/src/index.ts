@@ -5,7 +5,8 @@
  * ECharts is forbidden here; only @curve/chart-echarts may import it.
  *
  * T4.1 delivers the RenderModel and the wide/long mapping; T4.2 adds LTTB
- * sampling on top of this contract.
+ * sampling on top of this contract. T4.6 (ADR-045) exposes the two-step resolve
+ * (`resolveChartData` + `renderChartModel`) behind the unchanged `resolveSeries`.
  */
 
 export const PACKAGE_NAME = '@curve/chart-model' as const;

@@ -1174,6 +1174,19 @@ export interface RenderModel {
 - 列被删除后图表进入可操作错误态（`missing-columns` + 内嵌重映射），不自动改写映射；
   `chart.update` 允许悬空引用以便修复，`chart.create` 要求映射有效。
 
+**实现边界（T4.6，ADR-045）**：
+
+- `chart-model` 公开“解析数据 / 应用样式”两段，`resolveSeries` 仍是二者的组合且输出不变：
+  `resolveChartData(table, rows, spec, options?)` 返回 `{ ok, data } | { ok, issues }`
+  （`ResolvedChartData = { x, series: { id, name, values }[], meta }`，**不含颜色与样式**）；
+  `renderChartModel(data, spec, options?)` 补齐 `kind`、`series[].color`、`style` 与 `y`。
+  数据段只依赖 `filter`/`sort`/`mapping`/`sampling`/`locale`/`xLabel`；样式段才读取
+  `paletteId`/`background`/`lineWidth`/`smooth`/`showSymbol`/`legend`/`showGrid`/`numberDigits`/
+  `yStartAtZero`/`yLabel`。`renderChartModel` 复用数据里的 `values` 数组，调用方不得修改。
+- 数据缓存属于渲染层（`features/charts/chart-data-cache.ts`），按“`rows` 引用 + 数据键”
+  命中；键含表结构签名、`mapping`/`filter`/`sort`/`sampling`/`locale`/`xLabel`，不含样式字段。
+  缓存不进入 `chart-model`（该包保持纯函数、无状态，ADR-040）。
+
 ### 11.4 ECharts 适配器
 
 - 按需引入 `echarts/core` + `LineChart/ScatterChart/BarChart` + 必要组件。
@@ -1269,6 +1282,22 @@ export interface RenderModel {
 - 导出入口在图表视图工具栏而非检查器（原因见 ADR-044）：检查器仍是数据/映射/外观/坐标轴四组；
   导出对话框提供透明/白/深背景选择、固定 2x 与建议文件名。
 - 交互状态（图例选择、缩放窗口）不持久化、不进入撤销；关闭标签或重启后回到全选/0–100。
+
+**实现边界（T4.6，ADR-045）**：
+
+- 大表（> `CHART_DEFER_RESOLVE_ROW_THRESHOLD = 20_000` 行）且数据缓存未命中时，图表先显示
+  loading（`role="status"`，视图 `data-chart-pending="true"`），解析在 `setTimeout(0)` 中执行；
+  首次挂载与切换映射/图表都适用。小表、缓存命中、缺表/缺图表时同步解析，不闪 loading。
+  解析结果落地后一次性替换视图状态，`data-chart-pending="false"`。
+- 样式类提交（调色板/线宽/平滑/点/图例/网格/精度/Y 轴名/类型/背景）只重跑 `renderChartModel`，
+  不重新筛选/排序/采样；E2E 以一次样式提交后 `data-chart-resolve-ms` 接近 0 证明缓存命中。
+- 性能诊断契约（只读 DOM 属性，不是持久化字段）：`chart-view` 的 `data-chart-pending`、
+  `data-chart-resolve-ms`；`chart-canvas` 的 `data-chart-update-ms`（`renderer.render/update`
+  同步耗时，含 option 与 `setOption`）、`data-chart-update-count`、`data-chart-instances`
+  （`activeChartInstanceCount()` 泄漏断言）。与 §16.1 的“图表渲染 2k 点 ≤200ms”配套。
+- ECharts 的 `datazoom` / `legendselectchanged` 触发的状态发布按 `requestAnimationFrame` 合并
+  （每帧最多一次 React 更新，总是发布最新状态）；工具栏动作仍立即发布，无 rAF 时同步发布。
+  交互状态语义（瞬态、不入文档）不变（ADR-044）。
 
 ### 11.6 导出
 
@@ -1818,6 +1847,18 @@ P95 **93ms**（预算 300ms），单系列纯采样 `chart.sample.100k`（100k�
 P95 **4ms**（预算 50ms）；`chart.resolve-unsampled.100k` P50 55ms 只作诊断。采样后的模型
 保持 `renderedPoints ≤ sourcePoints`（ADR-040 口径），逐系列非空点数 ≤ target；2k 点渲染
 预算（§16.1 第二行）由 T4.6 判定。
+
+T4.6 实测（2026-10-26，本机；ADR-045）：`pnpm bench -- --chart`（原 `--sample`，保留别名）——
+`chart.resolve-sample.100k` P50 **59ms** / P95 **63ms**（预算 300ms）、`chart.sample.100k`
+P95 **2ms**（50ms）、`chart.option.2k` P95 **1ms**（50ms，option 构造）、
+`chart.restyle.100k` P95 **0ms**（20ms，复用已解析数据只改样式，证明样式提交不重解析）。
+渲染/更新预算由 `apps/desktop/e2e/chart-perf.spec.ts` 在真实 Electron 中测量：
+`data-chart-resolve-ms` **47ms**（≤300）、`data-chart-update-ms` **89ms**（≤200，含 option +
+`setOption` + 2k 点画布）；调色板提交（缓存命中）`resolve=0ms` / `update=14ms`；10 次连点缩放
+期间无 >50ms 长任务（`longtask`）；11 次映射/标签切换后 `activeChartInstanceCount()=1`，
+切换后 private 峰值 **589–591MB**（≤600MB），100k 图表工作区初始 **470MB**。任务中同时修复
+“工作区缺少 `backups/` 目录时所有保存返回 `E_FS_WRITE`”的主进程缺陷（含回归测试）。
+`pnpm e2e` 全量 **81 passed**。
 
 ### 16.2 安全
 
