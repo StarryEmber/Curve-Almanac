@@ -73,7 +73,7 @@
 | `T4.2` LTTB 采样与缺失值语义 | **已完成**（2026-10-25，`247093d`）；报告 `docs/reports/t4.2/REPORT.md`；ADR-041 |
 | `T4.3` ECharts 适配器 | **已完成**（2026-10-25，`7a9b665`）；报告 `docs/reports/t4.3/REPORT.md`；ADR-042 |
 | `T4.4` 图表创建与检查器 | **已完成**（2026-10-25，`862063f`）；报告 `docs/reports/t4.4/REPORT.md`；ADR-043 |
-| `T4.5` 图表交互、空态与 PNG 导出 | **已完成**（2026-10-26）；报告 `docs/reports/t4.5/REPORT.md`；ADR-044 |
+| `T4.5` 图表交互、空态与 PNG 导出 | **已完成**（2026-10-26，`fd68789`）；报告 `docs/reports/t4.5/REPORT.md`；ADR-044 |
 | 当前里程碑 | **M4 图表**：T4.1–T4.5 已完成，下一 T4.6 |
 | 下一步 | **T4.6 图表性能硬化** |
 | `pnpm verify` 基线 | **161 files / 1474 tests**；ESLint 0；depcruise 441 modules / 1830 deps / 0 violations |
@@ -332,13 +332,15 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
   长 true），`chart-echarts/__snapshots__` 的 6 条 option 快照改 `grid.bottom` 56→72 与采样
   模型的 `connectNulls` 来源。后续只有再次有意改契约时才 `-u`，并在报告写明。
 - 图表 E2E 是 `apps/desktop/e2e/chart.spec.ts` 4 条（向导+四组检查器+重启、删列重映射、复制、
-  200% 键盘）。`schema.spec.ts` 的图表错误态断言已从 `chart-placeholder` 改为
+  200% 键盘）与 `chart-interaction.spec.ts` 3 条（100k 图例/缩放/tooltip/resize + axe、PNG、
+  空态）。`schema.spec.ts` 的图表错误态断言已从 `chart-placeholder` 改为
   `chart-view[data-chart-state=missing-columns]` + `chart-error`。
 - `ChartList`/`ChartDialogs` 的容器逻辑（IPC/命令接线）没有组件测试，由 E2E 覆盖；纯逻辑
   （`chart-view-model.ts`）、映射编辑器、检查器、Canvas 生命周期与错误态有 39 条单测。
-- 全量 E2E 现为 **76 passed**（72 + chart 4）。T4.4 全量运行曾偶发 `grid.spec.ts` 的
-  “stays usable at 200% zoom” 焦点失败（单跑 2.3s 通过），与 HANDOFF §3.6 的既有 flake 一致；
-  重跑全量前确认 CPU 空闲，不要放宽断言。
+- 全量 E2E 现为 **79 passed**（T4.5 全量 3.7m；含 chart.spec 4 + chart-interaction 3）。
+  T4.4/T4.5 全量运行曾偶发 `grid.spec.ts` 的“stays usable at 200% zoom”焦点失败
+  （单跑约 2.2s 通过），与 HANDOFF §3.6 的既有 flake 一致；重跑全量前确认 CPU 空闲，
+  不要放宽断言。
 - `chart.update` 允许悬空映射（列删除后的修复路径），因此命令层不能保证图表映射有效；
   `chart.create`（含复制/向导）仍严格校验。不要给 `chart.update` 加严格映射校验，否则重映射
   无法逐步进行。
@@ -655,13 +657,14 @@ apps/desktop/src/renderer/
 ├─ import/                      # T2.5：encoding/client/worker-protocol/worker-handler
 ├─ query/                       # T2.6：query Worker client/handler（缓存/增量/守卫）
 ├─ workers/{import,query}.worker.ts  # T2.5/T2.6 专用 Worker
-├─ features/charts/                # T4.4：图表列表/向导/检查器/视图/Canvas
+├─ features/charts/                # T4.4/T4.5：图表列表/向导/检查器/视图/Canvas/导出
 │  ├─ ChartList.tsx / ChartDialogs.tsx
 │  ├─ NewChartDialog.tsx           # 选表→映射→列→实时预览
-│  ├─ ChartView.tsx                # 状态机/错误态/重映射/data-chart-* 契约
-│  ├─ ChartCanvas.tsx              # render + 120ms 防抖 update + resize + dispose
+│  ├─ ChartView.tsx                # 状态机/空态/工具栏/aria 摘要/重映射/data-chart-* 契约
+│  ├─ ChartCanvas.tsx              # render + 120ms 防抖 update + resize + dispose + 交互/导出句柄
+│  ├─ ChartExportDialog.tsx / ChartEmptyState.tsx   # PNG 导出对话框、三态空态卡片
 │  ├─ ChartInspector.tsx / ChartMappingFields.tsx / chart-fields.tsx
-│  └─ chart-view-model.ts / chart-text.ts / use-chart-editor.ts
+│  └─ chart-view-model.ts / chart-text.ts / chart-export.ts / use-chart-editor.ts
 ├─ shell/                       # AppShell/TitleBar/Sidebar/Inspector/StatusBar/HelpDialog
 ├─ i18n/messages/{zh-CN,en-US}.ts
 ```
@@ -681,12 +684,12 @@ apps/desktop/src/renderer/
 T2.5 新增 `apps/desktop/e2e/import.spec.ts` 6 条：100k GBK 分号 + 3 坏行 + 错误 CSV；错编码
 覆盖；150k 取消/100k 提示；JSON 替换 + 备份 + 原文归档 + 撤销；200k 拒绝；200% 缩放键盘。
 
-完整 E2E 现为 **76 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
+完整 E2E 现为 **79 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
 `schema.spec.ts`、T2.4 的 `paste.spec.ts`、T2.5 的 `import.spec.ts`、T2.6 的
 `filter.spec.ts`、T2.7 的 `perf.spec.ts`、T3.2/T3.4 的 `style.spec.ts`、T3.5 的
-`template.spec.ts`、T3.6 的 `export-csv.spec.ts`、T4.4 的 `chart.spec.ts`、M2 的
-`m2-acceptance.spec.ts`、M3 的 `m3-acceptance.spec.ts` 与既有 shell/ipc/smoke/workspace/
-table-io 全绿。
+`template.spec.ts`、T3.6 的 `export-csv.spec.ts`、T4.4 的 `chart.spec.ts`、T4.5 的
+`chart-interaction.spec.ts`、M2 的 `m2-acceptance.spec.ts`、M3 的 `m3-acceptance.spec.ts`
+与既有 shell/ipc/smoke/workspace/table-io 全绿。
 
 T2.6 新增 `apps/desktop/e2e/filter.spec.ts` 6 条：2k 行筛选 + 三级排序；重开恢复筛选/排序与
 清除；同表双视图互不影响；隐藏列/恢复；100k 行 Worker 筛选+排序（`data-query-ms <= 400`）；
@@ -726,6 +729,13 @@ T4.4 新增 `apps/desktop/e2e/chart.spec.ts` 4 条：①向导建宽表 2 个 Y 
 ③复制图表新 id/新视图、标题 ` (2)`、源/副本调色板互不影响（2.8s）；
 ④200% 缩放下 Enter 开向导（对话框不越界）、方向键/End 切检查器标签（2.8s）。
 截图由 `testInfo.outputPath` 生成后复制到 `docs/reports/t4.4/`（4 张），不提交像素基线。
+
+T4.5 新增 `apps/desktop/e2e/chart-interaction.spec.ts` 3 条：①100k 采样图（`sampled=true`、
+rendered ≤2k）上的图例切换、放大/缩小/重置（`data-chart-zoom-start/end`）、tooltip
+（`.cs-chart-tooltip`）、缩窗后 canvas 变窄，并跑 axe wcag2a/aa（critical 0）（4.0s）；
+②PNG 导出透明/白/深三背景（IHDR 尺寸 = canvas ×2、像素 alpha 0/`#ffffff`/`#1e1e1e`、文件名
+`<标题>-<yyyyMMdd-HHmm>.png`）与 200% 键盘冒烟（2.4s）；③`no-data`/`unmapped` 空态与行动按钮
+（2.4s）。截图复制到 `docs/reports/t4.5/`（3 张）。`no-table` 是防御态，由组件测试覆盖。
 
 ### 4.9 `@curve/domain` 表格样式（T3.1）
 
@@ -2074,23 +2084,82 @@ pnpm bench          exit 0；open 361ms、save 306ms、edit 0ms、query 190ms、
 - toolbox 已本地化（T4.5）；动画关闭、dataZoom 滑块常驻（T4.6 评估）。
 - 图表与表格选中行联动（SHOULD）未实现。
 
-**T4.5 交接提示（已完成；以下为当时的提示，保留作历史，最终实现见 ADR-044 与报告）**：
+## 5O. T4.5 图表交互、空态与 PNG 导出（已完成）
 
-- 现有图表层已就绪：`ChartView`（状态机 + `data-chart-*` 契约）、`ChartCanvas`（首次 render +
-  120ms 防抖 update + resize + dispose）、适配器 `toPNG({ scale, background })` 返回 data URL；
-  T4.5 只做交互验证/空态/PNG 入口与 a11y，不要重建图表层或另拼 option。
-- 三种空态（无表/未映射/无数据）需要区分文案与行动按钮：现在 `missing-chart|missing-table`
-  是错误态、映射缺失是 `missing-columns` 可重映射、无点只有 `chart.view.empty` 简单提示；
-  按 TASKS T4.5 拆成可操作空态并加 `aria-label` 摘要与"查看数据表"。
-- 缩放/图例/tooltip：适配器已开 dataZoom（inside + slider）与 legend 点击；E2E 需在 100k
-  采样图上验证交互。采样徽标只读 `meta.sampled`（`data-chart-sampled`/`chart-sampled-badge`
-  已存在），不要自己数点。
-- PNG：用 `renderer.toPNG` + 既有 `file:exportText`（或按 ADR 新增保存通道）实现文件名
-  `<标题>-<yyyyMMdd-HHmm>.png`、2x/背景三选；适配器不落盘。导出前等待完整渲染（动画已关）。
-- toolbox 仍为 ECharts 英文默认；本地化/键盘可达按 T4.5 评估（注册 ECharts locale 或注入 labels）。
-- 空态/PNG/缩放 E2E 追加到 `chart.spec.ts` 或新 spec，保持 `--grep "chart"` 可选中；
-  200% 缩放下确认对话框/图表不越界。
-- 性能预算（2k 点渲染 ≤200ms、10 次切换无泄漏）与 100k 交互属 T4.6；不要在 T4.5 放宽。
+ADR-044 记录 8 组决定：
+
+1. **交互归属**：`ChartRenderer` 增加 `getInteractionState()` / `dispatchInteraction()` /
+   `onInteractionChange()`；`dispatchInteraction` 只调 ECharts `dispatchAction`，不重建实例、
+   不改 option、不写 RenderModel，异常吞掉；`onInteractionChange` 订阅 `datazoom` /
+   `legendselectchanged`。DOM 工具栏（逐系列 `aria-pressed` 图例、放大/缩小/重置、“查看数据表”、
+   “导出 PNG…”）与 canvas 内置控件共享同一份瞬态状态。
+2. **瞬态性**：图例选择/缩放窗口不写 `ChartSpec`/manifest、不进撤销、不跨标签/重启保留；
+   关闭标签或重启回到全选/0–100。
+3. **三态空态**：`data-chart-empty` = `no-table`（表已删除 → “删除图表…”，二次确认可撤销）/
+   `unmapped`（缺列/映射无效 → “配置映射”聚焦内嵌 `ChartMappingFields`）/`no-data`
+   （`data-chart-state="empty"` → “查看数据表” `openTable`）。映射仍不自动改写（SPEC §19）。
+4. **PNG 导出**：`ChartCanvas.exportPng` 先 flush 120ms 防抖、等两个动画帧，再调同步 `toPNG`；
+   对话框选透明/白/深背景、固定 2x、建议文件名 `<标题>-<yyyyMMdd-HHmm>.png`（非法字符→`_`、
+   去尾部点/空格、Windows 保留名加 `_`、80 码点、空标题回退 `chart`）；失败/取消在对话框内
+   处理，不写半成品。
+5. **传输复用**：`file:exportText` 请求增加可选 `encoding:'utf8'|'base64'`；main 严格校验
+   base64 后解码为字节，`atomicWriteBytes`（临时文件 + fsync + rename）。**不新增 IPC 通道**，
+   preload 白名单与 `ALL_IPC_CHANNELS` 计数不变。
+6. **导出入口**：放在图表视图工具栏而非检查器（渲染器实例归属；检查器仍是数据/映射/外观/
+   坐标轴四组）。SPEC §11.5 已按此改措辞。
+7. **无障碍**：canvas 宿主 `role="img"` 的 `aria-label` = 标题/类型/系列数/点数（采样时补充
+   原始点数）；E2E 在 100k 图上跑 axe wcag2a/aa，critical 0。
+8. **toolbox/类名**：`toEChartsOption` 增加 `labels { zoom, zoomBack }`（不传保持 ECharts
+   英文默认值）；tooltip 增加稳定类名 `cs-chart-tooltip`，6 条 option 快照有意更新。
+
+关键文件：
+
+```text
+packages/chart-echarts/src/option.ts (+option.test/snapshot)     # labels、tooltip className
+packages/chart-echarts/src/renderer.ts (+renderer.test)          # 交互读取/派发/订阅
+apps/desktop/src/shared/contracts/ipc.ts (+ipc.test)             # exportText encoding
+apps/desktop/src/main/import/import-files.ts (+test)             # base64 解码/字节写
+apps/desktop/src/main/workspace/atomic-write.ts                  # atomicWriteBytes
+apps/desktop/src/main/index.ts                                   # 传递 encoding
+apps/desktop/src/renderer/features/charts/
+├─ ChartView.tsx (+test)            # 工具栏、三态空态、aria 摘要、导出入口
+├─ ChartCanvas.tsx (+test)          # exportPng/交互句柄、toolbox labels
+├─ ChartExportDialog.tsx (+test)    # 背景选择、文件名、成功/失败
+├─ ChartEmptyState.tsx              # 三态空态卡片
+├─ chart-export.ts (+test)          # 文件名清洗/base64 data URL
+└─ chart-text.ts                    # chartSummaryText
+apps/desktop/src/renderer/{i18n/messages/*,styles.css}
+apps/desktop/e2e/chart-interaction.spec.ts                      # 3 条 E2E
+docs/adr/044-t45-chart-interaction-export.md；docs/reports/t4.5/REPORT.md (+3 screenshots)
+```
+
+实测（2026-10-26，本机）：
+
+```text
+pnpm verify         161 files / 1474 tests；ESLint 0；
+                    depcruise 441 modules / 1830 deps / 0 violations
+pnpm test:coverage  lines 76.26% / statements 76.12% / branches 69.03% / functions 74.65%
+                    chart-echarts/src lines 96.75%（renderer.ts 93.75%、option.ts 100%）
+pnpm format:check   通过
+pnpm build          exit 0；renderer 3,238.36 kB + ImportSession 42.82 kB；CSS 72.19 kB
+pnpm e2e            79 passed（3.7m）；chart-interaction 3 条：4.0s / 2.4s / 2.4s
+pnpm bench          exit 0；open 361ms、save 237ms、edit 0ms、query 196ms、
+                    text-sort 263ms、cjk-sort 443ms、import 644ms、condition P95 1ms；
+                    chart.resolve-sample P95 66ms/300ms、chart.sample P95 2ms/50ms
+```
+
+提交：**`fd68789`**（`feat(chart): add chart interaction, empty states and PNG export (T4.5)`）；
+本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`。
+
+残留：
+
+- `no-table` 是防御态：`checkChartInto` 把缺失表当错误，合法 manifest 打不开；`table.delete`
+  也会级联删除图表。三态由 `ChartView.test.tsx` 覆盖，E2E 只覆盖可达的 `no-data`/`unmapped`。
+- 图例/缩放不持久化（ADR-044 的取舍）；若产品要求保留，需改 `ChartSpec`/manifest 并加迁移。
+- 导出入口在视图工具栏；若检查器内必须导出，需要跨组件的渲染器句柄注册表。
+- base64 使 PNG 载荷约 +33%；4x/超长画布需分块或新二进制通道。
+- 直接调用 `chart-echarts` 且不传 `labels` 的调用方仍显示 ECharts 英文 toolbox 标题。
+- 图表与表格选中行联动（SHOULD）仍未实现；T4.6 只做性能硬化。
 
 ---
 
@@ -2199,8 +2268,8 @@ JSONL/IPC；未新增运行时依赖。接受前复核（2026-10-24）：`pnpm v
 Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings、`m3-contract.json` 与
 失败时的 trace；截图已复制到 `docs/reports/m3/`。
 
-**停点（已解除）**：M3 已于 2026-10-24 获用户接受并关闭；此后 T4.1、T4.2、T4.3、T4.4 已完成
-（见 §5K/§5L/§5M/§5N），M4 下一任务是 T4.5（图表交互、空态与 PNG 导出）。
+**停点（已解除）**：M3 已于 2026-10-24 获用户接受并关闭；此后 T4.1–T4.5 已完成
+（见 §5K/§5L/§5M/§5N/§5O），M4 下一任务是 T4.6（图表性能硬化）；T4.6 完成后运行 M4 验收演示。
 
 ---
 
@@ -2222,7 +2291,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 100k 文本排序接近 400ms | bench 波动可能超预算 | T2.7 已预计算排序键/类型数组，ASCII 253ms；中文仍 698ms/800ms |
 | query Worker 缓存最多 4 张表 | 切换更多表会重新克隆 | 记录于 ADR-032；T2.7 未改淘汰策略 |
 | 100k 首次 Worker 快照克隆 | 首次筛选/排序有额外延迟 | 不计入 `data-query-ms`；E2E `data-query-total-ms` 实测 448–490ms |
-| 整应用内存 497MB/600MB（M2 实测；T2.7 570MB；T3.5 568MB；T3.6 571MB；M3 572MB；T4.2 571MB） | CI runner 更慢/更碎片化时可能超 | 余量约 5%；超了先查是否 E2E 探针/噪声，不改预算 |
+| 整应用内存 497MB/600MB（M2 实测；T2.7 570MB；T3.5 568MB；T3.6 571MB；M3 572MB；T4.2 571MB；T4.5 578MB） | CI runner 更慢/更碎片化时可能超 | 余量约 4%；T4.6 复核 100k 图表交互；超了先查是否 E2E 探针/噪声，不改预算 |
 | bench 基线未提交 | 20% 回归告警不触发 | CI Windows runner 跑 `pnpm bench -- --write-baseline` 后提交 `bench/baseline.json` |
 | 100k 行撤销补丁变大 | 历史内存 | T2.7 的整数组 patch 每个编辑约 800KB；T5.2 统一历史时评估 |
 | 视图状态连续写 manifest | 拖动列宽/快速排序多次写盘 | T5.3 统一保存队列后合并 |
@@ -2250,7 +2319,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 75.89%（T4.4 实测；T4.2 75.55%、T4.1 75.34%、M3 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`chart-model/src` 95.93%、`chart-echarts/src` 99.57% 行；`features/charts` 62.47%（ChartList/Dialogs 由 E2E 覆盖）；任务报告记录实测 |
+| 覆盖率 76.26%（T4.5 实测；T4.4 75.89%、T4.2 75.55%、T4.1 75.34%、M3 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`chart-model/src` 95.93%、`chart-echarts/src` 96.75% 行；`features/charts` 由组件 + E2E 覆盖；任务报告记录实测 |
 | renderer bundle 3.21MB（T4.4；+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩；ECharts 首次进入主 chunk |
 | 100k CSV 导出 1,716ms/5s（T3.6） | 去掉 Intl formatter 缓存会退到 10s 量级 | `formatCellValue` 的 locale/格式缓存是达标关键；不要改回每单元格 `new Intl.*` |
 | CSV 临时文件残留 | 进程崩溃时 `.curve-export-*.tmp` 留在目标目录 | cancel/`before-quit` 已清理；崩溃残留需手工删除，报告已记录 |
@@ -2272,11 +2341,11 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | T4.2 被采样略过的 null 与真实缺口同形 | 适配器无法只断真实缺口 | ADR-041 代价；T4.3 已按 ADR-042 §3 处理（未采样断开 / 已采样跨过）；需要结构化 gap 时另写 ADR |
 | T4.2 未采样系列贡献全部非空点 | 极端多小系列时采样收益下降 | 有意取舍（不丢未采样数据）；T4.6 若超预算再评估 |
 | `scripts/bench.ts` 依赖 `@curve/chart-model` | 重装依赖可能出现 symlink 权限错误 | 根 devDependency（仅 bench）；按 §3.4 预建 junction 后 `pnpm install` |
-| T4.3 按需注册仍带 toolbox feature 实现 | bundle 606.0 kB min / 206 kB gzip | ADR-042：只启用 dataZoom feature；T4.4 已接入 renderer（主 chunk 3,209.97 kB），T6.4 评估拆包 |
+| T4.3 按需注册仍带 toolbox feature 实现 | bundle 606.0 kB min / 206 kB gzip | ADR-042：只启用 dataZoom feature；T4.4 接入 renderer，T4.5 主 chunk 3,238.36 kB，T6.4 评估拆包 |
 | 采样图真实缺口也被连线 | 图上无法区分真实缺口与采样略过 | ADR-042 §3：未采样断开、已采样连线（ADR-041 接受的代价）；需要真实断点时改 RenderModel 结构化 gap + ADR |
 | Y 轴单位不在 `RenderModel` | tooltip 只有 X 单位 + Y 精度（T4.4 已补 Y 轴名 `y.label`，单位仍缺） | ADR-043：`RenderModel.y.label` 只来自 `options.yLabel`；需要 Y 单位/逐列轴名时扩展 SPEC §11.3 的 `RenderSeries.unit` 并写 ADR，不在组件里绕过 |
-| toolbox 英文标题/动画关闭/滑块常驻 | 中文界面少量英文、无入场动画 | T4.5 决定本地化/交互；动画关闭是为 2k 点与 PNG 确定性（ADR-042） |
-| canvas 无法在 jsdom 单测 | 真实像素/布局未在单测覆盖 | 生命周期 mock `echarts/core`；`option.ssr.test.ts` 用真实 ECharts SSR/SVG；像素与 resize 由 T4.5/T4.6 E2E |
+| toolbox 标题本地化/动画关闭/滑块常驻 | 直接调用适配器不传 `labels` 时仍是英文标题；无入场动画 | T4.5 经 `ChartCanvas` 注入 `labels`；动画关闭是为 2k 点与 PNG 确定性（ADR-042）；滑块常驻留 T4.6 评估 |
+| canvas 无法在 jsdom 单测 | 真实像素/布局未在单测覆盖 | 生命周期 mock `echarts/core`；`option.ssr.test.ts` 用真实 ECharts SSR/SVG；T4.5 E2E 已覆盖 tooltip/resize/PNG 像素，T4.6 复核 2k 点渲染 |
 | `[x, null]` 空点语义依赖 ECharts 版本 | 升级主版本可能改变断点/连线 | 版本锁 6.1.0；SSR 测试断言 2 子路径/1 子路径；升级 ECharts 主版本需重跑并写 ADR |
 | 图表主题颜色是复制常量 | 令牌变更需手动同步 | ADR-042；需要令牌化时把颜色注入 option 并写 ADR |
 | 长表折线跨过真实缺口 | 图上无法区分"其它系列占用该行"与真实缺失 | ADR-043：长表 `connectNulls=true`（结构性 null 必须跨过）；需要真实断点时改结构化 gap/per-series x + ADR |
@@ -2287,8 +2356,13 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 每次检查器提交 flush manifest | 快速连续操作产生多条撤销与写盘 | 小文件；T5.2 统一历史时评估合并/批量提交 |
 | `ChartList`/`ChartDialogs` 无组件测试 | 容器接线回归只能靠 E2E | 逻辑在 app-core 有单测、容器由 `chart.spec.ts` 覆盖；新增交互时补 E2E |
 | `data-chart-*` 属性是渲染契约 | 字段增减影响 E2E 与未来 a11y 摘要 | 由 `ChartView` 一处生成；改字段时同步 E2E 与报告，不是持久化格式 |
-| 图表主 chunk +1.59MB | 冷启动/内存可能受影响 | 指标见 T4.4 报告；T6.4 拆包/懒加载，T4.6 复核 100k 图表交互 |
-| T4.4 全量 E2E 偶发 grid 200% 焦点失败 | 全量非零 | 与既有 flake 一致（单跑 2.3s 通过）；确认 CPU 空闲后重跑，不放宽断言 |
+| 图表主 chunk 3.24MB（T4.5；+42.82 kB 懒加载） | 冷启动/内存可能受影响 | T6.4 拆包/懒加载，T4.6 复核 100k 图表交互与实例泄漏 |
+| T4.4/T4.5 全量 E2E 偶发 grid 200% 焦点失败 | 全量非零 | 与既有 flake 一致（单跑约 2.2s 通过）；确认 CPU 空闲后重跑，不放宽断言 |
+| 图例选择/缩放窗口不持久化 | 关闭标签或重启后回到全选 0–100 | ADR-044 的有意取舍（瞬态、不进撤销）；若要求保留需写 `ChartSpec`/manifest 并加迁移 |
+| `no-table` 空态无法从合法 manifest 进入 | E2E 只能覆盖 `no-data`/`unmapped` | `checkChartInto` 把缺失表当错误、`table.delete` 级联删图表；三态由 `ChartView.test.tsx` 覆盖；若允许换表/孤儿图表需放宽 invariant 并写 ADR |
+| 导出入口在图表视图工具栏 | SPEC §11.5 原文把“导出”列在检查器 | ADR-044 已改 SPEC 措辞；检查器保持四组文档属性；若检查器内必须导出，引入跨组件渲染器句柄注册表（先 ADR） |
+| PNG 经 base64 复用 `file:exportText` | 载荷约 +33%，4x/超长画布可能接近上限 | 2x 图通常 0.3–2MB，远低于 256MB；需要 4x/分块时新增二进制通道或分块协议（先 ADR） |
+| 导出等待两个动画帧 | 导出多约 33ms | 换取“刚改完检查器立刻导出”也包含最新模型；`animation:false` 使 `toPNG` 确定（ADR-044） |
 
 ---
 
@@ -2324,7 +2398,16 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
   映射；复制/向导仍必须严格校验。
 - 不把 `ChartOptions.yLabel` 绕过 `RenderModel.y.label` 直接写进 option；Y 单位/逐列轴名需要新
   契约与 ADR。
-- 不自动跨任务/跨里程碑；M3 已验收并关闭，M4 的 T4.5、T4.6 完成后运行验收演示，停下等用户确认。
+- 不把图例选择/缩放窗口写进 `ChartSpec`/manifest 或撤销栈（ADR-044 的瞬态契约）；关闭标签/重启
+  回到全选 0–100 是预期行为。
+- 不在 `ChartCanvas` 之外调用 `toPNG` 并自己拼文件名；导出只经 `ChartCanvas.exportPng` + 视图
+  工具栏对话框（2x/背景/文件名/等待渲染都在那里）。
+- 不给 `file:exportText` 增加任意路径或第二个保存通道；PNG 复用 `encoding:'base64'`，路径只由
+  保存对话框决定（ADR-044）。
+- 不放宽 `no-table` 的 manifest invariant 来“让 E2E 能打开”：该态是防御态，由组件测试覆盖；
+  真要支持换表/孤儿图表先写 ADR。
+- 不在适配器/组件里硬编码 toolbox 本地化文案；`labels` 由 `ChartCanvas` 从 i18n 注入。
+- 不自动跨任务/跨里程碑；M3 已验收并关闭，M4 的 T4.6 完成后运行验收演示，停下等用户确认。
 
 ---
 
