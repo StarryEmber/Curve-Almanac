@@ -25,11 +25,12 @@
   loading、再 `setTimeout(0)` 解析）；性能诊断契约 `data-chart-pending`/`data-chart-resolve-ms`
   （chart-view）与 `data-chart-update-ms`/`data-chart-update-count`/`data-chart-instances`
   （chart-canvas）；交互状态发布按 rAF 合并；bench `sample` suite 更名 `chart`（`--sample`
-  别名）并新增 `chart.option.2k`/`chart.restyle.100k`；新增 `e2e/chart-perf.spec.ts` 2 条。
+  别名）并新增 `chart.option.2k`/`chart.restyle.100k`；新增 `e2e/chart-perf.spec.ts` 2 条；
+  顺带修复“工作区缺少 `backups/` 时所有保存 `E_FS_WRITE`”的主进程缺陷（含回归测试）。
   报告 `docs/reports/t4.6/REPORT.md`、ADR-045。
 - **基线**：`pnpm verify` **163 files / 1505 tests**（ESLint 0；depcruise 446 modules /
   1867 deps / 0 violations）；coverage 全局 lines **76.47%** / statements 76.34% / branches
-  69.21% / functions 74.99%（`chart-model/src` lines 96.88%、`chart-echarts/src` 96.75%）；
+  69.21% / functions 74.99%（render-model.ts 96.88%、`chart-echarts/src` 96.75%）；
   `format:check` 通过；`pnpm build` exit 0（renderer **3,251.27 kB**、CSS 72.31 kB）；
   `pnpm e2e` **81 passed**；`pnpm bench` **exit 0**
   （chart.resolve-sample P95 63ms/300ms、chart.sample P95 2ms/50ms、chart.option.2k P95 1ms/50ms、
@@ -45,8 +46,29 @@
   → 导出 PNG → 重启还原。建议以 `e2e/m4-acceptance.spec.ts`（仿 m2/m3）实现，独占 CPU 运行，
   截图放 `docs/reports/m4/`。
 - **不要回退的东西**：`resolveSeries` 输出/黄金快照、采样与断点语义、数据缓存键的字段边界、
-  `chart.update` 允许悬空映射、`ChartCanvas` 的 120ms 防抖 + merge、T4.5 的交互/空态契约。
-  `pnpm e2e --grep` 在 PowerShell 下会按 `|` 拆分，一次只跑一个模式。
+  `chart.update` 允许悬空映射、`ChartCanvas` 的 120ms 防抖 + merge、T4.5 的交互/空态契约、
+  T4.6 的 `data-chart-*` 诊断契约。`pnpm e2e --grep` 在 PowerShell 下会按 `|` 拆分，一次只跑
+  一个模式。
+
+### 0.1 M4 验收演示执行要点（下一个会话的第一件事）
+
+1. 目标：按 TESTPLAN E6 跑一条**单 test 的验收演示**并输出报告，然后停下等用户确认；不要开 M5。
+   建议新建 `apps/desktop/e2e/m4-acceptance.spec.ts`（仿 `m2/m3-acceptance.spec.ts`，需要
+   `launchCurveApp` 做“重启还原”）。
+2. 演示脚本：同一张表建**宽表折线**（2 个 Y）与**长表多系列**（低基数 `site` 列）→ 缩放/图例/
+   tooltip → 100k 图确认“已采样”徽标与 ≤2k 点/系列 → 导出 PNG（2x、背景之一、文件名）→
+   退出并重启同一 `userData` → 断言图表/视图/PNG 文件名与采样徽标还原。
+3. 断言口径：用 `data-chart-*`（kind/layout/x/y/series/source-rendered/sampled/palette/背景/
+   legend/grid/smooth/symbol/lineWidth/digits/zero/zoom/hidden-series），不要像素；100k 图
+   **先出现 `data-chart-state="loading"`**，必须 `expect.poll`/`toHaveAttribute` 等 `ready`。
+4. 夹具：不要把 100k 夹具用于长表映射（`col_site` 在该夹具里有 1 万个 distinct 值 → 20 系列
+   截断 + 大量 null）；长表用小表 seed，100k 只用宽表（1–2 个 Y）。
+5. 截图：E2E 生成后用 `testInfo.outputPath` 复制到 `docs/reports/m4/`（4–6 张）；报告写指标、
+   验收逐项与残留；提交 `test(m4): add milestone acceptance demo and report`，并同步
+   TASKS/CHANGELOG/AGENTS §0/HANDOFF。`pnpm e2e` 会重写 `docs/reports/m0/*.png`，提交前还原。
+6. 已知坑：标题前缀会命中多个 tab（用 `getByRole('tab', { name, exact: true })`）；一次启动只有
+   一个 `CURVE_E2E_SAVE`（先导出模板再导出 PNG/CSV 会覆盖同一路径）；200% 缩放用例要求独占
+   CPU；`chart-perf` 已占用的 `data-chart-*` 属性不要改名。
 
 ---
 
@@ -180,6 +202,13 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
 `cmd /c mklink /J` 预建 `node_modules\@curve\{app-core,persistence}` 再 `pnpm install`，
 一次通过；`pnpm-lock.yaml` 已同步提交。
 
+T4.6 又在根 `package.json` 的 devDependencies 增加了 `@curve/chart-echarts`（workspace 包，
+**仅 bench** 读 `toEChartsOption`；不是运行时依赖），并给 `scripts/tsconfig.json` 加了
+`chart-echarts` project reference 与 `DOM` lib（引用包的声明里有 `HTMLElement`）。本机做法：
+先 `cmd /c mklink /J node_modules\@curve\chart-echarts packages\chart-echarts`，再
+`pnpm install`（一次通过；`pnpm-lock.yaml` 已同步）。不要把它加到其他包或 `apps/desktop`
+运行时依赖里；`echarts` 仍只属于 `packages/chart-echarts`。
+
 ### 3.5 文本编码与路径陷阱
 
 - DSH 的 shell 是 **Windows PowerShell 5.1**：`Get-Content` 默认按 GBK 解码无 BOM 的 UTF-8 文件；
@@ -281,12 +310,14 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
   "每个系列的非空点数 ≤ target"，不要断言 `x.values.length ≤ target`。
 - `meta.sampled` 只在**至少一个系列真的被降采样**时为 true；阈值内/target 不小于点数/关闭
   采样时模型与 T4.1 完全一致（含 x 长度与 null 位置），别把"启用采样"当成"已采样"。
-- `pnpm bench -- --sample` 的 suite 名是 `sample`（与 `--sample` 同名）；`pnpm bench` 全量已
-  包含它。`chart.resolve-sample.100k` 是 100k×10 + 2 个 Y 系列的**解析+采样**，纯采样看
-  `chart.sample.100k`；`chart.resolve-unsampled.100k` 只是诊断，不设门禁。
-- `scripts/bench.ts` 现在依赖 workspace 包 `@curve/chart-model`（根 `devDependencies`，仅 bench）；
-  若本机重装依赖出现 `ERR_PNPM_EPERM`，按 §3.4 先 `cmd /c mklink /J` 预建
-  `node_modules\@curve\chart-model` 再 `pnpm install`。
+- `pnpm bench -- --chart`（T4.6 起；`--sample` 仍可用，是别名）的 suite 名是 `chart`；
+  `pnpm bench` 全量已包含它。`chart.resolve-sample.100k` 是 100k×10 + 2 个 Y 系列的
+  **解析+采样**，纯采样看 `chart.sample.100k`；`chart.option.2k`/`chart.restyle.100k` 是 T4.6
+  新增的 option 与样式复用门禁；`chart.resolve-unsampled.100k` 只是诊断，不设门禁。
+- `scripts/bench.ts` 依赖 workspace 包 `@curve/chart-model` 与 `@curve/chart-echarts`（根
+  `devDependencies`，仅 bench；后者用于 `toEChartsOption`）；若本机重装依赖出现
+  `ERR_PNPM_EPERM`，按 §3.4 先 `cmd /c mklink /J` 预建 `node_modules\@curve\chart-*` 再
+  `pnpm install`。
 - T4.3 已安装 `echarts@6.1.0`（`packages/chart-echarts` 的唯一运行时依赖，`pnpm-lock.yaml` 已
   同步）；本机安装没有触发 symlink 权限问题。**不要**把 `echarts` 加到其他包或根 `package.json`。
 - 只有 `packages/chart-echarts` 可以 import echarts：新增 depcruise 规则
@@ -343,9 +374,9 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
   `chart-view[data-chart-state=missing-columns]` + `chart-error`。
 - `ChartList`/`ChartDialogs` 的容器逻辑（IPC/命令接线）没有组件测试，由 E2E 覆盖；纯逻辑
   （`chart-view-model.ts`）、映射编辑器、检查器、Canvas 生命周期与错误态有 39 条单测。
-- 全量 E2E 现为 **79 passed**（T4.5 全量 3.7m；含 chart.spec 4 + chart-interaction 3）。
-  T4.4/T4.5 全量运行曾偶发 `grid.spec.ts` 的“stays usable at 200% zoom”焦点失败
-  （单跑约 2.2s 通过），与 HANDOFF §3.6 的既有 flake 一致；重跑全量前确认 CPU 空闲，
+- 全量 E2E 现为 **81 passed**（T4.6 全量 4.1m；含 chart.spec 4 + chart-interaction 3 +
+  chart-perf 2）。T4.4/T4.5/T4.6 全量运行曾偶发 `grid.spec.ts` 的“stays usable at 200% zoom”
+  焦点失败（单跑约 2.2s 通过），与 HANDOFF §3.6 的既有 flake 一致；重跑全量前确认 CPU 空闲，
   不要放宽断言。
 - `chart.update` 允许悬空映射（列删除后的修复路径），因此命令层不能保证图表映射有效；
   `chart.create`（含复制/向导）仍严格校验。不要给 `chart.update` 加严格映射校验，否则重映射
@@ -371,8 +402,8 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
   `#ffffff`、深 `#1e1e1e`；尺寸用 IHDR 与 canvas CSS 尺寸 ×2 比较，允许 ±4px 的取整差。
 - `option` 的 tooltip 新增 `className:'cs-chart-tooltip'`，6 条黄金快照已有意更新；toolbox
   标题由 `ChartCanvas` 经 `labels` 传入，直接调用适配器不传时仍是 ECharts 英文默认值。
-- T4.5 新增 `e2e/chart-interaction.spec.ts` 3 条（100k 交互/axe、PNG、空态），全量 E2E 现为
-  **81 passed**；截图在 `docs/reports/t4.5/`（3 张，E2E 生成后复制）。
+- T4.5 新增 `e2e/chart-interaction.spec.ts` 3 条（100k 交互/axe、PNG、空态）；截图在
+  `docs/reports/t4.5/`（3 张，E2E 生成后复制）。
 - T4.6（ADR-045）把解析拆成 `resolveChartData`（行集 → x/系列值/meta）与 `renderChartModel`
   （样式段）；`resolveSeries` 仍是二者组合，**输出与黄金快照不变**。样式字段（palette/
   background/线宽/平滑/点/图例/网格/精度/从零/Y 轴名/kind/`xLabel`）不再进入数据段；`xLabel`
@@ -415,9 +446,6 @@ T2.7 在根 `package.json` 的 devDependencies 增加了 `@curve/app-core` 与 `
   否则图表修改永远无法持久化。
 - 切换标签页会 unmount/remount `ChartView`（`key={view.id}`），因此每次切换都是一次
   dispose→mount 与全新数据缓存；期望实例数始终为 1。不要用“模块级全局缓存”把实例留住。
-- `pnpm e2e` 会重写 `docs/reports/m0/*.png`（同 T4.5）。提交前用
-  `git checkout -- docs/reports/m0/t0.2-window.png docs/reports/m0/t0.4-shell-dark.png
-  docs/reports/m0/t0.4-shell-light.png` 还原，不要把探针/截图带进提交。
 
 ---
 
@@ -735,12 +763,12 @@ apps/desktop/src/renderer/
 T2.5 新增 `apps/desktop/e2e/import.spec.ts` 6 条：100k GBK 分号 + 3 坏行 + 错误 CSV；错编码
 覆盖；150k 取消/100k 提示；JSON 替换 + 备份 + 原文归档 + 撤销；200k 拒绝；200% 缩放键盘。
 
-完整 E2E 现为 **79 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
+完整 E2E 现为 **81 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
 `schema.spec.ts`、T2.4 的 `paste.spec.ts`、T2.5 的 `import.spec.ts`、T2.6 的
 `filter.spec.ts`、T2.7 的 `perf.spec.ts`、T3.2/T3.4 的 `style.spec.ts`、T3.5 的
 `template.spec.ts`、T3.6 的 `export-csv.spec.ts`、T4.4 的 `chart.spec.ts`、T4.5 的
-`chart-interaction.spec.ts`、M2 的 `m2-acceptance.spec.ts`、M3 的 `m3-acceptance.spec.ts`
-与既有 shell/ipc/smoke/workspace/table-io 全绿。
+`chart-interaction.spec.ts`、T4.6 的 `chart-perf.spec.ts`、M2 的 `m2-acceptance.spec.ts`、
+M3 的 `m3-acceptance.spec.ts` 与既有 shell/ipc/smoke/workspace/table-io 全绿。
 
 T2.6 新增 `apps/desktop/e2e/filter.spec.ts` 6 条：2k 行筛选 + 三级排序；重开恢复筛选/排序与
 清除；同表双视图互不影响；隐藏列/恢复；100k 行 Worker 筛选+排序（`data-query-ms <= 400`）；
@@ -1050,9 +1078,10 @@ sampleSeriesIndices(
   只取子序列；采样后 `x.values` = 各系列保留下标的**升序并集**（未采样系列贡献全部非空下标，
   被采样系列在其它系列位置为 null）；`meta.sampled=true`、`renderedPoints ≤ sourcePoints`；
   warning 文本与顺序不变。未触发采样时模型与 T4.1 完全一致。
-- 采样只在 `resolveSeries` 内做一次；`chart-echarts` 不得再采样。
+- 采样只在 `resolveSeries` 内做一次（T4.6 起 `resolveSeries` = `resolveChartData` +
+  `renderChartModel` 的组合，采样仍在数据段）；`chart-echarts` 不得再采样。
 - 完整决策、代价与复核条件见 `docs/adr/041-t42-lttb-sampling.md` 与
-  `docs/reports/t4.2/REPORT.md`；基准见 `pnpm bench -- --sample`。
+  `docs/reports/t4.2/REPORT.md`；基准见 `pnpm bench -- --chart`（`--sample` 是别名）。
 
 ### 4.21 `@curve/chart-echarts` ECharts 适配器（T4.3）
 
@@ -2018,7 +2047,8 @@ pnpm bench          exit 0；open 542ms、save 314ms、edit 0ms、query 223ms、
 
 残留：
 
-- 采样后 x 并集可大于 target（上界约 `Σ max(threshold, target)`）；T4.6 复核 2k 点渲染与内存。
+- 采样后 x 并集可大于 target（上界约 `Σ max(threshold, target)`）；T4.6 已复核（§5P：2 个 Y
+  系列的并集约 4k 点，update 89ms/200ms、10 次连点缩放无长任务），未改采样语义。
 - 被采样略过的 null 与原始缺口不可区分；T4.3 已按 ADR-042 §3 处理（未采样断开 / 已采样
   跨过；真实断点也会被连线）。
 - category 轴按下标采样；未采样系列贡献全部非空点，极端多小系列时采样收益下降。
@@ -2167,11 +2197,11 @@ pnpm bench          exit 0；open 361ms、save 306ms、edit 0ms、query 190ms、
 - 长表的真实缺口也会被连线（ADR-043 代价）；要区分需结构化 gap 或 per-series x。
 - 坏图表（悬空映射）不可复制：`chart.create` 严格校验，需先修复。
 - Y 轴名单一、Y 单位仍缺失；宽表多个 Y 列共享一个轴名。
-- 图表按全表行解析，100k 表编辑后切图仍有解析开销（T4.6）。
+- 图表按全表行解析；T4.6 已用缓存/延迟解析把样式提交降到 0ms 级，映射/行变化仍解析一次（40–60ms）。
 - 每次检查器提交都 flush manifest；快速连续操作产生多条撤销记录（T5.2 统一）。
 - 主 chunk +1.59 MB（ECharts）；T6.4 评估拆包/懒加载。
 - `ChartList`/`ChartDialogs` 容器仅由 E2E 覆盖；aria 摘要/PNG/三种空态文案已由 T4.5 补齐。
-- toolbox 已本地化（T4.5）；动画关闭、dataZoom 滑块常驻（T4.6 评估）。
+- toolbox 已本地化（T4.5）；动画关闭、dataZoom 滑块常驻（T4.6 实测 2k 点下无性能问题，未改）。
 - 图表与表格选中行联动（SHOULD）未实现。
 
 ## 5O. T4.5 图表交互、空态与 PNG 导出（已完成）
@@ -2450,8 +2480,9 @@ JSONL/IPC；未新增运行时依赖。接受前复核（2026-10-24）：`pnpm v
 Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings、`m3-contract.json` 与
 失败时的 trace；截图已复制到 `docs/reports/m3/`。
 
-**停点（已解除）**：M3 已于 2026-10-24 获用户接受并关闭；此后 T4.1–T4.5 已完成
-（见 §5K/§5L/§5M/§5N/§5O），M4 下一任务是 T4.6（图表性能硬化）；T4.6 完成后运行 M4 验收演示。
+**停点（已解除）**：M3 已于 2026-10-24 获用户接受并关闭；此后 T4.1–T4.6 已完成
+（见 §5K/§5L/§5M/§5N/§5O/§5P），M4 全部任务完成，下一步是运行 M4 验收演示（TESTPLAN E6）
+并停下等用户确认。
 
 ---
 
@@ -2519,7 +2550,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 长表 null 与空串合并为 `(空)` | 图上无法区分二者 | ADR-040；数据仍完整保留，需要区分时扩展系列 id 语义并写 ADR |
 | 图表调色板为 chart-model 常量 | 不能跟随主题令牌 | ADR-040；需要令牌化时改常量并写 ADR，不涉及 manifest |
 | T4.1 `sourcePoints` 不含断点 | T4.2 采样预算口径易混淆 | 采样后 `renderedPoints ≤ sourcePoints`，按 ADR-040 的口径报告，不改预算 |
-| T4.2 采样后 x 并集大于 target | 多系列时 x 位置变多，可能影响渲染预算 | ADR-041：逐系列 ≤ target、并集上界 `Σ max(threshold,target)`；T4.6 复核（10 次连点缩放无长任务、update 94ms/200ms），未改共用下标/per-series x |
+| T4.2 采样后 x 并集大于 target | 多系列时 x 位置变多，可能影响渲染预算 | ADR-041：逐系列 ≤ target、并集上界 `Σ max(threshold,target)`；T4.6 复核（10 次连点缩放无长任务、update 89ms/200ms），未改共用下标/per-series x |
 | T4.2 被采样略过的 null 与真实缺口同形 | 适配器无法只断真实缺口 | ADR-041 代价；T4.3 已按 ADR-042 §3 处理（未采样断开 / 已采样跨过）；需要结构化 gap 时另写 ADR |
 | T4.2 未采样系列贡献全部非空点 | 极端多小系列时采样收益下降 | 有意取舍（不丢未采样数据）；T4.6 未改采样语义（ADR-045 §7） |
 | `scripts/bench.ts` 依赖 `@curve/chart-model` / `@curve/chart-echarts` | 重装依赖可能出现 symlink 权限错误 | 均为根 devDependency（仅 bench）；按 §3.4 预建 junction 后 `pnpm install`（T4.6 已加 `chart-echarts` junction） |
@@ -2598,6 +2629,18 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 - 不放宽 `no-table` 的 manifest invariant 来“让 E2E 能打开”：该态是防御态，由组件测试覆盖；
   真要支持换表/孤儿图表先写 ADR。
 - 不在适配器/组件里硬编码 toolbox 本地化文案；`labels` 由 `ChartCanvas` 从 i18n 注入。
+- 不把样式字段（palette/background/线宽/平滑/点/图例/网格/精度/从零/Y 轴名/kind/`xLabel`）加进
+  数据缓存键；命中必须同时校验 `rows` 引用，否则行编辑会读到旧数据（ADR-045）。
+- 不在渲染期同步解析 100k 行：大表必须走 `useChartRenderStatus` 的 loading + `setTimeout(0)`
+  路径；不要移除 `data-chart-pending`/`data-chart-resolve-ms`（E2E/预算依赖）。
+- 不把 `ChartCanvas` 的交互发布改回逐事件 `setState`（拖动会卡）；也不要在模型变化时
+  dispose/re-init 实例。
+- 不删除或调低 `chart.option.2k`（50ms）/`chart.restyle.100k`（20ms）门禁；`chart.restyle` 的
+  `values` 引用相等断言是有意的“不重复解析”证据。
+- 不把 `copyToBackup` 的 `mkdir(recursive)` 或它的回归测试删掉：复制/恢复的工作区缺少
+  `backups/` 时，所有保存都会 `E_FS_WRITE`（静默只弹 Toast）。
+- 不为通过 `chart-perf` 放宽 resolve ≤300ms / update ≤200ms / private ≤600MB 或删除实例计数断言；
+  失败先查是否 CPU 噪声（ADR-033），再按 ADR-045 复核条件优化。
 - 不自动跨任务/跨里程碑；M3 已验收并关闭，M4 的 T4.1–T4.6 已完成，下一步是运行 M4 验收演示
   （TESTPLAN E6）并停下等用户确认；不要先开 M5 任务。
 
