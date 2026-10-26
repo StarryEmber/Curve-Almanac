@@ -4,7 +4,7 @@
 > M4 自 `T4.6` 继续；M3 已于 2026-10-24 获用户接受。最后更新：
 > 2026-10-26 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
-> T4.5 代码见 `git log -1 -- docs/HANDOFF.md`（交接提交）。
+> T4.5 代码 **`fd68789`**（本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t4.5/REPORT.md` →
 > `docs/TASKS.md` 的 M4 / T4.6 → `docs/SPEC.md` §11.4–§11.6、§16.1 →
 > `docs/adr/044-t45-chart-interaction-export.md` → ADR-043 → ADR-042 → ADR-041 → ADR-040。

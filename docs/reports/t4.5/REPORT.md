@@ -202,5 +202,5 @@ PNG 以 2x 导出三种背景且文件名/尺寸/像素符合 SPEC；三种空�
 `pnpm bench` exit 0；新增 ADR-044、SPEC §11.4/§11.5/§11.6/§15.1 实现边界与 3 条 E2E。下一步
 T4.6（图表性能硬化），仍是一次只推进一个任务；M4 验收演示在 T4.6 完成后执行并停下等用户确认。
 
-提交：`feat(chart): add chart interaction, empty states and PNG export (T4.5)`；
+提交：**`fd68789`**（`feat(chart): add chart interaction, empty states and PNG export (T4.5)`）；
 本报告的交接提交见 `git log -1 -- docs/HANDOFF.md`。
