@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, render, screen } from '@testing-library/react';
+import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { ChartRenderer, ChartPngOutcome, ChartRenderOutcome } from '@curve/chart-echarts';
+import type {
+  ChartInteractionAction,
+  ChartInteractionState,
+  ChartRenderer,
+  ChartPngOutcome,
+  ChartRenderOutcome,
+} from '@curve/chart-echarts';
 import type { RenderModel } from '@curve/chart-model';
 import { createAppError } from '@curve/domain';
 
@@ -11,7 +18,8 @@ import { I18nProvider } from '../../i18n';
 
 import { CHART_UPDATE_DEBOUNCE_MS, ChartCanvas } from './ChartCanvas';
 
-import type { ReactElement } from 'react';
+import type { ChartCanvasHandle } from './ChartCanvas';
+import type { ReactElement, RefObject } from 'react';
 import type { Mock } from 'vitest';
 
 vi.mock('@curve/chart-echarts', () => ({
@@ -20,18 +28,29 @@ vi.mock('@curve/chart-echarts', () => ({
 
 interface FakeRenderer extends Omit<
   ChartRenderer,
-  'render' | 'update' | 'resize' | 'toPNG' | 'dispose'
+  | 'render'
+  | 'update'
+  | 'resize'
+  | 'toPNG'
+  | 'dispose'
+  | 'getInteractionState'
+  | 'dispatchInteraction'
+  | 'onInteractionChange'
 > {
   render: Mock<(container: HTMLElement, model: RenderModel) => ChartRenderOutcome>;
   update: Mock<(model: RenderModel) => ChartRenderOutcome>;
   resize: Mock<() => void>;
   toPNG: Mock<() => ChartPngOutcome>;
   dispose: Mock<() => void>;
+  getInteractionState: Mock<() => ChartInteractionState>;
+  dispatchInteraction: Mock<(action: ChartInteractionAction) => void>;
+  onInteractionChange: Mock<(listener: (state: ChartInteractionState) => void) => () => void>;
 }
 
 function fakeRenderer(
   renderOutcome: ChartRenderOutcome = { ok: true, state: 'ready' },
 ): FakeRenderer {
+  const listeners = new Set<(state: ChartInteractionState) => void>();
   return {
     state: 'idle',
     render: vi.fn((_container: HTMLElement, _model: RenderModel) => renderOutcome),
@@ -41,6 +60,14 @@ function fakeRenderer(
       ok: false as const,
       error: createAppError('E_EXPORT_FAILED', 'n/a'),
     })),
+    getInteractionState: vi.fn(() => ({ zoom: { start: 0, end: 100 }, hiddenSeries: [] })),
+    dispatchInteraction: vi.fn(),
+    onInteractionChange: vi.fn((listener: (state: ChartInteractionState) => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    }),
     dispose: vi.fn(),
   };
 }
@@ -72,6 +99,19 @@ function mount(model: RenderModel, renderer: FakeRenderer): ReturnType<typeof re
       <ChartCanvas model={model} label="Chart" renderer={renderer} />
     </I18nProvider>,
   );
+}
+
+function mountWithHandle(
+  model: RenderModel,
+  renderer: FakeRenderer,
+): { view: ReturnType<typeof render>; handle: RefObject<ChartCanvasHandle | null> } {
+  const handle = createRef<ChartCanvasHandle>();
+  const view = render(
+    <I18nProvider initialLocale="zh-CN">
+      <ChartCanvas ref={handle} model={model} label="Chart" renderer={renderer} />
+    </I18nProvider>,
+  );
+  return { view, handle };
 }
 
 afterEach(() => {
@@ -149,5 +189,69 @@ describe('ChartCanvas', () => {
     mount(makeModel(), renderer);
     const alert = screen.getByRole('alert');
     expect(alert.textContent).toContain('图表渲染失败：no canvas');
+  });
+
+  it('exposes interaction state and forwards toolbar actions', () => {
+    const renderer = fakeRenderer();
+    renderer.getInteractionState.mockReturnValue({
+      zoom: { start: 20, end: 80 },
+      hiddenSeries: ['A'],
+    });
+    const { handle } = mountWithHandle(makeModel(), renderer);
+
+    expect(handle.current?.getInteractionState()).toEqual({
+      zoom: { start: 20, end: 80 },
+      hiddenSeries: ['A'],
+    });
+
+    act(() => {
+      handle.current?.dispatchInteraction({ type: 'toggle-series', name: 'A' });
+    });
+    expect(renderer.dispatchInteraction).toHaveBeenCalledWith({
+      type: 'toggle-series',
+      name: 'A',
+    });
+  });
+
+  it('publishes interaction changes to handle subscribers', () => {
+    const renderer = fakeRenderer();
+    const { handle } = mountWithHandle(makeModel(), renderer);
+    const listener = vi.fn();
+    const unsubscribe = handle.current?.subscribeInteraction(listener);
+
+    act(() => {
+      handle.current?.dispatchInteraction({ type: 'reset-view' });
+    });
+    expect(listener).toHaveBeenCalledWith({
+      zoom: { start: 0, end: 100 },
+      hiddenSeries: [],
+    });
+
+    unsubscribe?.();
+    act(() => {
+      handle.current?.dispatchInteraction({ type: 'reset-view' });
+    });
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('flushes the pending debounce before exporting the PNG', async () => {
+    const renderer = fakeRenderer();
+    renderer.toPNG.mockReturnValue({ ok: true, dataUrl: 'data:image/png;base64,AAAA' });
+    const { view, handle } = mountWithHandle(makeModel('A'), renderer);
+    const modelB = makeModel('B');
+    view.rerender(
+      <I18nProvider initialLocale="zh-CN">
+        <ChartCanvas ref={handle} model={modelB} label="Chart" renderer={renderer} />
+      </I18nProvider>,
+    );
+
+    const outcome = await handle.current?.exportPng({ scale: 2, background: 'dark' });
+
+    expect(renderer.update).toHaveBeenCalledWith(modelB);
+    expect(renderer.update.mock.invocationCallOrder[0]).toBeLessThan(
+      renderer.toPNG.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+    expect(renderer.toPNG).toHaveBeenCalledWith({ scale: 2, background: 'dark' });
+    expect(outcome).toEqual({ ok: true, dataUrl: 'data:image/png;base64,AAAA' });
   });
 });

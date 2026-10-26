@@ -3,6 +3,7 @@
  * the message tables; this module only maps persisted enums to message keys.
  */
 
+import type { RenderModel } from '@curve/chart-model';
 import type { ChartKind, ChartMapping, ChartOptions, ValidationIssueCode } from '@curve/domain';
 
 import type { MessageKey, Translate } from '../../i18n';
@@ -75,4 +76,24 @@ export function chartKindLabel(kind: ChartKind, t: Translate): string {
 
 export function chartLayoutLabel(layout: ChartMapping['layout'], t: Translate): string {
   return t(CHART_LAYOUT_KEYS[layout]);
+}
+
+/**
+ * Screen-reader summary of a resolved model (T4.5, ADR-044 §5): kind, series
+ * count and point count; sampled models also mention that only rendered points
+ * are shown. The chart title is added by the caller.
+ */
+export function chartSummaryText(model: RenderModel, t: Translate): string {
+  const summary = t('chart.view.ariaSummary', {
+    kind: chartKindLabel(model.kind, t),
+    count: model.series.length,
+    points: model.meta.sourcePoints,
+  });
+  if (!model.meta.sampled) {
+    return summary;
+  }
+  return t('chart.view.ariaSummarySampled', {
+    summary,
+    rendered: model.meta.renderedPoints,
+  });
 }

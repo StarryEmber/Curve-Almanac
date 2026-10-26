@@ -1211,13 +1211,30 @@ export interface RenderModel {
 - `toPNG({ scale = 2, background: 'transparent'|'light'|'dark' })` 返回 data URL（默认 2x、
   `excludeComponents: ['toolbox']`）；文件名与写盘由 T4.5 负责。
 - **Y 轴单位不在 `RenderModel`**（`RenderSeries` 没有 `unit`）：tooltip 只显示 X 单位与 Y 精度；
-  需要 Y 单位时先扩展 §11.3 契约并写 ADR。toolbox 标题暂用 ECharts 英文默认值（T4.5 本地化）。
+  需要 Y 单位时先扩展 §11.3 契约并写 ADR。toolbox 标题由 T4.5 的 `labels` 注入本地化
+  （不传时保持 ECharts 英文默认值，见下）。
+
+**实现边界（T4.5，ADR-044）**：
+
+- `ChartRenderer` 增加交互 API：`getInteractionState()`（当前 dataZoom 百分比窗口与被隐藏的
+  系列名）、`dispatchInteraction({ type: 'toggle-series' | 'zoom-by' | 'reset-view', … })`、
+  `onInteractionChange(listener)`（订阅 ECharts 的 `datazoom` / `legendselectchanged`）。
+  `dispatchInteraction` 只调用 `dispatchAction`，不重建实例、不改 option、不写 RenderModel；
+  异常被吞掉，交互失败不得让视图崩溃。
+- 交互状态是瞬态 UI 状态：不写入 `ChartSpec`/manifest、不进入撤销、不跨标签/重启保留。
+  DOM 工具栏与 canvas 内置控件通过上述事件保持同一状态。
+- `toEChartsOption` 的选项增加 `labels?: { zoom?: string; zoomBack?: string }`，映射到
+  `toolbox.feature.dataZoom.title.zoom/back`；不传时保持 ECharts 默认值。tooltip 增加稳定
+  `className: 'cs-chart-tooltip'`（仍为 `renderMode: 'html'`，用户文本仍全部转义）。
+- `toPNG` 保持同步；"导出前等待一次完整渲染"由视图层完成（flush 防抖 + 两个动画帧），
+  见 §11.6。
 
 ### 11.5 图表 UI
 
 - 左侧"图表"列表：新建、复制、重命名、删除。
 - 新建向导：选表 → 选映射（宽/长）→ 选列 → 预览 → 创建。
-- 检查器分组：数据（表/筛选/排序）、映射、外观（线宽/平滑/点/调色板/图例/网格）、坐标轴（标签/从零开始）、导出。
+- 检查器分组：数据（表/筛选/排序）、映射、外观（线宽/平滑/点/调色板/图例/网格）、坐标轴（标签/从零开始）；
+  图表视图工具栏提供图例（逐系列开关）、放大/缩小/重置缩放、“查看数据表”与导出（T4.5）。
 - 修改 120ms 防抖更新；更新不得重建整个实例（用 `setOption` merge）。
 - 图表与表格联动：在表格选中行时，图表高亮对应点（v1 可选，SHOULD）。
 
@@ -1239,10 +1256,35 @@ export interface RenderModel {
 - `chart.create/update/delete` 均 manifest-only、workspace 作用域可撤销（§13.1/§13.2）；
   不改变 `formatVersion`/JSONL/IPC/preload/CSP。
 
+**实现边界（T4.5，ADR-044）**：
+
+- 图表视图工具栏：逐系列图例开关（`aria-pressed`）、放大/缩小/重置缩放、查看数据表、导出 PNG。
+  全部为原生按钮，键盘可达；缩放窗口通过 `data-chart-zoom-start/end` 暴露给 E2E。
+- 空态三态以 `data-chart-empty` 暴露：`no-table`（表已删除）显示“删除图表…”（二次确认、可撤销）；
+  `unmapped`（列被删/映射无效）显示“配置映射”并聚焦内嵌 `ChartMappingFields`；
+  `no-data`（可解析但没有点，`data-chart-state="empty"`）显示“查看数据表”（`openTable`）。
+  映射仍不自动改写（§19）。
+- 视图无障碍摘要写入 canvas 宿主 `role="img"` 的 `aria-label`：标题、类型、系列数、点数，
+  采样时补充原始点数；“查看数据表”按钮在就绪与无数据态都可用。
+- 导出入口在图表视图工具栏而非检查器（原因见 ADR-044）：检查器仍是数据/映射/外观/坐标轴四组；
+  导出对话框提供透明/白/深背景选择、固定 2x 与建议文件名。
+- 交互状态（图例选择、缩放窗口）不持久化、不进入撤销；关闭标签或重启后回到全选/0–100。
+
 ### 11.6 导出
 
 - PNG：2x 像素比，背景可选透明/白/深；文件名 `<图标题>-<yyyyMMdd-HHmm>.png`。
 - 导出前必须等待一次完整渲染；失败返回 `E_EXPORT_FAILED`。
+
+**实现边界（T4.5，ADR-044）**：
+
+- 文件名：`<清洗后的图标题>-<yyyyMMdd-HHmm>.png`（本地时间）；非法文件名字符替换为 `_`、
+  去掉尾部点/空格、Windows 保留名加 `_`、截断到 80 个码点，空标题回退 `chart`。
+- 背景三值沿用 `ChartPngBackground`：`transparent`/`light`（`#ffffff`）/`dark`（`#1e1e1e`）；
+  倍率固定 2x，UI 不提供倍率选项；toolbox 不进入导出图（ADR-042）。
+- 导出前由视图层 flush 120ms 防抖中的模型并等待两个动画帧，再调用同步 `toPNG`；失败在对话框
+  内显示，不写半成品文件。
+- 保存复用 `file:exportText`（§15.1），请求带 `encoding: 'base64'`；main 解码后原子写字节。
+  不新增 IPC 通道，不改变 preload 白名单。
 
 ---
 
@@ -1517,7 +1559,7 @@ export interface PluginCommandContext {
 | `table:trash` | R→M | `{ workspaceId, tableId }` | `{ ok: true }` |
 | `manifest:write` | R→M | `{ workspaceId, manifest }` | `{ ok: true }` |
 | `file:importText` | R→M | `{ filters }` | `{ token, name, bytes, sha256, size, format } \| null` |
-| `file:exportText` | R→M | `{ suggestedName, content, filters }` | `{ path } \| null` |
+| `file:exportText` | R→M | `{ suggestedName, content, encoding?, filters }` | `{ path } \| null` |
 | `file:exportCsv` | R→M | `ExportCsvRequest`（op: begin/append/finish/cancel） | `ExportCsvReply \| null` |
 | `file:archiveImport` | R→M | `{ workspaceId, token, tableId, mode, name, sha256, size, encoding, format }` | `{ copied, archivePath, sidecarPath }` |
 | `backup:list` | R→M | `{ workspaceId, tableId }` | `BackupEntry[]` |
@@ -1547,6 +1589,9 @@ export interface PluginCommandContext {
   `fsync` 后 rename，返回 `{ path, bytes, rows }`；`cancel { token }` 删除临时文件。
   `append/finish/cancel` 只接受 token，不接受路径；保存对话框取消时 `begin` 返回 `null`。
   未完成的临时文件在 `before-quit` 清理。
+- `file:exportText`（T3.5，T4.5 扩展）：`encoding` 缺省 `utf8`，`base64` 时 main 把 `content`
+  解码为字节后原子写，供 PNG 导出复用（ADR-044）；仍使用同一个保存对话框与取消语义，
+  `filters` 决定可保存的扩展名，不新增通道。
 
 ### 15.2 路径白名单
 

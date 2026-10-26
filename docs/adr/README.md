@@ -73,3 +73,4 @@
 | ADR-041 | T4.2 的 LTTB 采样、共享 X 轴对齐与缺失值语义 | 已接受 | [041-t42-lttb-sampling.md](041-t42-lttb-sampling.md) |
 | ADR-042 | T4.3 的 ECharts 依赖、按需注册、option 映射与渲染器生命周期 | 已接受 | [042-t43-echarts-adapter.md](042-t43-echarts-adapter.md) |
 | ADR-043 | T4.4 的图表命令、检查器、RenderModel 扩展与渲染更新策略 | 已接受 | [043-t44-chart-creation-inspector.md](043-t44-chart-creation-inspector.md) |
+| ADR-044 | T4.5 的图表交互、空态、PNG 导出与无障碍摘要 | 已接受 | [044-t45-chart-interaction-export.md](044-t45-chart-interaction-export.md) |

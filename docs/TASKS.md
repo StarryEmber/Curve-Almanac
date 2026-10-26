@@ -1074,16 +1074,16 @@ T0.2 + T5.5 → T6.4
 报告 `docs/reports/m3/REPORT.md` 与 10 张截图。演示中发现并修复“虚拟化行高不随样式令牌重测”
 （`DataGrid` 在行高变化时 `virtualizer.measure()`），`pnpm e2e` **72 passed**。接受前复核：
 `pnpm verify` 143 files / 1232 tests、`pnpm build` exit 0、`m3-acceptance` 单跑 1 passed、
-全量 `pnpm e2e` 72 passed。**M3 已关闭；此后 T4.1、T4.2、T4.3 已完成，M4 下一任务 T4.4。**
+全量 `pnpm e2e` 72 passed。**M3 已关闭；此后 T4.1–T4.5 已完成，下一任务 T4.6。**
 
 ---
 
 <a id="m4"></a>
 ## M4 图表
 
-> 状态（2026-10-25）：`T4.1`（RenderModel 与宽/长表映射）、`T4.2`（LTTB 采样与缺失值语义）、
-> `T4.3`（ECharts 适配器）与 `T4.4`（图表创建与检查器）已完成；下一任务 `T4.5`（图表交互、
-> 空态与 PNG 导出）。M4 验收演示在 T4.1–T4.6 全部完成后执行，停下等用户确认。
+> 状态（2026-10-26）：`T4.1`（RenderModel 与宽/长表映射）、`T4.2`（LTTB 采样与缺失值语义）、
+> `T4.3`（ECharts 适配器）、`T4.4`（图表创建与检查器）与 `T4.5`（图表交互、空态与 PNG 导出）
+> 已完成；下一任务 `T4.6`（图表性能硬化）。M4 验收演示在 T4.6 完成后执行，停下等用户确认。
 
 <a id="t41"></a>
 ### T4.1 RenderModel 与宽/长表映射
@@ -1290,7 +1290,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t45"></a>
 ### T4.5 图表交互、空态与 PNG 导出
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T4.4
 - 覆盖：FR-CHT-04、FR-CHT-06、FR-CHT-07
 - 参考：SPEC §11.4–§11.6
@@ -1303,11 +1303,43 @@ T0.2 + T5.5 → T6.4
   2. 导出前等待渲染完成；失败捕获。
   3. 键盘可达：图例/缩放可用按钮操作。
 - 验收：
-  - [ ] 缩放/图例/tooltip 在 100k 采样图上可用。
-  - [ ] 导出 PNG 尺寸/背景/文件名符合 SPEC。
-  - [ ] 三种空态文案与行动按钮正确。
-  - [ ] axe 无 critical。
+  - [x] 缩放/图例/tooltip 在 100k 采样图上可用。
+  - [x] 导出 PNG 尺寸/背景/文件名符合 SPEC。
+  - [x] 三种空态文案与行动按钮正确。
+  - [x] axe 无 critical。
 - 验证：`pnpm e2e -- --grep "chart-interaction|png"`
+
+  实现备注（2026-10-26，ADR-044）：
+  - 交互：`ChartRenderer` 新增 `getInteractionState`/`dispatchInteraction`/`onInteractionChange`；
+    ECharts `datazoom`/`legendselectchanged` 与 DOM 工具栏共享同一份瞬态状态。图表视图工具栏
+    提供逐系列 `aria-pressed` 图例按钮、放大/缩小/重置缩放（`data-chart-zoom-start/end`
+    暴露窗口）、“查看数据表”与“导出 PNG…”；全部为原生按钮，键盘可达。交互状态不写
+    `ChartSpec`/manifest、不进撤销、不跨重启保留。
+  - 空态：`data-chart-empty` = `no-table` / `unmapped` / `no-data`；`no-table` 显示
+    “删除图表…”（`DeleteChartDialog`），`unmapped` 显示“配置映射”（聚焦内嵌
+    `ChartMappingFields`），`no-data`（`data-chart-state="empty"`）显示“查看数据表”
+    （`openTable`）。映射仍不自动改写（SPEC §19）。
+  - 无障碍：canvas 宿主 `role="img"` 的 `aria-label` 为“标题、类型、系列数、点数（采样时含
+    原始点数）”；映射不改 DOM 语义。E2E 在 100k 图上跑 axe wcag2a/aa，critical 为 0。
+  - PNG：`ChartCanvas` 暴露 `exportPng`（flush 120ms 防抖 + 两个动画帧 → 同步 `toPNG`）；
+    `ChartExportDialog` 提供透明/白/深背景、固定 2x、文件名 `<标题>-<yyyyMMdd-HHmm>.png`
+    （非法字符/保留名/80 码点清洗）；保存复用 `file:exportText` 新增
+    `encoding:'base64'`（原子写字节），不新增 IPC 通道；失败/取消均在对话框内处理。
+  - toolbox：`toEChartsOption` 增加 `labels`（zoom/back）与 tooltip 稳定类名
+    `cs-chart-tooltip`；`ChartCanvas` 用 i18n 传入“框选缩放/还原缩放”。
+  - 文件：`packages/chart-echarts/src/{option,renderer}.ts`；`shared/contracts/ipc.ts`；
+    `main/{import/import-files.ts,workspace/atomic-write.ts,index.ts}`；
+    `renderer/features/charts/{ChartView,ChartCanvas,ChartExportDialog,ChartEmptyState,
+    chart-export}.tsx/ts`、`chart-text.ts`、`i18n/messages/*`、`styles.css`；
+    `apps/desktop/e2e/chart-interaction.spec.ts`（3 条）。
+  - 实测：`pnpm verify` **161 files / 1474 tests**；coverage 全局 lines **76.26%** /
+    statements 76.12% / branches 69.03% / functions 74.65%（`chart-echarts/src` 96.75%）；
+    `format:check` 通过；`pnpm build` exit 0（renderer 3,238.36 kB、CSS 72.19 kB）；
+    `pnpm e2e` **79 passed**（chart-interaction 3 条：4.0s / 2.4s / 2.4s；全量 3.7m）；
+    `pnpm bench` exit 0（chart.resolve-sample P95 66ms/300ms、chart.sample P95 2ms/50ms）。
+  - 残留：`no-table` 是防御态（合法 manifest 的 `checkChartInto` 把缺失表当错误，无法从磁盘
+    打开），由组件测试覆盖；E2E 覆盖可达的 `no-data`/`unmapped`。导出入口在视图工具栏而非
+    检查器（ADR-044 已改 SPEC §11.5 措辞）。图例/缩放不持久化。详见 ADR-044“代价/复核条件”。
 
 <a id="t46"></a>
 ### T4.6 图表性能硬化

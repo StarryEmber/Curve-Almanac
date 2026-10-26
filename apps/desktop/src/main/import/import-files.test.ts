@@ -64,4 +64,33 @@ describe('exportTextFile', () => {
     await expect(exportTextFile(path, 'a,b\n1,2\n')).resolves.toEqual({ path });
     await expect(readFile(path, 'utf8')).resolves.toBe('a,b\n1,2\n');
   });
+
+  it('decodes base64 and writes binary bytes for PNG export', async () => {
+    const directory = await scratch();
+    const path = join(directory, 'chart.png');
+    const bytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+    await expect(exportTextFile(path, bytes.toString('base64'), 'base64')).resolves.toEqual({
+      path,
+    });
+    await expect(readFile(path)).resolves.toEqual(bytes);
+  });
+
+  it('rejects malformed base64 without writing a file', async () => {
+    const directory = await scratch();
+    const path = join(directory, 'chart.png');
+
+    await expect(exportTextFile(path, 'not base64!', 'base64')).rejects.toMatchObject({
+      code: 'E_VALIDATION',
+    });
+    await expect(readFile(path)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('keeps UTF-8 as the default when encoding is omitted', async () => {
+    const directory = await scratch();
+    const path = join(directory, 'report.csv');
+
+    await exportTextFile(path, 'é');
+    await expect(readFile(path, 'utf8')).resolves.toBe('é');
+  });
 });

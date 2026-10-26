@@ -26,6 +26,9 @@ vi.mock('@curve/chart-echarts', () => ({
     resize: () => undefined,
     toPNG: () => ({ ok: false, error: { code: 'E_EXPORT_FAILED', message: 'n/a' } }),
     dispose: () => undefined,
+    getInteractionState: () => ({ zoom: { start: 0, end: 100 }, hiddenSeries: [] }),
+    dispatchInteraction: () => undefined,
+    onInteractionChange: () => () => undefined,
   }),
 }));
 
@@ -95,20 +98,33 @@ function mount(
   chart: ChartSpec,
   rows: Row[] = ROWS,
   table: TableMeta | null = TABLE,
-): { updateChart: ReturnType<typeof vi.fn> } {
+): {
+  updateChart: ReturnType<typeof vi.fn>;
+  openTable: ReturnType<typeof vi.fn>;
+  deleteChart: ReturnType<typeof vi.fn>;
+} {
   const updateChart = vi.fn(async (next: ChartSpec) => {
     store.setState((state) => ({ charts: { ...state.charts, [next.id]: next } }));
     return { ok: true as const, data: undefined };
   });
+  const openTable = vi.fn(async () => ({
+    ok: true as const,
+    data: { viewId: 'viw_table', created: false },
+  }));
+  const deleteChart = vi.fn(async () => ({ ok: true as const, data: undefined }));
   const store = createAppStore({
     initialState: {
       charts: { [chart.id]: chart },
       tables: table === null ? {} : { [table.id]: { table, rows } },
     },
   });
-  const appCore = { store, actions: { updateChart } } as unknown as AppCore;
+  const appCore = {
+    store,
+    actions: { updateChart, openTable, deleteChart },
+  } as unknown as AppCore;
   const core = {
     core: appCore,
+    api: { file: { exportText: vi.fn(async () => ({ ok: true as const, data: null })) } },
     tableIo: { terminate: vi.fn() },
     query: { terminate: vi.fn() },
   } as unknown as RendererCore;
@@ -121,7 +137,7 @@ function mount(
       </I18nProvider>
     </AppCoreProvider>,
   );
-  return { updateChart };
+  return { updateChart, openTable, deleteChart };
 }
 
 afterEach(() => {
@@ -148,6 +164,47 @@ describe('ChartView', () => {
     expect(screen.getByTestId('chart-title').textContent).toBe('Readings chart');
     expect(screen.getByTestId('chart-canvas')).toBeTruthy();
     expect(screen.queryByTestId('chart-sampled-badge')).toBeNull();
+  });
+
+  it('derives the chart aria summary and toolbar from the RenderModel', () => {
+    const { openTable } = mount(makeChart());
+    const image = screen.getByRole('img');
+    expect(image.getAttribute('aria-label')).toBe('图表：Readings chart，折线图，2 条系列，4 个点');
+    expect(screen.getByTestId('chart-toolbar')).toBeTruthy();
+    expect(screen.getByTestId('chart-series-toggle-0').getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByTestId('chart-open-table'));
+    expect(openTable).toHaveBeenCalledWith(TABLE.id);
+  });
+
+  it('reports the no-table empty state with a delete action', () => {
+    const { deleteChart } = mount(makeChart(), ROWS, null);
+    const view = screen.getByTestId('chart-view');
+    expect(view.getAttribute('data-chart-state')).toBe('missing-table');
+    expect(view.getAttribute('data-chart-empty')).toBe('no-table');
+    expect(screen.getByTestId('chart-empty-state')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('chart-empty-action-no-table'));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(screen.getByTestId('chart-delete-confirm'));
+    expect(deleteChart).toHaveBeenCalledWith('cht_test');
+    expect(dialog).toBeTruthy();
+  });
+
+  it('reports no-data with a view-data action', () => {
+    const { openTable } = mount(makeChart(), []);
+    const view = screen.getByTestId('chart-view');
+    expect(view.getAttribute('data-chart-state')).toBe('empty');
+    expect(view.getAttribute('data-chart-empty')).toBe('no-data');
+    expect(screen.queryByTestId('chart-canvas')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('chart-empty-action-no-data'));
+    expect(openTable).toHaveBeenCalledWith(TABLE.id);
+  });
+
+  it('reports a missing table', () => {
+    mount(makeChart(), ROWS, null);
+    expect(screen.getByTestId('chart-view').getAttribute('data-chart-state')).toBe('missing-table');
+    expect(screen.getByTestId('chart-error').textContent).toContain('数据表已不存在');
   });
 
   it('shows a sampled badge and sampled point counts', () => {
@@ -182,8 +239,12 @@ describe('ChartView', () => {
     );
     const view = screen.getByTestId('chart-view');
     expect(view.getAttribute('data-chart-state')).toBe('missing-columns');
+    expect(view.getAttribute('data-chart-empty')).toBe('unmapped');
     expect(screen.getByTestId('chart-error').textContent).toContain('列已删除：col_gone');
     expect(screen.getByTestId('chart-remap')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('chart-empty-action-unmapped'));
+    expect(document.activeElement).toBe(screen.getByTestId('chart-remap-layout'));
 
     fireEvent.change(screen.getByTestId('chart-remap-x'), { target: { value: 'col_time' } });
     await waitFor(() => {

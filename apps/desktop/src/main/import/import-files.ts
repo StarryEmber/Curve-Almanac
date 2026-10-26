@@ -11,9 +11,11 @@ import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 
-import { createAppError } from '@curve/domain';
+import { createAppError, isAppError } from '@curve/domain';
 
-import { atomicWrite } from '../workspace/atomic-write';
+import { atomicWrite, atomicWriteBytes } from '../workspace/atomic-write';
+
+import type { ExportTextEncoding } from '../../shared/contracts/ipc';
 
 export const MAX_IMPORT_FILE_BYTES = 100 * 1024 * 1024;
 export const MAX_ARCHIVE_COPY_BYTES = 50 * 1024 * 1024;
@@ -78,10 +80,39 @@ export async function readImportSource(path: string): Promise<ImportSourceFile> 
   };
 }
 
-export async function exportTextFile(path: string, content: string): Promise<{ path: string }> {
+const BASE64_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
+
+/**
+ * Strict standard-base64 decoding for the PNG payload (T4.5, ADR-044). Rejects
+ * whitespace/URL-safe variants so a malformed renderer payload cannot silently
+ * write a truncated image.
+ */
+export function decodeBase64Content(content: string): Uint8Array {
+  if (content.length === 0 || content.length % 4 !== 0 || !BASE64_PATTERN.test(content)) {
+    throw createAppError('E_VALIDATION', 'The base64 export payload is invalid.');
+  }
+  return new Uint8Array(Buffer.from(content, 'base64'));
+}
+
+/**
+ * Writes the export target atomically. `encoding: 'base64'` decodes to bytes
+ * first (PNG); the default remains UTF-8 text (CSV reports, style documents).
+ */
+export async function exportTextFile(
+  path: string,
+  content: string,
+  encoding: ExportTextEncoding = 'utf8',
+): Promise<{ path: string }> {
   try {
-    await atomicWrite(path, content);
-  } catch {
+    if (encoding === 'base64') {
+      await atomicWriteBytes(path, decodeBase64Content(content));
+    } else {
+      await atomicWrite(path, content);
+    }
+  } catch (error) {
+    if (isAppError(error)) {
+      throw error;
+    }
     throw createAppError('E_EXPORT_FAILED', 'The export file could not be written.');
   }
   return { path };

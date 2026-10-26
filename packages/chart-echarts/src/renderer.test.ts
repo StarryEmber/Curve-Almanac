@@ -13,17 +13,40 @@ interface FakeChart {
   resize: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
   getDataURL: ReturnType<typeof vi.fn>;
+  getOption: ReturnType<typeof vi.fn>;
+  dispatchAction: ReturnType<typeof vi.fn>;
+  on: ReturnType<typeof vi.fn>;
+}
+
+interface FakeChartEvents {
+  handlers: Map<string, () => void>;
+}
+
+const chartEvents = new WeakMap<object, FakeChartEvents>();
+
+function defaultInteractionOption(): unknown {
+  return {
+    dataZoom: [{ type: 'inside', start: 0, end: 100 }],
+    legend: [{ selected: {} }],
+  };
 }
 
 const runtime = vi.hoisted(() => {
   const charts: FakeChart[] = [];
   const init = vi.fn((_container: HTMLElement, _theme?: unknown, _options?: unknown) => {
+    const handlers = new Map<string, () => void>();
     const chart: FakeChart = {
       setOption: vi.fn(),
       resize: vi.fn(),
       dispose: vi.fn(),
       getDataURL: vi.fn(() => 'data:image/png;base64,AAAA'),
+      getOption: vi.fn(() => defaultInteractionOption()),
+      dispatchAction: vi.fn(),
+      on: vi.fn((event: string, handler: () => void) => {
+        handlers.set(event, handler);
+      }),
     };
+    chartEvents.set(chart, { handlers });
     charts.push(chart);
     return chart;
   });
@@ -216,6 +239,9 @@ describe('createChartRenderer — updating', () => {
         resize: vi.fn(),
         dispose: vi.fn(),
         getDataURL: vi.fn(),
+        getOption: vi.fn(() => defaultInteractionOption()),
+        dispatchAction: vi.fn(),
+        on: vi.fn(),
       };
       runtime.charts.push(chart);
       return chart;
@@ -277,6 +303,170 @@ describe('createChartRenderer — resize and dispose', () => {
 
     renderer.render(makeContainer(), makeModel());
     expect(activeChartInstanceCount()).toBe(1);
+  });
+});
+
+describe('createChartRenderer — interaction (T4.5)', () => {
+  it('reports no zoom and no hidden series before mount', () => {
+    expect(makeRenderer().getInteractionState()).toEqual({ zoom: null, hiddenSeries: [] });
+  });
+
+  it('reads the live dataZoom window and legend selection', () => {
+    const renderer = makeRenderer();
+    renderer.render(makeContainer(), makeModel());
+    const chart = chartAt(0);
+    chart.getOption.mockReturnValue({
+      dataZoom: [{ type: 'inside', start: 12, end: 64 }],
+      legend: [{ selected: { Temp: false, Humidity: true } }],
+    });
+
+    expect(renderer.getInteractionState()).toEqual({
+      zoom: { start: 12, end: 64 },
+      hiddenSeries: ['Temp'],
+    });
+  });
+
+  it('ignores legend keys for series that are no longer rendered', () => {
+    const renderer = makeRenderer();
+    renderer.render(makeContainer(), makeModel());
+    const chart = chartAt(0);
+    chart.getOption.mockReturnValue({
+      dataZoom: [{ start: 0, end: 100 }],
+      legend: [{ selected: { Temp: false, Removed: false } }],
+    });
+
+    expect(renderer.getInteractionState().hiddenSeries).toEqual(['Temp']);
+  });
+
+  it('dispatches legend toggles and the computed zoom window', () => {
+    const renderer = makeRenderer();
+    renderer.render(makeContainer(), makeModel());
+    const chart = chartAt(0);
+
+    renderer.dispatchInteraction({ type: 'toggle-series', name: 'Temp' });
+    expect(chart.dispatchAction).toHaveBeenLastCalledWith({
+      type: 'legendToggleSelect',
+      name: 'Temp',
+    });
+
+    chart.getOption.mockReturnValue({
+      dataZoom: [{ start: 40, end: 60 }],
+      legend: [{ selected: {} }],
+    });
+    renderer.dispatchInteraction({ type: 'zoom-by', factor: 2 });
+    expect(chart.dispatchAction).toHaveBeenLastCalledWith({
+      type: 'dataZoom',
+      start: 45,
+      end: 55,
+    });
+
+    chart.getOption.mockReturnValue({
+      dataZoom: [{ start: 0, end: 100 }],
+      legend: [{ selected: {} }],
+    });
+    renderer.dispatchInteraction({ type: 'zoom-by', factor: 0.5 });
+    expect(chart.dispatchAction).toHaveBeenLastCalledWith({
+      type: 'dataZoom',
+      start: 0,
+      end: 100,
+    });
+  });
+
+  it('resets both the legend selection and the zoom window', () => {
+    const renderer = makeRenderer();
+    renderer.render(makeContainer(), makeModel());
+    const chart = chartAt(0);
+
+    renderer.dispatchInteraction({ type: 'reset-view' });
+
+    expect(chart.dispatchAction.mock.calls).toEqual([
+      [{ type: 'legendAllSelect' }],
+      [{ type: 'dataZoom', start: 0, end: 100 }],
+    ]);
+  });
+
+  it('notifies subscribers on ECharts events and stops after unsubscribe', () => {
+    const renderer = makeRenderer();
+    renderer.render(makeContainer(), makeModel());
+    const chart = chartAt(0);
+    const events = chartEvents.get(chart);
+    const listener = vi.fn();
+    const unsubscribe = renderer.onInteractionChange(listener);
+
+    chart.getOption.mockReturnValue({
+      dataZoom: [{ start: 20, end: 80 }],
+      legend: [{ selected: { Temp: false } }],
+    });
+    events?.handlers.get('datazoom')?.();
+    expect(listener).toHaveBeenLastCalledWith({
+      zoom: { start: 20, end: 80 },
+      hiddenSeries: ['Temp'],
+    });
+
+    events?.handlers.get('legendselectchanged')?.();
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unsubscribe();
+    events?.handlers.get('datazoom')?.();
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('notifies after an update because series names may change', () => {
+    const renderer = makeRenderer();
+    renderer.render(makeContainer(), makeModel());
+    const listener = vi.fn();
+    renderer.onInteractionChange(listener);
+
+    renderer.update(
+      makeModel({
+        series: [{ id: 'col_a', name: 'Renamed', values: [1, 2, 3, 4] }],
+      }),
+    );
+
+    expect(listener).toHaveBeenCalled();
+  });
+
+  it('swallows dispatch failures and does nothing before mounting', () => {
+    const before = makeRenderer();
+    expect(() => {
+      before.dispatchInteraction({ type: 'reset-view' });
+    }).not.toThrow();
+
+    const renderer = makeRenderer();
+    renderer.render(makeContainer(), makeModel());
+    const chart = chartAt(0);
+    chart.dispatchAction.mockImplementationOnce(() => {
+      throw new Error('no legend');
+    });
+
+    expect(() => {
+      renderer.dispatchInteraction({ type: 'toggle-series', name: 'Temp' });
+    }).not.toThrow();
+  });
+
+  it('forwards localized toolbox labels into the option', () => {
+    const renderer = makeRenderer({ labels: { zoom: '框选缩放', zoomBack: '还原缩放' } });
+    renderer.render(makeContainer(), makeModel());
+    const option = chartAt(0).setOption.mock.calls[0]?.[0] as {
+      toolbox?: { feature?: { dataZoom?: { title?: unknown } } };
+    };
+    expect(option.toolbox?.feature?.dataZoom?.title).toEqual({
+      zoom: '框选缩放',
+      back: '还原缩放',
+    });
+  });
+
+  it('drops interaction subscribers on dispose', () => {
+    const renderer = makeRenderer();
+    renderer.render(makeContainer(), makeModel());
+    const events = chartEvents.get(chartAt(0));
+    const listener = vi.fn();
+    renderer.onInteractionChange(listener);
+    renderer.dispose();
+
+    events?.handlers.get('datazoom')?.();
+    expect(listener).not.toHaveBeenCalled();
+    expect(renderer.getInteractionState()).toEqual({ zoom: null, hiddenSeries: [] });
   });
 });
 

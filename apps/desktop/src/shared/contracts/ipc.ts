@@ -128,10 +128,17 @@ export interface ImportTextReply {
   format: 'csv' | 'json';
 }
 
-/** `file:exportText` request (SPEC §15.1). */
+/** `file:exportText` request (SPEC §15.1; T4.5 adds base64 for PNG export). */
+export type ExportTextEncoding = 'utf8' | 'base64';
+
 export interface ExportTextRequest {
   suggestedName: string;
   content: string;
+  /**
+   * `utf8` (default) writes text; `base64` decodes the content to bytes before
+   * the atomic write, which lets PNG data URLs reuse this channel (ADR-044).
+   */
+  encoding?: ExportTextEncoding;
   filters: FileFilter[];
 }
 
@@ -403,6 +410,7 @@ export const exportTextRequestSchema: z.ZodType<ExportTextRequest, ExportTextReq
   z.strictObject({
     suggestedName: z.string().min(1).max(200),
     content: z.string(),
+    encoding: z.enum(['utf8', 'base64']).optional(),
     filters: z.array(fileFilterSchema).min(1).max(10),
   });
 

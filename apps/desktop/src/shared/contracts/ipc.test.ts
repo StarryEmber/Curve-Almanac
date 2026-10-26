@@ -5,6 +5,7 @@ import {
   appInfoResponseSchema,
   exportCsvRequestSchema,
   exportCsvResponseSchema,
+  exportTextRequestSchema,
   logWriteRequestSchema,
   logWriteResponseSchema,
   manifestWriteRequestSchema,
@@ -176,6 +177,55 @@ describe('file:exportCsv contract', () => {
       exportCsvResponseSchema.safeParse({ op: 'finish', path: 'C:/out.csv', bytes: 1 }).success,
     ).toBe(false);
     expect(exportCsvResponseSchema.safeParse({ op: 'cancel', removed: 'yes' }).success).toBe(false);
+  });
+});
+
+describe('file:exportText contract', () => {
+  const filters = [{ name: 'PNG image', extensions: ['png'] }];
+
+  it('accepts text without encoding and base64 with the T4.5 extension', () => {
+    expect(
+      exportTextRequestSchema.safeParse({
+        suggestedName: 'chart.curvestyle.json',
+        content: '{}',
+        filters,
+      }).success,
+    ).toBe(true);
+    expect(
+      exportTextRequestSchema.safeParse({
+        suggestedName: 'chart.png',
+        content: 'iVBORw0KGgo=',
+        encoding: 'base64',
+        filters,
+      }).success,
+    ).toBe(true);
+    expect(
+      exportTextRequestSchema.safeParse({
+        suggestedName: 'chart.png',
+        content: 'x',
+        encoding: 'utf8',
+        filters,
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects unknown encodings and extra fields', () => {
+    expect(
+      exportTextRequestSchema.safeParse({
+        suggestedName: 'chart.png',
+        content: 'x',
+        encoding: 'binary',
+        filters,
+      }).success,
+    ).toBe(false);
+    expect(
+      exportTextRequestSchema.safeParse({
+        suggestedName: 'chart.png',
+        content: 'x',
+        filters,
+        path: 'C:/anywhere.png',
+      }).success,
+    ).toBe(false);
   });
 });
 

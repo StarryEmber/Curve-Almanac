@@ -51,9 +51,18 @@ interface OptionView {
     left?: unknown;
     orient?: string;
   };
-  tooltip?: { trigger?: string; renderMode?: string; confine?: boolean; formatter?: unknown };
+  tooltip?: {
+    trigger?: string;
+    renderMode?: string;
+    className?: string;
+    confine?: boolean;
+    formatter?: unknown;
+  };
   dataZoom?: { type?: string; bottom?: number; height?: number }[];
-  toolbox?: { right?: number; feature?: { dataZoom?: { yAxisIndex?: string } } };
+  toolbox?: {
+    right?: number;
+    feature?: { dataZoom?: { yAxisIndex?: string; title?: { zoom?: string; back?: string } } };
+  };
 }
 
 function viewOf(option: ChartOption): OptionView {
@@ -331,14 +340,31 @@ describe('toEChartsOption — theme and interactions', () => {
     const view = viewOf(toEChartsOption(makeModel()));
     expect(view.tooltip?.trigger).toBe('axis');
     expect(view.tooltip?.renderMode).toBe('html');
+    expect(view.tooltip?.className).toBe('cs-chart-tooltip');
     expect(view.tooltip?.confine).toBe(true);
     expect(typeof view.tooltip?.formatter).toBe('function');
     expect(view.dataZoom?.map((zoom) => zoom.type)).toEqual(['inside', 'slider']);
     expect(view.dataZoom?.[1]).toMatchObject({ height: 16, bottom: 8 });
     expect(view.toolbox?.feature?.dataZoom?.yAxisIndex).toBe('none');
+    expect(view.toolbox?.feature?.dataZoom?.title).toBeUndefined();
 
     const scatter = viewOf(toEChartsOption(makeModel({ kind: 'scatter' })));
     expect(scatter.tooltip?.trigger).toBe('item');
+  });
+
+  it('localizes the toolbox dataZoom titles only when labels are provided', () => {
+    const view = viewOf(
+      toEChartsOption(makeModel(), {
+        labels: { zoom: '框选缩放', zoomBack: '还原缩放' },
+      }),
+    );
+    expect(view.toolbox?.feature?.dataZoom?.title).toEqual({
+      zoom: '框选缩放',
+      back: '还原缩放',
+    });
+
+    const partial = viewOf(toEChartsOption(makeModel(), { labels: { zoom: 'Zoom box' } }));
+    expect(partial.toolbox?.feature?.dataZoom?.title).toEqual({ zoom: 'Zoom box' });
   });
 });
 

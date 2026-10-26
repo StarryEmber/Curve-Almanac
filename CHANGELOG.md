@@ -487,3 +487,24 @@
   （renderer **3,209.97 kB**、CSS 70.66 kB）；`pnpm e2e` **76 passed**；`pnpm bench` exit 0。
   新增 ADR-043、SPEC §11.2–§11.5/§13.1/§13.2 实现边界、TASKS T4.4 与
   `docs/reports/t4.4/REPORT.md`（4 张截图）。
+- T4.5：`@curve/chart-echarts` 新增瞬态交互 API：`getInteractionState()`（dataZoom 窗口/
+  隐藏系列）、`dispatchInteraction({ toggle-series | zoom-by | reset-view })`（只走
+  `dispatchAction`，异常不外抛）、`onInteractionChange()`（订阅 `datazoom`/
+  `legendselectchanged`）；`toEChartsOption` 增加 `labels`（toolbox zoom/back）与 tooltip
+  稳定类名 `cs-chart-tooltip`；6 条 option 快照有意更新。
+- T4.5：图表视图工具栏（逐系列 `aria-pressed` 图例、放大/缩小/重置缩放、查看数据表、
+  导出 PNG…）与 `data-chart-zoom-start/end`、`data-chart-hidden-series` 契约；canvas 宿主
+  `role="img"` 的 `aria-label` 为标题/类型/系列数/点数摘要。交互状态不持久化、不进撤销。
+- T4.5：三种空态 `data-chart-empty="no-table|unmapped|no-data"` 与行动按钮：删除图表…、
+  配置映射（聚焦内嵌映射编辑器）、查看数据表（`openTable`）；`no-table` 为防御态（合法
+  manifest 的缺失表是 invariant 错误，无法从磁盘打开）。
+- T4.5：PNG 导出：`ChartCanvas.exportPng`（flush 防抖 + 两个动画帧后同步 `toPNG`）、
+  `ChartExportDialog`（透明/白/深背景、固定 2x、`<标题>-<yyyyMMdd-HHmm>.png`、清洗/保留名/
+  截断）、`file:exportText` 新增可选 `encoding:'base64'` + 主进程 `atomicWriteBytes`；不新增
+  IPC 通道、不改 preload 白名单。`e2e/chart-interaction.spec.ts` 3 条（100k 图例/缩放/
+  tooltip/resize + axe、PNG 三背景尺寸/像素 + 键盘/200%、空态行动）。
+- T4.5：`pnpm verify` **161 files / 1474 tests**；coverage 全局 lines **76.26%** /
+  statements 76.12% / branches 69.03% / functions 74.65%；`pnpm build` exit 0
+  （renderer **3,238.36 kB**、CSS 72.19 kB）；`pnpm e2e` **79 passed**；`pnpm bench` exit 0。
+  新增 ADR-044、SPEC §11.4–§11.6/§15.1 实现边界、TASKS T4.5 与
+  `docs/reports/t4.5/REPORT.md`（3 张截图）。

@@ -143,8 +143,12 @@
 > T4.4 已覆盖第 1–3、6 步：`apps/desktop/e2e/chart.spec.ts` 4 条（新建向导宽表 2 个 Y →
 > 检查器切长表 3 系列 → 四组检查器项生效并在重启后逐项还原；删除映射列后的可操作错误态与
 > 重映射恢复 + 重启；复制图表新 id/新视图且源/副本设置互不影响；200% 缩放下键盘打开向导与
-> 检查器标签）。断言用 `data-chart-*` 渲染契约 + manifest 落盘，不依赖像素。第 4–5 步
-> （100k 采样徽标、PNG 导出）属于 T4.5/T4.6。
+> 检查器标签）。断言用 `data-chart-*` 渲染契约 + manifest 落盘，不依赖像素。第 4–5 步由
+> T4.5 覆盖：`apps/desktop/e2e/chart-interaction.spec.ts` 3 条——100k 采样图上的图例/缩放/
+> tooltip/resize 与 axe（wcag2a/aa，critical 0）、PNG 导出（透明/白/深三背景，2× 尺寸、
+> 文件名、像素颜色，键盘 + 200% 缩放）、`no-data`/`unmapped` 空态与行动按钮。`no-table`
+> 是防御态，合法 manifest 无法打开（`checkChartInto` 为错误），由 ChartView 组件测试覆盖；
+> 完整 PNG 报告与截图见 `docs/reports/t4.5/`。M4 验收演示仍由 T4.6 后执行。
 
 ### E7 布局与撤销
 

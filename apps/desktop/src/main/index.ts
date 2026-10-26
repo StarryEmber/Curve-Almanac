@@ -184,7 +184,7 @@ function registerIpc(workspaceStore: FileWorkspaceStore): void {
       if (path === null) {
         return null;
       }
-      await exportTextFile(path, request.content);
+      await exportTextFile(path, request.content, request.encoding ?? 'utf8');
       return { path };
     },
     exportCsv: (request) => csvWriter.handle(request),

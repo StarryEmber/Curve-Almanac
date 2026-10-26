@@ -37,9 +37,25 @@ export type ChartOption = ComposeOption<
   | ToolboxComponentOption
 >;
 
+/** Stable class of the HTML tooltip (E2E/styling contract, T4.5). */
+export const CHART_TOOLTIP_CLASS = 'cs-chart-tooltip';
+
+/**
+ * Localized toolbox titles. The adapter never owns application copy: UI layers
+ * pass `t()` values through `ChartRendererOptions.labels` (T4.5, ADR-044).
+ */
+export interface ChartToolboxLabels {
+  /** Box-zoom icon title (`toolbox.feature.dataZoom.title.zoom`). */
+  zoom?: string;
+  /** Zoom-reset icon title (`toolbox.feature.dataZoom.title.back`). */
+  zoomBack?: string;
+}
+
 export interface ChartOptionOptions {
   /** BCP 47 locale used by tooltip and axis formatting. */
   locale?: string;
+  /** Toolbox icon titles; ECharts English defaults when omitted. */
+  labels?: ChartToolboxLabels;
 }
 
 /**
@@ -202,6 +218,24 @@ function buildLegend(
 }
 
 /**
+ * Localized titles only for the icons the adapter keeps; absent labels keep
+ * ECharts' own defaults so the option snapshot stays meaningful for callers
+ * that do not use the desktop i18n layer.
+ */
+function buildDataZoomFeature(
+  labels: ChartToolboxLabels | undefined,
+): NonNullable<ToolboxComponentOption['feature']>['dataZoom'] {
+  const title = {
+    ...(labels?.zoom === undefined ? {} : { zoom: labels.zoom }),
+    ...(labels?.zoomBack === undefined ? {} : { back: labels.zoomBack }),
+  };
+  return {
+    yAxisIndex: 'none',
+    ...(Object.keys(title).length === 0 ? {} : { title }),
+  };
+}
+
+/**
  * Builds the complete ECharts option for one RenderModel.
  *
  * The option is deterministic for a given model/locale: colours come from the
@@ -256,7 +290,7 @@ export function toEChartsOption(model: RenderModel, options: ChartOptionOptions 
     top: 0,
     iconStyle: { borderColor: theme.mutedText },
     emphasis: { iconStyle: { borderColor: theme.text } },
-    feature: { dataZoom: { yAxisIndex: 'none' } },
+    feature: { dataZoom: buildDataZoomFeature(options.labels) },
   };
 
   return {
@@ -276,6 +310,7 @@ export function toEChartsOption(model: RenderModel, options: ChartOptionOptions 
     tooltip: {
       trigger: model.kind === 'scatter' ? 'item' : 'axis',
       renderMode: 'html',
+      className: CHART_TOOLTIP_CLASS,
       confine: true,
       backgroundColor: theme.tooltipBackground,
       borderColor: theme.tooltipBorder,
