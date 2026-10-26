@@ -5,8 +5,8 @@
 > **等待用户确认 M4**，确认前不开始 M5（T5.1）。
 > 最后更新：2026-10-26 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
-> T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**（本交接文档的提交见
-> `git log -1 -- docs/HANDOFF.md`）。
+> T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**
+> （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/m4/REPORT.md` →
 > `docs/reports/t4.6/REPORT.md` → `docs/TASKS.md` 的 M4 → `docs/SPEC.md` §11.3、§11.5、
 > §16.1 → `docs/adr/045-t46-chart-performance.md` → ADR-044 → ADR-043 → ADR-042 →
@@ -60,8 +60,38 @@
    **调色板/线宽/映射保留、缩放/图例复位**；E6 第 4 步的“首尾点存在”由
    `packages/chart-model/src/sampling.test.ts` 的 `lttbIndices` 用例锁定，E2E 不反读逐点值。
 5. 证据：报告 + **7 张截图**（`m4-01`…`m4-07`）；`pnpm e2e` 会重写 `docs/reports/m0/*.png`，
-   提交前已还原。
-6. 停点：**等待用户确认 M4**；确认前不领取 T5.1，不改 M4 已验收的契约。
+   提交前已还原。提交 **`657f8c3`**（`test(m4): add milestone acceptance demo and report`，
+   spec + 报告 + 7 图 + TASKS/CHANGELOG/AGENTS/HANDOFF）。
+6. 停点：**等待用户确认 M4**；确认前不领取 T5.1，不改 M4 演示已覆盖的契约。
+
+### 0.2 下一会话行动清单（M4 → M5）
+
+> 前提：M4 验收演示已完成、报告与截图已提交；**用户尚未明确确认 M4**。
+
+1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
+   163 files / 1505 tests、`pnpm e2e` 82 passed；读 `docs/reports/m4/REPORT.md`。
+2. **如果用户明确确认 M4**：
+   - 先做一条 docs 提交记录验收（仿 M3 的 `4ec9653 docs(m3): record user acceptance of the
+     M3 milestone`）：更新 AGENTS §0、本文件、TASKS 的 M4 状态与 CHANGELOG，把 M4 标为已接受/
+     关闭并写“下一步 T5.1”。
+   - 再领取 **T5.1 分栏布局与标签页**（依赖 T2.1/T4.4；SPEC §12；TESTPLAN E7；验证
+     `pnpm e2e -- --grep "layout"`）；一次只推进 T5.1，不同时开 T5.2。
+3. **如果用户提出 M4 反馈**：
+   - 只改 `apps/desktop/e2e/m4-acceptance.spec.ts` / `docs/reports/m4/REPORT.md`，必要时补
+     测试；不要顺手改现有的渲染/采样/断点/缓存契约。
+   - 复跑单 spec + `pnpm verify` + 全量 `pnpm e2e`，更新报告/截图后重新停下等确认。
+4. 任何情况下不要：
+   - 在未确认前把 M4 标成已接受/关闭，或开始 T5.1/T5.x；
+   - 删除或重命名 `data-chart-*` 契约、修改 LTTB/断点/缓存键语义；
+   - 提交 `docs/reports/m0/*.png` 的 E2E 重写、`apps/desktop/test-results/`、`bench/.fixtures/`。
+5. 复跑 M4 演示（独占 CPU；若 100k 夹具缺失先跑 `pnpm e2e` 或 `tsx scripts/gen-100k.ts`）：
+
+   ```powershell
+   $env:PATH = "D:\DSH_Work_Space\tools\bin;C:\Users\MECHREVO\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin;$env:PATH"
+   $env:CURVE_E2E_NO_SANDBOX = '1'
+   cd D:\DSH_Work_Space\curve-studio
+   pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/m4-acceptance.spec.ts
+   ```
 
 ---
 
@@ -2642,9 +2672,8 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log --oneline -3` 包含 T4.6 代码提交（`feat(chart): harden
-      chart performance with cached data and deferred resolve (T4.6)`）与 M4 演示/交接提交
-      （`test(m4): add milestone acceptance demo and report`，两者为同一次提交）。
+- [ ] `git status --short` 干净；`git log` 包含 T4.6 代码提交 **`0fc37aa`**、M4 演示/报告提交
+      **`657f8c3`**（`test(m4): add milestone acceptance demo and report`）与本交接文档提交。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
 - [ ] 已读 `AGENTS.md`、本文件、`docs/reports/m4/REPORT.md`、`docs/reports/t4.6/REPORT.md`、
