@@ -537,3 +537,18 @@
   `manifest:write`/`table:write` 保存失败且 UI 只弹 Toast。现在写入前 `mkdir(recursive)`，
   `file-workspace-store.test.ts` 新增“备份目录缺失时保存仍成功”的回归测试；修复后 100k 图表
   11 次切换的 private 内存从 605–612MB 回落到 584–592MB。
+- M4：新增 `apps/desktop/e2e/m4-acceptance.spec.ts`（单条验收演示，2 次启动）覆盖 TESTPLAN E6：
+  同一张表建宽表 2 Y（2 系列/12 点）→ 切长表 `site`（3 系列/6 点）→ 图例/缩放/tooltip →
+  vivid/线宽 4 重启保留 → 删除映射列后的 `missing-columns` 错误态与重映射 → 100k 采样图
+  （先 loading，100000→2000，徽标“已采样”）→ PNG（1706×916 = 容器 2x、白底、文件名）→
+  同一 `userData` 重启还原；报告 `docs/reports/m4/REPORT.md` 与 7 张截图。E6 第 3 步的
+  缩放/图例按 ADR-044 为瞬态（重启复位 0–100/全选），调色板/线宽/映射保留；第 4 步的
+  首尾点保留由 `chart-model` 的 `lttbIndices` 单测锁定。
+- M4：`pnpm verify` **163 files / 1505 tests**；coverage 全局 lines **76.47%** /
+  statements 76.34% / branches 69.21% / functions 74.99%；depcruise 447 modules /
+  1874 deps / 0 violations；`pnpm build` exit 0（renderer **3,251.27 kB**、CSS 72.31 kB）；
+  `pnpm e2e` **82 passed**（4.2m；M4 演示 8.6s）；`pnpm bench -- --chart` exit 0
+  （chart.resolve-sample P95 64ms/300ms、chart.sample 3ms/50ms、chart.option.2k 1ms/50ms、
+  chart.restyle.100k 0ms/20ms）；100k 图表 resolve 43ms、update 36ms、private 488MB。
+  演示仅新增测试/报告并同步 TASKS/AGENTS §0/HANDOFF；无生产代码改动、无新增 ADR，
+  不改 `formatVersion`/manifest/JSONL/IPC/preload/CSP。
