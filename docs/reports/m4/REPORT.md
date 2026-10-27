@@ -1,8 +1,8 @@
 # M4 报告 — 图表验收演示
 
 - 里程碑：**M4 图表**（T4.1–T4.6 已完成）
-- 日期：2026-10-26
-- 状态：**验收演示已执行，全部通过；等待用户确认**（M4 未关闭，未进入 M5）
+- 日期：2026-10-26（演示）/ 2026-10-27（验收入）
+- 状态：**已于 2026-10-27 获用户接受；M4 关闭**（下一步 M5 从 T5.1 开始）
 - 演示：`apps/desktop/e2e/m4-acceptance.spec.ts`（1 条，2 次 `launchCurveApp`）
 - 决策：ADR-040–045；本次**无新增 ADR**，生产代码**零改动**（不改 `formatVersion`、
   manifest 字段、JSONL、IPC、preload、CSP、公共 API 或运行时依赖）
@@ -174,8 +174,12 @@ M4 的 T4.1–T4.6 与 TESTPLAN E6 的 6 个验收项全部通过：宽/长表�
 `userData` 重启还原，均由一条可复现的 E2E 覆盖并留下 7 张截图。生产代码零改动，`pnpm verify`
 163 files / 1505 tests、`pnpm e2e` **82 passed**、`pnpm bench -- --chart` exit 0。
 
-**停点**：M4 验收演示已执行，报告已输出；**等待用户确认 M4**。确认前不开始 M5（T5.1），
-不把 M4 标记为已接受。复跑：
+**验收结论（2026-10-27）**：用户已确认 M4，M4 关闭。接受依据：本报告与 7 张截图；`pnpm verify`
+163 files / 1505 tests、`pnpm e2e` **82 passed**（M4 演示 8.6s）、`pnpm build` exit 0、
+`pnpm bench -- --chart` exit 0；演示六项全部通过。下一步进入 M5 的 T5.1（分栏布局与标签页），
+M4 的渲染/采样/断点/缓存契约不再改动。
+
+**停点**：M4 已验收关闭；下一动作 T5.1。复跑本演示（仅回归）：
 
 ```powershell
 $env:CURVE_E2E_NO_SANDBOX = '1'

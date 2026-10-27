@@ -552,3 +552,6 @@
   chart.restyle.100k 0ms/20ms）；100k 图表 resolve 43ms、update 36ms、private 488MB。
   演示仅新增测试/报告并同步 TASKS/AGENTS §0/HANDOFF；无生产代码改动、无新增 ADR，
   不改 `formatVersion`/manifest/JSONL/IPC/preload/CSP。
+- M4：验收演示于 2026-10-27 获用户接受，**M4 关闭**；接受依据为 `docs/reports/m4/REPORT.md`
+  与 7 张截图、`pnpm verify` 163 files / 1505 tests、`pnpm e2e` **82 passed**、`pnpm build`
+  exit 0、`pnpm bench -- --chart` exit 0。下一步 M5 从 T5.1（分栏布局与标签页）开始。

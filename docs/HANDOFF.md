@@ -1,12 +1,13 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。当前会话已执行 **M4 验收演示**（TESTPLAN E6，报告
-> `docs/reports/m4/REPORT.md`，全量 E2E **82 passed**），M4 的 T4.1–T4.6 全部完成；
-> **等待用户确认 M4**，确认前不开始 M5（T5.1）。
-> 最后更新：2026-10-26 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
+> 本文件面向**下一个实现会话**。**M4 已于 2026-10-27 获用户接受并关闭**；M4 验收演示
+> （TESTPLAN E6，报告 `docs/reports/m4/REPORT.md`，全量 E2E **82 passed**）已完成，下一步
+> M5 从 **T5.1（分栏布局与标签页）** 开始。
+> 最后更新：2026-10-27 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**
-> （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
+> （M4 验收记录见 `git log -1 -- docs/reports/m4/REPORT.md`；本交接文档的提交见
+> `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/m4/REPORT.md` →
 > `docs/reports/t4.6/REPORT.md` → `docs/TASKS.md` 的 M4 → `docs/SPEC.md` §11.3、§11.5、
 > §16.1 → `docs/adr/045-t46-chart-performance.md` → ADR-044 → ADR-043 → ADR-042 →
@@ -20,7 +21,8 @@
   038/039）；**M3 已于 2026-10-24 获用户接受**；`T4.1`（RenderModel 与宽/长表映射）、
   `T4.2`（LTTB 采样与缺失值语义）、`T4.3`（ECharts 适配器）、`T4.4`（图表创建与检查器）、
   `T4.5`（图表交互、空态与 PNG 导出）与 `T4.6`（图表性能硬化）已完成；**M4 验收演示已于
-  2026-10-26 执行并通过**（TESTPLAN E6 六项、全量 E2E 82 passed），**等待用户确认 M4**。
+  2026-10-26 执行并通过、2026-10-27 获用户接受**（TESTPLAN E6 六项、全量 E2E 82 passed），
+  **M4 已关闭**；下一里程碑 M5 从 T5.1 开始。
 - **本次交付**：`apps/desktop/e2e/m4-acceptance.spec.ts`（1 条，2 次启动）覆盖宽表 2 Y →
   长表 3 系列 → 图例/缩放/tooltip → 调色板/线宽持久化 → 删列错误态与重映射 → 100k 采样
   （先 loading、100000→2000、徽标）→ PNG（2x/白底/文件名）→ 同 `userData` 重启还原；
@@ -33,11 +35,11 @@
   chart.option.2k 1ms/50ms、chart.restyle.100k 0ms/20ms）。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
-- **停点**：M4 验收演示已执行并提交；工作树干净；**等待用户确认 M4**，确认前不开始 M5（T5.1）。
+- **停点**：M4 已验收关闭；工作树干净；下一动作是 **T5.1（分栏布局与标签页）**。
 - **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`）；读
   `docs/reports/m4/REPORT.md`（含“残留风险”：E6 第 3 步的瞬态交互、首尾点只能由 LTTB 单测
-  证明、100k 长表限制）；用户确认后再领取 T5.1。
-- **M4 验收演示（已执行）**：同一张表建宽表折线 + 长表多系列 → 缩放/图例/tooltip → 100k 点
+  证明、100k 长表限制）；直接领取 T5.1。
+- **M4 验收演示（已获验收）**：同一张表建宽表折线 + 长表多系列 → 缩放/图例/tooltip → 100k 点
   采样徽标 → 导出 PNG → 重启还原；`e2e/m4-acceptance.spec.ts` 复跑命令见报告 §8，截图在
   `docs/reports/m4/`。
 - **不要回退的东西**：`resolveSeries` 输出/黄金快照、采样与断点语义、数据缓存键的字段边界、
@@ -45,7 +47,7 @@
   T4.6 的 `data-chart-*` 诊断契约。`pnpm e2e --grep` 在 PowerShell 下会按 `|` 拆分，一次只跑
   一个模式。
 
-### 0.1 M4 验收演示结果（2026-10-26 已执行，等待用户确认）
+### 0.1 M4 验收演示结果（2026-10-27 获用户接受）
 
 1. 用例：`apps/desktop/e2e/m4-acceptance.spec.ts`（单 test，2 次 `launchCurveApp`）；全量
    E2E 内 **8.6s**，单跑 9.0–10.0s；报告 `docs/reports/m4/REPORT.md`。
@@ -62,29 +64,23 @@
 5. 证据：报告 + **7 张截图**（`m4-01`…`m4-07`）；`pnpm e2e` 会重写 `docs/reports/m0/*.png`，
    提交前已还原。提交 **`657f8c3`**（`test(m4): add milestone acceptance demo and report`，
    spec + 报告 + 7 图 + TASKS/CHANGELOG/AGENTS/HANDOFF）。
-6. 停点：**等待用户确认 M4**；确认前不领取 T5.1，不改 M4 演示已覆盖的契约。
+6. 验收：**2026-10-27 用户确认 M4，M4 关闭**；下一动作 T5.1；M4 的渲染/采样/断点/缓存契约不改。
 
-### 0.2 下一会话行动清单（M4 → M5）
+### 0.2 下一会话行动清单（M5 从 T5.1 开始）
 
-> 前提：M4 验收演示已完成、报告与截图已提交；**用户尚未明确确认 M4**。
+> 前提：M4 已获用户接受并关闭；M5 的 T5.1 尚未开始。
 
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
-   163 files / 1505 tests、`pnpm e2e` 82 passed；读 `docs/reports/m4/REPORT.md`。
-2. **如果用户明确确认 M4**：
-   - 先做一条 docs 提交记录验收（仿 M3 的 `4ec9653 docs(m3): record user acceptance of the
-     M3 milestone`）：更新 AGENTS §0、本文件、TASKS 的 M4 状态与 CHANGELOG，把 M4 标为已接受/
-     关闭并写“下一步 T5.1”。
-   - 再领取 **T5.1 分栏布局与标签页**（依赖 T2.1/T4.4；SPEC §12；TESTPLAN E7；验证
-     `pnpm e2e -- --grep "layout"`）；一次只推进 T5.1，不同时开 T5.2。
-3. **如果用户提出 M4 反馈**：
-   - 只改 `apps/desktop/e2e/m4-acceptance.spec.ts` / `docs/reports/m4/REPORT.md`，必要时补
-     测试；不要顺手改现有的渲染/采样/断点/缓存契约。
-   - 复跑单 spec + `pnpm verify` + 全量 `pnpm e2e`，更新报告/截图后重新停下等确认。
-4. 任何情况下不要：
-   - 在未确认前把 M4 标成已接受/关闭，或开始 T5.1/T5.x；
-   - 删除或重命名 `data-chart-*` 契约、修改 LTTB/断点/缓存键语义；
-   - 提交 `docs/reports/m0/*.png` 的 E2E 重写、`apps/desktop/test-results/`、`bench/.fixtures/`。
-5. 复跑 M4 演示（独占 CPU；若 100k 夹具缺失先跑 `pnpm e2e` 或 `tsx scripts/gen-100k.ts`）：
+   163 files / 1505 tests、`pnpm e2e` 82 passed；读 TASKS 的 T5.1、SPEC §12、TESTPLAN E7。
+2. 领取 **T5.1 分栏布局与标签页**（依赖 T2.1/T4.4；验证 `pnpm e2e -- --grep "layout"`）；
+   一次只推进 T5.1，不同时开 T5.2。
+3. T5.1 的契约要点：`LayoutNode` 递归分栏、最多 4 个 pane、比例 0.2–0.8；关闭最后一个标签 =
+   关闭 pane，至少保留 1 个；布局变更走命令总线；保存去抖 500ms；恢复时校验引用，非法布局
+   回退单 pane 且视图不丢；标签可键盘切换/关闭。
+4. 不要回退：M4 的渲染/采样/断点/缓存契约、`data-chart-*`、命令总线与保存队列、manifest
+   `formatVersion: 1` 与现有布局字段语义。
+5. 复跑 M4 演示（仅验收回归；独占 CPU；若 100k 夹具缺失先跑 `pnpm e2e` 或
+   `tsx scripts/gen-100k.ts`）：
 
    ```powershell
    $env:PATH = "D:\DSH_Work_Space\tools\bin;C:\Users\MECHREVO\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin;$env:PATH"
@@ -124,9 +120,9 @@
 | `T4.4` 图表创建与检查器 | **已完成**（2026-10-25，`862063f`）；报告 `docs/reports/t4.4/REPORT.md`；ADR-043 |
 | `T4.5` 图表交互、空态与 PNG 导出 | **已完成**（2026-10-26，`fd68789`）；报告 `docs/reports/t4.5/REPORT.md`；ADR-044 |
 | `T4.6` 图表性能硬化 | **已完成**（2026-10-26，`0fc37aa`）；报告 `docs/reports/t4.6/REPORT.md`；ADR-045 |
-| M4 验收演示 | **已执行并通过，等待用户确认**（2026-10-26）；`e2e/m4-acceptance.spec.ts` + `docs/reports/m4/REPORT.md`（7 张截图）；全量 E2E 82 passed |
-| 当前里程碑 | **M4 图表**：T4.1–T4.6 与验收演示全部完成；等待用户确认，确认后进入 M5 |
-| 下一步 | **等待用户确认 M4**；确认后领取 M5 的 T5.1（分栏布局与标签页） |
+| M4 验收演示 | **已获用户接受**（2026-10-27）；`e2e/m4-acceptance.spec.ts` + `docs/reports/m4/REPORT.md`（7 张截图）；全量 E2E 82 passed |
+| 当前里程碑 | **M4 已关闭**；M5 体验从 T5.1（分栏布局与标签页）开始 |
+| 下一步 | **T5.1 分栏布局与标签页**（依赖 T2.1/T4.4；SPEC §12；TESTPLAN E7） |
 | `pnpm verify` 基线 | **163 files / 1505 tests**；ESLint 0；depcruise 447 modules / 1874 deps / 0 violations |
 | `pnpm test:coverage` 基线 | 全局 lines **76.47%** / statements **76.34%** / branches **69.21%** / functions **74.99%**；`chart-model` render-model.ts lines **96.88%**、sampling.ts **93.24%**；`chart-echarts/src` **96.75%**；阈值 70/60 未下调 |
 | `pnpm e2e` 基线 | **82 passed**（4.2m；新增 `m4-acceptance.spec.ts` 1 条：8.6s；`chart-perf` 2 条：4.2s / 5.9s） |
@@ -139,9 +135,9 @@
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **M1/M2/M3 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6 与 M4 验收演示已完成**；
-  下一步是 **等待用户确认 M4**。
-- 不得跨里程碑；M4 验收演示已执行并输出报告，确认前不进入 M5。
+- **M1/M2/M3/M4 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6 与 M4 验收演示已完成**；
+  下一步是 **M5 的 T5.1（分栏布局与标签页）**。
+- 不得跨里程碑；M4 已验收关闭，T5.1 完成后按 TASKS 顺序推进 T5.2–T5.5，里程碑结束再停。
 
 ---
 
@@ -150,15 +146,14 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/reports/m4/REPORT.md、docs/reports/t4.6/REPORT.md、
-docs/TASKS.md 的 M4、docs/SPEC.md §11.3 / §11.5 / §16.1、docs/adr/045-t46-chart-performance.md、
-ADR-044 / ADR-043 / ADR-042 / ADR-041 / ADR-040（缓存、延迟解析、渲染契约、断点、采样与交互口径）。
+先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T5.1、docs/TESTPLAN.md 的 E7、
+docs/SPEC.md §12、docs/DECISIONS.md 与相关 ADR（布局/标签/命令总线）。
 
-现状：M0、M1（已验收）、M2（已验收）、M3（已验收）、T1.1–T1.5、T2.1–T2.7、T3.1–T3.6、
-T4.1–T4.6 已完成；M4 验收演示已执行并通过（TESTPLAN E6，全量 E2E 82 passed），等待用户确认；
-pnpm verify 163 files / 1505 tests、coverage lines 76.47%、pnpm bench -- --chart exit 0。
+现状：M0、M1（已验收）、M2（已验收）、M3（已验收）、M4（已验收）与 T1.1–T4.6 已完成；
+pnpm verify 163 files / 1505 tests、coverage lines 76.47%、pnpm e2e 82 passed、
+pnpm bench -- --chart exit 0。
 
-下一步：等待用户确认 M4；确认后才领取 M5 的 T5.1，不要提前开始 M5。
+下一步：领取 M5 的 T5.1（分栏布局与标签页）；一次只推进一个任务，完成并验证后更新报告。
 ```
 
 ---
@@ -2506,7 +2501,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 
 **停点（已解除）**：M3 已于 2026-10-24 获用户接受并关闭；此后 T4.1–T4.6 已完成
 （见 §5K/§5L/§5M/§5N/§5O/§5P），M4 验收演示已于 2026-10-26 执行并通过（TESTPLAN E6，
-报告 `docs/reports/m4/REPORT.md`），**等待用户确认 M4**；确认前不进入 M5。
+报告 `docs/reports/m4/REPORT.md`），并已于 2026-10-27 获用户接受、M4 关闭；下一步 M5 T5.1。
 
 ---
 
@@ -2665,20 +2660,21 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
   `backups/` 时，所有保存都会 `E_FS_WRITE`（静默只弹 Toast）。
 - 不为通过 `chart-perf` 放宽 resolve ≤300ms / update ≤200ms / private ≤600MB 或删除实例计数断言；
   失败先查是否 CPU 噪声（ADR-033），再按 ADR-045 复核条件优化。
-- 不自动跨任务/跨里程碑；M3 已验收并关闭，M4 的 T4.1–T4.6 与验收演示已完成，**下一步是等待
-  用户确认 M4**；确认前不要开 M5 任务。
+- 不自动跨任务/跨里程碑；M3、M4 均已验收并关闭，M4 的 T4.1–T4.6 与验收演示已完成，
+  **下一步是 T5.1（分栏布局与标签页）**；一次只推进一个任务。
 
 ---
 
 ## 9. 新会话启动检查清单
 
 - [ ] `git status --short` 干净；`git log` 包含 T4.6 代码提交 **`0fc37aa`**、M4 演示/报告提交
-      **`657f8c3`**（`test(m4): add milestone acceptance demo and report`）与本交接文档提交。
+      **`657f8c3`**（`test(m4): add milestone acceptance demo and report`）、M4 验收提交
+      （`git log -1 -- docs/reports/m4/REPORT.md`）与本交接文档提交。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/m4/REPORT.md`、`docs/reports/t4.6/REPORT.md`、
-      `docs/TASKS.md` 的 M4、`docs/SPEC.md §11.3 / §11.5 / §16.1`、
-      `docs/adr/045-t46-chart-performance.md`（并按需回看 ADR-044/043/042/041/040）。
+- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/m4/REPORT.md`、`docs/TASKS.md` 的 T5.1、
+      `docs/TESTPLAN.md` 的 E7、`docs/SPEC.md §12`、`docs/DECISIONS.md` 与布局相关 ADR；
+      M4 的 §11.3/§11.5/§16.1 与 ADR-040–045 按需回看。
 - [ ] 已确认 `pnpm verify` 基线（**163 files / 1505 tests**）、coverage lines **76.47%**、
       `pnpm e2e` **82 passed**、`pnpm bench -- --chart` exit 0、`chart.sample.100k` P95 **3ms**、
       `chart.resolve-sample.100k` P95 **64ms**、`chart.option.2k` P95 **1ms**、
@@ -2686,8 +2682,8 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
       private **488MB**（≤600MB）。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M1/M2/M3 均已获用户接受、T3.1–T3.6、T4.1–T4.6 与 M4 验收演示已完成；
-      **下一步是等待用户确认 M4**，不是新任务，也不是 M5。
+- [ ] 已确认 M1/M2/M3/M4 均已获用户接受、T3.1–T3.6、T4.1–T4.6 与 M4 验收演示已完成；
+      **下一步是 M5 的 T5.1**（分栏布局与标签页）。
 - [ ] 已确认 E2E 新增 `apps/desktop/e2e/m4-acceptance.spec.ts`（1 条，2 次启动），报告与 7 张
       截图在 `docs/reports/m4/`；`m0` 截图已还原，`test-results/` 未提交。
 - [ ] 已确认 T4.6：`resolveChartData`/`renderChartModel` 拆分与 `resolveSeries` 组合（输出/快照
@@ -2718,4 +2714,5 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 - [ ] 跑全量 E2E 前已确认没有外部程序占满 CPU（§3.3/§7）；T4.4/T4.5 全量曾偶发 grid 200%
       焦点失败，单跑可过，不放宽断言。
 - [ ] M4 验收演示已按 TESTPLAN E6 执行（`e2e/m4-acceptance.spec.ts`，独占 CPU），报告
-      `docs/reports/m4/REPORT.md` 与截图已提交；**已停下等待用户确认**，确认前不进入 M5。
+      `docs/reports/m4/REPORT.md` 与截图已提交；**M4 已于 2026-10-27 获用户接受并关闭**，
+      下一动作 T5.1。
