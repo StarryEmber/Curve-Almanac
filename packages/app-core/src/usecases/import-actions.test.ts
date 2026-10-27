@@ -91,6 +91,7 @@ async function setup(): Promise<{
     ui: {
       activeTableId: TABLE.id,
       activeViewId: VIEW.id,
+      activePanePath: 'root',
       error: null,
       dirtyTables: [],
       save: { status: 'idle', pending: 0, error: null },

@@ -3,6 +3,8 @@ import { createStore } from 'zustand/vanilla';
 import type { LayoutNode } from '@curve/domain';
 import { DirtyTableTracker } from '@curve/table-engine';
 
+import { findPaneByPath, panePathForView } from '../commands/layout';
+
 import type { AppActions, AppState, AppStore, SaveState, UiState } from './types';
 
 export interface InitialAppState extends Partial<Omit<AppState, 'actions' | 'ui'>> {
@@ -29,6 +31,7 @@ function createInitialUi(): UiState {
   return {
     activeTableId: null,
     activeViewId: null,
+    activePanePath: null,
     error: null,
     dirtyTables: [],
     save: createIdleSaveState(),
@@ -73,7 +76,7 @@ export function createAppStore(options: CreateAppStoreOptions = {}): AppStore {
       },
       setActiveView(viewId: string | null): void {
         if (viewId === null) {
-          setUi({ activeViewId: null });
+          setUi({ activeViewId: null, activePanePath: null });
           return;
         }
         const view = get().views[viewId];
@@ -89,7 +92,26 @@ export function createAppStore(options: CreateAppStoreOptions = {}): AppStore {
             activeTableId = chart.tableId;
           }
         }
-        setUi({ activeViewId: viewId, activeTableId });
+        setUi({
+          activeViewId: viewId,
+          activeTableId,
+          activePanePath: panePathForView(get().layout, viewId),
+        });
+      },
+      focusPane(path: string): void {
+        const pane = findPaneByPath(get().layout, path);
+        if (pane === null) {
+          return;
+        }
+        const activeViewId = pane.activeViewId ?? pane.viewIds[0] ?? null;
+        if (get().ui.activePanePath === path && get().ui.activeViewId === activeViewId) {
+          return;
+        }
+        if (activeViewId === null) {
+          setUi({ activePanePath: path, activeViewId: null });
+          return;
+        }
+        actions.setActiveView(activeViewId);
       },
       setError(error): void {
         setUi({ error });

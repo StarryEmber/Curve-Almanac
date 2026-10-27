@@ -26,8 +26,10 @@
   （`docs/reports/t4.5/REPORT.md`、ADR-044）；**T4.6（图表性能硬化）已完成**
   （`docs/reports/t4.6/REPORT.md`、ADR-045）。M4 的 T4.1–T4.6 全部完成；**M4 验收演示已于
   2026-10-26 执行并通过、2026-10-27 获用户接受**（`apps/desktop/e2e/m4-acceptance.spec.ts` +
-  `docs/reports/m4/REPORT.md`，TESTPLAN E6 六项全过、全量 E2E 82 passed）；**M4 已关闭**，
-  下一里程碑 M5 从 T5.1（分栏布局与标签页）开始。
+  `docs/reports/m4/REPORT.md`，TESTPLAN E6 六项全过、全量 E2E 82 passed）；**M4 已关闭**。
+  **M5 的 `T5.1`（分栏布局与标签页）已完成**（`docs/reports/t5.1/REPORT.md`、ADR-046）：
+  递归分栏/标签、比例拖拽、500ms 布局保存去抖、非法 layout 回退单 pane；下一步 **T5.2
+  （撤销/重做）**。
 - 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
   `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 15 个已接线
   IPC 通道；**续作前先读 `docs/HANDOFF.md`**。

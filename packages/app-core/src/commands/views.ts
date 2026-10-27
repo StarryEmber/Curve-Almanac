@@ -11,19 +11,14 @@ import {
   createTimestamp,
   isId,
   layoutNodeSchema,
+  MAX_PANES,
   viewDefSchema,
 } from '@curve/domain';
 import type { LayoutNode, SortSpec, ViewDef } from '@curve/domain';
 
 import { assertValidTableView } from '../validation/view-state';
 
-import {
-  addViewToLayout,
-  findActivePane,
-  firstViewId,
-  listPanes,
-  removeViewFromLayout,
-} from './layout';
+import { addViewToLayout, findPaneEntry, listPaneEntries, removeViewFromLayout } from './layout';
 
 import type { CommandDefinition } from './types';
 import type { AppState } from '../state/types';
@@ -44,6 +39,8 @@ export interface ViewUpdatePayload {
 
 export interface ViewLayoutPayload {
   layout: LayoutNode;
+  /** UI-only focus target; validated against the new tree when present. */
+  activePanePath?: string | null;
 }
 
 /** Mutable subset of `TableViewState` exposed to the UI. */
@@ -77,8 +74,25 @@ function touchWorkspace(draft: Draft<AppState>, timestamp: string): void {
 }
 
 export function syncActiveSelection(draft: Draft<AppState>): void {
-  const activeViewId = findActivePane(draft.layout)?.activeViewId ?? firstViewId(draft.layout);
-  if (activeViewId === null || draft.views[activeViewId] === undefined) {
+  const entries = listPaneEntries(draft.layout);
+  const preferred =
+    draft.ui.activePanePath === null
+      ? undefined
+      : entries.find((entry) => entry.path === draft.ui.activePanePath);
+  const containing =
+    draft.ui.activeViewId === null
+      ? undefined
+      : entries.find((entry) => entry.pane.viewIds.includes(draft.ui.activeViewId ?? ''));
+  const entry = preferred ?? containing ?? entries[0];
+  if (entry === undefined) {
+    draft.ui.activePanePath = null;
+    draft.ui.activeViewId = null;
+    draft.ui.activeTableId = Object.keys(draft.tables)[0] ?? null;
+    return;
+  }
+  draft.ui.activePanePath = entry.path;
+  const activeViewId = entry.pane.activeViewId ?? entry.pane.viewIds[0] ?? null;
+  if (activeViewId === null) {
     draft.ui.activeViewId = null;
     draft.ui.activeTableId = Object.keys(draft.tables)[0] ?? null;
     return;
@@ -91,7 +105,9 @@ export function syncActiveSelection(draft: Draft<AppState>): void {
   }
   if (view !== undefined) {
     draft.ui.activeTableId = draft.charts[view.refId]?.tableId ?? null;
+    return;
   }
+  draft.ui.activeTableId = Object.keys(draft.tables)[0] ?? null;
 }
 
 function parseViewId(payload: unknown, command: string): string {
@@ -152,7 +168,18 @@ function parseViewLayout(payload: unknown): ViewLayoutPayload {
   if (!parsed.success) {
     invalid('The layout is invalid.');
   }
-  return { layout: parsed.data };
+  const activePanePath = payload['activePanePath'];
+  if (
+    activePanePath !== undefined &&
+    activePanePath !== null &&
+    typeof activePanePath !== 'string'
+  ) {
+    invalid('view.layout activePanePath must be a string or null.');
+  }
+  return {
+    layout: parsed.data,
+    ...(activePanePath === undefined ? {} : { activePanePath }),
+  };
 }
 
 function assertViewRefs(state: Draft<AppState>, view: ViewDef): void {
@@ -188,9 +215,13 @@ function assertViewRefs(state: Draft<AppState>, view: ViewDef): void {
 }
 
 function assertLayoutRefs(state: Draft<AppState>, layout: LayoutNode): void {
+  const entries = listPaneEntries(layout);
+  if (entries.length > MAX_PANES) {
+    invalid(`A layout may contain at most ${String(MAX_PANES)} panes.`);
+  }
   const seen = new Set<string>();
-  for (const pane of listPanes(layout)) {
-    for (const viewId of pane.viewIds) {
+  for (const entry of entries) {
+    for (const viewId of entry.pane.viewIds) {
       if (seen.has(viewId)) {
         invalid('A layout may not reference the same view twice.');
       }
@@ -199,7 +230,7 @@ function assertLayoutRefs(state: Draft<AppState>, layout: LayoutNode): void {
         invalid(`The layout references missing view "${viewId}".`);
       }
     }
-    if (pane.activeViewId !== null && !pane.viewIds.includes(pane.activeViewId)) {
+    if (entry.pane.activeViewId !== null && !entry.pane.viewIds.includes(entry.pane.activeViewId)) {
       invalid('The pane activeViewId must be one of its viewIds.');
     }
   }
@@ -215,7 +246,8 @@ export function createViewCreateCommand(
     apply(draft, payload) {
       assertViewRefs(draft, payload.view);
       draft.views[payload.view.id] = payload.view;
-      addViewToLayout(draft.layout, payload.view.id);
+      const path = addViewToLayout(draft.layout, payload.view.id, draft.ui.activePanePath);
+      draft.ui.activePanePath = path;
       syncActiveSelection(draft);
       touchWorkspace(draft, createTimestamp(now()));
     },
@@ -234,7 +266,7 @@ export function createViewDeleteCommand(
         invalid('The view does not exist.');
       }
       delete draft.views[payload.viewId];
-      removeViewFromLayout(draft.layout, payload.viewId);
+      draft.layout = removeViewFromLayout(draft.layout, payload.viewId);
       syncActiveSelection(draft);
       touchWorkspace(draft, createTimestamp(now()));
     },
@@ -320,6 +352,15 @@ export function createViewLayoutCommand(
     apply(draft, payload) {
       assertLayoutRefs(draft, payload.layout);
       draft.layout = payload.layout;
+      if (payload.activePanePath !== undefined) {
+        if (
+          payload.activePanePath !== null &&
+          findPaneEntry(draft.layout, payload.activePanePath) === null
+        ) {
+          invalid('The active pane path does not exist in the layout.');
+        }
+        draft.ui.activePanePath = payload.activePanePath;
+      }
       syncActiveSelection(draft);
       touchWorkspace(draft, createTimestamp(now()));
     },

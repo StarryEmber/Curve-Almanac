@@ -198,6 +198,7 @@ function setup(overrides: { table?: TableMeta; rows?: Row[] } = {}) {
     ui: {
       activeTableId: 'tbl_1',
       activeViewId: 'viw_1',
+      activePanePath: 'root',
       error: null,
       dirtyTables: [],
       save: { status: 'idle', pending: 0, error: null },

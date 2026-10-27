@@ -33,6 +33,48 @@ function manifestWithTable(tableOverrides: Partial<TableMeta> = {}): WorkspaceMa
   return manifest;
 }
 
+function manifestWithViews(): WorkspaceManifest {
+  const manifest = manifestWithTable();
+  manifest.views.push(
+    {
+      id: 'viw_1',
+      kind: 'table',
+      refId: 'tbl_1',
+      title: 'One',
+      tableView: {
+        tableId: 'tbl_1',
+        styleId: 'builtin.report-light',
+        columnOrder: ['col_id'],
+        widths: {},
+        hiddenColumnIds: [],
+        sort: [],
+        frozenColumnCount: 0,
+      },
+    },
+    {
+      id: 'viw_2',
+      kind: 'table',
+      refId: 'tbl_1',
+      title: 'Two',
+      tableView: {
+        tableId: 'tbl_1',
+        styleId: 'builtin.report-light',
+        columnOrder: ['col_id'],
+        widths: {},
+        hiddenColumnIds: [],
+        sort: [],
+        frozenColumnCount: 0,
+      },
+    },
+  );
+  manifest.layout = {
+    type: 'pane',
+    viewIds: ['viw_1', 'viw_2'],
+    activeViewId: 'viw_1',
+  };
+  return manifest;
+}
+
 describe('createEmptyManifest', () => {
   it('creates a valid empty manifest matching the SPEC §6.5 shape', () => {
     const manifest = createEmptyManifest({
@@ -150,6 +192,59 @@ describe('parseManifestDocument', () => {
     );
 
     expect(() => parseManifestDocument(raw)).toThrow(
+      expect.objectContaining({ code: 'E_WS_INVALID_MANIFEST' }),
+    );
+  });
+
+  it('repairs a layout that references a missing view and keeps every tab', () => {
+    const manifest = manifestWithViews();
+    manifest.layout = {
+      type: 'pane',
+      viewIds: ['viw_1', 'viw_missing'],
+      activeViewId: 'viw_1',
+    };
+
+    expect(() => validateManifest(manifest)).toThrow(
+      expect.objectContaining({ code: 'E_WS_INVALID_MANIFEST' }),
+    );
+    const parsed = parseManifestDocument(serializeManifest(manifest));
+
+    expect(parsed.manifest.layout).toEqual({
+      type: 'pane',
+      viewIds: ['viw_1', 'viw_2'],
+      activeViewId: 'viw_1',
+    });
+    expect(parsed.warnings).toEqual([
+      expect.stringContaining('layout was invalid; restored a single pane with 2 view(s)'),
+    ]);
+  });
+
+  it('repairs a layout with an out-of-range split ratio', () => {
+    const manifest = manifestWithViews();
+    manifest.layout = {
+      type: 'split',
+      direction: 'horizontal',
+      ratio: 0.1,
+      first: { type: 'pane', viewIds: ['viw_1'], activeViewId: 'viw_1' },
+      second: { type: 'pane', viewIds: ['viw_2'], activeViewId: 'viw_2' },
+    };
+
+    const parsed = parseManifestDocument(serializeManifest(manifest));
+
+    expect(parsed.manifest.layout).toEqual({
+      type: 'pane',
+      viewIds: ['viw_1', 'viw_2'],
+      activeViewId: 'viw_1',
+    });
+    expect(parsed.warnings[0]).toContain('layout was invalid');
+  });
+
+  it('still rejects a non-layout invariant failure when repairing the layout', () => {
+    const manifest = manifestWithViews();
+    manifest.tables[0] = table({ primaryKey: 'col_missing' });
+    manifest.layout = { type: 'pane', viewIds: ['viw_missing'], activeViewId: null };
+
+    expect(() => parseManifestDocument(serializeManifest(manifest))).toThrow(
       expect.objectContaining({ code: 'E_WS_INVALID_MANIFEST' }),
     );
   });

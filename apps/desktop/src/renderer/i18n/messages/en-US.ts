@@ -232,6 +232,16 @@ export const enUS: Record<MessageKey, string> = {
   'tabs.empty.body': 'Open a table from the list on the left and it will appear here.',
   'tabs.empty.action': 'Open the first table',
 
+  'layout.pane': 'Pane',
+  'layout.actions': 'Pane actions',
+  'layout.resize': 'Resize panes',
+  'layout.splitHorizontal': 'Split horizontally (side by side)',
+  'layout.splitVertical': 'Split vertically (stacked)',
+  'layout.moveNext': 'Move the current tab to the next pane',
+  'layout.closePane': 'Close the current pane',
+  'layout.empty.title': 'This pane is empty',
+  'layout.empty.body': 'Open a table or chart from the left, or move a tab from another pane here.',
+
   'grid.label': '{name} data grid',
   'grid.empty': 'This table has no rows yet.',
   'grid.emptyFiltered': 'No rows match the filter.',

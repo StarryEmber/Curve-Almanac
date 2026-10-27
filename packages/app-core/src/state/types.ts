@@ -50,6 +50,8 @@ export interface ViewsSlice {
 export interface UiState {
   activeTableId: string | null;
   activeViewId: string | null;
+  /** UI-only path of the focused pane (`root`, `root.0`, …); not persisted. */
+  activePanePath: string | null;
   /** The single error surface consumed by the UI (SPEC §13.1). */
   error: AppError | null;
   /** Snapshot of the dirty-table tracker, in first-mark order (ADR-023). */
@@ -63,6 +65,8 @@ export interface UiState {
 export interface AppActions {
   setActiveTable(tableId: string | null): void;
   setActiveView(viewId: string | null): void;
+  /** Focuses a pane without changing the document (empty panes use this). */
+  focusPane(path: string): void;
   setError(error: AppError): void;
   clearError(): void;
   markDirty(tableId: string): void;

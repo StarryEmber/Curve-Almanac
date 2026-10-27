@@ -164,6 +164,11 @@ describe('workspace actions', () => {
     expect(second.data.created).toBe(false);
     expect(second.data.viewId).toBe(first.data.viewId);
     expect(Object.keys(core.store.getState().views)).toHaveLength(1);
+    // T5.1: focusing an existing tab is a layout-only change with a 500ms
+    // debounce; the explicit flush writes the coalesced manifest.
+    expect(store.calls.filter((call) => call === 'manifest')).toHaveLength(1);
+    const flushed = await core.actions.flushSaves();
+    expect(flushed.ok).toBe(true);
     expect(store.calls.filter((call) => call === 'manifest')).toHaveLength(2);
   });
 
@@ -566,6 +571,109 @@ describe('workspace actions', () => {
     if (!missingDelete.ok) {
       expect(missingDelete.error.code).toBe('E_VALIDATION');
     }
+  });
+
+  it('splits, moves and closes panes, coalescing layout writes', async () => {
+    const { store, core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const tableId = created.data.table.id;
+    const firstViewId = created.data.view.id;
+    const duplicated = await core.actions.duplicateView(firstViewId);
+    expect(duplicated.ok).toBe(true);
+    if (!duplicated.ok) {
+      return;
+    }
+    const secondViewId = duplicated.data.viewId;
+
+    store.manifests.length = 0;
+    store.calls.length = 0;
+
+    const split = await core.actions.splitPane('horizontal');
+    expect(split.ok).toBe(true);
+    expect(core.store.getState().layout).toMatchObject({
+      type: 'split',
+      direction: 'horizontal',
+      ratio: 0.5,
+      first: { type: 'pane', viewIds: [firstViewId, secondViewId] },
+      second: { type: 'pane', viewIds: [], activeViewId: null },
+    });
+    expect(core.store.getState().ui.activePanePath).toBe('root.1');
+    expect(core.store.getState().ui.activeViewId).toBeNull();
+
+    const moved = await core.actions.moveViewToNextPane(secondViewId);
+    expect(moved.ok).toBe(true);
+    expect(core.store.getState().ui.activePanePath).toBe('root.1');
+    expect(core.store.getState().ui.activeViewId).toBe(secondViewId);
+    expect(core.store.getState().layout).toMatchObject({
+      type: 'split',
+      first: { type: 'pane', viewIds: [firstViewId] },
+      second: { type: 'pane', viewIds: [secondViewId], activeViewId: secondViewId },
+    });
+
+    const ratio = await core.actions.setLayoutRatio('root', 0.35);
+    expect(ratio.ok).toBe(true);
+    expect(core.store.getState().layout).toMatchObject({ type: 'split', ratio: 0.35 });
+
+    // All three layout actions were coalesced: no manifest write yet.
+    expect(store.calls.filter((call) => call === 'manifest')).toHaveLength(0);
+    const flushed = await core.actions.flushSaves();
+    expect(flushed.ok).toBe(true);
+    expect(store.calls.filter((call) => call === 'manifest')).toHaveLength(1);
+    expect(store.manifests.at(-1)?.layout).toMatchObject({ type: 'split', ratio: 0.35 });
+
+    const closed = await core.actions.closeView(secondViewId);
+    expect(closed.ok).toBe(true);
+    expect(core.store.getState().layout).toEqual({
+      type: 'pane',
+      viewIds: [firstViewId],
+      activeViewId: firstViewId,
+    });
+    await core.actions.flushSaves();
+    expect(store.manifests.at(-1)?.layout).toEqual({
+      type: 'pane',
+      viewIds: [firstViewId],
+      activeViewId: firstViewId,
+    });
+
+    const table = core.store.getState().tables[tableId];
+    expect(table?.table.id).toBe(tableId);
+  });
+
+  it('refuses a fifth pane, an out-of-range ratio and closing the last pane', async () => {
+    const { core } = setup();
+    expect((await core.actions.createTable('Sensors')).ok).toBe(true);
+
+    for (let index = 0; index < 3; index += 1) {
+      const split = await core.actions.splitPane('vertical');
+      expect(split.ok).toBe(true);
+    }
+    expect(core.store.getState().layout).toBeDefined();
+    // Four panes exist; one more split is rejected.
+    const fifth = await core.actions.splitPane('horizontal');
+    expect(fifth.ok).toBe(false);
+    if (!fifth.ok) {
+      expect(fifth.error.code).toBe('E_VALIDATION');
+    }
+    const badRatio = await core.actions.setLayoutRatio('root', 0.1);
+    expect(badRatio.ok).toBe(false);
+
+    const closeFirst = await core.actions.closePane();
+    expect(closeFirst.ok).toBe(true);
+    let refused = false;
+    for (let index = 0; index < 4; index += 1) {
+      const closed = await core.actions.closePane();
+      if (!closed.ok) {
+        expect(closed.error.code).toBe('E_VALIDATION');
+        refused = true;
+        break;
+      }
+    }
+    expect(refused).toBe(true);
+    expect(core.store.getState().layout.type).toBe('pane');
   });
 
   it('closes the workspace and resets the document slices', async () => {

@@ -437,6 +437,11 @@ export interface WorkspaceManifest {
 
 违反不变量时：加载阶段能修复的修复并记 `warnings`；不能修复的拒绝打开并返回 `E_WS_INVALID_MANIFEST`。
 
+**实现边界（T5.1，ADR-046）**：第 5 条的 layout 是“加载阶段可修复”的：引用缺失/重复、
+比例越界、结构非法或 pane 数 >4 时，`parseManifestDocument` 用 `views[]` 重建单 pane
+（保留全部视图与顺序），记 `layout was invalid; restored a single pane with N view(s)`
+warning 后继续打开；其它不变量仍按上一行规则拒绝。保存路径仍用严格校验，不静默修复。
+
 ---
 
 <a id="7-工作区文件格式"></a>
@@ -1330,6 +1335,23 @@ export interface RenderModel {
 - 窗口尺寸/位置存 `userData/window-state.json`，不属于工作区。
 - 未保存修改：关闭窗口/切换工作区前弹确认（保存/放弃/取消）。
 
+**实现边界（T5.1，ADR-046）**：
+
+- 主区域递归渲染 `LayoutNode`：pane 拥有独立标签栏与活动视图；split 用水平/垂直分隔条，
+  比例为 0.2–0.8。pane 的 UI-only 路径（`root`、`root.0`、`root.1`…）不写 manifest。
+- “水平/垂直分栏”把当前 pane 替换为 `split(原 pane, 空 pane)`（比例 0.5）并聚焦空 pane；
+  分栏不自动创建/移动视图。最多 4 个 pane；第 5 个分栏被命令与 UI 同时拒绝。
+- 标签按 v1 的“移动到下一分栏”在 pane 间移动；关闭最后一个标签会折叠空 pane，全部关闭时
+  保留一个空根 pane。有标签的 pane 只能通过关闭标签结束；“关闭分栏”只对空 pane 可用。
+- 比例拖拽在指针释放时提交一条 `view.layout`，键盘方向键每次 ±2%；纯布局变更（激活、分栏、
+  移动、比例）以 500ms 去抖写 manifest，`Ctrl+S`/关闭工作区/保存队列 flush 会冲掉定时器；
+  新建/删除/更新视图仍立即写。
+- 每个 pane 的 `activeViewId` 持久化并在重启后恢复；最后聚焦的 pane 是 UI-only，不写 manifest
+  （重启后焦点落在第一个有活动标签的 pane）。若要求恢复最后焦点，需新增字段与迁移。
+- 打开时 layout 引用缺失/重复、比例非法或 pane 数 >4 回退单 pane（保留全部视图）并显示
+  warning；见 §6.6 的实现边界。空 pane 复用 `data-testid="workspace-empty"`，pane 暴露
+  `data-pane-path`/`data-pane-active`（不使用网格的 `data-active`）。
+
 ---
 
 <a id="13"></a>
@@ -1351,7 +1373,7 @@ export interface RenderModel {
 | `table.column.add/update/delete/reorder` | tableId, ... | 是（delete 需二次确认） |
 | `table.meta.update` | tableId, name/primaryKey | 是 |
 | `view.create/delete/update` | view | 是 |
-| `view.layout` | LayoutNode | 是 |
+| `view.layout` | LayoutNode（可选 `activePanePath`，UI-only） | 是 |
 | `style.create/update/delete/apply` | style | 是 |
 | `chart.create/update/delete` | chart | 是 |
 | `workspace.rename` | name | 是 |
@@ -1359,6 +1381,9 @@ export interface RenderModel {
 - 命令实现为纯函数：`(state, payload) => { nextState, patches, inversePatches }`（Immer `produceWithPatches`）。
 - 异步副作用（磁盘写入）不进入命令；由状态订阅触发自动保存。
 - 命令失败必须返回 `AppError`，不得部分修改状态。
+- **实现边界（T5.1，ADR-046）**：`view.layout` 的可选 `activePanePath` 只是 UI 焦点地址
+  （`root`/`root.0`/`root.1`…），不写 manifest、不参与撤销；纯布局变更的 manifest 写入
+  由 500ms 去抖队列负责，见 §12。
 - **实现边界（T2.3，ADR-029）**：T2.3 落地 `table.column.add/update/delete/reorder` 与
   `table.meta.update(primaryKey)`；结构命令同步执行、只产 patches，不进入 T2.2 的最小历史。`delete` 禁止
   删除主键；`reorder` 以 `columnIds` 精确排列重写 schema、每行 `values` 与该表所有视图的 `columnOrder`。

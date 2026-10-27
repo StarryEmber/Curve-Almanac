@@ -1,92 +1,82 @@
 # HANDOFF — Curve Studio 实施交接
 
-> 本文件面向**下一个实现会话**。**M4 已于 2026-10-27 获用户接受并关闭**；M4 验收演示
-> （TESTPLAN E6，报告 `docs/reports/m4/REPORT.md`，全量 E2E **82 passed**）已完成，下一步
-> M5 从 **T5.1（分栏布局与标签页）** 开始。
+> 本文件面向**下一个实现会话**。**M4 已于 2026-10-27 获用户接受并关闭**；M5 的
+> **T5.1（分栏布局与标签页）已完成**（报告 `docs/reports/t5.1/REPORT.md`、ADR-046），
+> 下一步 **T5.2（撤销/重做）**。
 > 最后更新：2026-10-27 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**
-> （M4 验收记录见 `git log -1 -- docs/reports/m4/REPORT.md`；本交接文档的提交见
+> （T5.1 报告/代码提交见 `git log -1 -- docs/reports/t5.1/REPORT.md`；M4 验收记录见
+> `git log -1 -- docs/reports/m4/REPORT.md`；本交接文档的提交见
 > `git log -1 -- docs/HANDOFF.md`）。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/m4/REPORT.md` →
-> `docs/reports/t4.6/REPORT.md` → `docs/TASKS.md` 的 M4 → `docs/SPEC.md` §11.3、§11.5、
-> §16.1 → `docs/adr/045-t46-chart-performance.md` → ADR-044 → ADR-043 → ADR-042 →
-> ADR-041 → ADR-040。
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t5.1/REPORT.md` →
+> `docs/TASKS.md` 的 T5.1/T5.2 → `docs/SPEC.md` §6.6、§12、§13.1 → ADR-046 →
+> `docs/reports/m4/REPORT.md` → ADR-045 → ADR-044 → ADR-043 → ADR-042 → ADR-041 → ADR-040。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
-- **当前状态**：M2 已于 2026-10-23 获用户接受；`T3.1`–`T3.6` 已完成（ADR-034/035/036/037/
-  038/039）；**M3 已于 2026-10-24 获用户接受**；`T4.1`（RenderModel 与宽/长表映射）、
-  `T4.2`（LTTB 采样与缺失值语义）、`T4.3`（ECharts 适配器）、`T4.4`（图表创建与检查器）、
-  `T4.5`（图表交互、空态与 PNG 导出）与 `T4.6`（图表性能硬化）已完成；**M4 验收演示已于
-  2026-10-26 执行并通过、2026-10-27 获用户接受**（TESTPLAN E6 六项、全量 E2E 82 passed），
-  **M4 已关闭**；下一里程碑 M5 从 T5.1 开始。
-- **本次交付**：`apps/desktop/e2e/m4-acceptance.spec.ts`（1 条，2 次启动）覆盖宽表 2 Y →
-  长表 3 系列 → 图例/缩放/tooltip → 调色板/线宽持久化 → 删列错误态与重映射 → 100k 采样
-  （先 loading、100000→2000、徽标）→ PNG（2x/白底/文件名）→ 同 `userData` 重启还原；
-  报告 `docs/reports/m4/REPORT.md` 与 7 张截图。生产代码零改动。
-- **基线**：`pnpm verify` **163 files / 1505 tests**（ESLint 0；depcruise 447 modules /
-  1874 deps / 0 violations）；coverage 全局 lines **76.47%** / statements 76.34% / branches
-  69.21% / functions 74.99%；`format:check` 通过；`pnpm build` exit 0（renderer
-  **3,251.27 kB**、CSS 72.31 kB）；`pnpm e2e` **82 passed**（4.2m，m4 8.6s）；
-  `pnpm bench -- --chart` exit 0（chart.resolve-sample P95 64ms/300ms、chart.sample 3ms/50ms、
-  chart.option.2k 1ms/50ms、chart.restyle.100k 0ms/20ms）。
+- **当前状态**：M2/M3/M4 均已获用户接受；`T3.1`–`T3.6`、`T4.1`–`T4.6` 已完成；
+  **M5 的 T5.1（分栏布局与标签页）已于 2026-10-27 完成**（ADR-046），下一步 **T5.2
+  （撤销/重做）**。M5 验收演示要等 T5.1–T5.5 全部完成后执行。
+- **本次交付**：`LayoutView` 递归渲染 `LayoutNode`（最多 4 pane、水平/垂直、0.2–0.8 比例、
+  每 pane 独立标签）；分栏/移动/关闭/活动 pane；纯布局变更 500ms 去抖写 manifest；
+  `parseManifestDocument` 对非法 layout 回退单 pane + warning。报告
+  `docs/reports/t5.1/REPORT.md` 与 4 张截图。
+- **基线**：`pnpm verify` **164 files / 1519 tests**（ESLint 0；depcruise 450 modules /
+  1892 deps / 0 violations）；coverage 全局 lines **75.99%** / statements 75.84% / branches
+  68.82% / functions 74.49%；`pnpm build` exit 0（renderer **3,273.65 kB**、CSS 74.30 kB）；
+  `pnpm e2e` **85 passed**（4.3m，layout 5.2s/2.2s/2.5s）；`pnpm bench` exit 0
+  （table.open 334ms/3s、save 348ms/500ms、query 196ms/400ms、text-sort 281ms/400ms、
+  cjk-sort 461ms/800ms、import 628ms/8s、condition 0ms/16ms、chart.resolve-sample 126ms/300ms）。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
-- **停点**：M4 已验收关闭；工作树干净；下一动作是 **T5.1（分栏布局与标签页）**。
+- **停点**：T5.1 已完成并提交；工作树干净；下一动作是 **T5.2（撤销/重做）**。
 - **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`）；读
-  `docs/reports/m4/REPORT.md`（含“残留风险”：E6 第 3 步的瞬态交互、首尾点只能由 LTTB 单测
-  证明、100k 长表限制）；直接领取 T5.1。
-- **M4 验收演示（已获验收）**：同一张表建宽表折线 + 长表多系列 → 缩放/图例/tooltip → 100k 点
-  采样徽标 → 导出 PNG → 重启还原；`e2e/m4-acceptance.spec.ts` 复跑命令见报告 §8，截图在
-  `docs/reports/m4/`。
-- **不要回退的东西**：`resolveSeries` 输出/黄金快照、采样与断点语义、数据缓存键的字段边界、
-  `chart.update` 允许悬空映射、`ChartCanvas` 的 120ms 防抖 + merge、T4.5 的交互/空态契约、
-  T4.6 的 `data-chart-*` 诊断契约。`pnpm e2e --grep` 在 PowerShell 下会按 `|` 拆分，一次只跑
-  一个模式。
+  `docs/reports/t5.1/REPORT.md`（含“残留风险”：最后聚焦 pane 不持久化、分栏空 pane、
+  500ms 去抖窗口、空 pane 复用 `workspace-empty`）；直接领取 T5.2。
+- **T5.1 完成结果**：2 表 3 视图 → 水平分栏 → 移动标签 → 比例 0.35 → 垂直/4 pane → 关闭空
+  pane → 重启恢复；非法 layout（缺失引用/ratio 0.1）回退单 pane 且视图不丢；标签 Arrow/
+  Ctrl+W 与 200% 缩放通过；截图在 `docs/reports/t5.1/`。
+- **不要回退的东西**：`LayoutNode` 形状、`view.create/delete/update/layout` 命令名与撤销语义、
+  `activePanePath` 的 UI-only 性质、500ms 布局去抖 + flush、`workspace-empty` 空态契约、
+  `pane` 的 `data-pane-active`（不要改回 `data-active`，网格/粘贴依赖它）、M4 的图表契约。
 
-### 0.1 M4 验收演示结果（2026-10-27 获用户接受）
+### 0.1 T5.1 结果（2026-10-27 完成）
 
-1. 用例：`apps/desktop/e2e/m4-acceptance.spec.ts`（单 test，2 次 `launchCurveApp`）；全量
-   E2E 内 **8.6s**，单跑 9.0–10.0s；报告 `docs/reports/m4/REPORT.md`。
-2. 实测：宽表 2 系列/12 点；长表 3 系列/6 点（distinct `site`=3）；缩放 25–75、tooltip
-   `3north: 30.00`；vivid `#e11d48`/线宽 4 重启保留；删 `col_a` → `missing-columns`，
-   重映射 `col_b` 恢复；100k loading→ready、**100000→2000**、徽标“已采样”、resolve 43ms、
-   update 36ms、private 488MB/600MB；PNG 1706×916（容器 854×459 的 2x，±2px 取整）、
-   151,363 B、白底。
-3. 断言口径：`data-chart-*`，不依赖整图像素；100k 图用安装于欢迎页的 `MutationObserver`
-   捕获 `data-chart-state="loading"`/`data-chart-pending="true"`，再等 `ready`。
-4. 两处已知解释：E6 第 3 步的“缩放/图例重启保留”与 ADR-044 冲突，演示按现行契约断言
-   **调色板/线宽/映射保留、缩放/图例复位**；E6 第 4 步的“首尾点存在”由
-   `packages/chart-model/src/sampling.test.ts` 的 `lttbIndices` 用例锁定，E2E 不反读逐点值。
-5. 证据：报告 + **7 张截图**（`m4-01`…`m4-07`）；`pnpm e2e` 会重写 `docs/reports/m0/*.png`，
-   提交前已还原。提交 **`657f8c3`**（`test(m4): add milestone acceptance demo and report`，
-   spec + 报告 + 7 图 + TASKS/CHANGELOG/AGENTS/HANDOFF）。
-6. 验收：**2026-10-27 用户确认 M4，M4 关闭**；下一动作 T5.1；M4 的渲染/采样/断点/缓存契约不改。
+1. 用例：`apps/desktop/e2e/layout.spec.ts` 3 条——分栏/移动/比例/4 pane/重启（5.2s）、
+   非法 layout 回退（2.2s）、键盘 + 200% 缩放（2.5s）；报告 `docs/reports/t5.1/REPORT.md`。
+2. 实测：2 pane ratio 0.35；4 pane（水平+垂直）后回到 2 pane；重启后 pane 数/比例/每个 pane
+   的活动标签恢复；缺失引用与 ratio 0.1 均回退 1 pane + 3 标签 + warning；ArrowRight 切换、
+   Ctrl+W 关闭、Separator ArrowDown 到 52%。
+3. 保存：纯布局变更 500ms 去抖，`flushSaves`/关闭工作区/Ctrl+S 冲掉；视图创建/删除/更新
+   立即写。`view.layout` 的可选 `activePanePath` 不写 manifest。
+4. 证据：报告 + **4 张截图**（split / four-panes / fallback / restored）；
+   `pnpm e2e` 重写 `docs/reports/m0/*.png`，提交前已还原。
+5. 提交：报告/代码提交见 `git log -1 -- docs/reports/t5.1/REPORT.md`。
+6. 残留：最后聚焦 pane 不持久化（重启焦点为第一个有活动标签的 pane）；分栏创建空 pane；
+   无跨 pane 拖拽；强退可能丢最后 500ms 布局变化（T5.3）；详见报告 §8 与 ADR-046。
 
-### 0.2 下一会话行动清单（M5 从 T5.1 开始）
+### 0.2 下一会话行动清单（T5.2 撤销/重做）
 
-> 前提：M4 已获用户接受并关闭；M5 的 T5.1 尚未开始。
+> 前提：T5.1 已完成；M5 尚未结束。
 
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
-   163 files / 1505 tests、`pnpm e2e` 82 passed；读 TASKS 的 T5.1、SPEC §12、TESTPLAN E7。
-2. 领取 **T5.1 分栏布局与标签页**（依赖 T2.1/T4.4；验证 `pnpm e2e -- --grep "layout"`）；
-   一次只推进 T5.1，不同时开 T5.2。
-3. T5.1 的契约要点：`LayoutNode` 递归分栏、最多 4 个 pane、比例 0.2–0.8；关闭最后一个标签 =
-   关闭 pane，至少保留 1 个；布局变更走命令总线；保存去抖 500ms；恢复时校验引用，非法布局
-   回退单 pane 且视图不丢；标签可键盘切换/关闭。
-4. 不要回退：M4 的渲染/采样/断点/缓存契约、`data-chart-*`、命令总线与保存队列、manifest
-   `formatVersion: 1` 与现有布局字段语义。
-5. 复跑 M4 演示（仅验收回归；独占 CPU；若 100k 夹具缺失先跑 `pnpm e2e` 或
-   `tsx scripts/gen-100k.ts`）：
+   164 files / 1519 tests、`pnpm e2e` 85 passed；读 TASKS 的 T5.2、SPEC §13.2、TESTPLAN E7。
+2. 领取 **T5.2 撤销/重做**（依赖 T1.5/T2.2/T2.3/T3.4；验证按 TASKS 命令）；一次只推进一个
+   任务，不同时开 T5.3。
+3. T5.2 的既有基础：`EditHistory`、`table.cell.set` 的 800ms 合并、`mergeKey`、命令总线
+   patches/inversePatches；`view.layout`/选择/滚动/标签切换不得进入历史（E7 第 4 步）。
+4. 不要回退：T5.1 的分栏/标签语义与 `activePanePath`、500ms 布局去抖、`workspace-empty`、
+   `pane[data-pane-active]`、M4 图表契约。
+5. 复跑 T5.1 布局回归（独占 CPU）：
 
    ```powershell
    $env:PATH = "D:\DSH_Work_Space\tools\bin;C:\Users\MECHREVO\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin;$env:PATH"
    $env:CURVE_E2E_NO_SANDBOX = '1'
    cd D:\DSH_Work_Space\curve-studio
-   pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/m4-acceptance.spec.ts
+   pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/layout.spec.ts
    ```
 
 ---
@@ -98,7 +88,7 @@
 | 方案文档 | v1.0 已锁定（SPEC / TASKS / TESTPLAN / DECISIONS） |
 | M0 基建（T0.1–T0.5） | **已完成**；验收报告 `docs/reports/m0/REPORT.md` |
 | M1 领域与持久化（T1.1–T1.5） | **已完成并经用户验收**（2026-10-21）；报告 `docs/reports/m1/REPORT.md` |
-| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1–T4.6 扩展了命令、actions、历史与保存 |
+| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1–T5.1 扩展了命令、actions、历史与保存 |
 | `T2.1` 工作区入口、表管理与网格 | **已完成**（`07c4763`）；报告 `docs/reports/t2.1/REPORT.md`；ADR-027 |
 | `T2.2` 单元格编辑与校验 | **已完成**（`641cd86`）；报告 `docs/reports/t2.2/REPORT.md`；ADR-028 |
 | `T2.3` 列管理、结构变更与迁移 | **已完成**（`213fab4`）；报告 `docs/reports/t2.3/REPORT.md`；ADR-029 |
@@ -121,23 +111,24 @@
 | `T4.5` 图表交互、空态与 PNG 导出 | **已完成**（2026-10-26，`fd68789`）；报告 `docs/reports/t4.5/REPORT.md`；ADR-044 |
 | `T4.6` 图表性能硬化 | **已完成**（2026-10-26，`0fc37aa`）；报告 `docs/reports/t4.6/REPORT.md`；ADR-045 |
 | M4 验收演示 | **已获用户接受**（2026-10-27）；`e2e/m4-acceptance.spec.ts` + `docs/reports/m4/REPORT.md`（7 张截图）；全量 E2E 82 passed |
-| 当前里程碑 | **M4 已关闭**；M5 体验从 T5.1（分栏布局与标签页）开始 |
-| 下一步 | **T5.1 分栏布局与标签页**（依赖 T2.1/T4.4；SPEC §12；TESTPLAN E7） |
-| `pnpm verify` 基线 | **163 files / 1505 tests**；ESLint 0；depcruise 447 modules / 1874 deps / 0 violations |
-| `pnpm test:coverage` 基线 | 全局 lines **76.47%** / statements **76.34%** / branches **69.21%** / functions **74.99%**；`chart-model` render-model.ts lines **96.88%**、sampling.ts **93.24%**；`chart-echarts/src` **96.75%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **82 passed**（4.2m；新增 `m4-acceptance.spec.ts` 1 条：8.6s；`chart-perf` 2 条：4.2s / 5.9s） |
-| `pnpm bench` 基线 | **exit 0**；M4 演示只复跑 `pnpm bench -- --chart`：chart.resolve-sample.100k P95 **64ms**/300ms、chart.sample.100k **3ms**/50ms、chart.option.2k **1ms**/50ms、chart.restyle.100k **0ms**/20ms；全量其余 suite 与 T4.6 基线一致（open 591ms、save 379ms、edit 0ms、query 190ms、text-sort 357ms、cjk-sort 619ms、import 956ms、condition P95 0ms） |
+| `T5.1` 分栏布局与标签页 | **已完成**（2026-10-27）；报告 `docs/reports/t5.1/REPORT.md`；ADR-046；4 张截图 |
+| 当前里程碑 | **M5 体验**：T5.1 已完成；下一步 T5.2，M5 验收演示待 T5.1–T5.5 全部完成 |
+| 下一步 | **T5.2 撤销/重做**（依赖 T1.5/T2.2/T2.3/T3.4；SPEC §13.2；TESTPLAN E7） |
+| `pnpm verify` 基线 | **164 files / 1519 tests**；ESLint 0；depcruise 450 modules / 1892 deps / 0 violations |
+| `pnpm test:coverage` 基线 | 全局 lines **75.99%** / statements **75.84%** / branches **68.82%** / functions **74.49%**；`chart-model` render-model.ts lines **96.88%**、sampling.ts **93.24%**；`chart-echarts/src` **96.75%**；`app-core/commands/layout.ts` **78.52%**；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **85 passed**（4.3m；新增 `layout.spec.ts` 3 条：5.2s / 2.2s / 2.5s；`chart-perf` 2 条：4.1s / 5.6s） |
+| `pnpm bench` 基线 | **exit 0**；table.open 334ms/3s、table.save 348ms/500ms、edit 0ms/50ms、query 196ms/400ms、text-sort 281ms/400ms、cjk-sort 461ms/800ms、import 628ms/8s、condition 0ms/16ms；chart.resolve-sample P95 **126ms**/300ms、chart.sample 3ms/50ms、chart.option.2k 1ms/50ms、chart.restyle.100k 0ms/20ms；memoryPeakMB 703（Node 趋势，非应用门禁） |
 | `pnpm format:check` | 通过 |
-| 构建 | `pnpm build` exit 0；renderer **3,251.27 kB** + 懒加载 ImportSession 42.82 kB；CSS 72.31 kB；table/query/import worker 220.68/236.16/270.16 kB（T6.4 评估拆包） |
+| 构建 | `pnpm build` exit 0；renderer **3,273.65 kB** + 懒加载 ImportSession 42.82 kB；CSS 74.30 kB；table/query/import worker 220.68/236.16/270.16 kB（T6.4 评估拆包） |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
 
 **用户明确要求**：
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **M1/M2/M3/M4 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6 与 M4 验收演示已完成**；
-  下一步是 **M5 的 T5.1（分栏布局与标签页）**。
-- 不得跨里程碑；M4 已验收关闭，T5.1 完成后按 TASKS 顺序推进 T5.2–T5.5，里程碑结束再停。
+- **M1/M2/M3/M4 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6、M4 验收演示与
+  T5.1 已完成**；下一步是 **M5 的 T5.2（撤销/重做）**。
+- 不得跨里程碑；M4 已验收关闭，M5 按 TASKS 顺序推进 T5.2–T5.5，里程碑结束再停。
 
 ---
 
@@ -146,14 +137,13 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T5.1、docs/TESTPLAN.md 的 E7、
-docs/SPEC.md §12、docs/DECISIONS.md 与相关 ADR（布局/标签/命令总线）。
+先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T5.2、docs/TESTPLAN.md 的 E7、
+docs/SPEC.md §13.2、docs/TASKS.md 的 M5 与相关 ADR（命令总线/撤销/布局）。
 
-现状：M0、M1（已验收）、M2（已验收）、M3（已验收）、M4（已验收）与 T1.1–T4.6 已完成；
-pnpm verify 163 files / 1505 tests、coverage lines 76.47%、pnpm e2e 82 passed、
-pnpm bench -- --chart exit 0。
+现状：M0、M1（已验收）、M2（已验收）、M3（已验收）、M4（已验收）、T1.1–T4.6 与 T5.1 已完成；
+pnpm verify 164 files / 1519 tests、coverage lines 75.99%、pnpm e2e 85 passed、pnpm bench exit 0。
 
-下一步：领取 M5 的 T5.1（分栏布局与标签页）；一次只推进一个任务，完成并验证后更新报告。
+下一步：领取 M5 的 T5.2（撤销/重做）；一次只推进一个任务，完成并验证后更新报告。
 ```
 
 ---
@@ -392,10 +382,10 @@ T4.6 又在根 `package.json` 的 devDependencies 增加了 `@curve/chart-echart
   `chart-view[data-chart-state=missing-columns]` + `chart-error`。
 - `ChartList`/`ChartDialogs` 的容器逻辑（IPC/命令接线）没有组件测试，由 E2E 覆盖；纯逻辑
   （`chart-view-model.ts`）、映射编辑器、检查器、Canvas 生命周期与错误态有 39 条单测。
-- 全量 E2E 现为 **82 passed**（4.2m；含 chart.spec 4 + chart-interaction 3 +
-  chart-perf 2 + `m4-acceptance` 1）。T4.4/T4.5/T4.6 全量运行曾偶发 `grid.spec.ts` 的
-  “stays usable at 200% zoom”焦点失败（单跑约 2.2s 通过），与 HANDOFF §3.6 的既有 flake
-  一致；重跑全量前确认 CPU 空闲，不要放宽断言。
+- 全量 E2E 现为 **85 passed**（4.3m；含 chart.spec 4 + chart-interaction 3 +
+  chart-perf 2 + layout 3 + `m4-acceptance` 1）。T4.4/T4.5/T4.6 全量运行曾偶发
+  `grid.spec.ts` 的“stays usable at 200% zoom”焦点失败（单跑约 2.2s 通过），与 HANDOFF
+  §3.6 的既有 flake 一致；重跑全量前确认 CPU 空闲，不要放宽断言。
 - `chart.update` 允许悬空映射（列删除后的修复路径），因此命令层不能保证图表映射有效；
   `chart.create`（含复制/向导）仍严格校验。不要给 `chart.update` 加严格映射校验，否则重映射
   无法逐步进行。
@@ -781,13 +771,13 @@ apps/desktop/src/renderer/
 T2.5 新增 `apps/desktop/e2e/import.spec.ts` 6 条：100k GBK 分号 + 3 坏行 + 错误 CSV；错编码
 覆盖；150k 取消/100k 提示；JSON 替换 + 备份 + 原文归档 + 撤销；200k 拒绝；200% 缩放键盘。
 
-完整 E2E 现为 **82 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
+完整 E2E 现为 **85 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
 `schema.spec.ts`、T2.4 的 `paste.spec.ts`、T2.5 的 `import.spec.ts`、T2.6 的
 `filter.spec.ts`、T2.7 的 `perf.spec.ts`、T3.2/T3.4 的 `style.spec.ts`、T3.5 的
 `template.spec.ts`、T3.6 的 `export-csv.spec.ts`、T4.4 的 `chart.spec.ts`、T4.5 的
-`chart-interaction.spec.ts`、T4.6 的 `chart-perf.spec.ts`、M2 的 `m2-acceptance.spec.ts`、
-M3 的 `m3-acceptance.spec.ts`、M4 的 `m4-acceptance.spec.ts` 与既有
-shell/ipc/smoke/workspace/table-io 全绿。
+`chart-interaction.spec.ts`、T4.6 的 `chart-perf.spec.ts`、T5.1 的 `layout.spec.ts`、
+M2 的 `m2-acceptance.spec.ts`、M3 的 `m3-acceptance.spec.ts`、M4 的
+`m4-acceptance.spec.ts` 与既有 shell/ipc/smoke/workspace/table-io 全绿。
 
 T2.6 新增 `apps/desktop/e2e/filter.spec.ts` 6 条：2k 行筛选 + 三级排序；重开恢复筛选/排序与
 清除；同表双视图互不影响；隐藏列/恢复；100k 行 Worker 筛选+排序（`data-query-ms <= 400`）；
@@ -2501,7 +2491,8 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 
 **停点（已解除）**：M3 已于 2026-10-24 获用户接受并关闭；此后 T4.1–T4.6 已完成
 （见 §5K/§5L/§5M/§5N/§5O/§5P），M4 验收演示已于 2026-10-26 执行并通过（TESTPLAN E6，
-报告 `docs/reports/m4/REPORT.md`），并已于 2026-10-27 获用户接受、M4 关闭；下一步 M5 T5.1。
+报告 `docs/reports/m4/REPORT.md`），并已于 2026-10-27 获用户接受、M4 关闭；M5 的 T5.1 已完成，
+下一步 T5.2。
 
 ---
 
@@ -2551,7 +2542,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
 | `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 76.47%（T4.6 实测；T4.5 76.26%、T4.4 75.89%、T4.2 75.55%、T4.1 75.34%、M3 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`chart-model` render-model.ts 96.88%、`chart-echarts/src` 96.75% 行；`features/charts` 由组件 + E2E 覆盖；任务报告记录实测 |
+| 覆盖率 75.99%（T5.1 实测；T4.6 76.47%、T4.5 76.26%、T4.4 75.89%、T4.2 75.55%、T4.1 75.34%、M3 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`chart-model` render-model.ts 96.88%、`chart-echarts/src` 96.75%、`app-core/commands/layout.ts` 78.52% 行；`features/workspace/LayoutView.tsx` 由 E2E 覆盖；任务报告记录实测 |
 | renderer bundle 3.25MB（T4.6；+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩；ECharts 首次进入主 chunk |
 | 100k CSV 导出 1,716ms/5s（T3.6） | 去掉 Intl formatter 缓存会退到 10s 量级 | `formatCellValue` 的 locale/格式缓存是达标关键；不要改回每单元格 `new Intl.*` |
 | CSV 临时文件残留 | 进程崩溃时 `.curve-export-*.tmp` 留在目标目录 | cancel/`before-quit` 已清理；崩溃残留需手工删除，报告已记录 |
@@ -2661,31 +2652,34 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 - 不为通过 `chart-perf` 放宽 resolve ≤300ms / update ≤200ms / private ≤600MB 或删除实例计数断言；
   失败先查是否 CPU 噪声（ADR-033），再按 ADR-045 复核条件优化。
 - 不自动跨任务/跨里程碑；M3、M4 均已验收并关闭，M4 的 T4.1–T4.6 与验收演示已完成，
-  **下一步是 T5.1（分栏布局与标签页）**；一次只推进一个任务。
+  T5.1 已完成；**下一步是 T5.2（撤销/重做）**；一次只推进一个任务。
 
 ---
 
 ## 9. 新会话启动检查清单
 
 - [ ] `git status --short` 干净；`git log` 包含 T4.6 代码提交 **`0fc37aa`**、M4 演示/报告提交
-      **`657f8c3`**（`test(m4): add milestone acceptance demo and report`）、M4 验收提交
-      （`git log -1 -- docs/reports/m4/REPORT.md`）与本交接文档提交。
+      **`657f8c3`**、M4 验收提交（`git log -1 -- docs/reports/m4/REPORT.md`）、T5.1 报告/代码
+      提交（`git log -1 -- docs/reports/t5.1/REPORT.md`）与本交接文档提交。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/m4/REPORT.md`、`docs/TASKS.md` 的 T5.1、
-      `docs/TESTPLAN.md` 的 E7、`docs/SPEC.md §12`、`docs/DECISIONS.md` 与布局相关 ADR；
+- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t5.1/REPORT.md`、`docs/TASKS.md` 的 T5.1/T5.2、
+      `docs/TESTPLAN.md` 的 E7、`docs/SPEC.md §12/§13.2`、`docs/adr/046-t51-split-layout.md`；
       M4 的 §11.3/§11.5/§16.1 与 ADR-040–045 按需回看。
-- [ ] 已确认 `pnpm verify` 基线（**163 files / 1505 tests**）、coverage lines **76.47%**、
-      `pnpm e2e` **82 passed**、`pnpm bench -- --chart` exit 0、`chart.sample.100k` P95 **3ms**、
-      `chart.resolve-sample.100k` P95 **64ms**、`chart.option.2k` P95 **1ms**、
-      `chart.restyle.100k` P95 **0ms**；M4 演示 resolve **43ms** / update **36ms** /
-      private **488MB**（≤600MB）。
+- [ ] 已确认 `pnpm verify` 基线（**164 files / 1519 tests**）、coverage lines **75.99%**、
+      `pnpm e2e` **85 passed**、`pnpm bench` exit 0；T5.1 layout 3 条 5.2s/2.2s/2.5s；
+      chart-perf resolve **44ms** / update **85ms** / private **588MB**（≤600MB）。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M1/M2/M3/M4 均已获用户接受、T3.1–T3.6、T4.1–T4.6 与 M4 验收演示已完成；
-      **下一步是 M5 的 T5.1**（分栏布局与标签页）。
-- [ ] 已确认 E2E 新增 `apps/desktop/e2e/m4-acceptance.spec.ts`（1 条，2 次启动），报告与 7 张
-      截图在 `docs/reports/m4/`；`m0` 截图已还原，`test-results/` 未提交。
+- [ ] 已确认 M1/M2/M3/M4 均已获用户接受、T3.1–T3.6、T4.1–T4.6、M4 验收演示与 T5.1 已完成；
+      **下一步是 M5 的 T5.2（撤销/重做）**。
+- [ ] 已确认 T5.1 契约：`LayoutView` 递归渲染、`ui.activePanePath` UI-only、分栏=原 pane+空
+      pane、最多 4 pane、移动标签到下一分栏、关闭最后标签折叠 pane、空 pane 才可关分栏、
+      500ms 布局去抖（`flushSaves`/关闭/Ctrl+S 冲掉）、`view.layout` 可选 `activePanePath`、
+      非法 layout 回退单 pane + warning；`pane[data-pane-active]` 不要改回 `data-active`。
+- [ ] 已确认 E2E 新增 `apps/desktop/e2e/layout.spec.ts`（3 条）与 `m4-acceptance.spec.ts`
+      （1 条）；截图在 `docs/reports/t5.1/` 与 `docs/reports/m4/`；`m0` 截图已还原，
+      `test-results/` 未提交。
 - [ ] 已确认 T4.6：`resolveChartData`/`renderChartModel` 拆分与 `resolveSeries` 组合（输出/快照
       不变）；数据缓存键不含样式字段/`xLabel`、命中要求 `rows` 引用；>20k 行延迟解析 + loading；
       `data-chart-pending/resolve-ms/update-ms/update-count/instances` 诊断契约；rAF 合并交互
@@ -2709,10 +2703,11 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`；`m0` 截图提交前还原；`docs/reports/t4.5/*.png`
       （3 张）与 `docs/reports/t4.6/*.png`（2 张）已提交。
-- [ ] 已确认 renderer 主 chunk 为 **3,251.27 kB**（ECharts 已接入）、CSS 72.31 kB；
-      T6.4 评估拆包，M4 演示不改图表层架构或重建实例。
+- [ ] 已确认 renderer 主 chunk 为 **3,273.65 kB**（ECharts + 分栏）、CSS 74.30 kB；
+      T6.4 评估拆包，M4/T5.1 不改图表层架构或重建实例。
 - [ ] 跑全量 E2E 前已确认没有外部程序占满 CPU（§3.3/§7）；T4.4/T4.5 全量曾偶发 grid 200%
       焦点失败，单跑可过，不放宽断言。
 - [ ] M4 验收演示已按 TESTPLAN E6 执行（`e2e/m4-acceptance.spec.ts`，独占 CPU），报告
-      `docs/reports/m4/REPORT.md` 与截图已提交；**M4 已于 2026-10-27 获用户接受并关闭**，
-      下一动作 T5.1。
+      `docs/reports/m4/REPORT.md` 与截图已提交；**M4 已于 2026-10-27 获用户接受并关闭**。
+- [ ] T5.1 已完成（报告 `docs/reports/t5.1/REPORT.md`、ADR-046、`e2e/layout.spec.ts` 3 条）；
+      **下一动作 T5.2**，不要把 M5 未完成的任务当成已验收。

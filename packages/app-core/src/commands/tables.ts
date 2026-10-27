@@ -29,7 +29,8 @@ import type {
 } from '@curve/domain';
 import { tableFilePath } from '@curve/persistence';
 
-import { addViewToLayout, firstViewId, removeViewFromLayout } from './layout';
+import { addViewToLayout, removeViewFromLayout } from './layout';
+import { syncActiveSelection } from './views';
 
 import type { CommandDefinition } from './types';
 import type { AppState } from '../state/types';
@@ -286,9 +287,10 @@ export function createTableCreateCommand(
       }
       draft.tables[payload.table.id] = { table: payload.table, rows: [] };
       draft.views[payload.view.id] = payload.view;
-      addViewToLayout(draft.layout, payload.view.id);
+      const path = addViewToLayout(draft.layout, payload.view.id, draft.ui.activePanePath);
+      draft.ui.activePanePath = path;
+      syncActiveSelection(draft);
       draft.ui.activeTableId = payload.table.id;
-      draft.ui.activeViewId = payload.view.id;
       touchWorkspace(draft, createTimestamp(now()));
     },
   };
@@ -337,23 +339,10 @@ export function createTableDeleteCommand(
       }
       for (const viewId of removedViewIds) {
         delete draft.views[viewId];
-        removeViewFromLayout(draft.layout, viewId);
+        draft.layout = removeViewFromLayout(draft.layout, viewId);
       }
 
-      const activeViewId =
-        draft.layout.type === 'pane' ? draft.layout.activeViewId : firstViewId(draft.layout);
-      if (activeViewId === null || draft.views[activeViewId] === undefined) {
-        draft.ui.activeViewId = null;
-        draft.ui.activeTableId = Object.keys(draft.tables)[0] ?? null;
-      } else {
-        draft.ui.activeViewId = activeViewId;
-        const view = draft.views[activeViewId];
-        if (view !== undefined && view.kind === 'table') {
-          draft.ui.activeTableId = view.refId;
-        } else if (view !== undefined) {
-          draft.ui.activeTableId = draft.charts[view.refId]?.tableId ?? null;
-        }
-      }
+      syncActiveSelection(draft);
       touchWorkspace(draft, createTimestamp(now()));
     },
   };

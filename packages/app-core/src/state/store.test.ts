@@ -80,6 +80,7 @@ describe('app-core store actions', () => {
     expect(store.getState().ui).toEqual({
       activeTableId: null,
       activeViewId: null,
+      activePanePath: null,
       error: null,
       dirtyTables: [],
       save: { status: 'idle', pending: 0, error: null },

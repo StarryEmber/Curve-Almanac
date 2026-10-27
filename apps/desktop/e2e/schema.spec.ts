@@ -410,6 +410,10 @@ test.describe('T2.3 column management', () => {
     await expect(chartView).toHaveAttribute('data-chart-state', 'missing-columns');
     await expect(page.getByTestId('chart-error')).toContainText('列已删除：col_note');
     await expect(page.getByTestId('chart-remap')).toBeVisible();
+    // T5.1: tab activation is a layout-only change with a 500ms debounce.
+    await expect
+      .poll(() => readManifest(seeded.root).layout)
+      .toMatchObject({ type: 'pane', activeViewId: 'viw_schema_chart' });
 
     await openSeededWorkspace(page, 'Schema Delete', false);
     await expect(page.getByTestId('chart-view')).toHaveAttribute(

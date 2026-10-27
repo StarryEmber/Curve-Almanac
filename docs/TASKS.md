@@ -1084,7 +1084,7 @@ T0.2 + T5.5 → T6.4
 > 状态（2026-10-27）：`T4.1`（RenderModel 与宽/长表映射）、`T4.2`（LTTB 采样与缺失值语义）、
 > `T4.3`（ECharts 适配器）、`T4.4`（图表创建与检查器）、`T4.5`（图表交互、空态与 PNG 导出）与
 > `T4.6`（图表性能硬化）已完成；**M4 验收演示已于 2026-10-27 获用户接受，M4 关闭**；报告
-> `docs/reports/m4/REPORT.md`；下一里程碑 M5 从 T5.1 开始。
+> `docs/reports/m4/REPORT.md`；M5 的 T5.1 已完成（ADR-046），下一步 T5.2。
 
 <a id="t41"></a>
 ### T4.1 RenderModel 与宽/长表映射
@@ -1412,9 +1412,12 @@ T0.2 + T5.5 → T6.4
 <a id="m5"></a>
 ## M5 体验
 
+> 状态（2026-10-27）：`T5.1`（分栏布局与标签页）已完成（ADR-046）；下一步 `T5.2`
+> （撤销/重做）。M5 验收演示在 T5.1–T5.5 全部完成后执行。
+
 <a id="t51"></a>
 ### T5.1 分栏布局与标签页
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T2.1、T4.4
 - 覆盖：FR-WS-02
 - 参考：SPEC §12
@@ -1427,11 +1430,39 @@ T0.2 + T5.5 → T6.4
   2. 关闭最后一个标签 → 关闭 pane；至少保留 1 个。
   3. 保存去抖 500ms；恢复时校验引用。
 - 验收：
-  - [ ] 4 pane、水平/垂直、比例拖拽正常。
-  - [ ] 重启后布局/活动标签/滚动位置（可选）恢复。
-  - [ ] 引用失效回退单 pane，视图不丢。
-  - [ ] 纯键盘可切换标签/关闭。
+  - [x] 4 pane、水平/垂直、比例拖拽正常。
+  - [x] 重启后布局/活动标签/滚动位置（可选）恢复。
+  - [x] 引用失效回退单 pane，视图不丢。
+  - [x] 纯键盘可切换标签/关闭。
 - 验证：`pnpm e2e -- --grep "layout"`
+
+  实现备注（2026-10-27，ADR-046）：
+  - 决策：`LayoutView` 直接递归渲染 `LayoutNode`；pane 的 UI-only 路径为
+    `root`/`root.0`/`root.1`…，`ui.activePanePath` 只记焦点、不写 manifest。分栏把当前
+    pane 替换成 `split(原 pane, 空 pane)`（比例 0.5、聚焦空 pane），最多 4 pane；标签用
+    “移动到下一分栏”（视觉顺序循环），关闭最后一个标签折叠空 pane，全部关闭保留一个空根
+    pane；“关闭分栏”只对空 pane 可用，避免孤儿视图。
+  - 保存：纯布局变更（激活/打开已有视图/分栏/移动/比例）500ms 去抖，`flushSaves`/关闭
+    工作区/Ctrl+S 冲掉；视图新建/删除/更新仍立即写。`view.layout` 载荷增加可选
+    `activePanePath`（UI-only）；`manifest` 无新字段、`formatVersion` 不变。
+  - 回退：`parseManifestDocument` 正常校验失败时用 `views[]` 重建单 pane 重试；成功则加
+    `layout was invalid; restored a single pane with N view(s)` warning，原文件不改写；其它
+    manifest 错误仍拒绝打开。
+  - 文件：`packages/app-core/src/commands/layout.ts`（+test）、`commands/{views,tables,charts}.ts`、
+    `usecases/{workspace-actions,open-workspace}.ts`、`state/{types,store}.ts`；
+    `packages/persistence/src/manifest.ts`（+test）；`renderer/features/workspace/{LayoutView,
+    WorkspaceView}.tsx`、`i18n/messages/*`、`styles.css`；`e2e/layout.spec.ts`（3 条）。
+  - 实测：`pnpm verify` **164 files / 1519 tests**；depcruise 450 modules / 1892 deps /
+    0 violations；coverage 全局 lines **75.99%** / statements 75.84% / branches 68.82% /
+    functions 74.49%（阈值 70/60 未下调；`app-core/commands/layout.ts` lines 78.52%）；
+    `pnpm build` exit 0（renderer **3,273.65 kB**、CSS 74.30 kB）；
+    `pnpm e2e` **85 passed**（4.3m；layout 3 条 5.2s/2.2s/2.5s）；`pnpm bench` exit 0。
+  - 残留：最后聚焦 pane 不持久化（重启焦点为第一个有活动标签的 pane，每个 pane 的标签选择
+    恢复）；分栏不自动创建/移动视图；无跨 pane 拖拽；500ms 去抖窗口在强退时由 T5.3 统一
+    flush；空 pane 复用 `workspace-empty`，多 pane 时测试需限定 pane；回退 warning 英文且原
+    文件下一次保存才改写；`view.layout` 不进入 undo 但有 patches 时仍会清 redo（与旧
+    `activateView` 相同），E7 的“选择/标签切换不进历史”由 T5.2 统一处理。详见
+    `docs/reports/t5.1/REPORT.md` 与 ADR-046“复核条件”。
 
 <a id="t52"></a>
 ### T5.2 撤销/重做

@@ -11,6 +11,7 @@ import {
   createColumnId,
   createViewId,
   listBuiltinStyles,
+  MAX_PANES,
   reassignStyleIdentity,
   styleCopyName,
   toAppError,
@@ -37,7 +38,18 @@ import { parseClipboardText } from '@curve/table-engine';
 import type { ClipboardMatrix } from '@curve/table-engine';
 
 import { createNewChartPayload, duplicateChartTitle } from '../commands/charts';
-import { activateViewInLayout } from '../commands/layout';
+import {
+  activateViewInLayout,
+  countPanes,
+  findPaneEntry,
+  findPaneForViewEntry,
+  listPaneEntries,
+  moveViewToPane,
+  panePathForView,
+  removePaneFromLayout,
+  setSplitRatio,
+  splitPaneInLayout,
+} from '../commands/layout';
 import { styleFallbackId } from '../commands/styles';
 import {
   createNewTablePayload,
@@ -265,7 +277,14 @@ export interface WorkspaceActionsOptions {
   logger?: AppLogger;
   now?: () => Date;
   uuid?: UuidFactory;
+  /** Debounce for layout-only manifest writes (T5.1; default 500 ms). */
+  layoutSaveDelayMs?: number;
 }
+
+export type PaneDirection = 'horizontal' | 'vertical';
+
+/** T5.1: layout-only changes are coalesced into one manifest write. */
+export const LAYOUT_SAVE_DELAY_MS = 500;
 
 export interface WorkspaceActions {
   createTable(name: string, primaryKey?: string): Promise<ActionOutcome<TableCreatePayload>>;
@@ -274,6 +293,14 @@ export interface WorkspaceActions {
   openTable(tableId: string): Promise<ActionOutcome<{ viewId: string; created: boolean }>>;
   activateView(viewId: string): Promise<ActionOutcome>;
   closeView(viewId: string): Promise<ActionOutcome>;
+  /** Splits the focused pane; the new second pane starts empty (T5.1). */
+  splitPane(direction: PaneDirection): Promise<ActionOutcome>;
+  /** Closes the focused pane; the last pane cannot be closed (T5.1). */
+  closePane(): Promise<ActionOutcome>;
+  /** Moves one view to the next pane in visual order (T5.1, v1 move menu). */
+  moveViewToNextPane(viewId: string): Promise<ActionOutcome>;
+  /** Sets a split ratio (0.2–0.8) for a pane path (T5.1). */
+  setLayoutRatio(splitPath: string, ratio: number): Promise<ActionOutcome>;
   updateView(viewId: string, patch: ViewPatch): Promise<ActionOutcome>;
   /**
    * Creates a user style and optionally applies it to a table view (T3.4).
@@ -368,7 +395,40 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     return error;
   };
 
+  const layoutSaveDelayMs = options.layoutSaveDelayMs ?? LAYOUT_SAVE_DELAY_MS;
+  let layoutSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const clearLayoutSave = (): void => {
+    if (layoutSaveTimer !== null) {
+      clearTimeout(layoutSaveTimer);
+      layoutSaveTimer = null;
+    }
+  };
+
+  const flushLayoutSave = (): void => {
+    if (layoutSaveTimer === null) {
+      return;
+    }
+    clearTimeout(layoutSaveTimer);
+    layoutSaveTimer = null;
+    saveQueue.enqueueManifest();
+  };
+
+  /** Coalesces layout-only changes (T5.1: drag/split/tab focus) into one write. */
+  const scheduleLayoutSave = (): ActionOutcome => {
+    if (store.getState().workspace === null) {
+      return fail(createAppError('E_WS_NOT_FOUND', 'No workspace is open.'));
+    }
+    clearLayoutSave();
+    layoutSaveTimer = setTimeout(() => {
+      layoutSaveTimer = null;
+      saveQueue.enqueueManifest();
+    }, layoutSaveDelayMs);
+    return { ok: true, data: undefined };
+  };
+
   async function saveManifest(): Promise<ActionOutcome> {
+    clearLayoutSave();
     const state = store.getState();
     const manifest = stateToManifest(state);
     if (manifest === null) {
@@ -457,14 +517,14 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     );
     if (existing !== undefined) {
       const layout = cloneLayout(state.layout);
-      activateViewInLayout(layout, existing.id);
-      const dispatched = commands.dispatch('view.layout', { layout });
+      const panePath = activateViewInLayout(layout, existing.id, state.ui.activePanePath);
+      const dispatched = commands.dispatch('view.layout', { layout, activePanePath: panePath });
       if (!dispatched.ok) {
         return fail(dispatched.error);
       }
-      const saved = await saveManifest();
-      if (!saved.ok) {
-        return fail(saved.error);
+      const scheduled = scheduleLayoutSave();
+      if (!scheduled.ok) {
+        return scheduled;
       }
       return { ok: true, data: { viewId: existing.id, created: false } };
     }
@@ -494,12 +554,131 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
       return fail(createAppError('E_VALIDATION', 'The view does not exist.'));
     }
     const layout = cloneLayout(state.layout);
-    activateViewInLayout(layout, viewId);
-    const dispatched = commands.dispatch('view.layout', { layout });
+    const panePath = activateViewInLayout(layout, viewId, state.ui.activePanePath);
+    const dispatched = commands.dispatch('view.layout', { layout, activePanePath: panePath });
     if (!dispatched.ok) {
       return fail(dispatched.error);
     }
-    return saveManifest();
+    return scheduleLayoutSave();
+  }
+
+  async function splitPane(direction: PaneDirection): Promise<ActionOutcome> {
+    const state = store.getState();
+    const activePath =
+      state.ui.activePanePath === null
+        ? null
+        : findPaneEntry(state.layout, state.ui.activePanePath);
+    if (activePath === null) {
+      return fail(createAppError('E_VALIDATION', 'No pane is focused.'));
+    }
+    if (countPanes(state.layout) >= MAX_PANES) {
+      return fail(
+        createAppError('E_VALIDATION', `A layout may contain at most ${String(MAX_PANES)} panes.`),
+      );
+    }
+    let split: { layout: LayoutNode; panePath: string };
+    try {
+      split = splitPaneInLayout(state.layout, activePath.path, direction);
+    } catch (thrown) {
+      return fail(toAppError(thrown));
+    }
+    const dispatched = commands.dispatch('view.layout', {
+      layout: split.layout,
+      activePanePath: split.panePath,
+    });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    return scheduleLayoutSave();
+  }
+
+  async function closePane(): Promise<ActionOutcome> {
+    const state = store.getState();
+    const activePath =
+      state.ui.activePanePath === null
+        ? null
+        : findPaneEntry(state.layout, state.ui.activePanePath);
+    if (activePath === null) {
+      return fail(createAppError('E_VALIDATION', 'No pane is focused.'));
+    }
+    if (countPanes(state.layout) <= 1) {
+      return fail(createAppError('E_VALIDATION', 'The last pane cannot be closed.'));
+    }
+    if (activePath.pane.viewIds.length > 0) {
+      return fail(createAppError('E_VALIDATION', 'Close the pane tabs before closing the pane.'));
+    }
+    let layout: LayoutNode;
+    try {
+      layout = removePaneFromLayout(state.layout, activePath.path);
+    } catch (thrown) {
+      return fail(toAppError(thrown));
+    }
+    const remaining = listPaneEntries(layout);
+    const nextPath =
+      remaining.find((entry) => entry.pane.viewIds.length === 0)?.path ??
+      remaining[0]?.path ??
+      null;
+    const dispatched = commands.dispatch('view.layout', {
+      layout,
+      activePanePath: nextPath,
+    });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    return scheduleLayoutSave();
+  }
+
+  async function moveViewToNextPane(viewId: string): Promise<ActionOutcome> {
+    const state = store.getState();
+    const entries = listPaneEntries(state.layout);
+    const source = findPaneForViewEntry(state.layout, viewId);
+    if (source === null) {
+      return fail(createAppError('E_VALIDATION', 'The view is not in the layout.'));
+    }
+    if (entries.length < 2) {
+      return fail(createAppError('E_VALIDATION', 'There is only one pane.'));
+    }
+    const index = entries.findIndex((entry) => entry.path === source.path);
+    const target = entries[(index + 1) % entries.length];
+    if (target === undefined) {
+      return fail(createAppError('E_VALIDATION', 'The next pane does not exist.'));
+    }
+    let layout: LayoutNode;
+    try {
+      layout = moveViewToPane(state.layout, viewId, target.path);
+    } catch (thrown) {
+      return fail(toAppError(thrown));
+    }
+    const focusPath = panePathForView(layout, viewId) ?? target.path;
+    const dispatched = commands.dispatch('view.layout', {
+      layout,
+      activePanePath: focusPath,
+    });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    return scheduleLayoutSave();
+  }
+
+  async function setLayoutRatio(splitPath: string, ratio: number): Promise<ActionOutcome> {
+    if (!Number.isFinite(ratio) || ratio < 0.2 || ratio > 0.8) {
+      return fail(createAppError('E_VALIDATION', 'The split ratio must be between 0.2 and 0.8.'));
+    }
+    const state = store.getState();
+    let layout: LayoutNode;
+    try {
+      layout = setSplitRatio(state.layout, splitPath, ratio);
+    } catch (thrown) {
+      return fail(toAppError(thrown));
+    }
+    const dispatched = commands.dispatch('view.layout', {
+      layout,
+      activePanePath: state.ui.activePanePath,
+    });
+    if (!dispatched.ok) {
+      return fail(dispatched.error);
+    }
+    return scheduleLayoutSave();
   }
 
   async function closeView(viewId: string): Promise<ActionOutcome> {
@@ -737,14 +916,14 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     );
     if (existing !== undefined) {
       const layout = cloneLayout(state.layout);
-      activateViewInLayout(layout, existing.id);
-      const dispatched = commands.dispatch('view.layout', { layout });
+      const panePath = activateViewInLayout(layout, existing.id, state.ui.activePanePath);
+      const dispatched = commands.dispatch('view.layout', { layout, activePanePath: panePath });
       if (!dispatched.ok) {
         return fail(dispatched.error);
       }
-      const saved = await saveManifest();
-      if (!saved.ok) {
-        return fail(saved.error);
+      const scheduled = scheduleLayoutSave();
+      if (!scheduled.ok) {
+        return scheduled;
       }
       return { ok: true, data: { viewId: existing.id, created: false } };
     }
@@ -1400,6 +1579,7 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
   }
 
   async function flushSaves(): Promise<ActionOutcome> {
+    flushLayoutSave();
     const outcome = await saveQueue.flush();
     return outcome.ok ? { ok: true, data: undefined } : fail(outcome.error);
   }
@@ -1420,6 +1600,7 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     }
     history.clear();
     saveQueue.reset();
+    clearLayoutSave();
     store.setState({
       workspace: null,
       tables: {},
@@ -1430,6 +1611,7 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
       ui: {
         activeTableId: null,
         activeViewId: null,
+        activePanePath: null,
         error: null,
         dirtyTables: [],
         save: createIdleSaveState(),
@@ -1447,6 +1629,10 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     openTable,
     activateView,
     closeView,
+    splitPane,
+    closePane,
+    moveViewToNextPane,
+    setLayoutRatio,
     updateView,
     createTableStyle,
     updateTableStyle,

@@ -12,6 +12,7 @@ import type { OpenWorkspaceRequest, WorkspaceStore } from '@curve/persistence';
 import { decodeJsonl, toJsonlAppError } from '@curve/table-engine';
 import type { JsonlDecodeResult, TableData } from '@curve/table-engine';
 
+import { listPaneEntries } from '../commands/layout';
 import { defaultAppLogger } from '../logging';
 
 import type { AppLogger } from '../logging';
@@ -38,38 +39,62 @@ export interface OpenWorkspaceDependencies {
 
 export type OpenWorkspace = (request: OpenWorkspaceRequest) => Promise<OpenWorkspaceOutcome>;
 
-function firstActiveViewId(layout: LayoutNode): string | null {
-  if (layout.type === 'pane') {
-    return layout.activeViewId ?? layout.viewIds[0] ?? null;
+function firstActiveView(layout: LayoutNode): { viewId: string; path: string } | null {
+  const entries = listPaneEntries(layout);
+  const active = entries.find((entry) => entry.pane.activeViewId !== null);
+  if (active !== undefined && active.pane.activeViewId !== null) {
+    return { viewId: active.pane.activeViewId, path: active.path };
   }
-  return firstActiveViewId(layout.first) ?? firstActiveViewId(layout.second);
+  for (const entry of entries) {
+    const viewId = entry.pane.viewIds[0];
+    if (viewId !== undefined) {
+      return { viewId, path: entry.path };
+    }
+  }
+  return null;
 }
 
 interface ActiveSelection {
   activeTableId: string | null;
   activeViewId: string | null;
+  activePanePath: string | null;
 }
 
 function resolveActiveSelection(manifest: WorkspaceManifest): ActiveSelection {
-  const activeViewId = firstActiveViewId(manifest.layout);
+  const selection = firstActiveView(manifest.layout);
   const view =
-    activeViewId === null ? undefined : manifest.views.find((v) => v.id === activeViewId);
-  if (view === undefined) {
+    selection === null
+      ? undefined
+      : manifest.views.find((candidate) => candidate.id === selection.viewId);
+  if (view === undefined || selection === null) {
     return {
       activeTableId: manifest.tables[0]?.id ?? null,
       activeViewId: null,
+      activePanePath: selection?.path ?? listPaneEntries(manifest.layout)[0]?.path ?? null,
     };
   }
   if (view.kind === 'table' && manifest.tables.some((table) => table.id === view.refId)) {
-    return { activeTableId: view.refId, activeViewId: view.id };
+    return {
+      activeTableId: view.refId,
+      activeViewId: view.id,
+      activePanePath: selection.path,
+    };
   }
   if (view.kind === 'chart') {
     const chart = manifest.charts.find((candidate) => candidate.id === view.refId);
     if (chart !== undefined) {
-      return { activeTableId: chart.tableId, activeViewId: view.id };
+      return {
+        activeTableId: chart.tableId,
+        activeViewId: view.id,
+        activePanePath: selection.path,
+      };
     }
   }
-  return { activeTableId: manifest.tables[0]?.id ?? null, activeViewId: view.id };
+  return {
+    activeTableId: manifest.tables[0]?.id ?? null,
+    activeViewId: view.id,
+    activePanePath: selection.path,
+  };
 }
 
 function recordWarnings(
@@ -159,6 +184,7 @@ export function createOpenWorkspace(deps: OpenWorkspaceDependencies): OpenWorksp
             ...current.ui,
             activeTableId: selection.activeTableId,
             activeViewId: selection.activeViewId,
+            activePanePath: selection.activePanePath,
             error: null,
             dirtyTables: [],
             save: { status: 'idle', pending: 0, error: null },

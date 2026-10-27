@@ -555,3 +555,25 @@
 - M4：验收演示于 2026-10-27 获用户接受，**M4 关闭**；接受依据为 `docs/reports/m4/REPORT.md`
   与 7 张截图、`pnpm verify` 163 files / 1505 tests、`pnpm e2e` **82 passed**、`pnpm build`
   exit 0、`pnpm bench -- --chart` exit 0。下一步 M5 从 T5.1（分栏布局与标签页）开始。
+- T5.1：新增递归分栏与标签页：`LayoutView` 直接渲染 `LayoutNode`，pane 拥有独立标签栏/活动
+  视图，split 支持水平/垂直、0.2–0.8 比例与最多 4 pane；pane 的 UI-only 路径为
+  `root`/`root.0`/`root.1`…，`ui.activePanePath` 只记焦点、不写 manifest。
+- T5.1：分栏把当前 pane 替换成 `split(原 pane, 空 pane)` 并聚焦空 pane（不自动创建/移动
+  视图）；标签可按视觉顺序“移动到下一分栏”，关闭最后一个标签折叠 pane，全部关闭保留一个
+  空根 pane；“关闭分栏”只对空 pane 可用。分隔条可拖拽/方向键调比例，提交一条 `view.layout`。
+- T5.1：纯布局变更（激活/打开已有视图/分栏/移动/比例）500ms 去抖写 manifest，
+  `flushSaves`/关闭工作区/Ctrl+S 冲掉；视图新建/删除/更新仍立即写。`view.layout` 载荷增加
+  可选 UI-only `activePanePath`；无新 manifest 字段、`formatVersion` 不变。
+- T5.1：`@curve/persistence` 的 `parseManifestDocument` 在 layout 引用缺失/重复、比例越界、
+  结构非法或 pane 数 >4 时用 `views[]` 重建单 pane 重试，成功则加
+  `layout was invalid; restored a single pane with N view(s)` warning；其它 manifest 错误仍
+  拒绝打开。
+- T5.1：`apps/desktop/e2e/layout.spec.ts` 3 条（分栏/移动/比例/4 pane/重启、非法 layout 回退、
+  键盘 + 200% 缩放）；`layout.test.ts` 9 条；`workspace-actions.test.ts` +2 条；
+  `manifest.test.ts` +3 条。新增 ADR-046、SPEC §6.6/§12/§13.1 实现边界、TASKS T5.1 与
+  `docs/reports/t5.1/REPORT.md`（4 张截图）。
+- T5.1：`pnpm verify` **164 files / 1519 tests**；depcruise 450 modules / 1892 deps /
+  0 violations；coverage 全局 lines **75.99%** / statements 75.84% / branches 68.82% /
+  functions 74.49%（阈值 70/60 未下调）；`pnpm build` exit 0（renderer **3,273.65 kB**、
+  CSS 74.30 kB）；`pnpm e2e` **85 passed**（4.3m；layout 5.2s/2.2s/2.5s）；`pnpm bench`
+  exit 0。不改 `formatVersion`/JSONL/IPC/preload/CSP，不新增运行时依赖。

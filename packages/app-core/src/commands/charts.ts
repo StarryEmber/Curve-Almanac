@@ -287,7 +287,8 @@ export function createChartCreateCommand(
 
       draft.charts[chart.id] = chart;
       draft.views[view.id] = view;
-      addViewToLayout(draft.layout, view.id);
+      const path = addViewToLayout(draft.layout, view.id, draft.ui.activePanePath);
+      draft.ui.activePanePath = path;
       syncActiveSelection(draft);
       touchWorkspace(draft, createTimestamp(now()));
     },
@@ -354,7 +355,7 @@ export function createChartDeleteCommand(
       delete draft.charts[payload.chartId];
       for (const viewId of removedViewIds) {
         delete draft.views[viewId];
-        removeViewFromLayout(draft.layout, viewId);
+        draft.layout = removeViewFromLayout(draft.layout, viewId);
       }
       syncActiveSelection(draft);
       touchWorkspace(draft, createTimestamp(now()));

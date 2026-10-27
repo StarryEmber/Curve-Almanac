@@ -257,6 +257,16 @@ export const zhCN = {
   'tabs.empty.body': '从左侧的数据表列表打开一张表，它会显示在这里。',
   'tabs.empty.action': '打开第一张表',
 
+  'layout.pane': '分栏',
+  'layout.actions': '分栏操作',
+  'layout.resize': '调整分栏比例',
+  'layout.splitHorizontal': '水平分栏（左右）',
+  'layout.splitVertical': '垂直分栏（上下）',
+  'layout.moveNext': '移动当前标签到下一分栏',
+  'layout.closePane': '关闭当前分栏',
+  'layout.empty.title': '此分栏为空',
+  'layout.empty.body': '从左侧打开数据表或图表，或把其他分栏的标签移动到这里。',
+
   'grid.label': '{name} 数据网格',
   'grid.empty': '这张表还没有数据。',
   'grid.emptyFiltered': '没有符合筛选条件的行。',
