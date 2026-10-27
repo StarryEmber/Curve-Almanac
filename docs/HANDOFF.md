@@ -5,9 +5,9 @@
 > 下一步 **T5.2（撤销/重做）**。
 > 最后更新：2026-10-27 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
-> T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**
-> （T5.1 报告/代码提交见 `git log -1 -- docs/reports/t5.1/REPORT.md`；M4 验收记录见
-> `git log -1 -- docs/reports/m4/REPORT.md`；本交接文档的提交见
+> T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
+> T5.1 代码/报告 **`eb152b4`**（M4 验收记录见 `git log -1 -- docs/reports/m4/REPORT.md`；
+> T5.1 报告见 `git log -1 -- docs/reports/t5.1/REPORT.md`；本交接文档的提交见
 > `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t5.1/REPORT.md` →
 > `docs/TASKS.md` 的 T5.1/T5.2 → `docs/SPEC.md` §6.6、§12、§13.1 → ADR-046 →
@@ -54,7 +54,7 @@
    立即写。`view.layout` 的可选 `activePanePath` 不写 manifest。
 4. 证据：报告 + **4 张截图**（split / four-panes / fallback / restored）；
    `pnpm e2e` 重写 `docs/reports/m0/*.png`，提交前已还原。
-5. 提交：报告/代码提交见 `git log -1 -- docs/reports/t5.1/REPORT.md`。
+5. 提交：**`eb152b4`**（`feat(layout): add recursive split panes and tabs (T5.1)`）。
 6. 残留：最后聚焦 pane 不持久化（重启焦点为第一个有活动标签的 pane）；分栏创建空 pane；
    无跨 pane 拖拽；强退可能丢最后 500ms 布局变化（T5.3）；详见报告 §8 与 ADR-046。
 
@@ -65,9 +65,11 @@
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
    164 files / 1519 tests、`pnpm e2e` 85 passed；读 TASKS 的 T5.2、SPEC §13.2、TESTPLAN E7。
 2. 领取 **T5.2 撤销/重做**（依赖 T1.5/T2.2/T2.3/T3.4；验证按 TASKS 命令）；一次只推进一个
-   任务，不同时开 T5.3。
+   任务，不同时开 T5.3。TASKS 的 `vitest ... --grep "history"` 在 Vitest 5 不会过滤，实际用
+   `pnpm exec vitest run packages/app-core --testNamePattern "history"`（见 §3.6）。
 3. T5.2 的既有基础：`EditHistory`、`table.cell.set` 的 800ms 合并、`mergeKey`、命令总线
    patches/inversePatches；`view.layout`/选择/滚动/标签切换不得进入历史（E7 第 4 步）。
+   先读 0.3 的代码现状，不要直接扩大 `record()` 白名单。
 4. 不要回退：T5.1 的分栏/标签语义与 `activePanePath`、500ms 布局去抖、`workspace-empty`、
    `pane[data-pane-active]`、M4 图表契约。
 5. 复跑 T5.1 布局回归（独占 CPU）：
@@ -78,6 +80,39 @@
    cd D:\DSH_Work_Space\curve-studio
    pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/layout.spec.ts
    ```
+
+### 0.3 T5.2 代码现状（2026-10-27 读码结论）
+
+> 这些是 T5.1 收尾时确认的事实，直接决定 T5.2 的做法；实现前可重读源码复核。
+
+1. **`EditHistory.record()` 目前是白名单**（`packages/app-core/src/history/edit-history.ts`）：
+   只有 `table.cell.set`、`table.paste`、`table.import` 与 `style.*`/`chart.*`（workspace
+   作用域）会入栈；`table.create/delete`、`table.rows.insert`、`table.column.*`、
+   `table.meta.update`、`view.create/delete/update/layout` 都不记录。T5.2 要统一消费
+   `CommandResult.patches/inversePatches`，而不是另起第二套栈。
+2. **非白名单命令会清空 redo**：`record()` 对不可记录但有 patches 的命令执行
+   `redoStack.length = 0`。所以当前每次点击标签（`view.layout`）都会清 redo；T5.2 必须先给
+   命令分类（可撤销 / 瞬态 / 不可撤销），瞬态命令不得清 redo。不要再扩大这个白名单掩盖问题。
+3. **撤销/重做落盘钩子**：`undo/redo` 直接 `store.setState(applyPatches(...), true)`，然后
+   `onChanged(tableId)`（表脏 + 队列表）或 `onWorkspaceChanged()`（`enqueueManifest`）。
+   T5.1 的 500ms 布局去抖与 `saveManifest()` 会取消定时器；T5.2 的 undo/redo 也要保证布局/表
+   状态最终落盘，不能绕过 `SaveQueue`。
+4. **只实现了条数上限**：`DEFAULT_HISTORY_LIMIT = 100`；SPEC §13.2 的 **256MB** 上限尚未实现。
+   T5.2 需要条目字节估算（patches 的 JSON 长度或结构估算）+ 丢最旧策略，并补 100k 导入/替换
+   逆补丁的内存测试；不要用 `JSON.stringify` 在热路径反复序列化 100k 行。
+5. **合并只针对 `table.cell.set`**：同 cell 800ms + `mergeKey` 合并；粘贴/导入/样式/图表各一条；
+   `table.rows.insert`、列/表/视图命令没有历史。T5.2 要定义批量命令（列变更、表删除、视图开关）
+   各为一条，并保留“一次控件一次撤销”的既有语义。
+6. **UI 只有全局快捷键**：`WorkspaceView` 的 Ctrl/Cmd+Z / Shift+Z / Y 调 `core.actions.undo/redo`；
+   没有可撤销命令名、菜单项、`canUndo/canRedo` 的界面展示。T5.2 的产出要求“快捷键、菜单文案、
+   历史清空”，需要选菜单落点（TitleBar/命令面板？）并补 i18n；不要硬编码中文。
+7. **E7 的两个撤销断言**：连续改 5 个单元格（间隔 >1s）→ undo 5 次、redo 3 次，最终值正确；
+   选择/滚动/标签切换不进入历史。当前 `view.layout` 会被 `record()` 看到（不可记录）并清
+   redo，必须先修分类再写 E2E；建议 `apps/desktop/e2e/undo.spec.ts`（或 `edit.spec.ts` 扩展）
+   单条覆盖。
+8. **建议写 ADR-047**：T5.2 涉及“哪些命令可撤销/瞬态”、256MB 口径、菜单文案与 redo 分支语义，
+   SPEC §13.2 只给了原则；按 AGENTS §2.4 先写 ADR 再改代码。不要改 `formatVersion`/manifest/
+   JSONL/IPC。
 
 ---
 
@@ -111,7 +146,7 @@
 | `T4.5` 图表交互、空态与 PNG 导出 | **已完成**（2026-10-26，`fd68789`）；报告 `docs/reports/t4.5/REPORT.md`；ADR-044 |
 | `T4.6` 图表性能硬化 | **已完成**（2026-10-26，`0fc37aa`）；报告 `docs/reports/t4.6/REPORT.md`；ADR-045 |
 | M4 验收演示 | **已获用户接受**（2026-10-27）；`e2e/m4-acceptance.spec.ts` + `docs/reports/m4/REPORT.md`（7 张截图）；全量 E2E 82 passed |
-| `T5.1` 分栏布局与标签页 | **已完成**（2026-10-27）；报告 `docs/reports/t5.1/REPORT.md`；ADR-046；4 张截图 |
+| `T5.1` 分栏布局与标签页 | **已完成**（2026-10-27，`eb152b4`）；报告 `docs/reports/t5.1/REPORT.md`；ADR-046；4 张截图 |
 | 当前里程碑 | **M5 体验**：T5.1 已完成；下一步 T5.2，M5 验收演示待 T5.1–T5.5 全部完成 |
 | 下一步 | **T5.2 撤销/重做**（依赖 T1.5/T2.2/T2.3/T3.4；SPEC §13.2；TESTPLAN E7） |
 | `pnpm verify` 基线 | **164 files / 1519 tests**；ESLint 0；depcruise 450 modules / 1892 deps / 0 violations |
@@ -2521,6 +2556,11 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | Playwright 合成快速拖动列宽 | 最后一步与 `pointerup` 提交可能差一步 | M2 验收用 `dblclick` autofit 提交确定值；T5.3 统一保存队列时复核 |
 | 筛选对话框只支持单层 | 嵌套谓词只读 | ADR-032；如需嵌套 UI 另写 ADR |
 | 结构变更不可撤销 | 误操作需手工恢复 | 确认框 + 磁盘备份；T5.2 统一历史 |
+| 最后聚焦 pane 不持久化（T5.1） | 重启后焦点落在第一个有活动标签的 pane | `activePanePath` 是 UI-only；每个 pane 的活动标签/比例已恢复。要恢复最后焦点需新增 manifest 字段 + 迁移（ADR-046 复核条件） |
+| 分栏后是空 pane / 无跨 pane 拖拽（T5.1） | 多一步移动或新建视图 | 分栏不自动创建/移动视图；v1 用“移动到下一分栏”；要拖拽需新交互与 E2E |
+| 布局 500ms 去抖强退窗口（T5.1） | 直接强杀可能丢最后 500ms 的焦点/比例/分栏 | `Ctrl+S`/关闭工作区/flush 会冲掉；T5.3 统一退出 flush（ADR-046） |
+| `view.layout` 会清空 redo（T5.1 现状） | 切换标签后 redo 历史消失 | `EditHistory.record()` 对非白名单有 patches 的命令清 redo；T5.2 先做“可撤销/瞬态/不可撤销”分类，瞬态不清 redo |
+| 4 pane × 200% 未单独断言（T5.1） | 极窄视口可能挤压 pane 工具栏 | 200% 冒烟在 2 pane 上通过；4 pane 在 100% 下覆盖；T5.4 键位/面板时补 4 pane 极窄视口冒烟 |
 | 图表/样式悬空引用 | 图表进入错误态；样式求值忽略 | 样式覆盖/规则列引用按 SPEC §6.6.7 保留；T4.4 对图表提供 `missing-columns` + 内嵌重映射，修复后持久化 |
 | 条件规则 number/date `contains` | 匹配 epoch 字符串，不是显示日期 | 按 SPEC §10.4“字符串化”字面实现；需要显示文本匹配时另写 ADR |
 | 条件规则不叠加 | 多条规则只有首条生效 | SPEC §10.4；需要叠加时扩展 `ConditionalRule.style`/合并语义并写 ADR |
@@ -2677,6 +2717,10 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
       pane、最多 4 pane、移动标签到下一分栏、关闭最后标签折叠 pane、空 pane 才可关分栏、
       500ms 布局去抖（`flushSaves`/关闭/Ctrl+S 冲掉）、`view.layout` 可选 `activePanePath`、
       非法 layout 回退单 pane + warning；`pane[data-pane-active]` 不要改回 `data-active`。
+- [ ] 已读 0.3 并确认 T5.2 现状：`EditHistory.record()` 是白名单（cell/paste/import + style/
+      chart），非白名单有 patches 会清 redo（标签切换会清）；只有 100 条上限、256MB 未实现；
+      undo/redo 通过 `onChanged`/`onWorkspaceChanged` 落盘；UI 只有 Ctrl+Z/Shift+Z/Y，没有
+      菜单文案；`view.layout`/选择/滚动/标签切换不得进入历史（先写 ADR-047 再改代码）。
 - [ ] 已确认 E2E 新增 `apps/desktop/e2e/layout.spec.ts`（3 条）与 `m4-acceptance.spec.ts`
       （1 条）；截图在 `docs/reports/t5.1/` 与 `docs/reports/m4/`；`m0` 截图已还原，
       `test-results/` 未提交。
