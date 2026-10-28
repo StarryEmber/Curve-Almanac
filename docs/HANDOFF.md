@@ -8,9 +8,9 @@
 > 最后更新：2026-10-28 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
-> T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**
-> （T5.4 的提交见 `git log -1 -- apps/desktop/src/renderer/features/keymap`）。
-> 阅读顺序：`AGENTS.md` → 本文件（§0.3/§0.4/§0.5/§0.6）→ `docs/reports/t5.4/REPORT.md` →
+> T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
+> T5.4 代码/报告 **`fb53d9b`**（本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
+> 阅读顺序：`AGENTS.md` → 本文件（§0.3/§0.4/§0.5）→ `docs/reports/t5.4/REPORT.md` →
 > `docs/TASKS.md` 的 T5.5 → `docs/SPEC.md` §16.3–§16.4 → ADR-049 → ADR-048 → ADR-047。
 
 ---
@@ -171,7 +171,8 @@
    `pnpm bench` exit 0。
 7. 证据：报告 + **3 张截图**（`t5.4-palette-search.png`、`t5.4-palette-disabled.png`、
    `t5.4-palette-empty-200.png`）；E2E 仍会重写 `docs/reports/m0/*.png`，提交前已还原。
-8. 残留：快捷键不可自定义；Ctrl/Cmd+Alt 在部分 AltGr/输入法布局可能被占用；面板可用性是
+8. 提交：**`fb53d9b`**（`feat(keymap): add shortcuts and command palette (T5.4)`）；工作树干净。
+9. 残留：快捷键不可自定义；Ctrl/Cmd+Alt 在部分 AltGr/输入法布局可能被占用；面板可用性是
    打开时快照（模态期间文档不变，执行前复查）；新建表/导入/筛选/导出/图表向导等局部对话框
    未进入面板（ADR-049 复核条件）。详见报告 §8 与 ADR-049“复核条件”。
 
@@ -210,7 +211,7 @@
 | `T5.1` 分栏布局与标签页 | **已完成**（2026-10-27，`eb152b4`）；报告 `docs/reports/t5.1/REPORT.md`；ADR-046；4 张截图 |
 | `T5.2` 撤销/重做 | **已完成**（2026-10-28，`a9dcf75`）；报告 `docs/reports/t5.2/REPORT.md`；ADR-047；2 张截图 |
 | `T5.3` 自动保存、恢复与最近打开 | **已完成**（2026-10-28，`02e30a8`）；报告 `docs/reports/t5.3/REPORT.md`；ADR-048；5 张截图 |
-| `T5.4` 快捷键与命令面板 | **已完成**（2026-10-28）；报告 `docs/reports/t5.4/REPORT.md`；ADR-049；3 张截图 |
+| `T5.4` 快捷键与命令面板 | **已完成**（2026-10-28，`fb53d9b`）；报告 `docs/reports/t5.4/REPORT.md`；ADR-049；3 张截图 |
 | 当前里程碑 | **M5 体验**：T5.1、T5.2、T5.3、T5.4 已完成；下一步 T5.5，M5 验收演示待 T5.1–T5.5 全部完成 |
 | 下一步 | **T5.5 设置与国际化**（依赖 T0.4、T3.1；SPEC §16.3–§16.4；TASKS T5.5） |
 | `pnpm verify` 基线 | **174 files / 1634 tests**；ESLint 0；depcruise 481 modules / 2028 deps / 0 violations |
