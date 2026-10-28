@@ -32,8 +32,10 @@
   （撤销/重做）已完成**（`docs/reports/t5.2/REPORT.md`、ADR-047）：全命令历史、100 条/
   256MB 估算上限、瞬态标签切换、Edit 菜单与撤销落盘；**`T5.3`（自动保存、恢复与最近打开）
   已完成**（`docs/reports/t5.3/REPORT.md`、ADR-048）：1.5s/10s 自动保存窗口、3s 退出 flush
-  握手、stale/corrupt 锁与 manifest 备份恢复、最近列表移除/清空；下一步 **T5.4
-  （快捷键与命令面板）**。
+  握手、stale/corrupt 锁与 manifest 备份恢复、最近列表移除/清空；**`T5.4`（快捷键与命令面板）
+  已完成**（`docs/reports/t5.4/REPORT.md`、ADR-049）：renderer 键位注册表/作用域/冲突检测、
+  Ctrl/Cmd+K 命令面板（模糊搜索/最近使用/禁用原因）、F1 帮助快捷键表、面板只在打开时挂载。
+  下一步 **T5.5（设置与国际化）**。
 - 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
   `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 19 个已接线
   IPC 通道（另含 1 个 main→renderer 退出事件）；**续作前先读 `docs/HANDOFF.md`**。

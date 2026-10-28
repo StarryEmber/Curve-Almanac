@@ -679,6 +679,15 @@ interface ImportResult {
 - 键盘：方向键移动，Tab/Shift+Tab 下一格，Enter 提交并下移，Esc 取消，F2 编辑，Delete 清空，Ctrl/Cmd+C/V 复制粘贴。
 - 无障碍：`role=grid`，`aria-rowcount/colcount`，单元格 `role=gridcell`，焦点可见。
 
+**实现边界（T5.4，ADR-049）**：
+
+- 网格键盘仍由 `DataGrid.handleKeyDown` / `CellEditor` / 原生 `paste` 事件处理，**不进入**全局
+  键位注册表。全局 keymap 只处理带修饰键的应用命令，并在网格等局部处理器已 `preventDefault`
+  时跳过；`DataGrid` 的 F2/Enter/Tab/Esc/方向键/Delete 语义不变。
+- `input`/`textarea`/`select`/`contenteditable`/`[role="dialog"]` 内不触发全局快捷键，因此
+  Ctrl/Cmd+C/V（以及 Ctrl/Cmd+Z、Ctrl/Cmd+K）保持原生编辑语义。命令面板（§13.4）打开时焦点在
+  面板输入框，不会与网格按键冲突。
+
 ### 9.2 编辑与校验
 
 - 编辑提交时机：Enter、Tab、失焦；Esc 取消。
@@ -1481,6 +1490,9 @@ export interface RenderModel {
   `JSON.stringify` 序列化 100k 行）；超限从最旧 undo 条目开始丢弃，单条超限也会被丢弃。
   撤销/重做按补丁决定落盘：行补丁走表 + manifest，纯 manifest 命令（含删除表的 redo）只写
   manifest。Edit 菜单显示下一条可撤销命令名；打开/关闭工作区清空两个栈与 `ui.history`。
+- **实现边界（T5.4，ADR-049）**：Ctrl/Cmd+Z、Ctrl/Cmd+Shift+Z、Ctrl/Cmd+Y 的撤销/重做语义
+  不变，改由 renderer 的统一键位注册表分发（§13.4）；`view.layout`/保存仍走原命令与
+  `SaveQueue`，keymap 只调用既有 `core.actions`，不产生新的文档命令或历史条目。
 
 ### 13.3 自动保存
 
@@ -1513,6 +1525,62 @@ export interface RenderModel {
   - 状态栏继续显示“已保存/保存中…/保存失败（重试）”；强制退出是否丢数据以恢复对话框的
     “最后 1.5 秒内尚未落盘的修改可能已丢失”提示为准。
   - 应用使用 `app.requestSingleInstanceLock()`；第二个实例聚焦已有窗口后退出。
+
+### 13.4 快捷键与命令面板
+
+> 实现边界（T5.4，ADR-049）。快捷键是 renderer 的**应用命令**入口，不是文档命令总线的新层：
+> keymap 只调用既有 `core.actions`/Shell 回调，不产生 Immer patches、不写 manifest。
+
+- **注册表**：`apps/desktop/src/renderer/features/keymap/` 的 `APP_COMMANDS` 声明
+  `{ id, labelKey, shortcuts, scopes, visibleInPalette, isEnabled, run }`。作用域名：
+  - `global`：任何界面；
+  - `workspace`：已打开工作区；
+  - `grid`：活动视图是数据表；
+  - `chart`：活动视图是图表。
+- **快捷键表**：
+
+  | 命令 | 快捷键 | 作用域 |
+  |---|---|---|
+  | 打开命令面板 | Ctrl/Cmd+K | global |
+  | 键盘快捷键（帮助） | F1 | global |
+  | 立即保存 | Ctrl/Cmd+S | workspace |
+  | 切换侧栏 | Ctrl/Cmd+B | global |
+  | 切换检查器 | Ctrl/Cmd+Alt+I | global |
+  | 撤销 | Ctrl/Cmd+Z | workspace |
+  | 重做 | Ctrl/Cmd+Shift+Z、Ctrl/Cmd+Y | workspace |
+  | 关闭当前视图 | Ctrl/Cmd+W | workspace |
+  | 复制当前视图 | Ctrl/Cmd+Shift+D | grid |
+  | 复制当前图表 | Ctrl/Cmd+Shift+D | chart |
+  | 水平分栏 | Ctrl/Cmd+Alt+H | workspace |
+  | 垂直分栏 | Ctrl/Cmd+Alt+V | workspace |
+  | 关闭当前分栏 | Ctrl/Cmd+Alt+W | workspace |
+  | 移动标签到下一分栏 | Ctrl/Cmd+Alt+M | workspace |
+  | 浅色/深色/跟随系统主题 | —（仅面板） | global |
+
+- **分发优先级**：局部组件（网格、单元格编辑器、标签栏、分隔条、Menu/Dialog/Tabs）先处理；
+  全局监听在 `window` 冒泡阶段，遇到 `event.defaultPrevented`、`event.repeat`、`isComposing` 或
+  可编辑/对话框目标时忽略。`global`/`workspace`/`grid`/`chart` 只决定命令可用上下文，不把局部
+  按键收进注册表。
+- **冲突检测**：快捷键归一化后，若两个命令的作用域上下文有交集（`global` 与所有、`workspace`
+  与 `workspace/grid/chart`，`grid` 与 `chart` 不相交）且键位相同，构造 keymap 时抛
+  `KeymapConflictError`。同一快捷键可在互斥的 `grid`/`chart` 中复用。
+- **不可用原因**：`isEnabled` 返回结构化 reason（无工作区、无活动视图、非数据表、非图表、
+  无可撤销、无可重做、分栏上限、最后一个分栏、分栏非空、无其他分栏、主题已是当前值）；
+  快捷键分发、命令面板与帮助共用同一判定，文案走消息表。
+- **命令面板**：Ctrl/Cmd+K 打开，复用 `@curve/ui` 的 `Dialog`（焦点陷阱/Esc/焦点恢复）+
+  `Input` + `role="listbox"`/`role="option"`（`aria-activedescendant`）。模糊搜索是标签与
+  命令 id 的子序列匹配（不新增依赖）；空查询按最近使用优先，非空按分数并以免最近使用打破平局；
+  禁用命令仍列出并显示原因，Enter 不执行。↑/↓/Home/End/Enter/Esc 与鼠标悬停/点击可用。
+- **最近使用**：最多 8 条，存 `localStorage['curve-studio.recent-commands']`，属于 UI 偏好，
+  **不写工作区 manifest**；缺失/损坏/存储不可用时回退空列表，且只在打开面板时读取。
+- **渲染稳定性**：`AppShell` 不订阅文档 store；keymap 在按键时读取最新 state，面板打开时快照
+  命令可用性并只在此期间挂载，执行前再复查。该约束保证 T4.6 的 100k 图表切换 private ≤600MB
+  门禁不被常驻面板/整壳重渲染拖累。
+- **帮助**：`HelpDialog` 的快捷键表由同一注册表生成（含平台化 Ctrl/Cmd 显示）。
+- **不改变**：不新增 IPC/preload、manifest 字段、`formatVersion`、JSONL 格式或运行时依赖；
+  网格/CellEditor/TabBar/分隔条/Dialog/Menu/Tabs 的既有键盘契约与撤销/保存语义不变。
+- **边界**：新建表/导入/筛选/导出 CSV/图表向导等由功能组件持有的对话框不进入 T5.4 面板；
+  把它们提升为全局命令需要 renderer 命令注册上下文（复核条件见 ADR-049）。
 
 ---
 
@@ -1976,6 +2044,8 @@ P95 **2ms**（50ms）、`chart.option.2k` P95 **1ms**（50ms，option 构造）�
 
 - 目标 WCAG 2.1 AA；正文对比度 ≥ 4.5:1，大字 ≥ 3:1。
 - 全键盘可达：网格、工具栏、检查器、对话框；焦点可见；Esc 关闭对话框/取消编辑。
+- 命令面板可用纯键盘完整操作：Ctrl/Cmd+K 打开、↑/↓/Home/End 选择、Enter 执行、Esc 关闭；
+  输入框通过 `aria-activedescendant` 暴露当前项，禁用命令带可读原因（§13.4）。
 - 图表提供 `aria-label` 摘要（系列数、点数、X/Y 范围）；图表旁提供"查看数据表"入口。
 - 200% 缩放下不出现横向裁切；表格允许横向滚动。
 

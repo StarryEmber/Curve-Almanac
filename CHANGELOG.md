@@ -636,3 +636,32 @@
   （table.open 347ms/3s、save 274ms/500ms、query 232ms/400ms、text-sort 284ms/400ms、
   cjk-sort 561ms/800ms、import 711ms/8s、condition 1ms/16ms、chart.resolve-sample 85ms/300ms）。
   不改 `formatVersion`/JSONL/CSP，不新增运行时依赖。
+- T5.4：新增 renderer 键位注册表 `features/keymap/`：`APP_COMMANDS` 声明
+  `{ id, labelKey, shortcuts, scopes, visibleInPalette, isEnabled, run }`，只调用既有
+  `core.actions`/Shell 回调；作用域 `global/workspace/grid/chart` 表示可用上下文，网格/
+  CellEditor/TabBar/分隔条/Menu/Dialog/Tabs 保留局部键盘，全局监听在 `window` 冒泡阶段跳过
+  `defaultPrevented`/`repeat`/`isComposing`/可编辑目标。冲突检测按作用域交集在构造时抛
+  `KeymapConflictError`；`grid`/`chart` 可在互斥作用域复用 Ctrl/Cmd+Shift+D。
+- T5.4：命令面板 Ctrl/Cmd+K（`Dialog` + `Input` + listbox/`aria-activedescendant`），标签与
+  命令 id 的子序列模糊搜索（无新依赖）、最近使用优先、禁用原因可见、↑↓/Home/End/Enter/Esc/
+  鼠标可用；最近使用最多 8 条存 `localStorage['curve-studio.recent-commands']`，不写 manifest。
+  帮助对话框的快捷键表由同一注册表生成；新增命令：F1 帮助、Ctrl/Cmd+S 保存、Ctrl/Cmd+B/
+  Ctrl/Cmd+Alt+I 面板、Ctrl/Cmd+Alt+H/V/W/M 分栏/关闭/移动、Ctrl/Cmd+Shift+D 复制视图/图表。
+- T5.4：内存门禁修复：第一版常驻面板 + AppShell 文档订阅让 100k 图表切换 private 峰值到
+  605–615MB；改为 **AppShell 不订阅 store、面板只在打开时快照/挂载、执行前复查、最近使用
+  延迟读取** 后，全量 E2E 该场景 **506MB**（isolated 509–519MB）。不改变 T4.6 的图表缓存/
+  渲染契约。
+- T5.4：新增 `apps/desktop/e2e/palette.spec.ts` 3 条（过滤/执行/最近/撤销，编辑器内 Ctrl+K
+  与 Ctrl+V、禁用原因、F1/帮助、分栏与复制快捷键，200% 缩放 ↑↓/Home/End/无结果/侧栏）；
+  单测新增 shortcut/keymap/command-search/recent-commands/commands/palette-model 与
+  `CommandPalette.tsx`，App.test 增加 3 条集成用例；`@curve/ui` 的 `Input` 支持 ref。
+  新增 ADR-049、SPEC §9.1/§13.2/§13.4/§16.3 实现边界、TASKS T5.4 与
+  `docs/reports/t5.4/REPORT.md`（3 张截图）。
+- T5.4：`pnpm verify` **174 files / 1634 tests**；depcruise 481 modules / 2028 deps /
+  0 violations；coverage 全局 lines **76.74%** / statements 76.59% / branches 69.41% /
+  functions 75.18%（阈值 70/60 未下调；`features/keymap` lines **90.27%**、branches 82.37%）；
+  `pnpm build` exit 0（renderer **3,342.56 kB**、CSS **77.49 kB**）；`pnpm e2e` **99 passed**
+  （7.4m；palette 3.1s/3.4s/3.1s；chart-perf private **506MB**）；`pnpm bench` exit 0
+  （table.open 452ms/3s、save 394ms/500ms、query 258ms/400ms、text-sort 365ms/400ms、
+  cjk-sort 603ms/800ms、import 862ms/8s、condition 1ms/16ms、chart.resolve-sample 81ms/300ms）。
+  不新增 IPC/preload/manifest 字段/运行时依赖，不改 `formatVersion`/JSONL/CSP。

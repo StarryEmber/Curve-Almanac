@@ -32,6 +32,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   document.documentElement.removeAttribute('data-theme');
+  document.documentElement.style.overflow = '';
 });
 
 describe('App shell', () => {
@@ -166,6 +167,48 @@ describe('App shell', () => {
 
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(help);
+  });
+
+  it('opens the help dialog with F1 from the global keymap', () => {
+    stubApi(async () => readyInfo);
+    render(<App />);
+
+    fireEvent.keyDown(window, { key: 'F1' });
+
+    expect(screen.getByRole('dialog', { name: '键盘快捷键' })).toBeDefined();
+  });
+
+  it('opens the command palette with Ctrl+K, runs a command and closes on Escape', () => {
+    stubApi(async () => readyInfo);
+    render(<App />);
+
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+
+    const dialog = screen.getByRole('dialog', { name: '命令面板' });
+    expect(dialog).toBeDefined();
+    const input = screen.getByRole('combobox', { name: '搜索命令' });
+    expect(document.activeElement).toBe(input);
+
+    fireEvent.change(input, { target: { value: '键盘' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(screen.queryByRole('dialog', { name: '命令面板' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: '键盘快捷键' })).toBeDefined();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('does not steal modified keys from an input or select', () => {
+    stubApi(async () => readyInfo);
+    render(<App />);
+
+    fireEvent.keyDown(screen.getByLabelText('语言'), { key: 'k', ctrlKey: true });
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('opens the new-workspace dialog and validates the name', async () => {

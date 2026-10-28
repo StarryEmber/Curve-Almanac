@@ -2990,3 +2990,113 @@ body {
     justify-self: end;
   }
 }
+
+/* ------------------------------------------------------- Command palette */
+
+.cs-help-dialog {
+  width: min(620px, 100%);
+}
+
+.cs-shortcuts__title {
+  margin: var(--cs-space-4) 0 var(--cs-space-2);
+  color: var(--cs-color-fg-default);
+  font-size: var(--cs-font-size-sm);
+  font-weight: var(--cs-font-weight-semibold);
+}
+
+.cs-dialog.cs-command-palette {
+  width: min(640px, 100%);
+}
+
+.cs-command-palette__search {
+  margin-bottom: var(--cs-space-2);
+}
+
+.cs-command-palette__list {
+  max-height: min(48vh, 380px);
+  margin: 0;
+  padding: var(--cs-space-1);
+  overflow-y: auto;
+  border: 1px solid var(--cs-color-border-subtle);
+  border-radius: var(--cs-radius-md);
+  list-style: none;
+  scrollbar-color: var(--cs-color-border-default) var(--cs-color-bg-muted);
+}
+
+.cs-command-palette__option {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-2);
+  padding: var(--cs-space-2) var(--cs-space-3);
+  border-radius: var(--cs-radius-sm);
+  color: var(--cs-color-fg-default);
+  cursor: pointer;
+}
+
+.cs-command-palette__option:hover {
+  background: var(--cs-color-bg-muted);
+}
+
+.cs-command-palette__option[aria-selected='true'] {
+  background: var(--cs-color-accent-soft);
+}
+
+.cs-command-palette__option[aria-disabled='true'] {
+  color: var(--cs-color-fg-subtle);
+  cursor: default;
+}
+
+.cs-command-palette__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cs-command-palette__recent {
+  flex: none;
+  padding: 0 var(--cs-space-1);
+  border: 1px solid var(--cs-color-border-subtle);
+  border-radius: var(--cs-radius-pill);
+  color: var(--cs-color-accent-default);
+  font-size: var(--cs-font-size-xs);
+}
+
+.cs-command-palette__reason {
+  flex: none;
+  color: var(--cs-color-warning-default);
+  font-size: var(--cs-font-size-xs);
+}
+
+.cs-command-palette__shortcut {
+  flex: none;
+  margin-left: auto;
+}
+
+.cs-command-palette__empty {
+  margin: var(--cs-space-3) 0;
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-command-palette__hint {
+  margin: var(--cs-space-2) 0 0;
+  color: var(--cs-color-fg-subtle);
+  font-size: var(--cs-font-size-xs);
+}
+
+@keyframes cs-palette-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cs-command-palette__list {
+  animation: cs-palette-in 120ms ease-out;
+}

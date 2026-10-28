@@ -55,6 +55,7 @@
 | `persistence` | 原子写、备份、锁、路径白名单 | 中断写、损坏 manifest、`../` 逃逸 |
 | `plugin-sdk` | 注册/替换/移除/版本/隔离 | 重复 id、激活抛错、deactivate |
 | `app-core/history` | patches 撤销/重做/合并 | 100 步、256MB、redo 分支、批量单条、瞬态布局 |
+| `renderer/keymap` | 快捷键归一/作用域/冲突/搜索/最近/禁用原因 | Cmd/Ctrl 归一、grid/chart 互斥复用、输入框保护、子序列排序、localStorage 损坏 |
 | `ui/components` | 焦点陷阱/Esc/键盘/ARIA | Dialog、Toast、Tabs、Grid |
 | `ipc` | 信封、校验、错误映射 | 非法载荷、未知通道、异常转 `E_UNKNOWN` |
 
@@ -209,6 +210,22 @@
 6. 200% 缩放下纯键盘 Enter 打开、Esc 关闭，对话框不越界。
 
 > `apps/desktop/e2e/export-csv.spec.ts` 3 条已覆盖上述步骤；100k 实测 1,716ms。
+
+### E11 快捷键与命令面板（T5.4）
+
+1. Ctrl/Cmd+K 打开面板，输入过滤（如“分栏”）→ Enter 执行；再次打开时最近使用排第一；
+   通过面板撤销后布局/历史恢复。
+2. 单元格编辑器内 Ctrl/Cmd+K 不打开面板；F1 打开帮助且快捷键表来自同一注册表；表格视图下
+   “复制当前图表”显示“当前视图不是图表”且不可执行；面板输入框内 Ctrl/Cmd+V 保持原生；
+   关闭面板后 Ctrl/Cmd+Alt+H 分栏并可 Ctrl/Cmd+Z 撤销，Ctrl/Cmd+Shift+D 复制当前表视图。
+3. 200% 缩放下面板在视口内；↑/↓/Home/End 改变 `aria-activedescendant`，无结果态可见，
+   执行“切换侧栏”后面板关闭且侧栏收起。
+
+> `apps/desktop/e2e/palette.spec.ts` 3 条覆盖上述步骤（实测 3.1s/3.4s/3.1s）。单测覆盖
+> `shortcut/keymap/command-search/recent-commands/commands/palette-model` 与
+> `CommandPalette.tsx`（75 条 keymap/App 用例）；全量 E2E 该任务后为 **99 passed**，
+> chart-perf 100k 切换 private **506MB**（≤600MB）。命令面板只在打开时挂载，AppShell 不订阅
+> 文档 store，避免破坏 T4.6 的内存门禁（ADR-049 §5）。
 
 ---
 

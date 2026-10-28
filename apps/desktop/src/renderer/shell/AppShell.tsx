@@ -5,6 +5,8 @@ import { ToastHost, useToasts } from '@curve/ui';
 import { useAppState } from '../app-core/use-app-core';
 import { useQuitGuard } from '../app-core/use-quit-guard';
 import { describeAppError } from '../error-text';
+import { CommandPalette } from '../features/keymap/CommandPalette';
+import { useCommandKeymap } from '../features/keymap/use-command-keymap';
 import { WelcomePage } from '../features/workspace/WelcomePage';
 import { WorkspaceView } from '../features/workspace/WorkspaceView';
 import { useI18n } from '../i18n';
@@ -36,6 +38,19 @@ export function AppShell(): ReactElement {
   const [helpOpen, setHelpOpen] = useState(false);
   const reportedRuntimeError = useRef<AppError | null>(null);
   const reportedAppError = useRef<AppError | null>(null);
+  const commandKeymap = useCommandKeymap({
+    sidebarOpen,
+    inspectorOpen,
+    onToggleSidebar: () => {
+      setSidebarOpen((open) => !open);
+    },
+    onToggleInspector: () => {
+      setInspectorOpen((open) => !open);
+    },
+    onOpenHelp: () => {
+      setHelpOpen(true);
+    },
+  });
 
   useEffect(() => {
     if (runtime.status !== 'error' || reportedRuntimeError.current === runtime.error) {
@@ -105,12 +120,23 @@ export function AppShell(): ReactElement {
         regionLabel={t('toast.region')}
       />
 
-      <HelpDialog
-        open={helpOpen}
-        onClose={() => {
-          setHelpOpen(false);
-        }}
-      />
+      {helpOpen ? (
+        <HelpDialog
+          open
+          onClose={() => {
+            setHelpOpen(false);
+          }}
+        />
+      ) : null}
+
+      {commandKeymap.paletteOpen ? (
+        <CommandPalette
+          open
+          items={commandKeymap.paletteItems}
+          onClose={commandKeymap.closePalette}
+          onRun={commandKeymap.runCommand}
+        />
+      ) : null}
     </div>
   );
 }

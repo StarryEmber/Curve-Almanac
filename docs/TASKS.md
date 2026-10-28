@@ -1412,9 +1412,9 @@ T0.2 + T5.5 → T6.4
 <a id="m5"></a>
 ## M5 体验
 
-> 状态（2026-10-28）：`T5.1`（分栏布局与标签页）、`T5.2`（撤销/重做）与 `T5.3`
-> （自动保存、恢复与最近打开）已完成（ADR-046、ADR-047、ADR-048）；下一步 `T5.4`（快捷键与
-> 命令面板）。M5 验收演示在 T5.1–T5.5 全部完成后执行。
+> 状态（2026-10-28）：`T5.1`（分栏布局与标签页）、`T5.2`（撤销/重做）、`T5.3`
+> （自动保存、恢复与最近打开）与 `T5.4`（快捷键与命令面板）已完成（ADR-046、ADR-047、
+> ADR-048、ADR-049）；下一步 `T5.5`（设置与国际化）。M5 验收演示在 T5.1–T5.5 全部完成后执行。
 
 <a id="t51"></a>
 ### T5.1 分栏布局与标签页
@@ -1580,7 +1580,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t54"></a>
 ### T5.4 快捷键与命令面板
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T5.2
 - 覆盖：FR-WS-02、NFR-03
 - 参考：SPEC §9.1、§13.2
@@ -1593,10 +1593,50 @@ T0.2 + T5.5 → T6.4
   2. 统一 keydown 分发；输入框内不劫持。
   3. 面板列出可执行命令并显示快捷键。
 - 验收：
-  - [ ] 所有核心操作有快捷键且不冲突。
-  - [ ] 输入框内 Ctrl/Cmd+C/V 不被劫持。
-  - [ ] 面板键盘可操作，Esc 关闭。
+  - [x] 所有核心操作有快捷键且不冲突。
+  - [x] 输入框内 Ctrl/Cmd+C/V 不被劫持。
+  - [x] 面板键盘可操作，Esc 关闭。
 - 验证：`pnpm exec vitest run apps/desktop -- --grep "keymap" && pnpm e2e -- --grep "palette"`
+
+  实现备注（2026-10-28，ADR-049）：
+  - 决策：命令注册表在 **renderer**（`features/keymap/`），只调用既有 `core.actions`/Shell
+    回调，不在 app-core 增加命令包装层；`APP_COMMANDS` 声明
+    `{ id, labelKey, shortcuts, scopes, visibleInPalette, isEnabled, run }`。作用域
+    `global/workspace/grid/chart` 是“可用上下文”，不是局部按键所有权；网格/CellEditor/
+    TabBar/分隔条/Menu/Dialog/Tabs 仍是第一处理者，全局监听在 `window` 冒泡阶段并跳过
+    `defaultPrevented`/`repeat`/`isComposing`/可编辑目标。
+  - 快捷键：命令面板 Ctrl/Cmd+K、帮助 F1、保存 Ctrl/Cmd+S、撤销 Ctrl/Cmd+Z、重做
+    Ctrl/Cmd+Shift+Z 与 Ctrl/Cmd+Y、关闭视图 Ctrl/Cmd+W、侧栏 Ctrl/Cmd+B、检查器
+    Ctrl/Cmd+Alt+I；分栏 Ctrl/Cmd+Alt+H/V、关闭分栏 Ctrl/Cmd+Alt+W、移动标签
+    Ctrl/Cmd+Alt+M；复制视图/图表在互斥的 `grid`/`chart` 作用域共用 Ctrl/Cmd+Shift+D；
+    主题切换仅面板。`createKeymap` 在构造时按作用域交集检测冲突并抛
+    `KeymapConflictError`，单测锁定快捷键表。
+  - 面板：`Dialog` + `Input`（新增 ref 支持 initialFocus）+ `role=listbox/option` 与
+    `aria-activedescendant`；标签/命令 id 的子序列模糊搜索（无新依赖）、最近使用优先、
+    禁用项保留并显示原因、↑↓/Home/End/Enter/Esc/鼠标可用；最近使用最多 8 条存
+    `localStorage`，不写 manifest。Help 对话框的快捷键表由同一 `APP_COMMANDS` 生成。
+  - 性能：第一版常驻面板 + AppShell 文档订阅使 100k 图表切换 private 峰值到 605–615MB
+    （超 T4.6 的 600MB 门禁）；改为 **AppShell 不订阅 store、面板只在打开时快照/挂载、
+    执行前复查** 后，全量 E2E 该场景 **506MB**（isolated 509–519MB），恢复 T4.6 的
+    589–591MB 量级。最近使用存储也改为打开面板时读取。
+  - 文件：`apps/desktop/src/renderer/features/keymap/{shortcut,keymap,command-context,
+    command-search,recent-commands,commands,palette-model,use-command-keymap}.ts`、
+    `CommandPalette.tsx`（+7 个测试文件）；`shell/{AppShell,HelpDialog}.tsx`、
+    `features/workspace/WorkspaceView.tsx`（移除旧 keydown）、`packages/ui/src/Input.tsx`、
+    `i18n/messages/*`、`styles.css`；`e2e/palette.spec.ts`（3 条）。
+  - 实测：`pnpm verify` **174 files / 1634 tests**；depcruise 481 modules / 2028 deps /
+    0 violations；coverage 全局 lines **76.74%** / statements 76.59% / branches 69.41% /
+    functions 75.18%（阈值 70/60 未下调；`features/keymap` lines **90.27%**、
+    branches 82.37%）；`pnpm build` exit 0（renderer **3,342.56 kB**、CSS **77.49 kB**）；
+    `pnpm e2e` **99 passed**（7.4m；palette 3.1s/3.4s/3.1s；chart-perf private **506MB**）；
+    `pnpm bench` exit 0（table.open 452ms/3s、save 394ms/500ms、query 258ms/400ms、
+    text-sort 365ms/400ms、cjk-sort 603ms/800ms、import 862ms/8s、condition 1ms/16ms、
+    chart.resolve-sample 81ms/300ms）。
+  - 残留：快捷键不可自定义；Ctrl/Cmd+Alt 组合在部分 AltGr 布局/输入法下可能被占用；面板
+    可用性是打开时快照（模态期间文档不变，执行前复查）；新建表/导入/筛选/导出/图表向导等
+    功能局部对话框未进入面板（需要 renderer 命令注册上下文，见 ADR-049 复核条件）；
+    帮助面板的命令表在打开时构建，关闭即卸载。
+
 
 <a id="t55"></a>
 ### T5.5 设置与国际化
