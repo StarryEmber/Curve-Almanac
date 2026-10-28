@@ -7,12 +7,11 @@
 > 最后更新：2026-10-28 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
-> T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告（见
-> `git log -1 -- docs/reports/t5.3/REPORT.md`；本交接文档的提交见
-> `git log -1 -- docs/HANDOFF.md`）。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t5.3/REPORT.md` →
-> `docs/TASKS.md` 的 T5.3/T5.4 → `docs/SPEC.md` §7.5/§13.3/§15.1 → ADR-048 → ADR-047 →
-> ADR-046 → `docs/reports/t5.2/REPORT.md` → `docs/reports/t5.1/REPORT.md` → ADR-045。
+> T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**
+> （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
+> 阅读顺序：`AGENTS.md` → 本文件（§0.3/§0.4/§0.5）→ `docs/reports/t5.3/REPORT.md` →
+> `docs/TASKS.md` 的 T5.4 → `docs/SPEC.md` §9.1/§13.2 → ADR-048 → ADR-047 → ADR-046 →
+> `docs/reports/t5.2/REPORT.md` → `docs/reports/t5.1/REPORT.md` → ADR-045。
 
 ---
 
@@ -69,7 +68,8 @@
    `pnpm e2e` 重写 `docs/reports/m0/*.png`，提交前已还原。
 5. 提交：**`eb152b4`**（`feat(layout): add recursive split panes and tabs (T5.1)`）。
 6. 残留：最后聚焦 pane 不持久化（重启焦点为第一个有活动标签的 pane）；分栏创建空 pane；
-   无跨 pane 拖拽；强退可能丢最后 500ms 布局变化（T5.3）；详见报告 §8 与 ADR-046。
+   无跨 pane 拖拽；强退可能丢最后 500ms 布局变化（已由 T5.3 退出 flush 处理）；详见报告 §8 与
+   ADR-046。
 
 ### 0.2 T5.2 结果（2026-10-28 完成）
 
@@ -119,11 +119,12 @@
 
 ### 0.4 T5.3 结果（2026-10-28 完成）
 
-1. 用例：`apps/desktop/e2e/autosave.spec.ts` 4 条——1.5s 窗口 + Ctrl+S 立即写（5.1s）、
+1. 用例：`apps/desktop/e2e/autosave.spec.ts` 4 条——1.5s 窗口 + Ctrl+S 立即写（5.0s）、
    去抖窗口内退出仍保存且下次启动无恢复提示（3.8s）、只读表文件“保存失败”→取消退出→恢复可写
-   重试（4.3s）、最近列表移除/清空（2.9s）；`apps/desktop/e2e/recovery.spec.ts` 3 条——
-   `taskkill /F /T` 强杀恢复（6.3s）、stale/corrupt 锁的“尝试恢复/直接打开”（2.9s）、
-   损坏 manifest 的取消/备份重建（2.8s）。报告 `docs/reports/t5.3/REPORT.md`。
+   重试（4.1s）、最近列表移除/清空（2.8s）；`apps/desktop/e2e/recovery.spec.ts` 4 条——
+   `taskkill /F /T` 强杀恢复（6.0s）、stale/corrupt 锁的“尝试恢复/直接打开”（2.8s）、
+   200% 缩放 + 纯键盘恢复对话框（2.7s）、损坏 manifest 的取消/备份重建（2.8s）。
+   报告 `docs/reports/t5.3/REPORT.md`。
 2. 保存：`SaveQueue` 1.5s trailing 去抖 + 10s 上限；`flush()`/`retry()` 立即写；布局 500ms
    去抖仍只调 `enqueueManifest()`；失败保留 dirty 与 `ui.save.error`，状态栏可重试。
 3. 退出：`quit-guard.ts` 拦截 close/before-quit，`app:quit-requested` → renderer flush ≤3s →
@@ -137,11 +138,57 @@
 6. 证据：报告 + **5 张截图**（`t5.3-autosave-status.png`、`t5.3-save-failure.png`、
    `t5.3-recovery-stale-lock.png`、`t5.3-recovery-lock-choices.png`、
    `t5.3-recovery-manifest.png`）。
-7. 提交：`feat(ws): add autosave, quit flush and crash recovery (T5.3)`（见
-   `git log -1 -- docs/reports/t5.3/REPORT.md`）。
+7. 提交：**`02e30a8`**（`feat(ws): add autosave, quit flush and crash recovery (T5.3)`）。
 8. 残留：强杀仍可能丢最后 1.5s；flush 失败后确认退出留 stale lock；原生退出确认/恢复提示为
    英文（main 无 i18n）；`inspect` 多读一次 manifest；自动重建只尝试最新备份；自动保存关闭后的
    “保存/放弃/取消”三选一留 T5.5。详见报告 §8 与 ADR-048“复核条件”。
+
+### 0.5 T5.4 代码现状（2026-10-28 读码结论）
+
+> 这些事实决定 T5.4 的落点；实现前重读源码复核。
+
+1. **全局快捷键只有一个入口**：`WorkspaceView` 在 `window` 上监听 `keydown`，处理
+   Ctrl/Cmd+W（关闭当前视图）、Ctrl/Cmd+Z、Ctrl/Cmd+Shift+Z、Ctrl/Cmd+Y（撤销/重做）、
+   Ctrl/Cmd+S（`flushSaves`）。`isEditableTarget` 已排除 input/textarea/select/
+   `[contenteditable]`/`[role="dialog"]`；**Ctrl/Cmd+K 目前完全空闲**，没有命令面板。
+2. **网格/标签/分栏/对话框的键盘是局部的，不要收进全局 keymap**：
+   - `DataGrid.handleKeyDown` 处理方向键/Tab/Home/End/PageUp/PageDown/Enter/F2/Delete 与直接键入；
+     单元格编辑器 `CellEditor` 处理 Enter/Tab/Esc；`onPaste` 负责剪贴板。
+   - `TabBar` 用 ArrowLeft/Right 切标签；`LayoutView` 的 separator 用方向键调比例；
+     `@curve/ui` 的 `Menu`/`Dialog`/`Tabs` 已实现 APG 键盘契约与焦点陷阱。
+   - T5.4 的 keydown 分发必须在这些局部处理器之前判作用域，或只在“非可编辑、非对话框、
+     非网格/图表组件已消费”时执行，避免把输入框里的 Ctrl/Cmd+C/V 抢走。
+3. **没有声明式命令注册表**：app-core 的命令是 `createCommandBus` 按字符串分发，文档变更走
+   `commands.dispatch`；renderer 可直接调用的是 `core.actions`（`WorkspaceActions`：undo/redo/
+   flushSaves/closeView/splitPane/...）和 UI 状态（主题、语言、面板）。T5.4 应在
+   `apps/desktop/src/renderer/features/keymap/` 新建 **renderer 侧**注册表：
+   `{ id, labelKey, shortcut, scopes, isEnabled(state), run() }`；不要在 app-core 增加命令包装层。
+4. **可复用组件**：`@curve/ui` 提供 `Button/Dialog/Input/Select/Menu/Tabs/Toast`，没有
+   combobox/listbox。命令面板建议用 `Dialog`（已有焦点陷阱/Esc/焦点恢复）+ `Input` +
+   自绘 `role="listbox"`/`role="option"` 列表；模糊搜索、最近使用、冲突检测放纯函数模块，
+   组件只做渲染与事件转发。不要新增运行时依赖（fuse.js 等）——50 行以内的子序列匹配即可。
+5. **文案与作用域**：命令标签走 `t(key)`（参考 `features/history/history-action-label.ts`）；
+   作用域建议 `global` / `workspace`（有工作区）/ `grid`（网格聚焦）/ `chart`（图表视图）；
+   `isEnabled` 需要返回“为什么不可用”（无工作区、无表、无图表、无撤销栈、只读等），面板与
+   菜单共用同一判定，不要在两处复制。
+6. **最近使用**：可放 `userData` 还是 `localStorage` 需要先定；T5.5 才做 `settings.json`。
+   T5.4 可先用 `localStorage`（与主题/语言一致），并在 ADR 中写明“不进工作区 manifest”；
+   若要跨会话稳定顺序，注意测试用固定存储与 `I18nProvider` 的现有模式。
+7. **必须保持的既有 E2E 契约**：`edit.spec` 的 F2/Enter/Tab/Esc、`grid.spec` 的方向键/Ctrl+End/
+   200% 缩放、`layout.spec` 的标签 Arrow/Ctrl+W/分隔条、`undo.spec` 的 Ctrl+Z/Y 与
+   `data-undo-*`、`autosave.spec` 的 Ctrl+S/`autosave-status`。T5.4 改 keydown 分发后要独占 CPU
+   重跑这些 spec；不要放宽超时。
+8. **建议的测试落点**：
+   - 单测 `features/keymap/keymap.test.ts`：快捷键归一化（Cmd/Ctrl、Shift、Alt、大小写）、
+     注册/冲突/禁用原因、作用域匹配、输入框内不触发。
+   - 纯函数 `command-search.test.ts`：子序列模糊匹配、空查询、最近使用排序、去重。
+   - 组件测试 `CommandPalette.test.tsx`：ArrowUp/Down 移动、Enter 执行、Esc 关闭、无结果态、
+     `aria-activedescendant`。
+   - E2E `apps/desktop/e2e/palette.spec.ts`：Ctrl/Cmd+K 打开 → 输入过滤 → Enter 执行（如撤销/分栏）→
+     Esc 关闭；输入框内 Ctrl+C/V 不触发命令；200% 缩放纯键盘可达；与网格编辑/撤销快捷键不冲突。
+9. **文档**：T5.4 涉及新的公开 UI 行为与快捷键表，需要新 ADR（键位注册表/作用域/冲突策略/
+   面板组件）并同步 SPEC（§9.1 的网格键盘、§13.2 的快捷键、可能的 §16.3 键盘可达性）与
+   TESTPLAN；不要在未写 ADR 前改 SPEC 行为。
 
 ---
 
@@ -152,7 +199,7 @@
 | 方案文档 | v1.0 已锁定（SPEC / TASKS / TESTPLAN / DECISIONS） |
 | M0 基建（T0.1–T0.5） | **已完成**；验收报告 `docs/reports/m0/REPORT.md` |
 | M1 领域与持久化（T1.1–T1.5） | **已完成并经用户验收**（2026-10-21）；报告 `docs/reports/m1/REPORT.md` |
-| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1–T5.2 扩展了命令、actions、历史与保存 |
+| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1–T5.3 扩展了命令、actions、历史与保存 |
 | `T2.1` 工作区入口、表管理与网格 | **已完成**（`07c4763`）；报告 `docs/reports/t2.1/REPORT.md`；ADR-027 |
 | `T2.2` 单元格编辑与校验 | **已完成**（`641cd86`）；报告 `docs/reports/t2.2/REPORT.md`；ADR-028 |
 | `T2.3` 列管理、结构变更与迁移 | **已完成**（`213fab4`）；报告 `docs/reports/t2.3/REPORT.md`；ADR-029 |
@@ -177,7 +224,7 @@
 | M4 验收演示 | **已获用户接受**（2026-10-27）；`e2e/m4-acceptance.spec.ts` + `docs/reports/m4/REPORT.md`（7 张截图）；全量 E2E 82 passed |
 | `T5.1` 分栏布局与标签页 | **已完成**（2026-10-27，`eb152b4`）；报告 `docs/reports/t5.1/REPORT.md`；ADR-046；4 张截图 |
 | `T5.2` 撤销/重做 | **已完成**（2026-10-28，`a9dcf75`）；报告 `docs/reports/t5.2/REPORT.md`；ADR-047；2 张截图 |
-| `T5.3` 自动保存、恢复与最近打开 | **已完成**（2026-10-28）；报告 `docs/reports/t5.3/REPORT.md`；ADR-048；5 张截图 |
+| `T5.3` 自动保存、恢复与最近打开 | **已完成**（2026-10-28，`02e30a8`）；报告 `docs/reports/t5.3/REPORT.md`；ADR-048；5 张截图 |
 | 当前里程碑 | **M5 体验**：T5.1、T5.2、T5.3 已完成；下一步 T5.4，M5 验收演示待 T5.1–T5.5 全部完成 |
 | 下一步 | **T5.4 快捷键与命令面板**（依赖 T5.2；SPEC §9.1/§13.2；TASKS T5.4） |
 | `pnpm verify` 基线 | **167 files / 1569 tests**；ESLint 0；depcruise 464 modules / 1967 deps / 0 violations |
@@ -449,8 +496,9 @@ T4.6 又在根 `package.json` 的 devDependencies 增加了 `@curve/chart-echart
   `chart-view[data-chart-state=missing-columns]` + `chart-error`。
 - `ChartList`/`ChartDialogs` 的容器逻辑（IPC/命令接线）没有组件测试，由 E2E 覆盖；纯逻辑
   （`chart-view-model.ts`）、映射编辑器、检查器、Canvas 生命周期与错误态有 39 条单测。
-- 全量 E2E 现为 **88 passed**（4.9m；含 chart.spec 4 + chart-interaction 3 +
-  chart-perf 2 + layout 3 + undo 3 + `m4-acceptance` 1）。T4.4/T4.5/T4.6 全量运行曾偶发
+- 全量 E2E 现为 **96 passed**（5.7m；含 chart.spec 4 + chart-interaction 3 +
+  chart-perf 2 + layout 3 + undo 3 + autosave 4 + recovery 4 + `m4-acceptance` 1）。
+  T4.4/T4.5/T4.6 全量运行曾偶发
   `grid.spec.ts` 的“stays usable at 200% zoom”焦点失败（单跑约 2.2s 通过），与 HANDOFF
   §3.6 的既有 flake 一致；重跑全量前确认 CPU 空闲，不要放宽断言。
 - `chart.update` 允许悬空映射（列删除后的修复路径），因此命令层不能保证图表映射有效；
@@ -899,12 +947,12 @@ T5.2 新增 `apps/desktop/e2e/undo.spec.ts` 3 条：5 次间隔 900ms 的编辑 
 + JSONL + Edit 菜单（7.6s）；标签/选择/滚动不入历史 + 焦点切换保留 redo + 关闭/重开清空
 （3.7s）；键盘打开菜单 + 200% 缩放不越界（2.9s）。截图在 `docs/reports/t5.2/`。
 
-T5.3 新增 `apps/desktop/e2e/autosave.spec.ts` 4 条（1.5s 窗口 + Ctrl+S，5.1s；去抖窗口内退出
-仍保存且下次启动无恢复提示，3.8s；只读表文件“保存失败”→取消退出→恢复重试，4.3s；最近列表
-移除/清空，2.9s）与 `recovery.spec.ts` 3 条（`taskkill /F /T` 强杀恢复，6.3s；stale/corrupt 锁
-的“尝试恢复/直接打开”，2.9s；损坏 manifest 的取消/备份重建，2.8s）；共用夹具
-`e2e/workspace-seed.ts`。`grid.spec.ts` 的 stale-lock 用例改为先经过恢复对话框。截图在
-`docs/reports/t5.3/`（5 张）。
+T5.3 新增 `apps/desktop/e2e/autosave.spec.ts` 4 条（1.5s 窗口 + Ctrl+S，5.0s；去抖窗口内退出
+仍保存且下次启动无恢复提示，3.8s；只读表文件“保存失败”→取消退出→恢复重试，4.1s；最近列表
+移除/清空，2.8s）与 `recovery.spec.ts` 4 条（`taskkill /F /T` 强杀恢复，6.0s；stale/corrupt 锁
+的“尝试恢复/直接打开”，2.8s；200% 缩放 + 纯键盘恢复对话框，2.7s；损坏 manifest 的取消/备份
+重建，2.8s）；共用夹具 `e2e/workspace-seed.ts`。`grid.spec.ts` 的 stale-lock 用例改为先经过
+恢复对话框。截图在 `docs/reports/t5.3/`（5 张）。
 
 T2.6 新增 `apps/desktop/e2e/filter.spec.ts` 6 条：2k 行筛选 + 三级排序；重开恢复筛选/排序与
 清除；同表双视图互不影响；隐藏列/恢复；100k 行 Worker 筛选+排序（`data-query-ms <= 400`）；
@@ -1636,7 +1684,7 @@ pnpm bench -- --query query.100k P50 30ms / P95 34ms；text-sort.100k P50 314ms 
 - 筛选对话框只编辑单层条件；嵌套谓词只读。
 - 100k 全中文/极端文本排序仍可能接近 400ms；自然键对 >12 位数字段/带符号数字回退 collator。
 - query Worker 最多缓存 4 张表；首次 100k 快照克隆未计入 `data-query-ms`。
-- 视图状态连续拖动列宽/快速排序会多次写 manifest；T5.3 统一保存队列。
+- 视图状态连续拖动列宽/快速排序会多次写 manifest；T5.3 未合并 `view.update`，仍立即写。
 - 10 万级粘贴/导入命令阶段仍同步；T2.7 未改命令阶段（见 §5C）。
 - `table.paste` 新增可选 `rowIds/viewId`，SPEC §9.3/§13.1 已同步；省略时保持 T2.4 保守行为。
 
@@ -2590,7 +2638,8 @@ resolve (T4.6)`）；本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`
 
 - 物理行 100,197；JSONL 行数 100,197；SHA-256
   `e1dc160265c6f518f17e5c8079676a489029951d22ec344d8f236748650fba35` 重启前后不变。
-- 重启会出现一次 stale lock 提示（T5.3 已后置完整恢复交互）；测试 dismiss 并记录，不作为失败。
+- 重启若出现 stale lock 提示，T5.3 起会先显示恢复对话框；测试需先点“尝试恢复”再断言
+  （`grid.spec.ts` 已按此更新）。M2 的 clean quit 会释放锁，不再出现该提示。
 - 验收脚本的合成快速拖动 + 立即释放会让最后一步与 `pointerup` 提交差一步；最终宽度用
   `dblclick` autofit 提交确定值，未改生产代码。详见报告 §3.4/§6。
 
@@ -2662,8 +2711,8 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 
 **停点（已解除）**：M3 已于 2026-10-24 获用户接受并关闭；此后 T4.1–T4.6 已完成
 （见 §5K/§5L/§5M/§5N/§5O/§5P），M4 验收演示已于 2026-10-26 执行并通过（TESTPLAN E6，
-报告 `docs/reports/m4/REPORT.md`），并已于 2026-10-27 获用户接受、M4 关闭；M5 的 T5.1、T5.2
-已完成，下一步 T5.3。
+报告 `docs/reports/m4/REPORT.md`），并已于 2026-10-27 获用户接受、M4 关闭；M5 的 T5.1、T5.2、
+T5.3 已完成，下一步 T5.4。
 
 ---
 
@@ -2685,11 +2734,11 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 100k 文本排序接近 400ms | bench 波动可能超预算 | T2.7 已预计算排序键/类型数组，ASCII 253ms；中文仍 698ms/800ms |
 | query Worker 缓存最多 4 张表 | 切换更多表会重新克隆 | 记录于 ADR-032；T2.7 未改淘汰策略 |
 | 100k 首次 Worker 快照克隆 | 首次筛选/排序有额外延迟 | 不计入 `data-query-ms`；E2E `data-query-total-ms` 实测 448–490ms |
-| 整应用内存 497MB/600MB（M2 实测；T2.7 570MB；T3.5 568MB；T3.6 571MB；M3 572MB；T4.2 571MB；T4.5 578MB；T4.6 perf 场景 577MB） | CI runner 更慢/更碎片化时可能超 | 余量约 4%；T4.6 已复核 100k 图表交互（见“100k 图表 11 次切换”行）；超了先查是否 E2E 探针/噪声，不改预算 |
+| 整应用内存 497MB/600MB（M2 实测；T2.7 570MB；T3.5 568MB；T3.6 571MB；M3 572MB；T4.2 571MB；T4.5 578MB；T4.6 perf 场景 577MB；T5.3 perf 场景 593–596MB，全量首跑偶发 601MB） | CI runner 更慢/更碎片化时可能超 | 余量约 1–2%；T5.3 已复核 100k 查询场景（见“100k 图表 11 次切换”行与 perf.spec）；超了先查是否 E2E 探针/噪声并独占重跑，不改预算 |
 | bench 基线未提交 | 20% 回归告警不触发 | CI Windows runner 跑 `pnpm bench -- --write-baseline` 后提交 `bench/baseline.json` |
 | 100k 行撤销补丁变大 | 历史内存 | T2.7 的整数组 patch 每个编辑约 1.6MB（两数组各 ~800KB）；T5.2 共享行数组只计数组，100 条约 160MB，低于 256MB；实测 `sizeBytes` 有单测 |
-| 视图状态连续写 manifest | 拖动列宽/快速排序多次写盘 | T5.3 统一保存队列后合并 |
-| Playwright 合成快速拖动列宽 | 最后一步与 `pointerup` 提交可能差一步 | M2 验收用 `dblclick` autofit 提交确定值；T5.3 统一保存队列时复核 |
+| 视图状态连续写 manifest | 拖动列宽/快速排序多次写盘 | `view.update` 仍走 `saveManifest()` 立即写；T5.3 只统一了行数据/布局/删除等路径，未合并视图状态。若需合并，复用 `SaveQueue.enqueueManifest()` 并补 E2E |
+| Playwright 合成快速拖动列宽 | 最后一步与 `pointerup` 提交可能差一步 | M2 验收用 `dblclick` autofit 提交确定值；T5.3 未改列宽提交路径，仍需确定值断言 |
 | 筛选对话框只支持单层 | 嵌套谓词只读 | ADR-032；如需嵌套 UI 另写 ADR |
 | 结构变更不可撤销（T5.2 前） | 误操作需手工恢复 | T5.2 已统一：表/列/行/视图/样式/图表默认入栈；`view.layout` 结构变更可撤销，纯标签/焦点切换瞬态（ADR-047） |
 | 最后聚焦 pane 不持久化（T5.1） | 重启后焦点落在第一个有活动标签的 pane | `activePanePath` 是 UI-only；每个 pane 的活动标签/比例已恢复。要恢复最后焦点需新增 manifest 字段 + 迁移（ADR-046 复核条件） |
@@ -2719,11 +2768,15 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 | 颜色仅接受 hex | 不支持 `transparent`/CSS 变量 | 按 SPEC §10.6；需要时另写 ADR 放宽 schema |
 | fork 保留规则 id | 跨样式复制后规则 id 可能重复 | T3.5 的导入/复制/另存为改用 `reassignStyleIdentity` 重新分配；T3.4 的懒 fork 仍保留规则 id，规则只在所属样式内求值 |
 | 保存失败但内存已变更 | `committed: true` | UI 关闭对话框，状态栏/Toast 重试；不重复执行 |
-| 自动保存 1.5s 仍未实现 | 每次编辑/结构变更立即写 | T5.3 合并队列，不能并存两条写盘路径 |
-| `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 补 close-on-failure |
+| 行数据/布局走 1.5s 队列，部分结构化 action 仍立即写 | 表/视图/样式/图表的某些 action 直接 `saveManifest()` | T5.3 已实现 1.5s/10s 窗口（ADR-048）；行数据、布局、撤销/重做走 `SaveQueue`；`view.update`/表创建等仍立即写 manifest，若需统一需单独评估并补 E2E |
+| `openWorkspace` 表读取失败不 close | 残留 `.lock` | T5.3 已修复：`createOpenWorkspace` 先 `close` 再返回错误（ADR-048） |
+| 强杀丢最后 1.5s（T5.3） | 未落盘的编辑丢失 | 恢复对话框明确提示；要消除需写前日志/检查点，另写 ADR |
+| flush 失败后确认退出留 stale lock（T5.3） | 下次启动多一次恢复提示 | 有意保留“未正常退出”事实；取消退出会保持应用打开，可重试 |
+| main 原生退出确认/恢复提示为英文（T5.3） | 中文用户看到英文按钮 | 与既有 About/文件对话框一致；要本地化需把消息表下沉到 main 或改 renderer 驱动，另写 ADR |
+| `workspace:inspect` 多读一次 manifest（T5.3） | 打开延迟几十 KB 级 | 换取取消恢复不写文件的语义；若 manifest 变大再评估缓存/懒读 |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 76.21%（T5.2 实测；T5.1 75.99%、T4.6 76.47%、T4.5 76.26%、T4.4 75.89%、T4.2 75.55%、T4.1 75.34%、M3 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`chart-model` render-model.ts 96.88%、`chart-echarts/src` 96.75%、`app-core/history/edit-history.ts` 90.99% 行/86.89% 分支；`LayoutView.tsx` 与 `HistoryMenu.tsx` 由 E2E 覆盖；任务报告记录实测 |
-| renderer bundle 3.25MB（T4.6；+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩；ECharts 首次进入主 chunk |
+| 覆盖率 76.05%（T5.3 实测；T5.2 76.21%、T5.1 75.99%、T4.6 76.47%、T4.5 76.26%、T4.4 75.89%、T4.2 75.55%、T4.1 75.34%、M3 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`chart-model` render-model.ts 96.88%、`chart-echarts/src` 96.75%、`app-core/history/edit-history.ts` 90.99% 行/86.89% 分支；`quit-guard.ts` 88.52%、`use-quit-guard.ts` 93.75%；恢复对话框/开放流程由 E2E 覆盖；任务报告记录实测 |
+| renderer bundle 3.31MB（T5.3；+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩；ECharts 首次进入主 chunk |
 | 100k CSV 导出 1,716ms/5s（T3.6） | 去掉 Intl formatter 缓存会退到 10s 量级 | `formatCellValue` 的 locale/格式缓存是达标关键；不要改回每单元格 `new Intl.*` |
 | CSV 临时文件残留 | 进程崩溃时 `.curve-export-*.tmp` 留在目标目录 | cancel/`before-quit` 已清理；崩溃残留需手工删除，报告已记录 |
 | 显示格式 CSV 的千分位/本地化日期 | Excel 可能识别为文本 | 数值语义用“原始值”；对话框已说明两种格式 |
@@ -2832,7 +2885,7 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 - 不为通过 `chart-perf` 放宽 resolve ≤300ms / update ≤200ms / private ≤600MB 或删除实例计数断言；
   失败先查是否 CPU 噪声（ADR-033），再按 ADR-045 复核条件优化。
 - 不自动跨任务/跨里程碑；M3、M4 均已验收并关闭，M4 的 T4.1–T4.6 与验收演示已完成，
-  T5.1、T5.2 已完成；**下一步是 T5.3（自动保存、恢复与最近打开）**；一次只推进一个任务。
+  T5.1、T5.2、T5.3 已完成；**下一步是 T5.4（快捷键与命令面板）**；一次只推进一个任务。
 
 ---
 
@@ -2840,32 +2893,37 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 
 - [ ] `git status --short` 干净；`git log` 包含 T4.6 代码提交 **`0fc37aa`**、M4 演示/报告提交
       **`657f8c3`**、M4 验收提交（`git log -1 -- docs/reports/m4/REPORT.md`）、T5.1 报告/代码
-      提交（`git log -1 -- docs/reports/t5.1/REPORT.md`）、T5.2 报告/代码提交
-      （`git log -1 -- docs/reports/t5.2/REPORT.md`）与本交接文档提交。
+      提交 **`eb152b4`**、T5.2 报告/代码提交 **`a9dcf75`**、T5.3 报告/代码提交 **`02e30a8`**
+      与本交接文档提交。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t5.2/REPORT.md`、`docs/TASKS.md` 的 T5.2/T5.3、
-      `docs/TESTPLAN.md` 的 E8、`docs/SPEC.md §7.5/§13.1–§13.3`、`docs/adr/047-t52-undo-redo.md`
-      与 ADR-026/028/046；M5 的 §8/§13 与 T5.4/T5.5 按需回看。
-- [ ] 已确认 `pnpm verify` 基线（**165 files / 1532 tests**）、coverage lines **76.21%**、
-      `pnpm e2e` **88 passed**（4.9m）、`pnpm bench` exit 0；T5.2 undo 3 条 7.6s/3.7s/2.9s；
-      T5.1 layout 3 条 5.2s/2.2s/2.5s；chart-perf resolve **44ms** / update **85ms** /
-      private **588MB**（≤600MB）。
+- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t5.3/REPORT.md`、`docs/TASKS.md` 的 T5.3/T5.4、
+      `docs/SPEC.md` §7.5/§13.3/§15.1、ADR-048/047/046；T5.4 的按键/面板条目与 §0.5 读码结论
+      必读，M5 的 §8/§13 与 T5.5 按需回看。
+- [ ] 已确认 `pnpm verify` 基线（**167 files / 1569 tests**）、coverage lines **76.05%**、
+      `pnpm e2e` **96 passed**（5.7m）、`pnpm bench` exit 0；T5.3 autosave 4 条
+      5.0s/3.8s/4.1s/2.8s、recovery 4 条 6.0s/2.8s/2.7s/2.8s；chart-perf resolve **46ms** /
+      update **88ms** / private **≈510MB**（≤600MB）。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M1/M2/M3/M4 均已获用户接受、T3.1–T3.6、T4.1–T4.6、M4 验收演示、T5.1 与 T5.2
-      已完成；**下一步是 M5 的 T5.3（自动保存、恢复与最近打开）**。
+- [ ] 已确认 M1/M2/M3/M4 均已获用户接受、T3.1–T3.6、T4.1–T4.6、M4 验收演示、T5.1、T5.2 与
+      T5.3 已完成；**下一步是 M5 的 T5.4（快捷键与命令面板）**。
 - [ ] 已确认 T5.1 契约：`LayoutView` 递归渲染、`ui.activePanePath` UI-only、分栏=原 pane+空
       pane、最多 4 pane、移动标签到下一分栏、关闭最后标签折叠 pane、空 pane 才可关分栏、
       500ms 布局去抖（`flushSaves`/关闭/Ctrl+S 冲掉）、`view.layout` 可选 `activePanePath`、
       非法 layout 回退单 pane + warning；`pane[data-pane-active]` 不要改回 `data-active`。
-- [ ] 已读 0.2/0.3 并确认 T5.2 契约：`EditHistory` 单一栈默认记录所有带 patches 的命令；
+- [ ] 已读 0.2/0.3/0.4/0.5 并确认 T5.2 契约：`EditHistory` 单一栈默认记录所有带 patches 的命令；
       `view.layout` 仅结构变更入栈，纯标签/焦点切换瞬态且不清 redo；100 条/256MB 估算上限；
       undo/redo 行补丁走表 + manifest、纯 manifest 命令只写 manifest；`ui.history` 快照 +
-      TitleBar“编辑”Menu；打开/关闭清空。E2E 契约 `data-undo-depth`/`data-undo-action` 等；
-      下一步 T5.3 不得另起写盘路径或回退这些语义。
-- [ ] 已确认 E2E 新增 `apps/desktop/e2e/undo.spec.ts`（3 条）、`layout.spec.ts`（3 条）与
-      `m4-acceptance.spec.ts`（1 条）；截图在 `docs/reports/t5.2/`、`docs/reports/t5.1/` 与
+      TitleBar“编辑”Menu；打开/关闭清空。E2E 契约 `data-undo-depth`/`data-undo-action` 等。
+- [ ] 已确认 T5.3 契约：`SaveQueue` 1.5s trailing 去抖 + 10s 上限，`flush()`/`retry()` 立即写；
+      `app:quit-requested` → renderer flush ≤3s → 成功时 `workspace.close` 删除 `.lock` →
+      `app:quit-response`；失败/超时原生确认，flush 失败后确认退出**保留** `.lock`；
+      `workspace:inspect` 只读，取消恢复不改字节，“尝试恢复”才写备份；preload 名称是
+      `workspace.recentRemove/recentClear`。T5.4 不得把这些快捷键改坏或绕开 `flushSaves()`。
+- [ ] 已确认 E2E 新增 `apps/desktop/e2e/autosave.spec.ts`（4 条）、`recovery.spec.ts`（4 条）、
+      `undo.spec.ts`（3 条）、`layout.spec.ts`（3 条）与 `m4-acceptance.spec.ts`（1 条）；
+      截图在 `docs/reports/t5.3/`、`docs/reports/t5.2/`、`docs/reports/t5.1/` 与
       `docs/reports/m4/`；`m0` 截图已还原，`test-results/` 未提交。
 - [ ] 已确认 T4.6：`resolveChartData`/`renderChartModel` 拆分与 `resolveSeries` 组合（输出/快照
       不变）；数据缓存键不含样式字段/`xLabel`、命中要求 `rows` 引用；>20k 行延迟解析 + loading；
@@ -2890,12 +2948,12 @@ Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings�
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`；`m0` 截图提交前还原；`docs/reports/t4.5/*.png`
       （3 张）与 `docs/reports/t4.6/*.png`（2 张）已提交。
-- [ ] 已确认 renderer 主 chunk 为 **3,288.47 kB**（ECharts + 分栏 + 撤销菜单）、CSS 74.37 kB；
-      T6.4 评估拆包，M4/T5.1/T5.2 不改图表层架构或重建实例。
-- [ ] 跑全量 E2E 前已确认没有外部程序占满 CPU（§3.3/§7）；T4.4/T4.5 全量曾偶发 grid 200%
-      焦点失败，单跑可过，不放宽断言。
+- [ ] 已确认 renderer 主 chunk 为 **3,306.03 kB**（ECharts + 分栏 + 撤销 + 自动保存/恢复）、
+      CSS 75.14 kB；T6.4 评估拆包，M4/T5.1/T5.2/T5.3 不改图表层架构或重建实例。
+- [ ] 跑全量 E2E 前已确认没有外部程序占满 CPU（§3.3/§7）；perf 内存门禁 596/600MB，
+      余量约 1–2%，偶发 601MB 先独占重跑，不放宽断言。
 - [ ] M4 验收演示已按 TESTPLAN E6 执行（`e2e/m4-acceptance.spec.ts`，独占 CPU），报告
       `docs/reports/m4/REPORT.md` 与截图已提交；**M4 已于 2026-10-27 获用户接受并关闭**。
-- [ ] T5.1/T5.2 已完成（报告 `docs/reports/t5.1/REPORT.md`、`docs/reports/t5.2/REPORT.md`，
-      ADR-046/047，`e2e/layout.spec.ts` 3 条、`e2e/undo.spec.ts` 3 条）；
-      **下一动作 T5.3**，不要把 M5 未完成的任务当成已验收。
+- [ ] T5.1/T5.2/T5.3 已完成（报告 `docs/reports/t5.1|t5.2|t5.3/REPORT.md`，ADR-046/047/048，
+      `e2e/layout.spec.ts` 3 条、`e2e/undo.spec.ts` 3 条、autosave 4 条、recovery 4 条）；
+      **下一动作 T5.4**，不要把 M5 未完成的任务当成已验收。
