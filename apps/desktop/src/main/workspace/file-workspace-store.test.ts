@@ -236,6 +236,136 @@ describe('FileWorkspaceStore.open', () => {
     expect(opened.warnings.some((warning) => warning.includes('missing'))).toBe(true);
     await harness.store.close({ workspaceId: created.id });
   });
+
+  it('inspects lock/manifest/backups without writing anything (T5.3)', async () => {
+    const harness = createHarness();
+    const { parent, root } = workspacePath(harness);
+    const created = await harness.store.create({ dir: parent, name: 'Demo' });
+    const next = await addTable(harness.store, created);
+    await harness.store.writeManifest({ workspaceId: created.id, manifest: next });
+    await harness.store.close({ workspaceId: created.id });
+
+    const lockPath = join(root, '.lock');
+    const manifestPath = join(root, 'manifest.json');
+    writeFileSync(
+      lockPath,
+      `${JSON.stringify({
+        pid: 999_999,
+        startedAt: '2020-01-01T00:00:00.000Z',
+        appVersion: '0.1.0',
+      })}\n`,
+    );
+    const lockBefore = readFileSync(lockPath);
+    const manifestBefore = readFileSync(manifestPath);
+
+    const inspection = await harness.store.inspect({ dir: root });
+
+    expect(inspection).toMatchObject({
+      name: 'Demo',
+      lock: 'stale',
+      manifest: 'ok',
+    });
+    expect(inspection.dir.toLowerCase()).toContain('demo.cstudio');
+    expect(inspection.backups.length).toBeGreaterThan(0);
+    expect(inspection.backups[0]?.path).toMatch(/^backups\/manifest\..*\.json\.bak$/);
+    expect(readFileSync(lockPath)).toEqual(lockBefore);
+    expect(readFileSync(manifestPath)).toEqual(manifestBefore);
+  });
+
+  it('rebuilds a corrupt manifest from the selected backup and keeps the rows (T5.3)', async () => {
+    const harness = createHarness();
+    const { parent, root } = workspacePath(harness);
+    const created = await harness.store.create({ dir: parent, name: 'Demo' });
+    const withTable = await addTable(harness.store, created);
+    const jsonl = '{"id":"row_1","v":["a"]}\n';
+    await harness.store.writeTable({ workspaceId: created.id, tableId: 'tbl_1', jsonl });
+    await harness.store.writeManifest({ workspaceId: created.id, manifest: withTable });
+    await harness.store.close({ workspaceId: created.id });
+
+    const manifestPath = join(root, 'manifest.json');
+    writeFileSync(manifestPath, '{"formatVersion":1,"tables":[');
+    const corrupt = readFileSync(manifestPath);
+
+    const inspection = await harness.store.inspect({ dir: root });
+    expect(inspection.manifest).toBe('invalid');
+    expect(inspection.errorCode).toBe('E_WS_INVALID_MANIFEST');
+    const backup = inspection.backups[0];
+    expect(backup).toBeDefined();
+    if (backup === undefined) {
+      return;
+    }
+
+    // Refusing recovery leaves every byte alone (ADR-026).
+    await expect(harness.store.open({ dir: root })).rejects.toMatchObject({
+      code: 'E_WS_INVALID_MANIFEST',
+    });
+    expect(readFileSync(manifestPath)).toEqual(corrupt);
+    expect(existsSync(join(root, '.lock'))).toBe(false);
+
+    const opened = await harness.store.open({
+      dir: root,
+      recovery: { manifestBackup: backup.path },
+    });
+    expect(opened.manifest.tables.map((entry) => entry.id)).toEqual(['tbl_1']);
+    expect(opened.warnings.join('\n')).toContain('rebuilt from');
+    const read = await harness.store.readTable({
+      workspaceId: opened.manifest.id,
+      tableId: 'tbl_1',
+    });
+    expect(read.jsonl).toBe(jsonl);
+    // The corrupt manifest itself was preserved as a backup before the rebuild.
+    expect(readdirSync(join(root, 'backups')).length).toBeGreaterThan(inspection.backups.length);
+    await harness.store.close({ workspaceId: opened.manifest.id });
+  });
+
+  it('uses the newest backup when "try recovery" follows an unclean exit (T5.3)', async () => {
+    const harness = createHarness();
+    const { parent, root } = workspacePath(harness);
+    const created = await harness.store.create({ dir: parent, name: 'Demo' });
+    const withTable = await addTable(harness.store, created);
+    await harness.store.writeManifest({ workspaceId: created.id, manifest: withTable });
+    await harness.store.close({ workspaceId: created.id });
+
+    writeFileSync(join(root, 'manifest.json'), '{not json');
+    writeFileSync(
+      join(root, '.lock'),
+      `${JSON.stringify({
+        pid: 999_999,
+        startedAt: '2020-01-01T00:00:00.000Z',
+        appVersion: '0.1.0',
+      })}\n`,
+    );
+
+    const opened = await harness.store.open({ dir: root, recovery: { acceptStaleLock: true } });
+    expect(opened.manifest.tables.map((entry) => entry.id)).toEqual(['tbl_1']);
+    expect(opened.warnings.join('\n')).toContain('rebuilt from');
+    expect(opened.warnings.join('\n')).toContain('stale lock');
+    await harness.store.close({ workspaceId: opened.manifest.id });
+  });
+
+  it('rejects an unknown or foreign manifest backup without touching the files (T5.3)', async () => {
+    const harness = createHarness();
+    const { parent, root } = workspacePath(harness);
+    const created = await harness.store.create({ dir: parent, name: 'Demo' });
+    await harness.store.close({ workspaceId: created.id });
+
+    const manifestPath = join(root, 'manifest.json');
+    writeFileSync(manifestPath, '{"formatVersion":1,"tables":[');
+    const before = readFileSync(manifestPath);
+
+    await expect(
+      harness.store.open({
+        dir: root,
+        recovery: { manifestBackup: 'backups/manifest.20260101T000000000Z.json.bak' },
+      }),
+    ).rejects.toMatchObject({ code: 'E_BACKUP_NOT_FOUND' });
+    await expect(
+      harness.store.open({ dir: root, recovery: { manifestBackup: '../manifest.json' } }),
+    ).rejects.toMatchObject({ code: 'E_PATH_DENIED' });
+
+    expect(readFileSync(manifestPath)).toEqual(before);
+    expect(existsSync(join(root, '.lock'))).toBe(false);
+  });
 });
 
 describe('FileWorkspaceStore tables and backups', () => {

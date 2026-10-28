@@ -147,17 +147,25 @@ export function createOpenWorkspace(deps: OpenWorkspaceDependencies): OpenWorksp
       const warnings = [...opened.warnings];
       const tables: Record<string, TableData> = {};
 
-      for (const table of opened.manifest.tables) {
-        const read = await deps.store.readTable({
-          workspaceId: opened.manifest.id,
-          tableId: table.id,
-        });
-        const decoded =
-          deps.decodeTable === undefined
-            ? decodeJsonl(read.jsonl, table)
-            : await deps.decodeTable(read.jsonl, table);
-        recordWarnings(table.id, table.name, decoded, warnings, logger);
-        tables[table.id] = { table, rows: decoded.rows };
+      try {
+        for (const table of opened.manifest.tables) {
+          const read = await deps.store.readTable({
+            workspaceId: opened.manifest.id,
+            tableId: table.id,
+          });
+          const decoded =
+            deps.decodeTable === undefined
+              ? decodeJsonl(read.jsonl, table)
+              : await deps.decodeTable(read.jsonl, table);
+          recordWarnings(table.id, table.name, decoded, warnings, logger);
+          tables[table.id] = { table, rows: decoded.rows };
+        }
+      } catch (thrown) {
+        // T5.3: a failed per-table read must not leave the workspace locked (and
+        // stale on the next launch). Opening is all-or-nothing from the UI's
+        // point of view, so close the main-process handle before rethrowing.
+        await deps.store.close({ workspaceId: opened.manifest.id }).catch(() => undefined);
+        throw thrown;
       }
 
       const selection = resolveActiveSelection(opened.manifest);

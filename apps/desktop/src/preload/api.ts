@@ -9,7 +9,7 @@
  * process and again in the renderer client.
  */
 
-import { IPC_CHANNELS } from '../shared/contracts/channels';
+import { IPC_CHANNELS, IPC_EVENT_CHANNELS } from '../shared/contracts/channels';
 import { isIpcResult } from '../shared/contracts/envelope';
 
 import type { IpcResult } from '../shared/contracts/envelope';
@@ -29,13 +29,18 @@ import type {
   OkReply,
   PickDirectoryRequest,
   PickDirectoryResult,
+  QuitRequest,
+  QuitResponseRequest,
   RecentEntry,
+  RecentRemoveRequest,
   TableReadReply,
   TableRefRequest,
   TableWriteReply,
   TableWriteRequest,
   WorkspaceCloseRequest,
   WorkspaceCreateRequest,
+  WorkspaceInspectRequest,
+  WorkspaceInspection,
   WorkspaceManifest,
   WorkspaceOpenRequest,
   WorkspaceOpenResult,
@@ -43,6 +48,17 @@ import type {
 
 /** Mirrors `ipcRenderer.invoke` without importing Electron. */
 export type InvokeFn = (channel: string, payload?: unknown) => Promise<unknown>;
+
+/** Mirrors the narrow `ipcRenderer.on` subscription the preload exposes. */
+export type SubscribeFn = (channel: string, listener: (payload: unknown) => void) => () => void;
+
+function isQuitRequest(value: unknown): value is QuitRequest {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const reason = (value as { reason?: unknown }).reason;
+  return reason === 'window-close' || reason === 'app-quit';
+}
 
 const MALFORMED_RESPONSE: IpcResult<never> = {
   ok: false,
@@ -61,10 +77,22 @@ async function call<TResponse>(
   return isIpcResult<TResponse>(response) ? response : MALFORMED_RESPONSE;
 }
 
-export function createCurveApi(invoke: InvokeFn): CurveApi {
+export function createCurveApi(invoke: InvokeFn, subscribe?: SubscribeFn): CurveApi {
   return {
     app: {
       info: (): Promise<IpcResult<AppInfo>> => call<AppInfo>(invoke, IPC_CHANNELS.appInfo),
+      onQuitRequested: (handler: (request: QuitRequest) => void): (() => void) => {
+        if (subscribe === undefined) {
+          return () => undefined;
+        }
+        return subscribe(IPC_EVENT_CHANNELS.appQuitRequested, (payload) => {
+          if (isQuitRequest(payload)) {
+            handler(payload);
+          }
+        });
+      },
+      respondToQuit: (request: QuitResponseRequest): Promise<IpcResult<OkReply>> =>
+        call<OkReply>(invoke, IPC_CHANNELS.appQuitResponse, request),
     },
     dialog: {
       pickDirectory: (
@@ -81,10 +109,16 @@ export function createCurveApi(invoke: InvokeFn): CurveApi {
         call<WorkspaceManifest>(invoke, IPC_CHANNELS.workspaceCreate, request),
       open: (request: WorkspaceOpenRequest): Promise<IpcResult<WorkspaceOpenResult>> =>
         call<WorkspaceOpenResult>(invoke, IPC_CHANNELS.workspaceOpen, request),
+      inspect: (request: WorkspaceInspectRequest): Promise<IpcResult<WorkspaceInspection>> =>
+        call<WorkspaceInspection>(invoke, IPC_CHANNELS.workspaceInspect, request),
       close: (request: WorkspaceCloseRequest): Promise<IpcResult<OkReply>> =>
         call<OkReply>(invoke, IPC_CHANNELS.workspaceClose, request),
       recent: (): Promise<IpcResult<RecentEntry[]>> =>
         call<RecentEntry[]>(invoke, IPC_CHANNELS.workspaceRecent),
+      recentRemove: (request: RecentRemoveRequest): Promise<IpcResult<OkReply>> =>
+        call<OkReply>(invoke, IPC_CHANNELS.workspaceRecentRemove, request),
+      recentClear: (): Promise<IpcResult<OkReply>> =>
+        call<OkReply>(invoke, IPC_CHANNELS.workspaceRecentClear),
     },
     manifest: {
       write: (request: ManifestWriteRequest): Promise<IpcResult<OkReply>> =>

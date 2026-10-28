@@ -7,8 +7,19 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 import { createCurveApi } from './api';
 
-const api = createCurveApi((channel, payload): Promise<unknown> =>
-  ipcRenderer.invoke(channel, payload),
+import type { IpcRendererEvent } from 'electron';
+
+const api = createCurveApi(
+  (channel, payload): Promise<unknown> => ipcRenderer.invoke(channel, payload),
+  (channel, listener): (() => void) => {
+    const wrapped = (_event: IpcRendererEvent, payload: unknown): void => {
+      listener(payload);
+    };
+    ipcRenderer.on(channel, wrapped);
+    return () => {
+      ipcRenderer.removeListener(channel, wrapped);
+    };
+  },
 );
 
 contextBridge.exposeInMainWorld('api', api);

@@ -33,14 +33,30 @@ const MANIFEST: WorkspaceManifest = {
 
 function bridge(overrides: Partial<CurveApi> = {}): CurveApi {
   const base: CurveApi = {
-    app: { info: async () => ({ ok: true, data: INFO }) },
+    app: {
+      info: async () => ({ ok: true, data: INFO }),
+      onQuitRequested: () => () => undefined,
+      respondToQuit: async () => ({ ok: true, data: { ok: true } }),
+    },
     dialog: { pickDirectory: async () => ({ ok: true, data: null }) },
     log: { write: async () => ({ ok: true, data: { ok: true } }) },
     workspace: {
       create: async () => ({ ok: true, data: MANIFEST }),
       open: async () => ({ ok: true, data: { manifest: MANIFEST, warnings: [] } }),
+      inspect: async (request) => ({
+        ok: true,
+        data: {
+          dir: request.dir,
+          name: 'Demo',
+          lock: 'none',
+          manifest: 'ok',
+          backups: [],
+        },
+      }),
       close: async () => ({ ok: true, data: { ok: true } }),
       recent: async () => ({ ok: true, data: [] }),
+      recentRemove: async () => ({ ok: true, data: { ok: true } }),
+      recentClear: async () => ({ ok: true, data: { ok: true } }),
     },
     manifest: { write: async () => ({ ok: true, data: { ok: true } }) },
     table: {
@@ -88,7 +104,9 @@ describe('createApiClient', () => {
       ok: false as const,
       error: { code: 'E_WS_LOCKED' as const, message: 'locked' },
     };
-    const client = createApiClient(bridge({ app: { info: async () => envelope } }));
+    const client = createApiClient(
+      bridge({ app: { ...bridge().app, info: async () => envelope } }),
+    );
 
     await expect(client.app.info()).resolves.toEqual(envelope);
   });
@@ -97,6 +115,7 @@ describe('createApiClient', () => {
     const client = createApiClient(
       bridge({
         app: {
+          ...bridge().app,
           info: async () => {
             throw new Error('SECRET stack details');
           },
@@ -154,7 +173,7 @@ describe('createApiClient', () => {
     const write = vi.fn(async () => ({ ok: true as const, data: { ok: true as const } }));
     const client = createApiClient(
       bridge({
-        workspace: { create: bridge().workspace.create, open, close, recent },
+        workspace: { ...bridge().workspace, open, close, recent },
         manifest: { write },
       }),
     );
@@ -185,6 +204,87 @@ describe('createApiClient', () => {
 
     expect(result).toMatchObject({ ok: false, error: { code: 'E_VALIDATION' } });
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it('forwards workspace:inspect and recent-list mutations (T5.3)', async () => {
+    const inspect = vi.fn(async (request: { dir: string }) => ({
+      ok: true as const,
+      data: {
+        dir: request.dir,
+        name: 'Demo',
+        lock: 'stale' as const,
+        manifest: 'ok' as const,
+        backups: [],
+      },
+    }));
+    const recentRemove = vi.fn(async () => ({ ok: true as const, data: { ok: true as const } }));
+    const recentClear = vi.fn(async () => ({ ok: true as const, data: { ok: true as const } }));
+    const client = createApiClient(
+      bridge({
+        workspace: { ...bridge().workspace, inspect, recentRemove, recentClear },
+      }),
+    );
+
+    await expect(client.workspace.inspect({ dir: 'C:/Demo.cstudio' })).resolves.toMatchObject({
+      ok: true,
+      data: { lock: 'stale' },
+    });
+    expect(inspect).toHaveBeenCalledWith({ dir: 'C:/Demo.cstudio' });
+
+    await expect(client.workspace.recentRemove({ path: 'C:/Demo.cstudio' })).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+    expect(recentRemove).toHaveBeenCalledWith({ path: 'C:/Demo.cstudio' });
+
+    await expect(client.workspace.recentClear()).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+    expect(recentClear).toHaveBeenCalledTimes(1);
+  });
+
+  it('validates quit events before handing them to the renderer (T5.3)', () => {
+    let listener: ((request: unknown) => void) | undefined;
+    const client = createApiClient(
+      bridge({
+        app: {
+          ...bridge().app,
+          onQuitRequested: (handler) => {
+            listener = handler as unknown as (request: unknown) => void;
+            return () => undefined;
+          },
+        },
+      }),
+    );
+    const received: unknown[] = [];
+    client.app.onQuitRequested((request) => {
+      received.push(request);
+    });
+
+    listener?.({ reason: 'window-close' });
+    listener?.({ reason: 'not-valid' });
+    listener?.('window-close');
+
+    expect(received).toEqual([{ reason: 'window-close' }]);
+  });
+
+  it('forwards the quit handshake answer and rejects a malformed one', async () => {
+    const respondToQuit = vi.fn(async () => ({ ok: true as const, data: { ok: true as const } }));
+    const client = createApiClient(bridge({ app: { ...bridge().app, respondToQuit } }));
+
+    await expect(client.app.respondToQuit({ action: 'quit', flushed: false })).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+    expect(respondToQuit).toHaveBeenCalledWith({ action: 'quit', flushed: false });
+
+    const invalid = await client.app.respondToQuit({
+      action: 'maybe',
+      flushed: false,
+    } as unknown as Parameters<typeof client.app.respondToQuit>[0]);
+    expect(invalid).toMatchObject({ ok: false, error: { code: 'E_VALIDATION' } });
+    expect(respondToQuit).toHaveBeenCalledTimes(1);
   });
 
   it('forwards table:read/write/trash and validates their payloads', async () => {

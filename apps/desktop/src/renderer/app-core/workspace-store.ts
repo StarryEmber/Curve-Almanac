@@ -16,6 +16,7 @@ import type {
   RestoreBackupRequest,
   TableReadResult,
   TableRef,
+  WorkspaceInspection,
   WorkspaceOpenResult,
   WorkspaceStore,
   WriteManifestRequest,
@@ -35,6 +36,10 @@ export function unwrapIpc<T>(result: IpcResult<T>): T {
 
 export interface RendererWorkspaceStore extends WorkspaceStore {
   listRecent(): Promise<RecentEntry[]>;
+  /** Read-only pre-flight for the crash-recovery dialog (T5.3). */
+  inspect(request: OpenWorkspaceRequest): Promise<WorkspaceInspection>;
+  recentRemove(path: string): Promise<OkReply>;
+  recentClear(): Promise<OkReply>;
 }
 
 export function createRendererWorkspaceStore(api: CurveApi): RendererWorkspaceStore {
@@ -46,6 +51,9 @@ export function createRendererWorkspaceStore(api: CurveApi): RendererWorkspaceSt
     },
     async open(request: OpenWorkspaceRequest): Promise<WorkspaceOpenResult> {
       return unwrapIpc(await api.workspace.open(request));
+    },
+    async inspect(request: OpenWorkspaceRequest): Promise<WorkspaceInspection> {
+      return unwrapIpc(await api.workspace.inspect({ dir: request.dir }));
     },
     async close(request: CloseWorkspaceRequest): Promise<OkReply> {
       return unwrapIpc(await api.workspace.close(request));
@@ -71,6 +79,12 @@ export function createRendererWorkspaceStore(api: CurveApi): RendererWorkspaceSt
     },
     async listRecent() {
       return unwrapIpc(await api.workspace.recent());
+    },
+    async recentRemove(path: string): Promise<OkReply> {
+      return unwrapIpc(await api.workspace.recentRemove({ path }));
+    },
+    async recentClear(): Promise<OkReply> {
+      return unwrapIpc(await api.workspace.recentClear());
     },
   };
 }

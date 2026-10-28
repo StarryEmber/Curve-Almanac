@@ -1412,9 +1412,9 @@ T0.2 + T5.5 → T6.4
 <a id="m5"></a>
 ## M5 体验
 
-> 状态（2026-10-28）：`T5.1`（分栏布局与标签页）与 `T5.2`（撤销/重做）已完成
-> （ADR-046、ADR-047）；下一步 `T5.3`（自动保存、恢复与最近打开）。M5 验收演示在
-> T5.1–T5.5 全部完成后执行。
+> 状态（2026-10-28）：`T5.1`（分栏布局与标签页）、`T5.2`（撤销/重做）与 `T5.3`
+> （自动保存、恢复与最近打开）已完成（ADR-046、ADR-047、ADR-048）；下一步 `T5.4`（快捷键与
+> 命令面板）。M5 验收演示在 T5.1–T5.5 全部完成后执行。
 
 <a id="t51"></a>
 ### T5.1 分栏布局与标签页
@@ -1517,7 +1517,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t53"></a>
 ### T5.3 自动保存、恢复与最近打开
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T1.2、T1.3、T1.5
 - 覆盖：FR-WS-01、FR-WS-03
 - 参考：SPEC §7.5、§13.3
@@ -1533,14 +1533,50 @@ T0.2 + T5.5 → T6.4
   2. 写表→写 manifest；失败保留脏标记。
   3. 启动检测 stale lock，提供恢复/直接打开；manifest 损坏时扫描备份并二次确认后再重建。
 - 验收：
-  - [ ] 强杀进程后重开，已提交数据不丢（允许丢最后 <1.5s 的编辑并提示）。
-  - [ ] 保存失败可见、可重试，不丢内存数据。
-  - [ ] 退出时 flush 成功；超时确认不卡死。
-  - [ ] Ctrl/Cmd+S 立即落盘，状态指示从"保存中"回到"已保存"。
-  - [ ] 最近列表可打开/移除/清空。
-  - [ ] 伪造 stale/corrupt `.lock` 与损坏 manifest 时出现恢复/直接打开选择；选择恢复后数据逐行
+  - [x] 强杀进程后重开，已提交数据不丢（允许丢最后 <1.5s 的编辑并提示）。
+  - [x] 保存失败可见、可重试，不丢内存数据。
+  - [x] 退出时 flush 成功；超时确认不卡死。
+  - [x] Ctrl/Cmd+S 立即落盘，状态指示从"保存中"回到"已保存"。
+  - [x] 最近列表可打开/移除/清空。
+  - [x] 伪造 stale/corrupt `.lock` 与损坏 manifest 时出现恢复/直接打开选择；选择恢复后数据逐行
     相等，拒绝恢复时原文件字节不变（ADR-026）。
 - 验证：`pnpm e2e -- --grep "autosave|recovery"`
+
+  实现备注（2026-10-28，ADR-048）：
+  - 保存：`SaveQueue` 增加 1.5s trailing 去抖与 10s 上限（从第一次待写变更起），`flush()`/
+    `retry()` 取消定时器立即写；布局 500ms 去抖仍只调 `enqueueManifest()`，Ctrl/Cmd+S、关闭
+    工作区、退出握手复用同一 `flush()`。失败保留 `ui.dirtyTables`/`ui.save.error`，状态栏可重试。
+  - 退出：main 拦截 `BrowserWindow.close` 与 `before-quit` → `app:quit-requested`；renderer
+    `useQuitGuard` flush（队列 3s）成功后 `workspace.close` 释放 `.lock`，再 `app:quit-response`。
+    `flushed: false` 或 3s 无响应时原生“退出/取消”确认（E2E 用 `CURVE_E2E_QUIT_CONFIRM` 替身），
+    取消保持应用打开；flush 失败后确认退出会故意保留 `.lock`。新增 `app.requestSingleInstanceLock()`。
+  - 恢复：新增只读 `workspace:inspect`（lock/manifest 状态 + `backups/manifest.*.json.bak` 列表）；
+    `workspace:open` 增加可选 `recovery { acceptStaleLock?, manifestBackup? }`。显式备份先校验、
+    备份损坏清单再原子重建；`acceptStaleLock` 只在 stale/corrupt 锁 + manifest 不可读时用最新备份。
+    active lock 仍拒绝；取消恢复不写任何文件。打开时逐表读取失败会 close 已打开工作区。
+  - 最近列表：`recent.json` 增加 `remove/clear`（大小写不敏感、原子写），实现
+    `workspace:recent:remove|clear` 通道、preload `recentRemove/recentClear` 与欢迎页移除/清空按钮。
+  - 文件：`packages/app-core/src/usecases/{save-queue,open-workspace}.ts`、
+    `packages/persistence/src/types.ts`；`apps/desktop/src/main/quit-guard.ts`、`main/index.ts`、
+    `main/workspace/{file-workspace-store,recent-list}.ts`、`main/ipc/handlers.ts`、
+    `shared/contracts/{channels,ipc}.ts`、`preload/{api,index}.ts`、
+    `renderer/{api-client,app-core/workspace-store,app-core/use-workspace-controller,
+    app-core/use-quit-guard}.ts`、`features/workspace/{workspace-open-flow.tsx,
+    WorkspaceRecoveryDialog.tsx,WelcomePage.tsx,OpenWorkspaceDialog.tsx}`、`App.tsx`、
+    `AppShell.tsx`、`i18n/messages/*`、`styles.css`；`e2e/{autosave,recovery}.spec.ts`（8 条）、
+    `workspace-seed.ts`。
+  - 实测：`pnpm verify` **167 files / 1569 tests**；depcruise 464 modules / 1967 deps /
+    0 violations；coverage 全局 lines **76.05%** / statements 75.90% / branches 68.81% /
+    functions 74.53%（阈值 70/60 未下调；`main/quit-guard.ts` lines **88.52%**、
+    `renderer/app-core/use-quit-guard.ts` lines **93.75%**、`save-queue.ts` lines **89.15%**）；
+    `pnpm build` exit 0（renderer **3,306.03 kB**、CSS 75.14 kB）；
+    `pnpm e2e` **96 passed**（5.7m；autosave 4 条 5.0s/3.8s/4.1s/2.8s、recovery 4 条
+    6.0s/2.8s/2.7s/2.8s）；`pnpm bench` exit 0（table.open 347ms/3s、save 274ms/500ms、query
+    232ms/400ms、text-sort 284ms/400ms、cjk-sort 561ms/800ms、import 711ms/8s、condition
+    1ms/16ms、chart.resolve-sample 85ms/300ms）。
+  - 残留：强杀仍可能丢最后 1.5s；flush 失败后确认退出留 stale lock；原生退出确认/恢复提示为
+    英文（main 无 i18n）；`inspect` 多读一次 manifest；自动重建只尝试最新备份；自动保存关闭后的
+    “保存/放弃/取消”三选一留 T5.5。详见 `docs/reports/t5.3/REPORT.md` 与 ADR-048“复核条件”。
 
 <a id="t54"></a>
 ### T5.4 快捷键与命令面板

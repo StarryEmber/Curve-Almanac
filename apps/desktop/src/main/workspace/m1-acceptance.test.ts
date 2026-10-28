@@ -399,4 +399,73 @@ describe('M1 acceptance demo', () => {
     await recoveredStore.close({ workspaceId: recovered.manifest.id });
     expect(existsSync(lockPath)).toBe(false);
   });
+
+  it('offers the T5.3 recovery choices and keeps the rows row-for-row', async () => {
+    const seed = await seedDemoWorkspace();
+    await seed.store.close({ workspaceId: seed.manifest.id });
+    const manifestPath = join(seed.root, 'manifest.json');
+    const lockPath = join(seed.root, '.lock');
+
+    // A. Read-only pre-flight: a clean workspace has no lock and reads fine.
+    const cleanStore = createStore(seed.userDataPath);
+    const clean = await cleanStore.inspect({ dir: seed.root });
+    expect(clean.lock).toBe('none');
+    expect(clean.manifest).toBe('ok');
+    expect(clean.backups.length).toBeGreaterThan(0);
+
+    // B. "Try recovery" after an unclean exit opens the readable manifest.
+    writeFileSync(
+      lockPath,
+      `${JSON.stringify({
+        pid: 999_999,
+        startedAt: '2020-01-01T00:00:00.000Z',
+        appVersion: APP_VERSION,
+      })}\n`,
+    );
+    const stale = await cleanStore.inspect({ dir: seed.root });
+    expect(stale.lock).toBe('stale');
+    expect(stale.manifest).toBe('ok');
+
+    const recovered = await cleanStore.open({
+      dir: seed.root,
+      recovery: { acceptStaleLock: true },
+    });
+    const readBack = await cleanStore.readTable({
+      workspaceId: recovered.manifest.id,
+      tableId: TABLE_ID,
+    });
+    expect(decodeJsonl(readBack.jsonl, seed.table).rows).toEqual(seed.rows);
+    await cleanStore.close({ workspaceId: recovered.manifest.id });
+
+    // C. A corrupt manifest is rebuilt from the newest backup after confirmation.
+    writeFileSync(manifestPath, '{"formatVersion":1,"tables":[');
+    const corrupt = readFileSync(manifestPath);
+    const broken = await cleanStore.inspect({ dir: seed.root });
+    expect(broken.manifest).toBe('invalid');
+    expect(broken.errorCode).toBe('E_WS_INVALID_MANIFEST');
+    const backup = broken.backups[0];
+    expect(backup).toBeDefined();
+    if (backup === undefined) {
+      return;
+    }
+
+    // Refusing recovery must leave the corrupt file untouched.
+    await expect(cleanStore.open({ dir: seed.root })).rejects.toMatchObject({
+      code: 'E_WS_INVALID_MANIFEST',
+    });
+    expect(readFileSync(manifestPath)).toEqual(corrupt);
+    expect(existsSync(lockPath)).toBe(false);
+
+    const rebuilt = await cleanStore.open({
+      dir: seed.root,
+      recovery: { manifestBackup: backup.path },
+    });
+    expect(rebuilt.warnings.join('\n')).toContain('rebuilt from');
+    const rebuiltRows = await cleanStore.readTable({
+      workspaceId: rebuilt.manifest.id,
+      tableId: TABLE_ID,
+    });
+    expect(decodeJsonl(rebuiltRows.jsonl, seed.table).rows).toEqual(seed.rows);
+    await cleanStore.close({ workspaceId: rebuilt.manifest.id });
+  });
 });

@@ -9,17 +9,26 @@ import { useCallback, useMemo } from 'react';
 import { createAppError } from '@curve/domain';
 import type { AppError } from '@curve/domain';
 import { joinPathLike, workspaceFolderName } from '@curve/persistence';
+import type { WorkspaceInspection, WorkspaceRecoveryChoice } from '@curve/persistence';
 
 import { useRendererCore } from './use-app-core';
 import { unwrapIpc } from './workspace-store';
 
 import type { RecentEntry } from '../../shared/contracts/ipc';
 
+export type InspectionOutcome =
+  | { readonly ok: true; readonly data: WorkspaceInspection }
+  | { readonly ok: false; readonly error: AppError };
+
 export interface WorkspaceController {
   createWorkspace(parentDir: string, name: string): Promise<AppError | null>;
-  openWorkspace(dir: string): Promise<AppError | null>;
+  /** Read-only pre-flight; never changes the workspace on disk (T5.3). */
+  inspectWorkspace(dir: string): Promise<InspectionOutcome>;
+  openWorkspace(dir: string, recovery?: WorkspaceRecoveryChoice): Promise<AppError | null>;
   closeWorkspace(): Promise<AppError | null>;
   listRecent(): Promise<RecentEntry[]>;
+  removeRecent(path: string): Promise<AppError | null>;
+  clearRecent(): Promise<AppError | null>;
   pickDirectory(title: string, defaultPath?: string): Promise<string | null>;
 }
 
@@ -62,10 +71,24 @@ export function useWorkspaceController(): WorkspaceController {
     [core, workspaceStore],
   );
 
+  const inspectWorkspace = useCallback(
+    async (dir: string): Promise<InspectionOutcome> => {
+      try {
+        return { ok: true, data: await workspaceStore.inspect({ dir }) };
+      } catch (thrown) {
+        return { ok: false, error: thrown as AppError };
+      }
+    },
+    [workspaceStore],
+  );
+
   const openWorkspace = useCallback(
-    async (dir: string): Promise<AppError | null> => {
+    async (dir: string, recovery?: WorkspaceRecoveryChoice): Promise<AppError | null> => {
       markOpenStart();
-      const opened = await core.openWorkspace({ dir });
+      const opened = await core.openWorkspace({
+        dir,
+        ...(recovery === undefined ? {} : { recovery }),
+      });
       return opened.ok ? null : opened.error;
     },
     [core],
@@ -83,6 +106,27 @@ export function useWorkspaceController(): WorkspaceController {
       // A missing bridge in unit tests or a corrupt recent.json both degrade to
       // an empty list; opening still goes through `workspace.open`.
       return [];
+    }
+  }, [workspaceStore]);
+
+  const removeRecent = useCallback(
+    async (path: string): Promise<AppError | null> => {
+      try {
+        await workspaceStore.recentRemove(path);
+        return null;
+      } catch (thrown) {
+        return thrown as AppError;
+      }
+    },
+    [workspaceStore],
+  );
+
+  const clearRecent = useCallback(async (): Promise<AppError | null> => {
+    try {
+      await workspaceStore.recentClear();
+      return null;
+    } catch (thrown) {
+      return thrown as AppError;
     }
   }, [workspaceStore]);
 
@@ -104,7 +148,25 @@ export function useWorkspaceController(): WorkspaceController {
   );
 
   return useMemo(
-    () => ({ createWorkspace, openWorkspace, closeWorkspace, listRecent, pickDirectory }),
-    [closeWorkspace, createWorkspace, listRecent, openWorkspace, pickDirectory],
+    () => ({
+      createWorkspace,
+      inspectWorkspace,
+      openWorkspace,
+      closeWorkspace,
+      listRecent,
+      removeRecent,
+      clearRecent,
+      pickDirectory,
+    }),
+    [
+      clearRecent,
+      closeWorkspace,
+      createWorkspace,
+      inspectWorkspace,
+      listRecent,
+      openWorkspace,
+      pickDirectory,
+      removeRecent,
+    ],
   );
 }

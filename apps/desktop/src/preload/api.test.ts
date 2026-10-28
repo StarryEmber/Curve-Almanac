@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { IPC_CHANNELS } from '../shared/contracts/channels';
+import { IPC_CHANNELS, IPC_EVENT_CHANNELS } from '../shared/contracts/channels';
 
 import { createCurveApi } from './api';
 
@@ -239,6 +239,77 @@ describe('createCurveApi', () => {
     });
   });
 
+  it('subscribes to app:quit-requested and answers the handshake', async () => {
+    const invoke = vi.fn(async () => ({ ok: true, data: { ok: true } }));
+    let received: unknown;
+    const listeners = new Map<string, (payload: unknown) => void>();
+    const api = createCurveApi(invoke, (channel, listener) => {
+      listeners.set(channel, listener);
+      return () => {
+        listeners.delete(channel);
+      };
+    });
+
+    const stop = api.app.onQuitRequested((request) => {
+      received = request;
+    });
+    listeners.get(IPC_EVENT_CHANNELS.appQuitRequested)?.({ reason: 'window-close' });
+    expect(received).toEqual({ reason: 'window-close' });
+
+    listeners.get(IPC_EVENT_CHANNELS.appQuitRequested)?.({ reason: 'not-a-reason' });
+    expect(received).toEqual({ reason: 'window-close' });
+
+    await expect(api.app.respondToQuit({ action: 'quit', flushed: true })).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.appQuitResponse, {
+      action: 'quit',
+      flushed: true,
+    });
+
+    stop();
+    expect(listeners.has(IPC_EVENT_CHANNELS.appQuitRequested)).toBe(false);
+  });
+
+  it('forwards workspace inspect and recent-list mutations', async () => {
+    const inspection = {
+      dir: 'C:/tmp/Demo.cstudio',
+      name: 'Demo',
+      lock: 'stale',
+      manifest: 'ok',
+      backups: [],
+    };
+    const invoke = vi.fn(async (channel: string) => {
+      if (channel === IPC_CHANNELS.workspaceInspect) {
+        return { ok: true, data: inspection };
+      }
+      return { ok: true, data: { ok: true } };
+    });
+    const api = createCurveApi(invoke);
+
+    await expect(api.workspace.inspect({ dir: 'C:/tmp/Demo.cstudio' })).resolves.toEqual({
+      ok: true,
+      data: inspection,
+    });
+    await expect(api.workspace.recentRemove({ path: 'C:/tmp/Demo.cstudio' })).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+    await expect(api.workspace.recentClear()).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.workspaceInspect, {
+      dir: 'C:/tmp/Demo.cstudio',
+    });
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.workspaceRecentRemove, {
+      path: 'C:/tmp/Demo.cstudio',
+    });
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.workspaceRecentClear, undefined);
+  });
+
   it('exposes no generic invoke/send escape hatch', () => {
     const api = createCurveApi(async () => ({ ok: true, data: null }));
 
@@ -251,10 +322,18 @@ describe('createCurveApi', () => {
       'table',
       'file',
     ]);
-    expect(Object.keys(api.app)).toEqual(['info']);
+    expect(Object.keys(api.app)).toEqual(['info', 'onQuitRequested', 'respondToQuit']);
     expect(Object.keys(api.dialog)).toEqual(['pickDirectory']);
     expect(Object.keys(api.log)).toEqual(['write']);
-    expect(Object.keys(api.workspace)).toEqual(['create', 'open', 'close', 'recent']);
+    expect(Object.keys(api.workspace)).toEqual([
+      'create',
+      'open',
+      'inspect',
+      'close',
+      'recent',
+      'recentRemove',
+      'recentClear',
+    ]);
     expect(Object.keys(api.manifest)).toEqual(['write']);
     expect(Object.keys(api.table)).toEqual(['read', 'write', 'trash']);
     expect(Object.keys(api.file)).toEqual([

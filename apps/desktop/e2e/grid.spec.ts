@@ -529,7 +529,14 @@ test.describe('T2.1 data grid', () => {
       })}\n`,
     );
 
-    await openSeededWorkspace(page);
+    await page.reload();
+    await expect(page.getByTestId('welcome')).toBeVisible();
+    await page.getByTestId('recent-workspace').filter({ hasText: SEED_NAME }).first().click();
+    // T5.3: an unclean exit now asks before opening (SPEC §7.5).
+    const recovery = page.getByRole('dialog', { name: '上次未正常退出' });
+    await expect(recovery).toBeVisible();
+    await recovery.getByRole('button', { name: '尝试恢复' }).click();
+    await expect(page.getByTestId('workspace-view')).toBeVisible();
     const warnings = page.locator('.cs-warnings');
     await expect(warnings).toContainText('stale lock');
     await warnings.getByRole('button', { name: '隐藏提示' }).click();

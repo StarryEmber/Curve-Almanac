@@ -26,8 +26,11 @@ import {
   logWriteResponseSchema,
   manifestWriteRequestSchema,
   manifestWriteResponseSchema,
+  okReplySchema,
   pickDirectoryRequestSchema,
   pickDirectoryResponseSchema,
+  quitResponseRequestSchema,
+  quitResponseResponseSchema,
   tableReadRequestSchema,
   tableReadResponseSchema,
   tableTrashRequestSchema,
@@ -38,8 +41,12 @@ import {
   workspaceCloseResponseSchema,
   workspaceCreateRequestSchema,
   workspaceCreateResponseSchema,
+  workspaceInspectRequestSchema,
+  workspaceInspectResponseSchema,
   workspaceOpenRequestSchema,
   workspaceOpenResponseSchema,
+  workspaceRecentClearRequestSchema,
+  workspaceRecentRemoveRequestSchema,
   workspaceRecentRequestSchema,
   workspaceRecentResponseSchema,
 } from '../../shared/contracts/ipc';
@@ -58,7 +65,11 @@ import type {
   OkReply,
   PickDirectoryRequest,
   PickDirectoryResult,
+  QuitResponseRequest,
   RecentEntry,
+  RecentRemoveRequest,
+  WorkspaceInspectRequest,
+  WorkspaceInspection,
 } from '../../shared/contracts/ipc';
 import type { Logger } from '../logger';
 import type { IpcRegistrar } from './register';
@@ -76,6 +87,11 @@ export interface RegisterIpcHandlersOptions {
   archiveImport: (request: ArchiveImportRequest) => Promise<ArchiveImportReply>;
   workspaceStore: WorkspaceStore;
   listRecentWorkspaces: () => Promise<RecentEntry[]>;
+  inspectWorkspace: (request: WorkspaceInspectRequest) => Promise<WorkspaceInspection>;
+  removeRecentWorkspace: (request: RecentRemoveRequest) => Promise<OkReply>;
+  clearRecentWorkspaces: () => Promise<OkReply>;
+  /** Main-process quit guard; the renderer answers after flushing (T5.3). */
+  respondToQuit: (request: QuitResponseRequest) => OkReply;
 }
 
 export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
@@ -126,6 +142,30 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     IPC_CHANNELS.workspaceRecent,
     { request: workspaceRecentRequestSchema, response: workspaceRecentResponseSchema },
     () => options.listRecentWorkspaces(),
+  );
+
+  registrar.handle(
+    IPC_CHANNELS.workspaceInspect,
+    { request: workspaceInspectRequestSchema, response: workspaceInspectResponseSchema },
+    (request) => options.inspectWorkspace(request),
+  );
+
+  registrar.handle(
+    IPC_CHANNELS.workspaceRecentRemove,
+    { request: workspaceRecentRemoveRequestSchema, response: okReplySchema },
+    (request) => options.removeRecentWorkspace(request),
+  );
+
+  registrar.handle(
+    IPC_CHANNELS.workspaceRecentClear,
+    { request: workspaceRecentClearRequestSchema, response: okReplySchema },
+    () => options.clearRecentWorkspaces(),
+  );
+
+  registrar.handle(
+    IPC_CHANNELS.appQuitResponse,
+    { request: quitResponseRequestSchema, response: quitResponseResponseSchema },
+    (request) => options.respondToQuit(request),
   );
 
   registrar.handle(

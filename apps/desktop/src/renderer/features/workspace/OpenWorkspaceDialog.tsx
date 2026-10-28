@@ -6,6 +6,8 @@ import { useWorkspaceController } from '../../app-core/use-workspace-controller'
 import { describeAppError } from '../../error-text';
 import { useI18n } from '../../i18n';
 
+import { useWorkspaceOpenFlow } from './workspace-open-flow';
+
 import type { ReactElement } from 'react';
 
 export interface OpenWorkspaceDialogProps {
@@ -16,6 +18,7 @@ export interface OpenWorkspaceDialogProps {
 export function OpenWorkspaceDialog({ open, onClose }: OpenWorkspaceDialogProps): ReactElement {
   const { t } = useI18n();
   const controller = useWorkspaceController();
+  const openFlow = useWorkspaceOpenFlow();
   const [path, setPath] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,7 +37,7 @@ export function OpenWorkspaceDialog({ open, onClose }: OpenWorkspaceDialogProps)
       return;
     }
     setBusy(true);
-    const failure = await controller.openWorkspace(path);
+    const failure = await openFlow.openWorkspace(path);
     setBusy(false);
     if (failure !== null) {
       setError(describeAppError(failure, t));

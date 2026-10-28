@@ -124,6 +124,8 @@ export const enUS: Record<MessageKey, string> = {
   'workspace.welcome.open': 'Open workspace',
   'workspace.welcome.recent': 'Recently opened',
   'workspace.welcome.recentEmpty': 'No workspace has been opened yet.',
+  'workspace.welcome.recentClear': 'Clear recent list',
+  'workspace.welcome.recentRemove': 'Remove {name} from the recent list',
 
   'workspace.new.title': 'New workspace',
   'workspace.new.description': 'A workspace is stored as a .cstudio folder.',
@@ -144,6 +146,22 @@ export const enUS: Record<MessageKey, string> = {
 
   'workspace.warnings.title': 'The workspace opened with {count} notice(s)',
   'workspace.warnings.dismiss': 'Dismiss notices',
+
+  'workspace.recovery.title': 'The last session did not exit normally',
+  'workspace.recovery.lockBody':
+    '"{name}" was not closed cleanly. Try recovery (use the current manifest when it is readable, rebuild from a backup when it is not) or open it directly.',
+  'workspace.recovery.lostEdits':
+    'Changes from the last 1.5 seconds that were not written to disk may be lost.',
+  'workspace.recovery.try': 'Try recovery',
+  'workspace.recovery.direct': 'Open directly',
+  'workspace.recovery.manifestTitle': 'The workspace manifest is corrupt',
+  'workspace.recovery.manifestBody':
+    'The manifest.json of "{name}" cannot be read. You can rebuild it from one of the backups below; the corrupt manifest is backed up first.',
+  'workspace.recovery.backupLabel': 'Manifest backup',
+  'workspace.recovery.backupOption': '{name} · {date} · {size} bytes',
+  'workspace.recovery.rebuild': 'Rebuild from the selected backup',
+  'workspace.recovery.noBackups': 'There is no manifest backup to rebuild from.',
+  'workspace.recovery.unnamed': 'This workspace',
 
   'workspace.close': 'Close workspace',
 

@@ -54,6 +54,8 @@ function loadFixture(): Fixture {
 }
 
 class FixtureStore implements WorkspaceStore {
+  closed = 0;
+
   constructor(
     private readonly manifest: WorkspaceManifest,
     private readonly tables: ReadonlyMap<string, string>,
@@ -72,6 +74,7 @@ class FixtureStore implements WorkspaceStore {
   }
 
   async close(_request: CloseWorkspaceRequest): Promise<OkReply> {
+    this.closed += 1;
     return { ok: true };
   }
 
@@ -243,13 +246,14 @@ describe('workspace.open use case', () => {
     expect(logger.error).toHaveBeenCalledTimes(1);
   });
 
-  it('fails atomically when a table cannot be read', async () => {
+  it('fails atomically when a table cannot be read and closes the workspace (T5.3)', async () => {
     const fixture = loadFixture();
     const appStore = createAppStore();
     const logger = makeLogger();
     const before = appStore.getState();
+    const store = new FixtureStore(fixture.manifest, new Map());
     const open = createOpenWorkspace({
-      store: new FixtureStore(fixture.manifest, new Map()),
+      store,
       appStore,
       logger,
     });
@@ -261,7 +265,10 @@ describe('workspace.open use case', () => {
     }
     expect(outcome.error.code).toBe('E_TABLE_NOT_FOUND');
     expect(appStore.getState().tables).toBe(before.tables);
+    expect(appStore.getState().workspace).toBeNull();
     expect(appStore.getState().ui.error).toEqual(outcome.error);
+    // A failed table load must not leave a lock/stale handle behind.
+    expect(store.closed).toBe(1);
   });
 
   it('uses the injected async decoder (T2.1 Worker port) instead of inline decode', async () => {

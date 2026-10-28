@@ -548,10 +548,21 @@ main 进程必须使用 `write-file-atomic`：
   - 数据文件缺失时：`rowCount === 0` 视为尚未写入的空表；`rowCount > 0` 时 `table:read` 返回
     `E_TABLE_NOT_FOUND`，打开时给出警告，**不得**把 `rowCount` 静默清零（ADR-022）。
   - 单元格级解析错误在读取该表时以 `E_TABLE_PARSE` + 行号报告，不在打开工作区时阻塞。
-- 实现边界（ADR-026）：M1–T5.2 阶段只把 stale/corrupt `.lock` 作为 warning 返回并替换锁；
-  manifest 损坏返回 `E_WS_INVALID_MANIFEST` 且不改原文件。“尝试恢复/直接打开”的交互与
-  `backups/` manifest 重建在 T5.3（自动保存、恢复与最近打开）实现；T2.1 只呈现 warning，
-  不新增恢复 IPC、不做静默重建。
+- 实现边界（ADR-026，已被 T5.3 落地取代）：M1–T5.2 阶段只把 stale/corrupt `.lock` 作为 warning
+  返回并替换锁；manifest 损坏返回 `E_WS_INVALID_MANIFEST` 且不改原文件。**T5.3（ADR-048）已实现**
+  完整恢复交互：
+  - `workspace:inspect` 是只读预检，返回 `lock`（`none|active|stale|corrupt`）、manifest 状态
+    （`ok|missing|invalid|unsupported`）与 `backups/` 中的 `manifest.*.json.bak` 列表；它不创建、
+    替换或删除任何文件。
+  - 渲染进程在所有打开入口之前预检：stale/corrupt 锁且 manifest 可读时提供“尝试恢复/直接打开”；
+    manifest 不可读时列出备份并要求二次确认重建；取消不写任何文件，原文件字节不变。
+  - `workspace:open` 增加可选 `recovery: { acceptStaleLock?, manifestBackup? }`。显式
+    `manifestBackup` 先校验备份、备份当前（损坏的）manifest，再按 §7.4 原子写重建；
+    `acceptStaleLock` 仅在锁为 stale/corrupt **且** manifest 不可读时尝试最新一份备份。
+  - active lock 始终优先拒绝（`E_WS_LOCKED`），恢复永不覆盖另一个活动会话；高版本 manifest
+    （`E_WS_VERSION_UNSUPPORTED`）不从备份降级。
+  - 不传 `recovery` 时保持旧行为：stale/corrupt 锁 warning 后替换，manifest 损坏拒绝且不改文件。
+  - 打开工作区后逐表读取/解码失败会先关闭已打开的句柄再返回错误，避免留下半打开工作区与 stale lock。
 
 ### 7.6 迁移
 
@@ -1351,6 +1362,10 @@ export interface RenderModel {
 - 打开时 layout 引用缺失/重复、比例非法或 pane 数 >4 回退单 pane（保留全部视图）并显示
   warning；见 §6.6 的实现边界。空 pane 复用 `data-testid="workspace-empty"`，pane 暴露
   `data-pane-path`/`data-pane-active`（不使用网格的 `data-active`）。
+- **实现边界（T5.3，ADR-048）**：自动保存开启时，关闭窗口先走 §13.3 的退出握手（flush ≤3s）；
+  失败或超时用“退出/取消”确认，取消后应用保持打开并保留重试入口。关闭/切换工作区在 flush 失败时
+  保持工作区打开（等价于“取消”）并提示重试，不会静默丢数据。自动保存可关闭后的
+  “保存/放弃/取消”三选一留给 T5.5 设置任务。
 
 ---
 
@@ -1486,6 +1501,18 @@ export interface RenderModel {
 - **实现边界（T2.5，ADR-031）**：`table.import` 成功后按表入队（表 → manifest），action 等待
   flush ≤3s；失败返回 `committed: true`。dispatch 前由 `planImport`/命令检查 200k 行上限；
   100,001–200,000 行在提交前显式确认。256MB 仍由 `table:write` 写盘守卫强制。
+- **实现边界（T5.3，ADR-048）**：
+  - `SaveQueue` 统一实现 1.5s trailing 去抖（最后一次变更后）与 10s 上限（第一次待写变更起）；
+    `flush()`/`retry()` 取消定时器并立即写。布局的 500ms 去抖仍只调用 `enqueueManifest()`，
+    Ctrl/Cmd+S、关闭工作区与退出握手复用同一个 `flush()`，不存在第二条写盘路径。
+  - 退出：main 拦截 `BrowserWindow.close`/`before-quit`，发送 `app:quit-requested`；渲染进程
+    `flushSaves()`（队列 3s 超时）成功后释放工作区（删除 `.lock`）并回复
+    `app:quit-response { action, flushed }`。main 在 `flushed: false` 或 3s 超时时显示原生
+    “退出/取消”确认；取消保持应用打开，确认退出才继续，因此不会永久阻塞 `before-quit`。
+  - flush 失败后确认退出会**保留** `.lock`，下次启动按 §7.5 提示“上次未正常退出”。
+  - 状态栏继续显示“已保存/保存中…/保存失败（重试）”；强制退出是否丢数据以恢复对话框的
+    “最后 1.5 秒内尚未落盘的修改可能已丢失”提示为准。
+  - 应用使用 `app.requestSingleInstanceLock()`；第二个实例聚焦已有窗口后退出。
 
 ---
 
@@ -1611,10 +1638,13 @@ export interface PluginCommandContext {
 | 通道 | 方向 | 请求 | 响应 |
 |---|---|---|---|
 | `app:info` | R→M | `{}` | `{ version, platform, locale, documentsDir }` |
+| `app:quit-requested` | M→R | `{ reason: 'window-close' \| 'app-quit' }` | —（事件，无回复） |
+| `app:quit-response` | R→M | `{ action: 'quit' \| 'cancel', flushed: boolean }` | `{ ok: true }` |
 | `dialog:pickDirectory` | R→M | `{ title?, defaultPath? }` | `{ path } \| null` |
 | `dialog:saveFile` | R→M | `{ suggestedName, filters }` | `{ path } \| null` |
 | `workspace:create` | R→M | `{ dir, name }` | `WorkspaceManifest` |
-| `workspace:open` | R→M | `{ dir }` | `{ manifest, warnings }` |
+| `workspace:open` | R→M | `{ dir, recovery? }` | `{ manifest, warnings }` |
+| `workspace:inspect` | R→M | `{ dir }` | `WorkspaceInspection` |
 | `workspace:close` | R→M | `{ workspaceId }` | `{ ok: true }` |
 | `workspace:recent` | R→M | `{}` | `RecentEntry[]` |
 | `workspace:recent:remove` | R→M | `{ path }` | `{ ok: true }` |
@@ -1634,6 +1664,20 @@ export interface PluginCommandContext {
 - `workspace:create` 的 `dir` 是父目录；main 在其下创建 `<清洗后的 name>.cstudio`。根已存在返回
   `E_WS_BUSY`；名称清洗后为空返回 `E_VALIDATION`（ADR-020）。
 - `workspace:recent` 只读 `userData/recent.json`，不自动重新授权；打开仍需 `workspace:open`。
+  `workspace:recent:remove` 按路径（Windows 大小写不敏感）移除一条，`workspace:recent:clear`
+  写回空数组；两者都为辅助数据，文件缺失/损坏时重建（T5.3，ADR-048）。
+- `workspace:inspect`（T5.3，ADR-048）是只读预检：返回
+  `{ dir, name, lock, manifest, errorCode?, backups }`，其中 `backups` 是
+  `backups/manifest.<timestamp>.json.bak` 的 `{ path, createdAt, bytes }[]`（新→旧）。它不写任何文件，
+  供渲染进程在打开前提供“尝试恢复/直接打开/从备份重建”。
+- `workspace:open` 的 `recovery` 可选字段为
+  `{ acceptStaleLock?: boolean, manifestBackup?: string }`：`manifestBackup` 是 `workspace:inspect`
+  返回的 workspace-relative 备份路径；main 先校验再备份当前 manifest、原子重建后打开。
+  `acceptStaleLock` 只在 stale/corrupt 锁且当前 manifest 不可读时尝试最新备份。active lock 仍返回
+  `E_WS_LOCKED`；取消恢复不写文件（ADR-048）。
+- `app:quit-requested` 是 main → renderer 的唯一事件通道（T5.3，ADR-048）；preload 只暴露
+  `app.onQuitRequested(handler)` 订阅，不暴露 `ipcRenderer`。`app:quit-response` 由渲染进程在
+  flush 完成后调用；`flushed: false` 或 3s 无响应时 main 显示原生确认，取消则保持应用打开。
 - 所有响应统一包装：`{ ok: true, data } | { ok: false, error: AppError }`。
 - main 端任何异常都转成 `AppError`，不得把堆栈直接抛给 renderer。
 - `table:read/write` 不接受绝对路径，只接受 `workspaceId + tableId`；main 从内部映射解析路径。
@@ -1751,16 +1795,35 @@ export interface ArchiveImportReply {
   sidecarPath: string;
 }
 export interface PickDirectoryReq { title?: string; defaultPath?: string }
+export interface WorkspaceRecoveryChoice {
+  acceptStaleLock?: boolean;
+  manifestBackup?: string;
+}
+export interface WorkspaceInspection {
+  dir: string;
+  name: string | null;
+  lock: 'none' | 'active' | 'stale' | 'corrupt';
+  manifest: 'ok' | 'missing' | 'invalid' | 'unsupported';
+  errorCode?: string;
+  backups: BackupEntry[];
+}
+export interface QuitRequest { reason: 'window-close' | 'app-quit' }
+export interface QuitResponse { action: 'quit' | 'cancel'; flushed: boolean }
 
 interface CurveApi {
-  app: { info(): Promise<IpcResult<AppInfo>> };
+  app: {
+    info(): Promise<IpcResult<AppInfo>>;
+    onQuitRequested(handler: (request: QuitRequest) => void): () => void;
+    respondToQuit(answer: QuitResponse): Promise<IpcResult<{ ok: true }>>;
+  };
   dialog: {
     pickDirectory(req: PickDirectoryReq): Promise<IpcResult<{ path: string } | null>>;
     saveFile(req: SaveFileReq): Promise<IpcResult<{ path: string } | null>>;
   };
   workspace: {
     create(req: { dir: string; name: string }): Promise<IpcResult<WorkspaceManifest>>;
-    open(req: { dir: string }): Promise<IpcResult<{ manifest: WorkspaceManifest; warnings: string[] }>>;
+    open(req: { dir: string; recovery?: WorkspaceRecoveryChoice }): Promise<IpcResult<{ manifest: WorkspaceManifest; warnings: string[] }>>;
+    inspect(req: { dir: string }): Promise<IpcResult<WorkspaceInspection>>;
     close(req: { workspaceId: string }): Promise<IpcResult<{ ok: true }>>;
     recent(): Promise<IpcResult<RecentEntry[]>>;
     recentRemove(req: { path: string }): Promise<IpcResult<{ ok: true }>>;
@@ -1795,6 +1858,12 @@ T2.5 实现边界（ADR-031）：`file.importText` 返回原始 `Uint8Array` 与
 T3.6 实现边界（ADR-039）：`file.exportCsv` 只暴露四步协议；`begin` 的保存路径来自 main 的
 原生保存对话框，`append/finish/cancel` 只接受 `begin` 返回的不透明 token，preload 不提供
 任意路径写入。
+
+T5.3 实现边界（ADR-048）：`app.onQuitRequested` 只订阅 main → renderer 的
+`app:quit-requested` 事件并返回取消订阅函数；preload 内部使用 `ipcRenderer.on/removeListener`，
+不把 `ipcRenderer` 或其 `on` 泛入口暴露给页面。`app.respondToQuit` 走 `app:quit-response`
+invoke，入参由 Zod 校验。`workspace.inspect` 与 `workspace.open({ recovery })` 的路径只由 main
+解析，renderer 只传工作区目录与 `backups/` 下的相对备份路径。
 
 ---
 

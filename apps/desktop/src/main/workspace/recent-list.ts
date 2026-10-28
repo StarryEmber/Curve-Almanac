@@ -25,6 +25,10 @@ export const MAX_RECENT_ENTRIES = 20;
 export interface RecentListStore {
   list(): Promise<RecentEntry[]>;
   add(path: string, name: string): Promise<void>;
+  /** Removes one entry by its canonical path (T5.3). */
+  remove(path: string): Promise<void>;
+  /** Empties the list without deleting `recent.json` (T5.3). */
+  clear(): Promise<void>;
 }
 
 export interface RecentListOptions {
@@ -46,6 +50,21 @@ export function createRecentList(options: RecentListOptions): RecentListStore {
   const filePath = join(options.userDataPath, RECENT_FILE_NAME);
   const now = options.now ?? (() => new Date());
   const write = options.write ?? atomicWrite;
+
+  const writeEntries = async (entries: readonly RecentEntry[]): Promise<void> => {
+    try {
+      await mkdir(dirname(filePath), { recursive: true });
+      await write(filePath, `${JSON.stringify(entries, null, 2)}\n`);
+    } catch (error) {
+      if (isEnoent(error)) {
+        throw toFsError('E_FS_WRITE', 'Cannot create the recent-workspaces list.', error);
+      }
+      throw createAppError('E_FS_WRITE', 'Cannot save the recent-workspaces list.', {
+        detail: error instanceof Error ? error.name : 'unknown error',
+        retryable: true,
+      });
+    }
+  };
 
   return {
     async list(): Promise<RecentEntry[]> {
@@ -77,18 +96,17 @@ export function createRecentList(options: RecentListOptions): RecentListStore {
         ...entries.filter((entry) => recentKey(entry.path) !== key),
       ].slice(0, MAX_RECENT_ENTRIES);
 
-      try {
-        await mkdir(dirname(filePath), { recursive: true });
-        await write(filePath, `${JSON.stringify(next, null, 2)}\n`);
-      } catch (error) {
-        if (isEnoent(error)) {
-          throw toFsError('E_FS_WRITE', 'Cannot create the recent-workspaces list.', error);
-        }
-        throw createAppError('E_FS_WRITE', 'Cannot save the recent-workspaces list.', {
-          detail: error instanceof Error ? error.name : 'unknown error',
-          retryable: true,
-        });
-      }
+      await writeEntries(next);
+    },
+
+    async remove(path: string): Promise<void> {
+      const entries = await this.list();
+      const key = recentKey(path);
+      await writeEntries(entries.filter((entry) => recentKey(entry.path) !== key));
+    },
+
+    async clear(): Promise<void> {
+      await writeEntries([]);
     },
   };
 }

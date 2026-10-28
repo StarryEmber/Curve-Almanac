@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { AppError } from '@curve/domain';
 import { Button } from '@curve/ui';
@@ -9,6 +9,7 @@ import { useI18n } from '../../i18n';
 
 import { NewWorkspaceDialog } from './NewWorkspaceDialog';
 import { OpenWorkspaceDialog } from './OpenWorkspaceDialog';
+import { useWorkspaceOpenFlow } from './workspace-open-flow';
 
 import type { RecentEntry } from '../../../shared/contracts/ipc';
 import type { ReactElement } from 'react';
@@ -21,10 +22,15 @@ export interface WelcomePageProps {
 export function WelcomePage({ documentsDir }: WelcomePageProps): ReactElement {
   const { t, locale } = useI18n();
   const controller = useWorkspaceController();
+  const openFlow = useWorkspaceOpenFlow();
   const [recent, setRecent] = useState<RecentEntry[]>([]);
   const [newOpen, setNewOpen] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [error, setError] = useState<AppError | null>(null);
+
+  const refreshRecent = useCallback(async (): Promise<void> => {
+    setRecent(await controller.listRecent());
+  }, [controller]);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,8 +44,29 @@ export function WelcomePage({ documentsDir }: WelcomePageProps): ReactElement {
     };
   }, [controller]);
 
-  const open = (): void => {
-    setOpenDialog(true);
+  const open = (dir: string): void => {
+    setError(null);
+    void openFlow.openWorkspace(dir).then((failure) => {
+      setError(failure);
+      // A recovery prompt took over; the recent list itself did not change.
+      void refreshRecent();
+    });
+  };
+
+  const removeRecent = (entry: RecentEntry): void => {
+    setError(null);
+    void controller.removeRecent(entry.path).then((failure) => {
+      setError(failure);
+      void refreshRecent();
+    });
+  };
+
+  const clearRecent = (): void => {
+    setError(null);
+    void controller.clearRecent().then((failure) => {
+      setError(failure);
+      void refreshRecent();
+    });
   };
 
   const formatDate = (value: string): string => {
@@ -68,7 +95,12 @@ export function WelcomePage({ documentsDir }: WelcomePageProps): ReactElement {
         >
           {t('workspace.welcome.new')}
         </Button>
-        <Button variant="secondary" onClick={open}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setOpenDialog(true);
+          }}
+        >
           {t('workspace.welcome.open')}
         </Button>
       </div>
@@ -80,29 +112,46 @@ export function WelcomePage({ documentsDir }: WelcomePageProps): ReactElement {
       )}
 
       <section className="cs-welcome__recent" aria-labelledby="cs-welcome-recent-title">
-        <h3 className="cs-welcome__recent-title" id="cs-welcome-recent-title">
-          {t('workspace.welcome.recent')}
-        </h3>
+        <div className="cs-welcome__recent-header">
+          <h3 className="cs-welcome__recent-title" id="cs-welcome-recent-title">
+            {t('workspace.welcome.recent')}
+          </h3>
+          {recent.length === 0 ? null : (
+            <Button size="sm" variant="ghost" data-testid="recent-clear" onClick={clearRecent}>
+              {t('workspace.welcome.recentClear')}
+            </Button>
+          )}
+        </div>
         {recent.length === 0 ? (
           <p className="cs-welcome__recent-empty">{t('workspace.welcome.recentEmpty')}</p>
         ) : (
           <ul className="cs-welcome__recent-list">
             {recent.map((entry) => (
-              <li key={entry.path}>
+              <li className="cs-welcome__recent-row" key={entry.path}>
                 <button
                   type="button"
                   className="cs-welcome__recent-item"
                   data-testid="recent-workspace"
                   onClick={() => {
-                    void controller.openWorkspace(entry.path).then((failure) => {
-                      setError(failure);
-                    });
+                    open(entry.path);
                   }}
                 >
                   <span className="cs-welcome__recent-name">{entry.name}</span>
                   <span className="cs-welcome__recent-path">{entry.path}</span>
                   <span className="cs-welcome__recent-date">{formatDate(entry.lastOpenedAt)}</span>
                 </button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  iconOnly
+                  data-testid="recent-remove"
+                  aria-label={t('workspace.welcome.recentRemove', { name: entry.name })}
+                  onClick={() => {
+                    removeRecent(entry);
+                  }}
+                >
+                  <span aria-hidden="true">×</span>
+                </Button>
               </li>
             ))}
           </ul>

@@ -20,7 +20,8 @@ import type { WorkspaceManifest } from '@curve/domain';
 import type { IpcResult } from './envelope';
 
 export { ALL_IPC_CHANNELS, IMPLEMENTED_IPC_CHANNELS, IPC_CHANNELS } from './channels';
-export type { IpcChannel } from './channels';
+export { IPC_EVENT_CHANNELS } from './channels';
+export type { IpcChannel, IpcEventChannel } from './channels';
 export { ipcFail, ipcOk, isIpcResult } from './envelope';
 export type { AppError, ErrorCode, WorkspaceManifest } from '@curve/domain';
 
@@ -68,8 +69,41 @@ export interface WorkspaceCreateRequest {
   name: string;
 }
 
+/** Mirrors `@curve/persistence` `WorkspaceRecoveryChoice` (keep in sync). */
+export interface WorkspaceRecoveryChoice {
+  acceptStaleLock?: boolean;
+  manifestBackup?: string;
+}
+
+/** One `backups/manifest.*.json.bak` entry (mirrors `@curve/persistence`). */
+export interface WorkspaceBackupEntry {
+  path: string;
+  createdAt: string;
+  bytes: number;
+}
+
+/** Mirrors `@curve/persistence` `WorkspaceInspection` (keep in sync). */
+export interface WorkspaceInspection {
+  dir: string;
+  name: string | null;
+  lock: 'none' | 'active' | 'stale' | 'corrupt';
+  manifest: 'ok' | 'missing' | 'invalid' | 'unsupported';
+  errorCode?: string;
+  backups: WorkspaceBackupEntry[];
+}
+
 export interface WorkspaceOpenRequest {
   dir: string;
+  /** T5.3 crash-recovery choice from the renderer dialog (SPEC §7.5). */
+  recovery?: WorkspaceRecoveryChoice;
+}
+
+export interface WorkspaceInspectRequest {
+  dir: string;
+}
+
+export interface RecentRemoveRequest {
+  path: string;
 }
 
 export interface WorkspaceCloseRequest {
@@ -79,6 +113,18 @@ export interface WorkspaceCloseRequest {
 export interface WorkspaceOpenResult {
   manifest: WorkspaceManifest;
   warnings: string[];
+}
+
+/** Main → renderer quit handshake (T5.3, SPEC §13.3). */
+export interface QuitRequest {
+  reason: 'window-close' | 'app-quit';
+}
+
+/** Renderer → main answer to `app:quit-requested`. */
+export interface QuitResponseRequest {
+  action: 'quit' | 'cancel';
+  /** False when the 3s flush failed or timed out; main then asks the user. */
+  flushed: boolean;
 }
 
 export interface ManifestWriteRequest {
@@ -195,6 +241,13 @@ export interface ArchiveImportReply {
 export interface CurveApi {
   app: {
     info(): Promise<IpcResult<AppInfo>>;
+    /**
+     * Subscribes to the main-process quit request (T5.3). Returns an
+     * unsubscribe function; the bridge itself never exposes `ipcRenderer`.
+     */
+    onQuitRequested(handler: (request: QuitRequest) => void): () => void;
+    /** Answers the quit handshake after flushing (or cancelling). */
+    respondToQuit(request: QuitResponseRequest): Promise<IpcResult<OkReply>>;
   };
   dialog: {
     pickDirectory(request: PickDirectoryRequest): Promise<IpcResult<PickDirectoryResult | null>>;
@@ -205,8 +258,12 @@ export interface CurveApi {
   workspace: {
     create(request: WorkspaceCreateRequest): Promise<IpcResult<WorkspaceManifest>>;
     open(request: WorkspaceOpenRequest): Promise<IpcResult<WorkspaceOpenResult>>;
+    /** Read-only pre-flight for the crash-recovery dialog (T5.3). */
+    inspect(request: WorkspaceInspectRequest): Promise<IpcResult<WorkspaceInspection>>;
     close(request: WorkspaceCloseRequest): Promise<IpcResult<OkReply>>;
     recent(): Promise<IpcResult<RecentEntry[]>>;
+    recentRemove(request: RecentRemoveRequest): Promise<IpcResult<OkReply>>;
+    recentClear(): Promise<IpcResult<OkReply>>;
   };
   manifest: {
     write(request: ManifestWriteRequest): Promise<IpcResult<OkReply>>;
@@ -272,6 +329,12 @@ export const workspaceCreateResponseSchema = workspaceManifestSchema;
 export const workspaceOpenRequestSchema: z.ZodType<WorkspaceOpenRequest, WorkspaceOpenRequest> =
   z.strictObject({
     dir: z.string().min(1),
+    recovery: z
+      .strictObject({
+        acceptStaleLock: z.boolean().optional(),
+        manifestBackup: z.string().min(1).max(300).optional(),
+      })
+      .optional(),
   });
 
 export const workspaceOpenResponseSchema: z.ZodType<WorkspaceOpenResult> = z.strictObject({
@@ -295,6 +358,43 @@ export const recentEntrySchema: z.ZodType<RecentEntry> = z.strictObject({
 });
 
 export const workspaceRecentResponseSchema: z.ZodType<RecentEntry[]> = z.array(recentEntrySchema);
+
+export const workspaceInspectRequestSchema: z.ZodType<
+  WorkspaceInspectRequest,
+  WorkspaceInspectRequest
+> = z.strictObject({ dir: z.string().min(1) });
+
+export const workspaceBackupEntrySchema = z.strictObject({
+  path: z.string().min(1),
+  createdAt: isoTimestampSchema,
+  bytes: z.number().int().nonnegative(),
+});
+
+export const workspaceInspectResponseSchema: z.ZodType<WorkspaceInspection> = z.strictObject({
+  dir: z.string().min(1),
+  name: z.string().min(1).nullable(),
+  lock: z.enum(['none', 'active', 'stale', 'corrupt']),
+  manifest: z.enum(['ok', 'missing', 'invalid', 'unsupported']),
+  errorCode: z.string().min(1).optional(),
+  backups: z.array(workspaceBackupEntrySchema),
+});
+
+export const workspaceRecentRemoveRequestSchema: z.ZodType<RecentRemoveRequest> = z.strictObject({
+  path: z.string().min(1),
+});
+
+export const workspaceRecentClearRequestSchema = z.union([z.undefined(), z.strictObject({})]);
+
+export const quitRequestSchema: z.ZodType<QuitRequest> = z.strictObject({
+  reason: z.enum(['window-close', 'app-quit']),
+});
+
+export const quitResponseRequestSchema: z.ZodType<QuitResponseRequest> = z.strictObject({
+  action: z.enum(['quit', 'cancel']),
+  flushed: z.boolean(),
+});
+
+export const quitResponseResponseSchema = okReplySchema;
 
 export const manifestWriteRequestSchema: z.ZodType<ManifestWriteRequest> = z.strictObject({
   workspaceId: workspaceIdSchema,

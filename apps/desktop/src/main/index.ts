@@ -21,7 +21,9 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session } from 'elec
 
 import { toAppError, createAppError } from '@curve/domain';
 
-import { resolveE2EDialogStubs, resolveE2EUserDataPath } from './e2e-hooks';
+import { IPC_EVENT_CHANNELS } from '../shared/contracts/channels';
+
+import { resolveE2EDialogStubs, resolveE2EQuitConfirm, resolveE2EUserDataPath } from './e2e-hooks';
 import { createCsvExportWriter } from './export/csv-export-file';
 import { exportTextFile, readImportSource } from './import/import-files';
 import { createImportTokenStore } from './import/import-token-store';
@@ -30,6 +32,7 @@ import { createIpcRegistrar } from './ipc/register';
 import { createConsoleLogger } from './logger';
 import { buildMenuTemplate } from './menu';
 import { isNavigationAllowed } from './navigation';
+import { createQuitGuard } from './quit-guard';
 import { buildWindowOptions } from './window-options';
 import {
   captureWindowState,
@@ -40,8 +43,9 @@ import {
 } from './window-state';
 import { FileWorkspaceStore } from './workspace/file-workspace-store';
 
-import type { ImportTextRequest } from '../shared/contracts/ipc';
-import type { OpenDialogOptions, SaveDialogOptions } from 'electron';
+import type { QuitConfirmOptions, QuitGuard } from './quit-guard';
+import type { ImportTextRequest, QuitRequest } from '../shared/contracts/ipc';
+import type { MessageBoxOptions, OpenDialogOptions, SaveDialogOptions } from 'electron';
 
 const APP_NAME = 'Curve Studio';
 
@@ -54,6 +58,8 @@ const isDev = !app.isPackaged && Boolean(process.env['ELECTRON_RENDERER_URL']);
 const logger = createConsoleLogger({ minLevel: isDev ? 'debug' : 'info' });
 
 let mainWindow: BrowserWindow | null = null;
+/** Quit handshake state; created in `start()` before the window is shown. */
+let quitGuard: QuitGuard | null = null;
 /** Base URL of the loaded renderer; the navigation guard fails closed while empty. */
 let rendererBaseUrl = '';
 
@@ -105,7 +111,7 @@ function registerIpc(workspaceStore: FileWorkspaceStore): void {
   };
 
   const csvWriter = createCsvExportWriter({ chooseSavePath });
-  app.on('before-quit', () => {
+  app.on('will-quit', () => {
     csvWriter.dispose();
   });
 
@@ -217,6 +223,19 @@ function registerIpc(workspaceStore: FileWorkspaceStore): void {
     },
     workspaceStore,
     listRecentWorkspaces: () => workspaceStore.listRecent(),
+    inspectWorkspace: (request) => workspaceStore.inspect(request),
+    removeRecentWorkspace: async (request) => {
+      await workspaceStore.removeRecent(request.path);
+      return { ok: true };
+    },
+    clearRecentWorkspaces: async () => {
+      await workspaceStore.clearRecent();
+      return { ok: true };
+    },
+    respondToQuit: (request) => {
+      quitGuard?.respond(request);
+      return { ok: true };
+    },
   });
 }
 
@@ -268,6 +287,64 @@ function installApplicationMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+/**
+ * Native fallback for a renderer that cannot flush within 3s (SPEC §13.3).
+ * The E2E dialog stub answers it so Playwright never blocks on a native modal.
+ */
+async function confirmQuit(options: QuitConfirmOptions): Promise<boolean> {
+  const stub = resolveE2EQuitConfirm({ isPackaged: app.isPackaged, env: process.env });
+  if (stub !== null) {
+    return stub;
+  }
+  const messageBox: MessageBoxOptions = {
+    type: 'warning',
+    title: options.title,
+    message: options.message,
+    detail: options.detail,
+    buttons: ['Cancel', 'Quit anyway'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+  };
+  const focusedWindow = BrowserWindow.getFocusedWindow() ?? mainWindow;
+  const result =
+    focusedWindow === null
+      ? await dialog.showMessageBox(messageBox)
+      : await dialog.showMessageBox(focusedWindow, messageBox);
+  return result.response === 1;
+}
+
+function installQuitGuard(): QuitGuard {
+  const guard = createQuitGuard({
+    request: (reason) => {
+      if (mainWindow === null || mainWindow.isDestroyed()) {
+        return;
+      }
+      const payload: QuitRequest = { reason };
+      mainWindow.webContents.send(IPC_EVENT_CHANNELS.appQuitRequested, payload);
+    },
+    confirm: confirmQuit,
+    close: () => {
+      if (mainWindow !== null && !mainWindow.isDestroyed()) {
+        mainWindow.close();
+        return;
+      }
+      app.quit();
+    },
+    logger,
+    appName: APP_NAME,
+  });
+
+  app.on('before-quit', (event) => {
+    if (!guard.canQuit()) {
+      event.preventDefault();
+      guard.request('app-quit');
+    }
+  });
+
+  return guard;
+}
+
 function createMainWindow(): BrowserWindow {
   const stateFile = join(app.getPath('userData'), WINDOW_STATE_FILE);
   const state = resolveWindowState(
@@ -296,7 +373,7 @@ function createMainWindow(): BrowserWindow {
     );
   });
 
-  appWindow.on('close', () => {
+  appWindow.on('close', (event) => {
     saveWindowState(
       stateFile,
       captureWindowState({
@@ -305,6 +382,10 @@ function createMainWindow(): BrowserWindow {
         normalBounds: appWindow.getNormalBounds(),
       }),
     );
+    if (quitGuard !== null && !quitGuard.canQuit()) {
+      event.preventDefault();
+      quitGuard.request('window-close');
+    }
   });
 
   appWindow.on('closed', () => {
@@ -330,6 +411,7 @@ async function start(): Promise<void> {
     appVersion: app.getVersion(),
     logger,
   });
+  quitGuard = installQuitGuard();
   registerIpc(workspaceStore);
   installApplicationMenu();
 
@@ -348,8 +430,26 @@ app.on('window-all-closed', () => {
   }
 });
 
-void start().catch((error: unknown) => {
-  const appError = toAppError(error);
-  logger.error(`failed to start ${APP_NAME}: ${appError.code} ${appError.message}`, error);
-  app.exit(1);
-});
+/**
+ * SPEC §7.5: one instance per userData directory. A second launch focuses the
+ * existing window instead of opening the same workspace twice.
+ */
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow === null || mainWindow.isDestroyed()) {
+      return;
+    }
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.focus();
+  });
+
+  void start().catch((error: unknown) => {
+    const appError = toAppError(error);
+    logger.error(`failed to start ${APP_NAME}: ${appError.code} ${appError.message}`, error);
+    app.exit(1);
+  });
+}

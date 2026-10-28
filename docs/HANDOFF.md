@@ -1,42 +1,43 @@
 # HANDOFF — Curve Studio 实施交接
 
 > 本文件面向**下一个实现会话**。**M4 已于 2026-10-27 获用户接受并关闭**；M5 的
-> **T5.1（分栏布局与标签页）与 T5.2（撤销/重做）已完成**（报告 `docs/reports/t5.1/REPORT.md`、
-> `docs/reports/t5.2/REPORT.md`；ADR-046、ADR-047），下一步 **T5.3（自动保存、恢复与最近打开）**。
+> **T5.1（分栏布局与标签页）、T5.2（撤销/重做）与 T5.3（自动保存、恢复与最近打开）已完成**
+> （报告 `docs/reports/t5.1/REPORT.md`、`docs/reports/t5.2/REPORT.md`、
+> `docs/reports/t5.3/REPORT.md`；ADR-046、ADR-047、ADR-048），下一步 **T5.4（快捷键与命令面板）**。
 > 最后更新：2026-10-28 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
-> T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**
-> （M4 验收记录见 `git log -1 -- docs/reports/m4/REPORT.md`；T5.1 报告见
-> `git log -1 -- docs/reports/t5.1/REPORT.md`；本交接文档的提交见
+> T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告（见
+> `git log -1 -- docs/reports/t5.3/REPORT.md`；本交接文档的提交见
 > `git log -1 -- docs/HANDOFF.md`）。
-> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t5.2/REPORT.md` →
-> `docs/TASKS.md` 的 T5.2/T5.3 → `docs/SPEC.md` §13.1–§13.3 → ADR-047 → ADR-046 →
-> `docs/reports/t5.1/REPORT.md` → `docs/reports/m4/REPORT.md` → ADR-045。
+> 阅读顺序：`AGENTS.md` → 本文件 → `docs/reports/t5.3/REPORT.md` →
+> `docs/TASKS.md` 的 T5.3/T5.4 → `docs/SPEC.md` §7.5/§13.3/§15.1 → ADR-048 → ADR-047 →
+> ADR-046 → `docs/reports/t5.2/REPORT.md` → `docs/reports/t5.1/REPORT.md` → ADR-045。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
-- **当前状态**：M2/M3/M4 均已获用户接受；`T3.1`–`T3.6`、`T4.1`–`T4.6`、`T5.1`、`T5.2`
-  已完成；下一步 **T5.3（自动保存、恢复与最近打开）**。M5 验收演示要等 T5.1–T5.5 全部
-  完成后执行。
-- **本次交付**：全命令撤销/重做（所有带 patches 的命令，`view.layout` 仅结构变更入栈）；
-  100 条 / 估算 256MB 上限（行数组共享/独特判定，不 stringify 100k 行）；800ms 单元格合并；
-  撤销/重做按补丁走表 + manifest 或仅 manifest；标题栏“编辑”菜单显示可撤销命令名与空栈态；
-  打开/关闭工作区清空历史。报告 `docs/reports/t5.2/REPORT.md` 与 2 张截图。
-- **基线**：`pnpm verify` **165 files / 1532 tests**（ESLint 0；depcruise 454 modules /
-  1913 deps / 0 violations）；coverage 全局 lines **76.21%** / statements 76.07% / branches
-  69.07% / functions 74.80%；`pnpm build` exit 0（renderer **3,288.47 kB**、CSS 74.37 kB）；
-  `pnpm e2e` **88 passed**（4.9m；含 `undo.spec.ts` 3 条 7.6s/3.7s/2.9s）；`pnpm bench` exit 0
-  （table.open 316ms/3s、save 247ms/500ms、query 224ms/400ms、text-sort 278ms/400ms、
-  cjk-sort 514ms/800ms、import 665ms/8s、condition 0ms/16ms、chart.resolve-sample 84ms/300ms）。
+- **当前状态**：M2/M3/M4 均已获用户接受；`T3.1`–`T3.6`、`T4.1`–`T4.6`、`T5.1`、`T5.2`、
+  `T5.3` 已完成；下一步 **T5.4（快捷键与命令面板）**。M5 验收演示要等 T5.1–T5.5 全部完成后执行。
+- **本次交付**：`SaveQueue` 1.5s trailing 去抖 + 10s 强制（flush/retry 立即写）；main↔renderer
+  3s 退出 flush 握手（`app:quit-requested`/`app:quit-response`）与原生“退出/取消”确认；
+  `workspace:inspect` 只读预检 + `workspace:open({ recovery })` 的 manifest 备份重建；
+  stale/corrupt 锁与损坏 manifest 的恢复对话框；最近列表移除/清空；打开失败释放工作区；
+  应用单实例。报告 `docs/reports/t5.3/REPORT.md` 与 5 张截图。
+- **基线**：`pnpm verify` **167 files / 1569 tests**（ESLint 0；depcruise 464 modules /
+  1967 deps / 0 violations）；coverage 全局 lines **76.05%** / statements 75.90% / branches
+  68.81% / functions 74.53%；`pnpm build` exit 0（renderer **3,306.03 kB**、CSS 75.14 kB）；
+  `pnpm e2e` **96 passed**（5.7m；autosave 4 条 5.0s/3.8s/4.1s/2.8s、recovery 4 条
+  6.0s/2.8s/2.7s/2.8s）；`pnpm bench` exit 0（table.open 347ms/3s、save 274ms/500ms、query
+  232ms/400ms、text-sort 284ms/400ms、cjk-sort 561ms/800ms、import 711ms/8s、condition
+  1ms/16ms、chart.resolve-sample 85ms/300ms）。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
-  而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑。
-- **停点**：T5.2 已完成并提交；工作树干净；下一动作是 **T5.3（自动保存、恢复与最近打开）**。
+  而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑；强杀后不得静默丢数据。
+- **停点**：T5.3 已完成并提交；工作树干净；下一动作是 **T5.4（快捷键与命令面板）**。
 - **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`）；读
-  `docs/reports/t5.2/REPORT.md`（含“残留风险”：256MB 是估算、单条超大导入失去撤销、
-  删除表 redo 留孤儿文件、原生菜单未同步）；直接领取 T5.3。
+  `docs/reports/t5.3/REPORT.md`（含“残留风险”：1.5s 窗口、flush 失败留锁、原生确认未本地化、
+  `inspect` 多读 manifest）；直接领取 T5.4。
 - **T5.1 完成结果**：2 表 3 视图 → 水平分栏 → 移动标签 → 比例 0.35 → 垂直/4 pane → 关闭空
   pane → 重启恢复；非法 layout（缺失引用/ratio 0.1）回退单 pane 且视图不丢；标签 Arrow/
   Ctrl+W 与 200% 缩放通过；截图在 `docs/reports/t5.1/`。
@@ -44,10 +45,16 @@
   选择/滚动不入历史，焦点切换保留 redo；关闭/重开清空历史；Edit 菜单显示
   “撤销 编辑单元格（Ctrl+Z）”；100 步/256MB/各命令单条由单测覆盖；截图在
   `docs/reports/t5.2/`。
+- **T5.3 完成结果**：编辑后 1.5s 落盘、Ctrl+S 立即写、去抖窗口内退出仍保存且下次启动无恢复
+  提示；`taskkill /F /T` 强杀后恢复对话框提示“最后 1.5 秒”并恢复已提交数据；伪造 stale/
+  corrupt 锁出现“尝试恢复/直接打开”；损坏 manifest 列备份、取消不改字节、重建后行数据相等；
+  只读表文件显示“保存失败”且重试成功；最近列表可移除/清空。截图在 `docs/reports/t5.3/`。
 - **不要回退的东西**：`LayoutNode` 形状、`view.create/delete/update/layout` 命令名与撤销语义、
   `activePanePath` 的 UI-only 性质、500ms 布局去抖 + flush、`workspace-empty` 空态契约、
   `pane` 的 `data-pane-active`（不要改回 `data-active`，网格/粘贴依赖它）、M4 的图表契约；
-  T5.2 的 `EditHistory` 单一栈、`ui.history` 快照、`data-undo-depth`/`data-undo-action` 契约。
+  T5.2 的 `EditHistory` 单一栈、`ui.history` 快照、`data-undo-depth`/`data-undo-action` 契约；
+  T5.3 的 `SaveQueue` 1.5s/10s 窗口、`app:quit-*` 握手、clean quit 删除 `.lock`、flush 失败
+  保留 `.lock`、`workspace:inspect` 只读、`recentRemove`/`recentClear` 名称。
 
 ### 0.1 T5.1 结果（2026-10-27 完成）
 
@@ -84,68 +91,57 @@
    redo 留孤儿文件；`table.meta.update` 菜单文案不区分重命名/换主键；原生 Electron Edit 菜单
    仍未与历史同步。详见报告 §8 与 ADR-047“复核条件”。
 
-### 0.3 下一会话行动清单（T5.3 自动保存、恢复与最近打开）
+### 0.3 下一会话行动清单（T5.4 快捷键与命令面板）
 
-> 前提：T5.2 已完成；M5 尚未结束。
+> 前提：T5.3 已完成；M5 尚未结束。
 
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
-   165 files / 1532 tests、`pnpm e2e` 88 passed、`pnpm bench` exit 0；读 TASKS 的 T5.3、
-   SPEC §7.5/§13.3、TESTPLAN E8、ADR-026/ADR-028/ADR-046/ADR-047。
-2. 领取 **T5.3 自动保存、恢复与最近打开**（依赖 T1.2/T1.3/T1.5；一次只推进一个任务，不同时
-   开 T5.4）。验证按 TASKS：`pnpm exec playwright test --config apps/desktop/playwright.config.ts
-   apps/desktop/e2e/<autosave|recovery>.spec.ts`（Vitest 5 不支持 `--grep`）。
-3. 既有基础：`SaveQueue`（表 → manifest 串行、失败保留 dirty、`flush` 3s、`retry`）、
-   `DirtyTableTracker`、T5.1 的 500ms 布局去抖 + `flushSaves`、`FileWorkspaceStore` 的
-   `.lock`/备份/最近列表；T5.3 必须复用/替换这些路径，**不得并存第二条写盘路径**。
-4. T5.3 要补：1.5s 防抖 + 10s 强制、保存状态（已保存/保存中/失败重试）、退出前 flush
-   （3s 超时确认不卡死）、Ctrl/Cmd+S 立即 flush、最近列表打开/移除/清空、stale/corrupt `.lock`
-   的“尝试恢复/直接打开”选择、manifest 损坏时列 `backups/manifest.*.json.bak` 并二次确认重建。
-5. 不要回退：T5.2 的 `EditHistory`/`ui.history`/保存补丁分类、`view.layout` 瞬态语义、
-   T5.1 的 500ms 布局去抖 + `activePanePath`、`workspace-empty`、M4 图表契约。
-6. 复跑布局与撤销回归（独占 CPU）：
+   167 files / 1569 tests、`pnpm e2e` 96 passed、`pnpm bench` exit 0；读 TASKS 的 T5.4、
+   SPEC §9.1/§13.2、TESTPLAN 的按键/面板条目、ADR-047/ADR-048。
+2. 领取 **T5.4 快捷键与命令面板**（依赖 T5.2；一次只推进一个任务，不同时开 T5.5）。验证按
+   TASKS：`pnpm exec vitest run apps/desktop` + `pnpm exec playwright test --config
+   apps/desktop/playwright.config.ts apps/desktop/e2e/<palette>.spec.ts`（Vitest 5 不支持 `--grep`）。
+3. 既有基础：`WorkspaceView` 已有 Ctrl/Cmd+W/Z/Shift+Z/Y/S 的 `keydown` 分发与
+   `isEditableTarget` 保护；`HistoryMenu`、`TitleBar`、`@curve/ui` 的 Menu/Dialog 可复用；
+   快捷键与命令的启用条件应来自 store/actions，不要在组件里复制业务规则。
+4. T5.4 要补：键位注册表（作用域 global/grid/chart）、命令面板（Ctrl/Cmd+K、模糊搜索、最近使用）、
+   冲突检测与不可用原因、输入框内不劫持 Ctrl/Cmd+C/V、面板键盘可达且 Esc 关闭。
+5. 不要回退：T5.2 的 Ctrl/Cmd+Z/Y 语义与 `ui.history`；T5.3 的 Ctrl/Cmd+S `flushSaves`；
+   T5.1 的标签 Ctrl+W；网格编辑器的 F2/Enter/Tab/Esc；T5.4 不新增未写 ADR 的运行时依赖。
+6. 复跑自动保存/恢复与撤销回归（独占 CPU）：
 
    ```powershell
    $env:PATH = "D:\DSH_Work_Space\tools\bin;C:\Users\MECHREVO\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin;$env:PATH"
    $env:CURVE_E2E_NO_SANDBOX = '1'
    cd D:\DSH_Work_Space\curve-studio
-   pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/layout.spec.ts apps/desktop/e2e/undo.spec.ts
+   pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/autosave.spec.ts apps/desktop/e2e/recovery.spec.ts apps/desktop/e2e/undo.spec.ts
    ```
 
-### 0.4 T5.3 代码现状（2026-10-28 读码结论）
+### 0.4 T5.3 结果（2026-10-28 完成）
 
-> 这些事实决定 T5.3 的落点；实现前重读源码复核。
-
-1. **保存仍是“每次提交立即写”**：`SaveQueue`（`packages/app-core/src/usecases/save-queue.ts`）对
-   `table.cell.set`/paste/import/rows.insert 以及 manifest-only 命令立即入队；没有 T5.3 的
-   1.5s 防抖/10s 强制。`flush` 默认 3s、失败保留 dirty、`retry` 可重试；状态栏读
-   `ui.save.status`（idle/saving/saved/error）。
-2. **退出没有 flush 握手**：main 的 `before-quit` 目前只 `csvWriter.dispose()`（`src/main/index.ts`）；
-   只有 `WorkspaceActions.closeWorkspace()` 会先 `flushSaves()`。T5.3 要在退出前加 3s 上限的
-   flush，并处理超时/取消，不得让 `before-quit` 永久卡死。
-3. **Ctrl/Cmd+S 已接**：`WorkspaceView` 调 `core.actions.flushSaves()`，会先冲掉 500ms 布局
-   定时器再等队列；T5.3 的 1.5s 防抖必须复用这个 flush 入口。
-4. **锁恢复是自动的，不是选择**：`FileWorkspaceStore.open` 对 active lock 抛 `E_WS_LOCKED`；
-   stale/corrupt lock 只加 warning 并直接覆盖。T5.3 的“尝试恢复/直接打开”需要给 open 增加
-   显式选项/预检 API，并同步 SPEC §7.5 与 ADR（不要偷偷改现有默认）。
-5. **manifest 损坏没有备份重建 UI**：`parseManifestDocument` 失败抛 `E_WS_INVALID_MANIFEST`；
-   备份目录有 `manifest.*.json.bak`（由 `copyToBackup` 写），但当前没有“扫描备份→二次确认→
-   重建”的 store 方法/UI。`listBackups`/`restore` 目前主要是 table 语义，T5.3 需要明确 manifest
-   备份的列出/恢复契约。
-6. **最近列表只读**：`workspace:recent` 已实现；`workspace:recent:remove`/`clear` 只有通道名，
-   `IMPLEMENTED_IPC_CHANNELS` 未注册；`WelcomePage` 只列出/打开。T5.3 要补 main 方法、
-   Zod 契约、preload/api-client 与 UI（移除/清空），并同步 `ipc.spec.ts` 的通道集合断言。
-7. **open 失败可能留锁**：`FileWorkspaceStore.open` 成功写 lock/注册 workspace 后，renderer
-   的逐表 `readTable` 失败会让 `openWorkspace` 返回错误；当前没有 close-on-failure。T5.3 要在
-   失败路径 close 已打开的 workspace，否则下次打开会看到 stale lock。
-8. **布局去抖是第二条定时器**：T5.1 的 500ms `scheduleLayoutSave` 与 `SaveQueue` 串联，T5.3
-   的 1.5s 自动保存必须复用/替换队列，不能并存两条写盘路径；撤销/重做也走同一队列
-   （T5.2 的 `persist` 已按行补丁/manifest 分类）。
-9. **状态文案已存在**：`shell.status.saved/saving/saveError/retry` 与 `autosave-status` 测试
-   契约可用；新增“上次未正常退出”提示需要新 i18n key 与恢复对话框，不要把英文 warning
-   直接当 UI 文案。
-10. **E2E 夹具**：`launchCurveApp` 支持同一 `userData` 重启；`fixtures/workspaces/stale-lock` 与
-    `m1-acceptance` 已覆盖 stale lock；强杀用 `taskkill /F`（Windows）。T5.3 的 autosave/recovery
-    spec 必须用 `expect.poll` 等磁盘，不要读文件后立刻断言。
+1. 用例：`apps/desktop/e2e/autosave.spec.ts` 4 条——1.5s 窗口 + Ctrl+S 立即写（5.1s）、
+   去抖窗口内退出仍保存且下次启动无恢复提示（3.8s）、只读表文件“保存失败”→取消退出→恢复可写
+   重试（4.3s）、最近列表移除/清空（2.9s）；`apps/desktop/e2e/recovery.spec.ts` 3 条——
+   `taskkill /F /T` 强杀恢复（6.3s）、stale/corrupt 锁的“尝试恢复/直接打开”（2.9s）、
+   损坏 manifest 的取消/备份重建（2.8s）。报告 `docs/reports/t5.3/REPORT.md`。
+2. 保存：`SaveQueue` 1.5s trailing 去抖 + 10s 上限；`flush()`/`retry()` 立即写；布局 500ms
+   去抖仍只调 `enqueueManifest()`；失败保留 dirty 与 `ui.save.error`，状态栏可重试。
+3. 退出：`quit-guard.ts` 拦截 close/before-quit，`app:quit-requested` → renderer flush ≤3s →
+   成功时 `workspace.close` 删除 `.lock` → `app:quit-response`；失败/超时原生“退出/取消”确认，
+   取消保持应用打开；flush 失败后确认退出故意保留锁。新增单实例锁与 E2E 确认替身。
+4. 恢复：`workspace:inspect`（只读）+ `workspace:open({ recovery })`；显式 manifest 备份重建、
+   stale/corrupt 锁 + 损坏 manifest 的最新备份自动恢复、active lock 拒绝；UI 两个对话框；
+   打开时表读取失败会 close 工作区。
+5. 最近列表：`recent.json` 的 remove/clear、`workspace:recent:remove|clear`、preload
+   `recentRemove/recentClear`、欢迎页移除/清空。
+6. 证据：报告 + **5 张截图**（`t5.3-autosave-status.png`、`t5.3-save-failure.png`、
+   `t5.3-recovery-stale-lock.png`、`t5.3-recovery-lock-choices.png`、
+   `t5.3-recovery-manifest.png`）。
+7. 提交：`feat(ws): add autosave, quit flush and crash recovery (T5.3)`（见
+   `git log -1 -- docs/reports/t5.3/REPORT.md`）。
+8. 残留：强杀仍可能丢最后 1.5s；flush 失败后确认退出留 stale lock；原生退出确认/恢复提示为
+   英文（main 无 i18n）；`inspect` 多读一次 manifest；自动重建只尝试最新备份；自动保存关闭后的
+   “保存/放弃/取消”三选一留 T5.5。详见报告 §8 与 ADR-048“复核条件”。
 
 ---
 
@@ -181,23 +177,24 @@
 | M4 验收演示 | **已获用户接受**（2026-10-27）；`e2e/m4-acceptance.spec.ts` + `docs/reports/m4/REPORT.md`（7 张截图）；全量 E2E 82 passed |
 | `T5.1` 分栏布局与标签页 | **已完成**（2026-10-27，`eb152b4`）；报告 `docs/reports/t5.1/REPORT.md`；ADR-046；4 张截图 |
 | `T5.2` 撤销/重做 | **已完成**（2026-10-28，`a9dcf75`）；报告 `docs/reports/t5.2/REPORT.md`；ADR-047；2 张截图 |
-| 当前里程碑 | **M5 体验**：T5.1、T5.2 已完成；下一步 T5.3，M5 验收演示待 T5.1–T5.5 全部完成 |
-| 下一步 | **T5.3 自动保存、恢复与最近打开**（依赖 T1.2/T1.3/T1.5；SPEC §7.5/§13.3；TESTPLAN E8） |
-| `pnpm verify` 基线 | **165 files / 1532 tests**；ESLint 0；depcruise 454 modules / 1913 deps / 0 violations |
-| `pnpm test:coverage` 基线 | 全局 lines **76.21%** / statements **76.07%** / branches **69.07%** / functions **74.80%**；`app-core/history/edit-history.ts` lines **90.99%**、branches **86.89%**；`chart-model` render-model.ts lines **96.88%**、sampling.ts **93.24%**；`chart-echarts/src` **96.75%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **88 passed**（4.9m）；新增 `undo.spec.ts` 3 条：7.6s / 3.7s / 2.9s；`layout.spec.ts` 3 条：5.4s / 2.4s / 2.7s；`chart-perf` 2 条：4.6s / 6.0s |
-| `pnpm bench` 基线 | **exit 0**；table.open 316ms/3s、table.save 247ms/500ms、edit 0ms/50ms、query 224ms/400ms、text-sort 278ms/400ms、cjk-sort 514ms/800ms、import 665ms/8s、condition 0ms/16ms；chart.resolve-sample P95 **84ms**/300ms、chart.sample 3ms/50ms、chart.option.2k 1ms/50ms、chart.restyle.100k 0ms/20ms；memoryPeakMB 956（Node 趋势，非应用门禁） |
+| `T5.3` 自动保存、恢复与最近打开 | **已完成**（2026-10-28）；报告 `docs/reports/t5.3/REPORT.md`；ADR-048；5 张截图 |
+| 当前里程碑 | **M5 体验**：T5.1、T5.2、T5.3 已完成；下一步 T5.4，M5 验收演示待 T5.1–T5.5 全部完成 |
+| 下一步 | **T5.4 快捷键与命令面板**（依赖 T5.2；SPEC §9.1/§13.2；TASKS T5.4） |
+| `pnpm verify` 基线 | **167 files / 1569 tests**；ESLint 0；depcruise 464 modules / 1967 deps / 0 violations |
+| `pnpm test:coverage` 基线 | 全局 lines **76.05%** / statements **75.90%** / branches **68.81%** / functions **74.53%**；`main/quit-guard.ts` lines **88.52%**、`renderer/app-core/use-quit-guard.ts` lines **93.75%**、`app-core/usecases/save-queue.ts` lines **89.15%**、`main/workspace/file-workspace-store.ts` 由 24 条单测覆盖；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **96 passed**（5.7m）；autosave 4 条 5.0s/3.8s/4.1s/2.8s、recovery 4 条 6.0s/2.8s/2.7s/2.8s；layout 3 条、undo 3 条、chart-perf 2 条保持通过 |
+| `pnpm bench` 基线 | **exit 0**；table.open 347ms/3s、table.save 274ms/500ms、edit 0ms/50ms、query 232ms/400ms、text-sort 284ms/400ms、cjk-sort 561ms/800ms、import 711ms/8s、condition 1ms/16ms；chart.resolve-sample P95 **85ms**/300ms、chart.sample 3ms/50ms、chart.option.2k 1ms/50ms、chart.restyle.100k 0ms/20ms；memoryPeakMB 942（Node 趋势，非应用门禁） |
 | `pnpm format:check` | 通过 |
-| 构建 | `pnpm build` exit 0；renderer **3,288.47 kB** + 懒加载 ImportSession 42.82 kB；CSS 74.37 kB；table/query/import worker 220.68/236.16/270.16 kB（T6.4 评估拆包） |
+| 构建 | `pnpm build` exit 0；renderer **3,306.03 kB** + 懒加载 ImportSession 42.82 kB；CSS **75.14 kB**；table/query/import worker 220.68/236.16/270.16 kB（T6.4 评估拆包） |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
 
 **用户明确要求**：
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **M1/M2/M3/M4 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6、M4 验收演示、T5.1
-  与 T5.2 已完成**；下一步是 **M5 的 T5.3（自动保存、恢复与最近打开）**。
-- 不得跨里程碑；M4 已验收关闭，M5 按 TASKS 顺序推进 T5.3–T5.5，里程碑结束再停。
+- **M1/M2/M3/M4 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6、M4 验收演示、T5.1、
+  T5.2 与 T5.3 已完成**；下一步是 **M5 的 T5.4（快捷键与命令面板）**。
+- 不得跨里程碑；M4 已验收关闭，M5 按 TASKS 顺序推进 T5.4–T5.5，里程碑结束再停。
 
 ---
 
@@ -206,14 +203,14 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T5.3、docs/TESTPLAN.md 的 E8、
-docs/SPEC.md §7.5/§13.3、docs/TASKS.md 的 M5 与相关 ADR（保存队列/锁恢复/布局/撤销）。
+先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T5.4、docs/SPEC.md §9.1/§13.2、
+docs/TASKS.md 的 M5 与相关 ADR（撤销/自动保存/恢复/布局）。
 
-现状：M0、M1（已验收）、M2（已验收）、M3（已验收）、M4（已验收）、T1.1–T4.6、T5.1 与 T5.2
-已完成；pnpm verify 165 files / 1532 tests、coverage lines 76.21%、pnpm e2e 88 passed、
+现状：M0、M1（已验收）、M2（已验收）、M3（已验收）、M4（已验收）、T1.1–T4.6、T5.1、T5.2 与
+T5.3 已完成；pnpm verify 167 files / 1569 tests、coverage lines 76.05%、pnpm e2e 96 passed、
 pnpm bench exit 0。
 
-下一步：领取 M5 的 T5.3（自动保存、恢复与最近打开）；一次只推进一个任务，完成并验证后更新报告。
+下一步：领取 M5 的 T5.4（快捷键与命令面板）；一次只推进一个任务，完成并验证后更新报告。
 ```
 
 ---
@@ -543,6 +540,24 @@ T4.6 又在根 `package.json` 的 devDependencies 增加了 `@curve/chart-echart
 - 打开/关闭工作区会 `history.clear()` 并重置 `ui.history`；E2E 断言 `data-undo-depth=0`。
 - T5.2 的 E2E `undo.spec.ts` 3 条（7.6s/3.7s/2.9s）会写截图到 `docs/reports/t5.2/`；不要删除
   `data-undo-*` 属性或把间隔改到 <800ms（否则 5 条会合并）。
+- T5.3 的自动保存窗口在 `SaveQueue` 内：1.5s trailing 去抖 + 10s 上限；**`flush()`/`retry()`
+  必须立即写**。不要在其他位置再加定时器或第二条写表路径；布局的 500ms 去抖仍然只调用
+  `enqueueManifest()`，因此布局落盘最迟约 2s（或被 Ctrl+S/退出 flush 冲掉）。
+- T5.3 的退出握手：main 在 `close`/`before-quit` 中发送 `app:quit-requested`，renderer 的
+  `useQuitGuard` flush ≤3s 后回复 `app:quit-response`；**clean quit 必须调用
+  `workspace.close` 删除 `.lock`**，flush 失败则故意保留。不要改成 main 直接写盘或删除锁。
+- 原生退出确认由 main 的 `quit-guard.ts` 管理；E2E 用 `CURVE_E2E_QUIT_CONFIRM=quit|cancel`
+  （仅未打包 + `CURVE_E2E=1`）。`electronApp.close()` 会走同一握手，因此测试 teardown 不会挂。
+- T5.3 的强杀 E2E 必须用 `electronApp.evaluate(() => process.pid)` 取 **main** PID 再
+  `taskkill /F /T`；`electronApp.process().pid` 是 launcher，删错进程会留下仍运行的 app 并让
+  `.lock` 被优雅清理，测试会看不到恢复对话框。
+- `workspace:inspect` 是只读的；恢复对话框的“取消”绝不能调用 `open`（否则原文件字节会变）。
+  `workspace:open({ recovery: { manifestBackup } })` 会先备份损坏 manifest 再原子重建。
+- 最近列表 API 名称是 SPEC §15.4 的 `workspace.recentRemove` / `workspace.recentClear`
+  （不是 `removeRecent/clearRecent`）；`ipc.spec.ts` 的 bridge 白名单按字母排序断言。
+- `grid.spec.ts` 的“surfaces open warnings”用例现在先经过恢复对话框再断言 stale lock warning；
+  不要再改回直接等待 `workspace-view`（T5.3 起会超时）。
+- T5.3 的 E2E 会写 `docs/reports/m0/*.png`（既有行为）；提交前照旧用 `git checkout --` 还原。
 
 ---
 
@@ -688,11 +703,13 @@ encodeCsvChunks(options): Generator<CsvChunk>
 
 ### 4.5 IPC / preload / renderer
 
-`IMPLEMENTED_IPC_CHANNELS` 共 **15** 个：`app:info`、`dialog:pickDirectory`、`log:write`、
-`workspace:create/open/close/recent`、`manifest:write`、`table:read/write/trash`、
-`file:importText`、`file:exportText`、`file:exportCsv`、`file:archiveImport`。
+`IMPLEMENTED_IPC_CHANNELS` 共 **19** 个：`app:info`、`app:quit-response`、`dialog:pickDirectory`、
+`log:write`、`workspace:create/open/inspect/close/recent`、`workspace:recent:remove|clear`、
+`manifest:write`、`table:read/write/trash`、`file:importText`、`file:exportText`、
+`file:exportCsv`、`file:archiveImport`；另有 1 个 main→renderer 事件
+`app:quit-requested`（`IPC_EVENT_CHANNELS`，不在 `ALL_IPC_CHANNELS` 的 handle 探针里）。
 
-- `dialog:saveFile` / `backup:*` / `workspace:recent:remove|clear` 仍只有通道名。
+- `dialog:saveFile` / `backup:*` 仍只有通道名。
 - `file:importText` 返回 `{ token, name, bytes, sha256, size, format }`（原始字节，供 Worker 解码）；
   `file:archiveImport` 只用 token 对应的已选路径，把原文复制/记录到 `imports/`。
 - `file:exportCsv` 返回 `begin/append/finish/cancel` 的 op 联合；`begin` 返回 `{ token, path }`
@@ -701,10 +718,15 @@ encodeCsvChunks(options): Generator<CsvChunk>
   main 对 base64 严格校验后解码成字节，走 `atomicWriteBytes`（临时文件 + fsync + rename）。
   PNG 导出复用它，**没有新增通道**；renderer 不传路径，仍只传 `suggestedName`/`filters`。
 - `apps/desktop/src/renderer/api-client.ts` 提供 `app`、`dialog`、`workspace`、`manifest`、`table`、
-  `file`，所有方法返回 `IpcResult<T>`，入参与响应双向 Zod 校验。
+  `file`，所有方法返回 `IpcResult<T>`，入参与响应双向 Zod 校验；`app.onQuitRequested` 是唯一的
+  订阅方法（事件负载也过 Zod），不暴露 `ipcRenderer.on/invoke`。
 - `table:write` 写盘前校验 200k 行 / 256MB 上限；导入保存仍走该通道（256MB 在保存时强制）。
 - T2.5 新增 3 个已实现通道（`ALL_IPC_CHANNELS` 18 → 19）；T3.6 新增 `file:exportCsv`
-  （19 → 20；已实现 14 → 15）；T4.5 只扩展 `file:exportText` 请求（仍是 20/15）。
+  （19 → 20；已实现 14 → 15）；T4.5 只扩展 `file:exportText` 请求（仍是 20/15）；T5.3 新增
+  `workspace:inspect`、`app:quit-response` 并实现 `workspace:recent:remove|clear`
+  （ALL 20 → 22；已实现 15 → 19；另有 `app:quit-requested` 事件）。
+- `workspace:open` 请求新增可选 `recovery: { acceptStaleLock?, manifestBackup? }`；
+  `workspace:inspect` 返回 `{ dir, name, lock, manifest, errorCode?, backups }`（T5.3，ADR-048）。
 
 ### 4.6 `@curve/app-core`（T1.5 + T2.1 + T2.2 + T2.3 + T2.4 + T2.5 + T2.6 + T2.7）
 
@@ -801,7 +823,9 @@ applyPaste(request): Promise<PasteApplyOutcome>;
 ```
 
 - 行数据命令（`table.cell.set`/`table.paste`/`table.import`/`table.rows.insert`）走保存队列
-  （表 → manifest）；纯 schema 命令只写 manifest。
+  （表 → manifest）；纯 schema 命令只写 manifest。T5.3 起队列按 1.5s / 10s 窗口合并写盘，
+  `flushSaves()`（Ctrl/Cmd+S、关闭工作区、退出握手）取消定时器立即写；粘贴/导入/样式/图表
+  action 仍会在返回前 `flush()`。
 - 保存失败返回 `{ ok: false, error, committed: true }`：内存已变更，UI 关闭对话框，状态栏/Toast 重试。
 - T5.2 起 `EditHistory` 默认记录所有带 patches 的命令（含表/列/行/视图/工作区），
   `view.layout` 仅结构变更入栈；`table.cell.set` 的 800ms/`mergeKey` 合并不变，粘贴/导入/
@@ -862,17 +886,25 @@ apps/desktop/src/renderer/
 T2.5 新增 `apps/desktop/e2e/import.spec.ts` 6 条：100k GBK 分号 + 3 坏行 + 错误 CSV；错编码
 覆盖；150k 取消/100k 提示；JSON 替换 + 备份 + 原文归档 + 撤销；200k 拒绝；200% 缩放键盘。
 
-完整 E2E 现为 **88 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
+完整 E2E 现为 **96 passed**；T2.1 的 `grid.spec.ts`、T2.2 的 `edit.spec.ts`、T2.3 的
 `schema.spec.ts`、T2.4 的 `paste.spec.ts`、T2.5 的 `import.spec.ts`、T2.6 的
 `filter.spec.ts`、T2.7 的 `perf.spec.ts`、T3.2/T3.4 的 `style.spec.ts`、T3.5 的
 `template.spec.ts`、T3.6 的 `export-csv.spec.ts`、T4.4 的 `chart.spec.ts`、T4.5 的
 `chart-interaction.spec.ts`、T4.6 的 `chart-perf.spec.ts`、T5.1 的 `layout.spec.ts`、
-T5.2 的 `undo.spec.ts`、M2 的 `m2-acceptance.spec.ts`、M3 的 `m3-acceptance.spec.ts`、M4 的
+T5.2 的 `undo.spec.ts`、T5.3 的 `autosave.spec.ts`/`recovery.spec.ts`、M2 的
+`m2-acceptance.spec.ts`、M3 的 `m3-acceptance.spec.ts`、M4 的
 `m4-acceptance.spec.ts` 与既有 shell/ipc/smoke/workspace/table-io 全绿。
 
 T5.2 新增 `apps/desktop/e2e/undo.spec.ts` 3 条：5 次间隔 900ms 的编辑 → 撤销 5 次/重做 3 次
 + JSONL + Edit 菜单（7.6s）；标签/选择/滚动不入历史 + 焦点切换保留 redo + 关闭/重开清空
 （3.7s）；键盘打开菜单 + 200% 缩放不越界（2.9s）。截图在 `docs/reports/t5.2/`。
+
+T5.3 新增 `apps/desktop/e2e/autosave.spec.ts` 4 条（1.5s 窗口 + Ctrl+S，5.1s；去抖窗口内退出
+仍保存且下次启动无恢复提示，3.8s；只读表文件“保存失败”→取消退出→恢复重试，4.3s；最近列表
+移除/清空，2.9s）与 `recovery.spec.ts` 3 条（`taskkill /F /T` 强杀恢复，6.3s；stale/corrupt 锁
+的“尝试恢复/直接打开”，2.9s；损坏 manifest 的取消/备份重建，2.8s）；共用夹具
+`e2e/workspace-seed.ts`。`grid.spec.ts` 的 stale-lock 用例改为先经过恢复对话框。截图在
+`docs/reports/t5.3/`（5 张）。
 
 T2.6 新增 `apps/desktop/e2e/filter.spec.ts` 6 条：2k 行筛选 + 三级排序；重开恢复筛选/排序与
 清除；同表双视图互不影响；隐藏列/恢复；100k 行 Worker 筛选+排序（`data-query-ms <= 400`）；

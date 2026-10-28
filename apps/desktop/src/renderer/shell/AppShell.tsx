@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ToastHost, useToasts } from '@curve/ui';
 
 import { useAppState } from '../app-core/use-app-core';
+import { useQuitGuard } from '../app-core/use-quit-guard';
 import { describeAppError } from '../error-text';
 import { WelcomePage } from '../features/workspace/WelcomePage';
 import { WorkspaceView } from '../features/workspace/WorkspaceView';
@@ -26,6 +27,7 @@ import type { ReactElement } from 'react';
 export function AppShell(): ReactElement {
   const { t } = useI18n();
   const runtime = useRuntimeInfo();
+  useQuitGuard();
   const { toasts, push, dismiss } = useToasts();
   const workspace = useAppState((state) => state.workspace);
   const appError = useAppState((state) => state.ui.error);

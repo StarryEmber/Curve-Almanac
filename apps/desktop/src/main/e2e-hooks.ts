@@ -13,6 +13,8 @@ export const E2E_USER_DATA_ENV = 'CURVE_E2E_USER_DATA';
 export const E2E_DIALOG_DIRECTORY_ENV = 'CURVE_E2E_DIR';
 export const E2E_DIALOG_SAVE_ENV = 'CURVE_E2E_SAVE';
 export const E2E_IMPORT_FILE_ENV = 'CURVE_E2E_IMPORT';
+/** `quit` / `cancel`: answers the native quit-time confirmation in E2E runs. */
+export const E2E_QUIT_CONFIRM_ENV = 'CURVE_E2E_QUIT_CONFIRM';
 
 export interface E2EHookInput {
   isPackaged: boolean;
@@ -64,4 +66,22 @@ export function resolveE2EDialogStubs(input: E2EHookInput): E2EDialogStubs | nul
     savePath: readPath(input.env, E2E_DIALOG_SAVE_ENV),
     importPath: readPath(input.env, E2E_IMPORT_FILE_ENV),
   };
+}
+
+/**
+ * @returns the answer Playwright should give to the quit-time native
+ * confirmation: `true` quit, `false` stay open, `null` show the real dialog.
+ */
+export function resolveE2EQuitConfirm(input: E2EHookInput): boolean | null {
+  if (!isEnabled(input)) {
+    return null;
+  }
+  const value = input.env[E2E_QUIT_CONFIRM_ENV];
+  if (value === 'quit') {
+    return true;
+  }
+  if (value === 'cancel') {
+    return false;
+  }
+  return null;
 }

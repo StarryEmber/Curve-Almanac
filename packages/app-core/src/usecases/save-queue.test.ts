@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createAppError } from '@curve/domain';
 import type { Row, TableMeta, WorkspaceManifest } from '@curve/domain';
@@ -21,8 +21,9 @@ import type { TableEncodeResult, TableWorkerCallResult } from '@curve/table-engi
 
 import { createAppStore } from '../state/store';
 
-import { createSaveQueue } from './save-queue';
+import { AUTOSAVE_DELAY_MS, AUTOSAVE_MAX_DELAY_MS, createSaveQueue } from './save-queue';
 
+import type { SaveQueueOptions } from './save-queue';
 import type { AppLogger } from '../logging';
 import type { WorkspaceInfo } from '../state/types';
 
@@ -110,7 +111,7 @@ class RecordingStore implements WorkspaceStore {
   }
 }
 
-function setup(): {
+function setup(options: Partial<SaveQueueOptions> = {}): {
   store: ReturnType<typeof createAppStore>;
   workspaceStore: RecordingStore;
   queue: ReturnType<typeof createSaveQueue>;
@@ -138,11 +139,19 @@ function setup(): {
     workspaceStore,
     encodeTable: encode,
     logger,
+    // Existing T2.2 tests assert the write path itself; autosave timing has its
+    // own cases below. Production uses the SPEC §13.3 1500ms window.
+    autosaveDelayMs: 0,
+    ...options,
   });
   return { store, workspaceStore, queue, encode };
 }
 
 describe('save queue', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('writes the table before the manifest and clears the dirty marker', async () => {
     const { store, workspaceStore, queue } = setup();
 
@@ -206,7 +215,9 @@ describe('save queue', () => {
     });
 
     queue.enqueue('tbl_test');
-    await Promise.resolve();
+    await vi.waitFor(() => {
+      expect(encode).toHaveBeenCalledTimes(1);
+    });
     // The first write is blocked in the Worker; a second edit arrives.
     store.setState((state) => ({
       ...state,
@@ -274,5 +285,90 @@ describe('save queue', () => {
     expect(outcome.ok).toBe(false);
     expect(store.getState().ui.dirtyTables.map((entry) => entry.tableId)).toEqual(['tbl_test']);
     expect(workspaceStore.calls).toEqual([]);
+  });
+
+  it('uses the SPEC §13.3 autosave window by default', () => {
+    expect(AUTOSAVE_DELAY_MS).toBe(1_500);
+    expect(AUTOSAVE_MAX_DELAY_MS).toBe(10_000);
+  });
+
+  it('waits 1500ms after the last change before writing', async () => {
+    vi.useFakeTimers();
+    const { workspaceStore, queue } = setup({
+      autosaveDelayMs: 1500,
+      autosaveMaxDelayMs: 10_000,
+    });
+
+    queue.enqueue('tbl_test');
+    expect(workspaceStore.calls).toEqual([]);
+
+    await vi.advanceTimersByTimeAsync(1_499);
+    expect(workspaceStore.calls).toEqual([]);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(workspaceStore.calls).toEqual(['writeTable', 'writeManifest']);
+  });
+
+  it('restarts the autosave window on every change', async () => {
+    vi.useFakeTimers();
+    const { workspaceStore, queue } = setup({
+      autosaveDelayMs: 1500,
+      autosaveMaxDelayMs: 10_000,
+    });
+
+    queue.enqueue('tbl_test');
+    await vi.advanceTimersByTimeAsync(1_000);
+    queue.enqueue('tbl_test');
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(workspaceStore.calls).toEqual([]);
+
+    await vi.advanceTimersByTimeAsync(500);
+    expect(workspaceStore.calls).toEqual(['writeTable', 'writeManifest']);
+    expect(workspaceStore.tables).toHaveLength(1);
+  });
+
+  it('forces a write 10s after the first change even when edits keep arriving', async () => {
+    vi.useFakeTimers();
+    const { workspaceStore, queue } = setup({
+      autosaveDelayMs: 1500,
+      autosaveMaxDelayMs: 10_000,
+    });
+
+    queue.enqueue('tbl_test');
+    await vi.advanceTimersByTimeAsync(9_000);
+    // The next change would normally push the write to 10.5s; the cap wins.
+    queue.enqueue('tbl_test');
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(workspaceStore.calls).toEqual(['writeTable', 'writeManifest']);
+  });
+
+  it('flush bypasses the autosave window', async () => {
+    const { workspaceStore, queue } = setup({
+      autosaveDelayMs: 1500,
+      autosaveMaxDelayMs: 10_000,
+    });
+
+    queue.enqueue('tbl_test');
+    const outcome = await queue.flush();
+
+    expect(outcome.ok).toBe(true);
+    expect(workspaceStore.calls).toEqual(['writeTable', 'writeManifest']);
+  });
+
+  it('retry bypasses the autosave window', async () => {
+    const { workspaceStore, queue } = setup({
+      autosaveDelayMs: 1500,
+      autosaveMaxDelayMs: 10_000,
+    });
+    workspaceStore.failTable = true;
+
+    queue.enqueue('tbl_test');
+    expect((await queue.flush()).ok).toBe(false);
+    workspaceStore.failTable = false;
+
+    queue.retry();
+    expect((await queue.flush()).ok).toBe(true);
+    expect(workspaceStore.calls).toEqual(['writeTable', 'writeTable', 'writeManifest']);
   });
 });

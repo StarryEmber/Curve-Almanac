@@ -602,3 +602,37 @@
   branches 86.89%）；`pnpm build` exit 0（renderer **3,288.47 kB**、CSS 74.37 kB）；
   `pnpm e2e` **88 passed**（含 undo 3 条）；`pnpm bench` exit 0。不改 `formatVersion`/
   JSONL/IPC/preload/CSP，不新增运行时依赖。
+- T5.3：`SaveQueue` 实现 SPEC §13.3 自动保存窗口：1.5s trailing 去抖 + 10s 上限（从第一次
+  待写变更起），`flush()`/`retry()` 取消定时器立即写；表 → manifest 仍单循环串行，失败保留
+  `ui.dirtyTables`/`ui.save.error` 并可重试。布局 500ms 去抖仍只调 `enqueueManifest()`，
+  Ctrl/Cmd+S、关闭工作区、退出握手复用同一 `flushSaves()`。
+- T5.3：main↔renderer 退出握手 `quit-guard.ts`：拦截 `BrowserWindow.close`/`before-quit`，
+  `app:quit-requested` → renderer flush ≤3s（成功时 `workspace.close` 释放 `.lock`）→
+  `app:quit-response`；失败/超时原生“退出/取消”确认，取消保持应用打开，`flushed: false`
+  时故意保留 `.lock`。新增 preload `app.onQuitRequested/respondToQuit`、renderer
+  `useQuitGuard` 与 E2E 确认替身 `CURVE_E2E_QUIT_CONFIRM`；应用改为
+  `app.requestSingleInstanceLock()` 单实例。
+- T5.3：崩溃恢复：新增只读 `workspace:inspect`（lock/manifest 状态 + manifest 备份列表）；
+  `workspace:open` 增加可选 `recovery { acceptStaleLock?, manifestBackup? }`，显式备份先校验、
+  备份损坏清单再原子重建；stale/corrupt 锁 + manifest 不可读时可用最新备份自动恢复。
+  欢迎页新增恢复对话框（尝试恢复/直接打开/取消、备份列表与二次确认重建），取消不写任何文件。
+  `createOpenWorkspace` 在逐表读取/解码失败时先关闭已打开工作区。
+- T5.3：最近列表：`recent.json` 增加 `remove/clear`（大小写不敏感、原子写），实现
+  `workspace:recent:remove|clear` 通道与 preload `workspace.recentRemove/recentClear`
+  （SPEC §15.4 名称）；欢迎页每条最近工作区增加移除按钮，列表非空时可清空。
+- T5.3：新增 `apps/desktop/e2e/autosave.spec.ts` 4 条与 `recovery.spec.ts` 4 条（1.5s 落盘/
+  Ctrl+S/退出 flush/只读写失败重试/最近列表，`taskkill /F /T` 强杀恢复/stale+corrupt 锁/
+  键盘 + 200% 缩放恢复对话框/损坏 manifest 备份重建），`grid.spec.ts` 的 stale-lock 用例改为
+  经过恢复对话框；单测新增 `quit-guard.test.ts`、`use-quit-guard.test.tsx`、save-queue
+  防抖/上限、file store 的 inspect/备份重建、m1-acceptance 恢复路径与 recent-list 移除/清空。
+  新增 ADR-048、SPEC §7.5/§12/§13.3/§15.1/§15.4 实现边界、TASKS T5.3 与
+  `docs/reports/t5.3/REPORT.md`（5 张截图）。
+- T5.3：`pnpm verify` **167 files / 1569 tests**；depcruise 464 modules / 1967 deps /
+  0 violations；coverage 全局 lines **76.05%** / statements 75.90% / branches 68.81% /
+  functions 74.53%（阈值 70/60 未下调；`main/quit-guard.ts` lines **88.52%**、
+  `renderer/app-core/use-quit-guard.ts` lines **93.75%**、`save-queue.ts` lines **89.15%**）；
+  `pnpm build` exit 0（renderer **3,306.03 kB**、CSS 75.14 kB）；`pnpm e2e` **96 passed**
+  （5.7m；autosave 5.0s/3.8s/4.1s/2.8s、recovery 6.0s/2.8s/2.7s/2.8s）；`pnpm bench` exit 0
+  （table.open 347ms/3s、save 274ms/500ms、query 232ms/400ms、text-sort 284ms/400ms、
+  cjk-sort 561ms/800ms、import 711ms/8s、condition 1ms/16ms、chart.resolve-sample 85ms/300ms）。
+  不改 `formatVersion`/JSONL/CSP，不新增运行时依赖。

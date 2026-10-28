@@ -24,7 +24,7 @@ import {
 import { basename, join } from 'node:path';
 
 import { createAppError, isAppError, isId, toAppError } from '@curve/domain';
-import type { TableMeta, UuidFactory } from '@curve/domain';
+import type { AppError, TableMeta, UuidFactory } from '@curve/domain';
 import {
   MAX_BACKUPS_PER_TARGET,
   WORKSPACE_BACKUPS_DIR,
@@ -41,6 +41,7 @@ import {
   isTableBackupFor,
   manifestBackupFileName,
   parseBackupPath,
+  parseManifestBackupFileName,
   parseManifestDocument,
   parseTableBackupFileName,
   planBackupRotation,
@@ -61,6 +62,8 @@ import type {
   RestoreBackupRequest,
   TableReadResult,
   TableRef,
+  WorkspaceInspection,
+  WorkspaceManifestStatus,
   WorkspaceOpenResult,
   WorkspaceStore,
   WriteManifestRequest,
@@ -318,18 +321,63 @@ export class FileWorkspaceStore implements WorkspaceStore {
       join(realRoot, WORKSPACE_MANIFEST_FILE),
       'workspace manifest',
     );
-    let raw: string;
-    try {
-      raw = await readFile(manifestPath, 'utf8');
-    } catch (error) {
-      if (isEnoent(error)) {
-        throw createAppError('E_WS_NOT_FOUND', 'The workspace manifest does not exist.');
+    const lockPath = await resolveInsideRoot(
+      realRoot,
+      join(realRoot, WORKSPACE_LOCK_FILE),
+      'workspace lock',
+    );
+
+    // T5.3 (ADR-048): inspect the lock before touching any file. An active lock
+    // still wins over recovery, so a second window can never rebuild a manifest
+    // underneath a live session (SPEC §7.5).
+    const lockInspection = await this.inspectLockStatus(lockPath);
+    if (lockInspection.status === 'active') {
+      throw createAppError(
+        'E_WS_LOCKED',
+        'The workspace is locked by another Curve Studio window.',
+        { detail: `pid=${String(lockInspection.lock?.pid ?? 'unknown')}` },
+      );
+    }
+
+    let raw = await this.readManifestText(
+      manifestPath,
+      request.recovery?.manifestBackup !== undefined,
+    );
+    const recoveryWarnings: string[] = [];
+
+    if (request.recovery?.manifestBackup !== undefined) {
+      const restored = await this.restoreManifestBackup(
+        realRoot,
+        manifestPath,
+        request.recovery.manifestBackup,
+      );
+      recoveryWarnings.push(...restored.warnings);
+      recoveryWarnings.push(
+        `The workspace manifest was rebuilt from ${restored.fileName}; ` +
+          'the previous manifest was backed up.',
+      );
+      raw = await this.readManifestText(manifestPath, false);
+    } else if (
+      request.recovery?.acceptStaleLock === true &&
+      (lockInspection.status === 'stale' || lockInspection.status === 'corrupt')
+    ) {
+      const parsed = this.parseManifestSafely(raw);
+      if (!parsed.ok && parsed.error.code === 'E_WS_INVALID_MANIFEST') {
+        const restored = await this.tryRestoreNewestManifestBackup(realRoot, manifestPath);
+        if (restored === null) {
+          throw parsed.error;
+        }
+        recoveryWarnings.push(...restored.warnings);
+        recoveryWarnings.push(
+          `The uncleanly closed workspace manifest could not be read; ` +
+            `it was rebuilt from ${restored.fileName}.`,
+        );
+        raw = await this.readManifestText(manifestPath, false);
       }
-      throw toFsError('E_FS_READ', 'Cannot read the workspace manifest.', error);
     }
 
     const validated = parseManifestDocument(raw);
-    const warnings = [...validated.warnings];
+    const warnings = [...recoveryWarnings, ...validated.warnings];
     await this.collectMissingTableWarnings(realRoot, validated.manifest, warnings);
 
     const existingById = this.workspaces.get(validated.manifest.id);
@@ -337,30 +385,6 @@ export class FileWorkspaceStore implements WorkspaceStore {
       throw createAppError('E_WS_BUSY', 'Another open workspace uses the same manifest id.');
     }
 
-    const lockPath = await resolveInsideRoot(
-      realRoot,
-      join(realRoot, WORKSPACE_LOCK_FILE),
-      'workspace lock',
-    );
-    let lockInspection: LockInspection;
-    try {
-      lockInspection = await inspectLock(lockPath, {
-        now: this.now(),
-        ...(this.isProcessAlive === undefined ? {} : { isProcessAlive: this.isProcessAlive }),
-      });
-    } catch (error) {
-      throw toFsError('E_FS_READ', 'Cannot inspect the workspace lock.', error);
-    }
-
-    if (lockInspection.status === 'active') {
-      throw createAppError(
-        'E_WS_LOCKED',
-        'The workspace is locked by another Curve Studio window.',
-        {
-          detail: `pid=${String(lockInspection.lock?.pid ?? 'unknown')}`,
-        },
-      );
-    }
     if (lockInspection.status === 'stale') {
       warnings.push(
         'The previous session did not close this workspace cleanly; its stale lock was replaced.',
@@ -399,6 +423,88 @@ export class FileWorkspaceStore implements WorkspaceStore {
     await this.pruneOldBackups(realRoot);
     await this.rememberRecent(realRoot, validated.manifest.name);
     return { manifest: workspace?.manifest ?? validated.manifest, warnings };
+  }
+
+  /**
+   * Read-only pre-flight for the crash-recovery dialog (T5.3, SPEC §7.5).
+   *
+   * It reports the lock and manifest state plus the manifest backups that can
+   * be used for a rebuild. It never writes, replaces or deletes anything.
+   */
+  async inspect(request: OpenWorkspaceRequest): Promise<WorkspaceInspection> {
+    let realRoot: string;
+    try {
+      realRoot = await realpath(request.dir);
+    } catch (error) {
+      if (isEnoent(error)) {
+        throw createAppError('E_WS_NOT_FOUND', 'The workspace directory does not exist.');
+      }
+      throw toFsError('E_FS_READ', 'Cannot inspect the workspace directory.', error);
+    }
+
+    const backups = await this.listManifestBackups(realRoot).catch((): BackupEntry[] => []);
+    const existingId = this.rootIndex.get(workspaceRootKey(realRoot));
+    const existing = existingId === undefined ? undefined : this.workspaces.get(existingId);
+    if (existing !== undefined) {
+      // Already opened by this process; there is nothing to recover.
+      return {
+        dir: realRoot,
+        name: existing.manifest.name,
+        lock: 'none',
+        manifest: 'ok',
+        backups,
+      };
+    }
+
+    const lockPath = await resolveInsideRoot(
+      realRoot,
+      join(realRoot, WORKSPACE_LOCK_FILE),
+      'workspace lock',
+    );
+    const lock = (await this.inspectLockStatus(lockPath)).status;
+
+    const manifestPath = await resolveInsideRoot(
+      realRoot,
+      join(realRoot, WORKSPACE_MANIFEST_FILE),
+      'workspace manifest',
+    );
+    let raw: string;
+    try {
+      raw = await readFile(manifestPath, 'utf8');
+    } catch (error) {
+      if (isEnoent(error)) {
+        return {
+          dir: realRoot,
+          name: null,
+          lock,
+          manifest: 'missing',
+          errorCode: 'E_WS_NOT_FOUND',
+          backups,
+        };
+      }
+      throw toFsError('E_FS_READ', 'Cannot read the workspace manifest.', error);
+    }
+
+    const parsed = this.parseManifestSafely(raw);
+    if (parsed.ok) {
+      return {
+        dir: realRoot,
+        name: parsed.manifest.name,
+        lock,
+        manifest: 'ok',
+        backups,
+      };
+    }
+    const manifest: WorkspaceManifestStatus =
+      parsed.error.code === 'E_WS_VERSION_UNSUPPORTED' ? 'unsupported' : 'invalid';
+    return {
+      dir: realRoot,
+      name: null,
+      lock,
+      manifest,
+      errorCode: parsed.error.code,
+      backups,
+    };
   }
 
   async close(request: CloseWorkspaceRequest): Promise<OkReply> {
@@ -481,7 +587,7 @@ export class FileWorkspaceStore implements WorkspaceStore {
     );
 
     if (await pathExists(manifestPath)) {
-      await this.backupManifestFile(workspace, manifestPath);
+      await this.backupManifestFile(workspace.root, manifestPath);
     }
 
     await this.writeAtomic(
@@ -722,6 +828,184 @@ export class FileWorkspaceStore implements WorkspaceStore {
     return this.recent.list();
   }
 
+  /** Removes one entry from `userData/recent.json` (T5.3). */
+  async removeRecent(path: string): Promise<void> {
+    await this.recent.remove(path);
+  }
+
+  /** Empties `userData/recent.json` (T5.3). */
+  async clearRecent(): Promise<void> {
+    await this.recent.clear();
+  }
+
+  private async readManifestText(manifestPath: string, allowMissing: boolean): Promise<string> {
+    try {
+      return await readFile(manifestPath, 'utf8');
+    } catch (error) {
+      if (isEnoent(error)) {
+        if (allowMissing) {
+          return '';
+        }
+        throw createAppError('E_WS_NOT_FOUND', 'The workspace manifest does not exist.');
+      }
+      throw toFsError('E_FS_READ', 'Cannot read the workspace manifest.', error);
+    }
+  }
+
+  private parseManifestSafely(raw: string):
+    | { ok: true; manifest: WorkspaceManifest }
+    | {
+        ok: false;
+        error: AppError;
+      } {
+    try {
+      return { ok: true, manifest: parseManifestDocument(raw).manifest };
+    } catch (error) {
+      return { ok: false, error: isAppError(error) ? error : toAppError(error) };
+    }
+  }
+
+  private async inspectLockStatus(lockPath: string): Promise<LockInspection> {
+    try {
+      return await inspectLock(lockPath, {
+        now: this.now(),
+        ...(this.isProcessAlive === undefined ? {} : { isProcessAlive: this.isProcessAlive }),
+      });
+    } catch (error) {
+      throw toFsError('E_FS_READ', 'Cannot inspect the workspace lock.', error);
+    }
+  }
+
+  /**
+   * Manifest backups newest first. Missing `backups/` degrades to an empty list
+   * (a copied workspace may not have the folder, SPEC §7.1).
+   */
+  private async listManifestBackups(root: string): Promise<BackupEntry[]> {
+    const backupsDirectory = await resolveWorkspaceRelativePath(
+      root,
+      WORKSPACE_BACKUPS_DIR,
+      'backups directory',
+    );
+
+    let names: string[];
+    try {
+      names = await readdir(backupsDirectory);
+    } catch (error) {
+      if (isEnoent(error)) {
+        return [];
+      }
+      throw toFsError('E_FS_READ', 'Cannot list workspace backups.', error);
+    }
+
+    const entries = await Promise.all(
+      names.filter(isManifestBackupFileName).map(async (fileName): Promise<BackupEntry | null> => {
+        const parsed = parseManifestBackupFileName(fileName);
+        if (parsed === null) {
+          return null;
+        }
+        try {
+          const backupPath = await resolveInsideRoot(
+            root,
+            join(backupsDirectory, fileName),
+            `backup ${fileName}`,
+          );
+          const info = await stat(backupPath);
+          return {
+            path: backupPathForFileName(fileName),
+            createdAt: parsed.createdAt,
+            bytes: info.size,
+          };
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    return entries
+      .filter((entry): entry is BackupEntry => entry !== null)
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  }
+
+  /**
+   * Validates and writes one manifest backup over `manifest.json` using the
+   * normal backup + atomic-replace path (SPEC §7.4/§7.5). The current manifest
+   * is backed up first, so a mistaken rebuild is reversible.
+   */
+  private async restoreManifestBackup(
+    root: string,
+    manifestPath: string,
+    backupPath: string,
+  ): Promise<{ fileName: string; warnings: string[] }> {
+    const fileName = parseBackupPath(backupPath);
+    if (fileName === null || !isManifestBackupFileName(fileName)) {
+      throw createAppError('E_PATH_DENIED', 'The selected file is not a manifest backup.');
+    }
+
+    const backupsDirectory = await resolveWorkspaceRelativePath(
+      root,
+      WORKSPACE_BACKUPS_DIR,
+      'backups directory',
+    );
+    const absolute = await resolveInsideRoot(
+      root,
+      join(backupsDirectory, fileName),
+      `backup ${fileName}`,
+    );
+
+    let content: string;
+    try {
+      content = await readFile(absolute, 'utf8');
+    } catch (error) {
+      if (isEnoent(error)) {
+        throw createAppError('E_BACKUP_NOT_FOUND', 'The selected manifest backup does not exist.');
+      }
+      throw toFsError('E_FS_READ', `Cannot read the manifest backup ${fileName}.`, error);
+    }
+
+    const validated = parseManifestDocument(content);
+    if (await pathExists(manifestPath)) {
+      await this.backupManifestFile(root, manifestPath);
+    }
+    await this.writeAtomic(
+      manifestPath,
+      serializeManifest(validated.manifest),
+      'Cannot rebuild the workspace manifest from the backup.',
+    );
+    return { fileName, warnings: validated.warnings };
+  }
+
+  /** Uses the newest manifest backup when the uncleanly closed manifest is corrupt. */
+  private async tryRestoreNewestManifestBackup(
+    root: string,
+    manifestPath: string,
+  ): Promise<{ fileName: string; warnings: string[] } | null> {
+    let backups: BackupEntry[];
+    try {
+      backups = await this.listManifestBackups(root);
+    } catch (error) {
+      this.logger?.warn(
+        `[workspace] failed to list manifest backups: ${toAppError(error).message}`,
+      );
+      return null;
+    }
+    const newest = backups[0];
+    if (newest === undefined) {
+      return null;
+    }
+    try {
+      return await this.restoreManifestBackup(root, manifestPath, newest.path);
+    } catch (error) {
+      const appError = toAppError(error);
+      if (appError.code === 'E_WS_INVALID_MANIFEST' || appError.code === 'E_BACKUP_NOT_FOUND') {
+        this.logger?.warn(
+          `[workspace] the newest manifest backup could not be used: ${appError.message}`,
+        );
+        return null;
+      }
+      throw appError;
+    }
+  }
+
   private requireWorkspace(workspaceId: string): OpenWorkspace {
     const workspace = this.workspaces.get(workspaceId);
     if (workspace === undefined) {
@@ -788,9 +1072,9 @@ export class FileWorkspaceStore implements WorkspaceStore {
     await this.rotateBackups(backupsDirectory, (candidate) => isTableBackupFor(candidate, tableId));
   }
 
-  private async backupManifestFile(workspace: OpenWorkspace, sourcePath: string): Promise<void> {
+  private async backupManifestFile(root: string, sourcePath: string): Promise<void> {
     const backupsDirectory = await resolveWorkspaceRelativePath(
-      workspace.root,
+      root,
       WORKSPACE_BACKUPS_DIR,
       'backups directory',
     );
@@ -940,7 +1224,7 @@ export class FileWorkspaceStore implements WorkspaceStore {
         'workspace manifest',
       );
       if (await pathExists(manifestPath)) {
-        await this.backupManifestFile(workspace, manifestPath);
+        await this.backupManifestFile(workspace.root, manifestPath);
       }
       await this.writeAtomic(
         manifestPath,

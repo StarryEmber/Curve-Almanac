@@ -49,6 +49,7 @@ function buildLaunchEnvironment(
   userDataDir: string,
   importFile: string,
   saveFile?: string,
+  quitConfirm?: 'quit' | 'cancel',
 ): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
@@ -66,6 +67,10 @@ function buildLaunchEnvironment(
   // T2.5 file stand-ins: one selected import file and one export target.
   env['CURVE_E2E_IMPORT'] = importFile;
   env['CURVE_E2E_SAVE'] = saveFile ?? join(userDataDir, 'import-errors.csv');
+  // T5.3: answer the quit-time confirmation without a native modal.
+  if (quitConfirm !== undefined) {
+    env['CURVE_E2E_QUIT_CONFIRM'] = quitConfirm;
+  }
   return env;
 }
 
@@ -84,6 +89,8 @@ export interface LaunchCurveAppOptions {
   importFile: string;
   /** Optional export target; defaults to `<userDataDir>/import-errors.csv`. */
   saveFile?: string;
+  /** T5.3: answer the quit-time confirmation instead of showing a native modal. */
+  quitConfirm?: 'quit' | 'cancel';
 }
 
 export interface LaunchedCurveApp {
@@ -101,7 +108,12 @@ export interface LaunchedCurveApp {
  * stays with the fixture; restart-flow callers attach their own screenshots.
  */
 export async function launchCurveApp(options: LaunchCurveAppOptions): Promise<LaunchedCurveApp> {
-  const env = buildLaunchEnvironment(options.userDataDir, options.importFile, options.saveFile);
+  const env = buildLaunchEnvironment(
+    options.userDataDir,
+    options.importFile,
+    options.saveFile,
+    options.quitConfirm,
+  );
   const launchStartedAt = Date.now();
   const electronApp = await electron.launch({
     executablePath: resolveElectronExecutable(),

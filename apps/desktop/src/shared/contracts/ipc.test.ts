@@ -12,12 +12,19 @@ import {
   manifestWriteResponseSchema,
   pickDirectoryRequestSchema,
   pickDirectoryResponseSchema,
+  quitRequestSchema,
+  quitResponseRequestSchema,
+  quitResponseResponseSchema,
   workspaceCloseRequestSchema,
   workspaceCloseResponseSchema,
   workspaceCreateRequestSchema,
   workspaceCreateResponseSchema,
+  workspaceInspectRequestSchema,
+  workspaceInspectResponseSchema,
   workspaceOpenRequestSchema,
   workspaceOpenResponseSchema,
+  workspaceRecentClearRequestSchema,
+  workspaceRecentRemoveRequestSchema,
   workspaceRecentRequestSchema,
   workspaceRecentResponseSchema,
 } from './ipc';
@@ -323,5 +330,80 @@ describe('workspace contract', () => {
       manifestWriteRequestSchema.safeParse({ workspaceId: 'ws_1', manifest: {} }).success,
     ).toBe(false);
     expect(manifestWriteResponseSchema.safeParse({ ok: true }).success).toBe(true);
+  });
+
+  it('accepts the T5.3 recovery choice and rejects unknown fields', () => {
+    expect(
+      workspaceOpenRequestSchema.safeParse({
+        dir: 'C:/tmp/Demo.cstudio',
+        recovery: { acceptStaleLock: true, manifestBackup: 'backups/manifest.x.json.bak' },
+      }).success,
+    ).toBe(true);
+    expect(
+      workspaceOpenRequestSchema.safeParse({ dir: 'C:/tmp/Demo.cstudio', recovery: {} }).success,
+    ).toBe(true);
+    expect(
+      workspaceOpenRequestSchema.safeParse({
+        dir: 'C:/tmp/Demo.cstudio',
+        recovery: { manifestBackup: '' },
+      }).success,
+    ).toBe(false);
+    expect(
+      workspaceOpenRequestSchema.safeParse({
+        dir: 'C:/tmp/Demo.cstudio',
+        recovery: { restoreEverything: true },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts the workspace inspection reply and rejects malformed ones', () => {
+    const inspection = {
+      dir: 'C:/tmp/Demo.cstudio',
+      name: 'Demo',
+      lock: 'stale',
+      manifest: 'ok',
+      backups: [
+        {
+          path: 'backups/manifest.20260101T000000000Z.json.bak',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          bytes: 42,
+        },
+      ],
+    };
+    expect(workspaceInspectRequestSchema.safeParse({ dir: 'C:/tmp/Demo.cstudio' }).success).toBe(
+      true,
+    );
+    expect(workspaceInspectRequestSchema.safeParse({ dir: '' }).success).toBe(false);
+    expect(workspaceInspectResponseSchema.safeParse(inspection).success).toBe(true);
+    expect(
+      workspaceInspectResponseSchema.safeParse({ ...inspection, manifest: 'broken' }).success,
+    ).toBe(false);
+    expect(
+      workspaceInspectResponseSchema.safeParse({ ...inspection, name: undefined }).success,
+    ).toBe(false);
+  });
+
+  it('validates the recent-list mutations and the quit handshake', () => {
+    expect(workspaceRecentRemoveRequestSchema.safeParse({ path: 'C:/Demo.cstudio' }).success).toBe(
+      true,
+    );
+    expect(workspaceRecentRemoveRequestSchema.safeParse({ path: '' }).success).toBe(false);
+    expect(workspaceRecentRemoveRequestSchema.safeParse({ path: 'x', extra: 1 }).success).toBe(
+      false,
+    );
+    expect(workspaceRecentClearRequestSchema.safeParse(undefined).success).toBe(true);
+    expect(workspaceRecentClearRequestSchema.safeParse({}).success).toBe(true);
+    expect(workspaceRecentClearRequestSchema.safeParse({ path: 'x' }).success).toBe(false);
+
+    expect(quitRequestSchema.safeParse({ reason: 'window-close' }).success).toBe(true);
+    expect(quitRequestSchema.safeParse({ reason: 'app-quit' }).success).toBe(true);
+    expect(quitRequestSchema.safeParse({ reason: 'crash' }).success).toBe(false);
+    expect(quitResponseRequestSchema.safeParse({ action: 'quit', flushed: false }).success).toBe(
+      true,
+    );
+    expect(quitResponseRequestSchema.safeParse({ action: 'maybe', flushed: false }).success).toBe(
+      false,
+    );
+    expect(quitResponseResponseSchema.safeParse({ ok: true }).success).toBe(true);
   });
 });

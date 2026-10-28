@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { MemoryWorkspaceStore } from '@curve/persistence';
 
@@ -37,13 +37,30 @@ function createFakeIpcMain(): FakeIpcMain {
   };
 }
 
-function wire(): { ipcMain: FakeIpcMain; lines: string[] } {
+function wire(): {
+  ipcMain: FakeIpcMain;
+  lines: string[];
+  inspectWorkspace: ReturnType<typeof vi.fn>;
+  removeRecentWorkspace: ReturnType<typeof vi.fn>;
+  clearRecentWorkspaces: ReturnType<typeof vi.fn>;
+  respondToQuit: ReturnType<typeof vi.fn>;
+} {
   const ipcMain = createFakeIpcMain();
   const lines: string[] = [];
   const logger = createLogger((level, line) => {
     lines.push(`${level}: ${line}`);
   });
   const registrar = createIpcRegistrar({ ipcMain, logger });
+  const inspectWorkspace = vi.fn(async (request: { dir: string }) => ({
+    dir: request.dir,
+    name: 'Demo',
+    lock: 'stale' as const,
+    manifest: 'ok' as const,
+    backups: [],
+  }));
+  const removeRecentWorkspace = vi.fn(async () => ({ ok: true as const }));
+  const clearRecentWorkspaces = vi.fn(async () => ({ ok: true as const }));
+  const respondToQuit = vi.fn(() => ({ ok: true as const }));
 
   registerIpcHandlers({
     registrar,
@@ -79,16 +96,27 @@ function wire(): { ipcMain: FakeIpcMain; lines: string[] } {
     }),
     workspaceStore: new MemoryWorkspaceStore({ appVersion: '0.1.0', uuid: () => 'test' }),
     listRecentWorkspaces: async () => [],
+    inspectWorkspace,
+    removeRecentWorkspace,
+    clearRecentWorkspaces,
+    respondToQuit,
   });
 
-  return { ipcMain, lines };
+  return {
+    ipcMain,
+    lines,
+    inspectWorkspace,
+    removeRecentWorkspace,
+    clearRecentWorkspaces,
+    respondToQuit,
+  };
 }
 
 describe('registerIpcHandlers', () => {
   it('registers exactly the channels implemented in this milestone', () => {
     const { ipcMain } = wire();
 
-    expect(ipcMain.registered()).toEqual([...IMPLEMENTED_IPC_CHANNELS]);
+    expect(ipcMain.registered().sort()).toEqual([...IMPLEMENTED_IPC_CHANNELS].sort());
   });
 
   it('answers app:info from the injected provider', async () => {
@@ -346,5 +374,50 @@ describe('registerIpcHandlers', () => {
     await expect(
       ipcMain.invoke(IPC_CHANNELS.fileImportText, { filters: [] }),
     ).resolves.toMatchObject({ ok: false, error: { code: 'E_IPC_INVALID_PAYLOAD' } });
+  });
+
+  it('forwards workspace:inspect and recent-list mutations (T5.3)', async () => {
+    const { ipcMain, inspectWorkspace, removeRecentWorkspace, clearRecentWorkspaces } = wire();
+
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.workspaceInspect, { dir: 'C:/Demo.cstudio' }),
+    ).resolves.toMatchObject({
+      ok: true,
+      data: { dir: 'C:/Demo.cstudio', lock: 'stale', manifest: 'ok' },
+    });
+    expect(inspectWorkspace).toHaveBeenCalledWith({ dir: 'C:/Demo.cstudio' });
+
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.workspaceRecentRemove, { path: 'C:/Demo.cstudio' }),
+    ).resolves.toEqual({ ok: true, data: { ok: true } });
+    expect(removeRecentWorkspace).toHaveBeenCalledWith({ path: 'C:/Demo.cstudio' });
+
+    await expect(ipcMain.invoke(IPC_CHANNELS.workspaceRecentClear, {})).resolves.toEqual({
+      ok: true,
+      data: { ok: true },
+    });
+    expect(clearRecentWorkspaces).toHaveBeenCalledTimes(1);
+
+    await expect(ipcMain.invoke(IPC_CHANNELS.workspaceInspect, {})).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'E_IPC_INVALID_PAYLOAD' },
+    });
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.workspaceRecentRemove, { path: '' }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'E_IPC_INVALID_PAYLOAD' } });
+  });
+
+  it('answers the quit handshake through the injected guard (T5.3)', async () => {
+    const { ipcMain, respondToQuit } = wire();
+
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.appQuitResponse, { action: 'quit', flushed: true }),
+    ).resolves.toEqual({ ok: true, data: { ok: true } });
+    expect(respondToQuit).toHaveBeenCalledWith({ action: 'quit', flushed: true });
+
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.appQuitResponse, { action: 'maybe', flushed: true }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'E_IPC_INVALID_PAYLOAD' } });
+    expect(respondToQuit).toHaveBeenCalledTimes(1);
   });
 });

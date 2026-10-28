@@ -32,10 +32,18 @@ test.describe('T0.3 typed IPC', () => {
 
     expect(surface).toEqual({
       namespaces: ['app', 'dialog', 'file', 'log', 'manifest', 'table', 'workspace'],
-      appMethods: ['info'],
+      appMethods: ['info', 'onQuitRequested', 'respondToQuit'],
       dialogMethods: ['pickDirectory'],
       logMethods: ['write'],
-      workspaceMethods: ['close', 'create', 'open', 'recent'],
+      workspaceMethods: [
+        'close',
+        'create',
+        'inspect',
+        'open',
+        'recent',
+        'recentClear',
+        'recentRemove',
+      ],
       manifestMethods: ['write'],
       tableMethods: ['read', 'trash', 'write'],
       fileMethods: ['archiveImport', 'exportCsv', 'exportText', 'importText'],

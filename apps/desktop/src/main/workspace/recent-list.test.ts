@@ -68,6 +68,32 @@ describe('recent workspace list', () => {
     await expect(list.list()).resolves.toHaveLength(MAX_RECENT_ENTRIES);
   });
 
+  it('removes one entry case-insensitively and clears the rest (T5.3)', async () => {
+    const directory = await makeDirectory();
+    const list = createRecentList({ userDataPath: directory });
+    await list.add('C:\\ws\\Demo.cstudio', 'Demo');
+    await list.add('C:\\ws\\Other.cstudio', 'Other');
+
+    await list.remove('c:\\ws\\demo.cstudio');
+    await expect(list.list()).resolves.toMatchObject([{ name: 'Other' }]);
+
+    await list.clear();
+    await expect(list.list()).resolves.toEqual([]);
+    const raw = JSON.parse(await readFile(join(directory, RECENT_FILE_NAME), 'utf8')) as unknown;
+    expect(raw).toEqual([]);
+  });
+
+  it('creates the list when remove/clear is called before the first open', async () => {
+    const directory = await makeDirectory();
+    const list = createRecentList({ userDataPath: directory });
+
+    await list.remove('C:\\ws\\Demo.cstudio');
+    await list.clear();
+
+    await expect(list.list()).resolves.toEqual([]);
+    await expect(readFile(join(directory, RECENT_FILE_NAME), 'utf8')).resolves.toBe('[]\n');
+  });
+
   it('surfaces a write failure as E_FS_WRITE', async () => {
     const directory = await makeDirectory();
     const list = createRecentList({

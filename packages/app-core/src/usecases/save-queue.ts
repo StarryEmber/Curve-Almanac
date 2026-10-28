@@ -1,9 +1,16 @@
 /**
- * Serial save queue for committed cell edits (T2.2, ADR-028).
+ * Serial autosave queue for document changes (T2.2, T5.3; ADR-028, ADR-048).
  *
- * Every successful `table.cell.set` enqueues its table. A single loop encodes
- * the table off the UI thread (injected Worker port) and writes JSONL followed
- * by the manifest. Re-enqueuing while a table is in flight coalesces into one
+ * Every successful row/table command enqueues its table; manifest-only changes
+ * enqueue the manifest. A single loop encodes each table off the UI thread
+ * (injected Worker port) and writes JSONL followed by the manifest, so the two
+ * file kinds never race.
+ *
+ * T5.3 adds the SPEC §13.3 autosave window: a change schedules a write
+ * `AUTOSAVE_DELAY_MS` after the *last* change, and the queue is forced no later
+ * than `AUTOSAVE_MAX_DELAY_MS` after the *first* pending change. `flush()`
+ * (Ctrl/Cmd+S, close workspace, quit handshake) cancels the window and writes
+ * immediately. Re-enqueuing while a table is in flight coalesces into one
  * follow-up write with the latest rows. Failures keep the dirty marker, stop the
  * loop and expose a retryable status; the next edit or `retry()` resumes it.
  */
@@ -30,6 +37,10 @@ export interface SaveQueueOptions {
   /** Renderer injects the table Worker; tests may omit it for a sync fallback. */
   encodeTable?: EncodeTable;
   logger?: AppLogger;
+  /** Quiet period after the last document change (SPEC §13.3; default 1500ms). */
+  autosaveDelayMs?: number;
+  /** Upper bound measured from the first pending change (default 10s). */
+  autosaveMaxDelayMs?: number;
 }
 
 export type SaveOutcome =
@@ -54,6 +65,12 @@ interface Waiter {
 
 const DEFAULT_FLUSH_TIMEOUT_MS = 3_000;
 
+/** SPEC §13.3: write 1.5s after the last change… */
+export const AUTOSAVE_DELAY_MS = 1_500;
+
+/** …but never more than 10s after the first pending change. */
+export const AUTOSAVE_MAX_DELAY_MS = 10_000;
+
 function fail(error: AppError): SaveOutcome {
   return { ok: false, error };
 }
@@ -61,6 +78,11 @@ function fail(error: AppError): SaveOutcome {
 export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
   const { store, workspaceStore } = options;
   const logger = options.logger ?? defaultAppLogger;
+  const autosaveDelayMs = Math.max(0, options.autosaveDelayMs ?? AUTOSAVE_DELAY_MS);
+  const autosaveMaxDelayMs = Math.max(
+    autosaveDelayMs,
+    options.autosaveMaxDelayMs ?? AUTOSAVE_MAX_DELAY_MS,
+  );
   const pending = new Set<string>();
   const waiters = new Set<Waiter>();
   let running = false;
@@ -68,6 +90,10 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
   /** Bumped by every `enqueueManifest` so an in-flight table save can tell. */
   let manifestVersion = 0;
   let manifestDirty = false;
+  /** Pending autosave window; `null` when no write is scheduled. */
+  let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Wall-clock time of the first change in the current dirty window. */
+  let firstPendingAt: number | null = null;
 
   const publish = (status: SaveState['status'], pendingCount: number, error: AppError | null) => {
     const state: SaveState = { status, pending: pendingCount, error };
@@ -82,6 +108,41 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
       waiter.resolve(outcome);
     }
     waiters.clear();
+  };
+
+  const clearAutosave = (): void => {
+    if (autosaveTimer !== null) {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    firstPendingAt = null;
+  };
+
+  /**
+   * Schedules the next write inside the SPEC §13.3 window.
+   *
+   * Trailing debounce: every new change restarts the quiet period, but the
+   * delay is clamped so the first pending change is never older than the
+   * 10-second cap. `flush()`/`retry()` bypass this and call `run()` directly.
+   */
+  const scheduleAutosave = (): void => {
+    if (running) {
+      return;
+    }
+    const nowMs = Date.now();
+    if (firstPendingAt === null) {
+      firstPendingAt = nowMs;
+    }
+    const untilForce = firstPendingAt + autosaveMaxDelayMs - nowMs;
+    const delay = Math.max(0, Math.min(autosaveDelayMs, untilForce));
+    if (autosaveTimer !== null) {
+      clearTimeout(autosaveTimer);
+    }
+    autosaveTimer = setTimeout(() => {
+      autosaveTimer = null;
+      firstPendingAt = null;
+      void run();
+    }, delay);
   };
 
   const saveManifestOnly = async (): Promise<SaveOutcome> => {
@@ -136,6 +197,11 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
     if (running) {
       return;
     }
+    if (autosaveTimer !== null) {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    firstPendingAt = null;
     running = true;
     try {
       while (pending.size > 0 || manifestDirty) {
@@ -201,7 +267,7 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
       }
       pending.add(tableId);
       publish('saving', pending.size, null);
-      void run();
+      scheduleAutosave();
     },
 
     enqueueManifest(): void {
@@ -217,12 +283,13 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
         }
       }
       publish('saving', pending.size, null);
-      void run();
+      scheduleAutosave();
     },
 
     cancel(tableId: string): void {
       pending.delete(tableId);
       if (!running && pending.size === 0 && !manifestDirty && lastError === null) {
+        clearAutosave();
         publish('idle', 0, null);
       }
     },
@@ -239,6 +306,7 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
         publish('saved', 0, null);
         return;
       }
+      clearAutosave();
       publish('saving', pending.size, null);
       void run();
     },
@@ -269,10 +337,16 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
           }, timeoutMs),
         };
         waiters.add(waiter);
+        // Ctrl/Cmd+S, close-workspace and the quit handshake must not wait for
+        // the 1.5s autosave window (SPEC §13.3).
+        clearAutosave();
+        publish('saving', pending.size, null);
+        void run();
       });
     },
 
     reset(): void {
+      clearAutosave();
       pending.clear();
       lastError = null;
       manifestVersion = 0;

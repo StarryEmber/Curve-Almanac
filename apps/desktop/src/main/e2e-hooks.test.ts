@@ -5,8 +5,10 @@ import {
   E2E_DIALOG_SAVE_ENV,
   E2E_FLAG_ENV,
   E2E_IMPORT_FILE_ENV,
+  E2E_QUIT_CONFIRM_ENV,
   E2E_USER_DATA_ENV,
   resolveE2EDialogStubs,
+  resolveE2EQuitConfirm,
   resolveE2EUserDataPath,
 } from './e2e-hooks';
 
@@ -92,5 +94,43 @@ describe('resolveE2EDialogStubs', () => {
         env: env({ [E2E_FLAG_ENV]: '1', [E2E_DIALOG_DIRECTORY_ENV]: '   ' }),
       }),
     ).toEqual({ directory: null, savePath: null, importPath: null });
+  });
+});
+
+describe('resolveE2EQuitConfirm', () => {
+  it('answers the quit-time confirmation only for an unpackaged E2E run', () => {
+    expect(
+      resolveE2EQuitConfirm({
+        isPackaged: false,
+        env: env({ [E2E_FLAG_ENV]: '1', [E2E_QUIT_CONFIRM_ENV]: 'quit' }),
+      }),
+    ).toBe(true);
+    expect(
+      resolveE2EQuitConfirm({
+        isPackaged: false,
+        env: env({ [E2E_FLAG_ENV]: '1', [E2E_QUIT_CONFIRM_ENV]: 'cancel' }),
+      }),
+    ).toBe(false);
+  });
+
+  it('returns null without the flag, in packaged builds or for unknown values', () => {
+    expect(
+      resolveE2EQuitConfirm({
+        isPackaged: true,
+        env: env({ [E2E_FLAG_ENV]: '1', [E2E_QUIT_CONFIRM_ENV]: 'quit' }),
+      }),
+    ).toBeNull();
+    expect(
+      resolveE2EQuitConfirm({
+        isPackaged: false,
+        env: env({ [E2E_QUIT_CONFIRM_ENV]: 'quit' }),
+      }),
+    ).toBeNull();
+    expect(
+      resolveE2EQuitConfirm({
+        isPackaged: false,
+        env: env({ [E2E_FLAG_ENV]: '1', [E2E_QUIT_CONFIRM_ENV]: 'maybe' }),
+      }),
+    ).toBeNull();
   });
 });

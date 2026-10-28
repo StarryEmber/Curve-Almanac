@@ -77,3 +77,4 @@
 | ADR-045 | T4.6 的图表解析拆分、数据缓存、延迟解析与性能门禁 | 已接受 | [045-t46-chart-performance.md](045-t46-chart-performance.md) |
 | ADR-046 | T5.1 的递归分栏、活动 pane、标签移动、布局恢复与保存去抖 | 已接受 | [046-t51-split-layout.md](046-t51-split-layout.md) |
 | ADR-047 | T5.2 的全命令撤销、256MB 门槛、瞬态布局与 Edit 菜单 | 已接受 | [047-t52-undo-redo.md](047-t52-undo-redo.md) |
+| ADR-048 | T5.3 的自动保存窗口、退出握手、锁/清单恢复与最近列表 | 已接受 | [048-t53-autosave-recovery.md](048-t53-autosave-recovery.md) |

@@ -151,6 +151,8 @@ export const zhCN = {
   'workspace.welcome.open': '打开工作区',
   'workspace.welcome.recent': '最近打开',
   'workspace.welcome.recentEmpty': '还没有最近打开的工作区。',
+  'workspace.welcome.recentClear': '清空最近列表',
+  'workspace.welcome.recentRemove': '从最近列表中移除 {name}',
 
   'workspace.new.title': '新建工作区',
   'workspace.new.description': '工作区会保存为一个 .cstudio 文件夹。',
@@ -171,6 +173,21 @@ export const zhCN = {
 
   'workspace.warnings.title': '打开工作区时有 {count} 条提示',
   'workspace.warnings.dismiss': '隐藏提示',
+
+  'workspace.recovery.title': '上次未正常退出',
+  'workspace.recovery.lockBody':
+    '“{name}”上次没有正常关闭。你可以尝试恢复（清单可读时使用当前清单，不可读时用备份重建），或直接打开。',
+  'workspace.recovery.lostEdits': '最后 1.5 秒内尚未落盘的修改可能已丢失。',
+  'workspace.recovery.try': '尝试恢复',
+  'workspace.recovery.direct': '直接打开',
+  'workspace.recovery.manifestTitle': '工作区清单已损坏',
+  'workspace.recovery.manifestBody':
+    '“{name}”的 manifest.json 无法读取。可以从下列清单备份重建；重建前会先备份损坏的清单。',
+  'workspace.recovery.backupLabel': '清单备份',
+  'workspace.recovery.backupOption': '{name} · {date} · {size} 字节',
+  'workspace.recovery.rebuild': '使用所选备份重建',
+  'workspace.recovery.noBackups': '没有可用的清单备份，无法重建。',
+  'workspace.recovery.unnamed': '该工作区',
 
   'workspace.close': '关闭工作区',
 
