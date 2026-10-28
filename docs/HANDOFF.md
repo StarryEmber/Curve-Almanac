@@ -6,7 +6,7 @@
 > 最后更新：2026-10-28 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
-> T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告见 `git log -1 -- docs/reports/t5.2/REPORT.md`
+> T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**
 > （M4 验收记录见 `git log -1 -- docs/reports/m4/REPORT.md`；T5.1 报告见
 > `git log -1 -- docs/reports/t5.1/REPORT.md`；本交接文档的提交见
 > `git log -1 -- docs/HANDOFF.md`）。
@@ -79,7 +79,7 @@
 5. UI：TitleBar 新增“编辑”Menu，显示“撤销 编辑单元格（Ctrl+Z）”/“重做 …”与空栈禁用态；
    `ui.history` 快照含 depth/action；`data-undo-depth`/`data-undo-action` 是 E2E 契约。
 6. 证据：报告 + **2 张截图**（`t5.2-history-menu.png`、`t5.2-history-undone.png`）。
-7. 提交：见 `git log -1 -- docs/reports/t5.2/REPORT.md`（`feat(undo): ...`）。
+7. 提交：**`a9dcf75`**（`feat(undo): add full command history and Edit menu (T5.2)`）。
 8. 残留：256MB 是估算（共享行数组低估、独特行高估）；单条超大导入会失去撤销；`table.delete`
    redo 留孤儿文件；`table.meta.update` 菜单文案不区分重命名/换主键；原生 Electron Edit 菜单
    仍未与历史同步。详见报告 §8 与 ADR-047“复核条件”。
@@ -110,6 +110,42 @@
    cd D:\DSH_Work_Space\curve-studio
    pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/layout.spec.ts apps/desktop/e2e/undo.spec.ts
    ```
+
+### 0.4 T5.3 代码现状（2026-10-28 读码结论）
+
+> 这些事实决定 T5.3 的落点；实现前重读源码复核。
+
+1. **保存仍是“每次提交立即写”**：`SaveQueue`（`packages/app-core/src/usecases/save-queue.ts`）对
+   `table.cell.set`/paste/import/rows.insert 以及 manifest-only 命令立即入队；没有 T5.3 的
+   1.5s 防抖/10s 强制。`flush` 默认 3s、失败保留 dirty、`retry` 可重试；状态栏读
+   `ui.save.status`（idle/saving/saved/error）。
+2. **退出没有 flush 握手**：main 的 `before-quit` 目前只 `csvWriter.dispose()`（`src/main/index.ts`）；
+   只有 `WorkspaceActions.closeWorkspace()` 会先 `flushSaves()`。T5.3 要在退出前加 3s 上限的
+   flush，并处理超时/取消，不得让 `before-quit` 永久卡死。
+3. **Ctrl/Cmd+S 已接**：`WorkspaceView` 调 `core.actions.flushSaves()`，会先冲掉 500ms 布局
+   定时器再等队列；T5.3 的 1.5s 防抖必须复用这个 flush 入口。
+4. **锁恢复是自动的，不是选择**：`FileWorkspaceStore.open` 对 active lock 抛 `E_WS_LOCKED`；
+   stale/corrupt lock 只加 warning 并直接覆盖。T5.3 的“尝试恢复/直接打开”需要给 open 增加
+   显式选项/预检 API，并同步 SPEC §7.5 与 ADR（不要偷偷改现有默认）。
+5. **manifest 损坏没有备份重建 UI**：`parseManifestDocument` 失败抛 `E_WS_INVALID_MANIFEST`；
+   备份目录有 `manifest.*.json.bak`（由 `copyToBackup` 写），但当前没有“扫描备份→二次确认→
+   重建”的 store 方法/UI。`listBackups`/`restore` 目前主要是 table 语义，T5.3 需要明确 manifest
+   备份的列出/恢复契约。
+6. **最近列表只读**：`workspace:recent` 已实现；`workspace:recent:remove`/`clear` 只有通道名，
+   `IMPLEMENTED_IPC_CHANNELS` 未注册；`WelcomePage` 只列出/打开。T5.3 要补 main 方法、
+   Zod 契约、preload/api-client 与 UI（移除/清空），并同步 `ipc.spec.ts` 的通道集合断言。
+7. **open 失败可能留锁**：`FileWorkspaceStore.open` 成功写 lock/注册 workspace 后，renderer
+   的逐表 `readTable` 失败会让 `openWorkspace` 返回错误；当前没有 close-on-failure。T5.3 要在
+   失败路径 close 已打开的 workspace，否则下次打开会看到 stale lock。
+8. **布局去抖是第二条定时器**：T5.1 的 500ms `scheduleLayoutSave` 与 `SaveQueue` 串联，T5.3
+   的 1.5s 自动保存必须复用/替换队列，不能并存两条写盘路径；撤销/重做也走同一队列
+   （T5.2 的 `persist` 已按行补丁/manifest 分类）。
+9. **状态文案已存在**：`shell.status.saved/saving/saveError/retry` 与 `autosave-status` 测试
+   契约可用；新增“上次未正常退出”提示需要新 i18n key 与恢复对话框，不要把英文 warning
+   直接当 UI 文案。
+10. **E2E 夹具**：`launchCurveApp` 支持同一 `userData` 重启；`fixtures/workspaces/stale-lock` 与
+    `m1-acceptance` 已覆盖 stale lock；强杀用 `taskkill /F`（Windows）。T5.3 的 autosave/recovery
+    spec 必须用 `expect.poll` 等磁盘，不要读文件后立刻断言。
 
 ---
 
@@ -144,7 +180,7 @@
 | `T4.6` 图表性能硬化 | **已完成**（2026-10-26，`0fc37aa`）；报告 `docs/reports/t4.6/REPORT.md`；ADR-045 |
 | M4 验收演示 | **已获用户接受**（2026-10-27）；`e2e/m4-acceptance.spec.ts` + `docs/reports/m4/REPORT.md`（7 张截图）；全量 E2E 82 passed |
 | `T5.1` 分栏布局与标签页 | **已完成**（2026-10-27，`eb152b4`）；报告 `docs/reports/t5.1/REPORT.md`；ADR-046；4 张截图 |
-| `T5.2` 撤销/重做 | **已完成**（2026-10-28）；报告 `docs/reports/t5.2/REPORT.md`；ADR-047；2 张截图 |
+| `T5.2` 撤销/重做 | **已完成**（2026-10-28，`a9dcf75`）；报告 `docs/reports/t5.2/REPORT.md`；ADR-047；2 张截图 |
 | 当前里程碑 | **M5 体验**：T5.1、T5.2 已完成；下一步 T5.3，M5 验收演示待 T5.1–T5.5 全部完成 |
 | 下一步 | **T5.3 自动保存、恢复与最近打开**（依赖 T1.2/T1.3/T1.5；SPEC §7.5/§13.3；TESTPLAN E8） |
 | `pnpm verify` 基线 | **165 files / 1532 tests**；ESLint 0；depcruise 454 modules / 1913 deps / 0 violations |
