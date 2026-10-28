@@ -577,3 +577,28 @@
   functions 74.49%（阈值 70/60 未下调）；`pnpm build` exit 0（renderer **3,273.65 kB**、
   CSS 74.30 kB）；`pnpm e2e` **85 passed**（4.3m；layout 5.2s/2.2s/2.5s）；`pnpm bench`
   exit 0。不改 `formatVersion`/JSONL/IPC/preload/CSP，不新增运行时依赖。
+- T5.2：`EditHistory` 由白名单改为**全命令历史**：所有产生 Immer patches 的命令默认入栈；
+  `view.layout` 仅在布局树（忽略 `activeViewId`）变化时记录，纯标签/焦点切换瞬态且不清 redo；
+  表/列/行/视图/样式/图表/工作区命令各一条；`table.cell.set` 保留 800ms/`mergeKey` 合并，
+  redo 非空时不再并进旧条目。新增 `ui.history` 快照、`setHistoryState` 与
+  `createEmptyHistoryState`。
+- T5.2：历史上限为 **100 条或估算 256MB**（`DEFAULT_HISTORY_MAX_BYTES`）。估算按 UTF-16
+  字符串、数组指针与对象开销计；100k 行数组与当前表共享时只计数组（约 800KB），import
+  replace/删表/删列的独特旧行数组抽样 16 行外推；超限从最旧 undo 条目丢弃，单条超限也丢弃；
+  不在热路径 `JSON.stringify` 100k 行。`sizeBytes()` 暴露两栈估算值。
+- T5.2：undo/redo 复用 `SaveQueue`：行补丁 → 表 + manifest；纯 manifest 命令与删除表 redo →
+  仅 manifest；删除表 redo 不重复 `trash`（可能留下无害孤儿文件）。打开/关闭工作区清空历史。
+- T5.2：TitleBar 新增“编辑”`HistoryMenu`（撤销/重做显示命令名、Ctrl/Cmd 快捷键与禁用态）；
+  `history-action-label.ts` 把命令名映射到中英文文案（未知命令回退“修改文档”）；不新增 IPC。
+- T5.2：新增 `apps/desktop/e2e/undo.spec.ts` 3 条（5 次编辑→撤销 5/重做 3 + JSONL + 菜单，
+  7.6s；标签/选择/滚动不入历史 + 焦点切换保 redo + 关闭/重开清空，3.7s；键盘打开菜单 +
+  200% 缩放不越界，2.9s）；单测扩 `edit-history.test.ts`（100 步、256MB、100k 行估算、
+  布局瞬态）、`workspace-actions.test.ts`、`column-actions.test.ts`、`chart-actions.test.ts`、
+  `import-actions.test.ts` 与 `history-action-label.test.ts`。新增 ADR-047、SPEC §13.1/§13.2
+  实现边界、TASKS T5.2 与 `docs/reports/t5.2/REPORT.md`（2 张截图）。
+- T5.2：`pnpm verify` **165 files / 1532 tests**；depcruise 454 modules / 1913 deps /
+  0 violations；coverage 全局 lines **76.21%** / statements 76.07% / branches 69.07% /
+  functions 74.80%（阈值 70/60 未下调；`app-core/history/edit-history.ts` lines **90.99%**、
+  branches 86.89%）；`pnpm build` exit 0（renderer **3,288.47 kB**、CSS 74.37 kB）；
+  `pnpm e2e` **88 passed**（含 undo 3 条）；`pnpm bench` exit 0。不改 `formatVersion`/
+  JSONL/IPC/preload/CSP，不新增运行时依赖。

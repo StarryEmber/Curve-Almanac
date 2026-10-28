@@ -76,3 +76,4 @@
 | ADR-044 | T4.5 的图表交互、空态、PNG 导出与无障碍摘要 | 已接受 | [044-t45-chart-interaction-export.md](044-t45-chart-interaction-export.md) |
 | ADR-045 | T4.6 的图表解析拆分、数据缓存、延迟解析与性能门禁 | 已接受 | [045-t46-chart-performance.md](045-t46-chart-performance.md) |
 | ADR-046 | T5.1 的递归分栏、活动 pane、标签移动、布局恢复与保存去抖 | 已接受 | [046-t51-split-layout.md](046-t51-split-layout.md) |
+| ADR-047 | T5.2 的全命令撤销、256MB 门槛、瞬态布局与 Edit 菜单 | 已接受 | [047-t52-undo-redo.md](047-t52-undo-redo.md) |

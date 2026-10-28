@@ -54,7 +54,7 @@
 | `chart-echarts/option` | 黄金快照 | 4 调色板、深浅背景、null 断点 |
 | `persistence` | 原子写、备份、锁、路径白名单 | 中断写、损坏 manifest、`../` 逃逸 |
 | `plugin-sdk` | 注册/替换/移除/版本/隔离 | 重复 id、激活抛错、deactivate |
-| `app-core/history` | patches 撤销/重做/合并 | 100 步、redo 分支、批量单条 |
+| `app-core/history` | patches 撤销/重做/合并 | 100 步、256MB、redo 分支、批量单条、瞬态布局 |
 | `ui/components` | 焦点陷阱/Esc/键盘/ARIA | Dialog、Toast、Tabs、Grid |
 | `ipc` | 信封、校验、错误映射 | 非法载荷、未知通道、异常转 `E_UNKNOWN` |
 
@@ -167,7 +167,10 @@
 > T5.1 覆盖第 1–2 步的布局部分：`apps/desktop/e2e/layout.spec.ts` 3 条——分栏（水平/垂直/
 > 4 pane 上限）、移动到下一分栏、比例拖拽到 0.35、关闭空 pane、重启后 pane/比例/每个 pane
 > 的活动标签恢复；非法引用/比例回退单 pane 且视图不丢；标签 Arrow 键切换、Ctrl+W 关闭、
-> 分隔条键盘调比例与 200% 缩放。第 3–4 步的撤销/重做与“选择不进历史”属于 T5.2。
+> 分隔条键盘调比例与 200% 缩放。第 3–4 步由 T5.2 的 `apps/desktop/e2e/undo.spec.ts` 3 条覆盖：
+> 5 次间隔 >800ms 的编辑 → 撤销 5 次/重做 3 次并断言 JSONL；标签切换、选择、滚动不入历史，
+> 焦点切换保留 redo，关闭/重开清空历史；Edit 菜单显示命令名与禁用态，键盘打开菜单并在 200%
+> 缩放下不越界。100 步/256MB 上限与各命令单条历史由 `packages/app-core` 单测覆盖（ADR-047）。
 
 ### E8 自动保存与崩溃恢复
 

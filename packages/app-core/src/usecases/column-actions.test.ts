@@ -202,6 +202,14 @@ function setup(overrides: { table?: TableMeta; rows?: Row[] } = {}) {
       error: null,
       dirtyTables: [],
       save: { status: 'idle', pending: 0, error: null },
+      history: {
+        canUndo: false,
+        canRedo: false,
+        undoAction: null,
+        redoAction: null,
+        undoDepth: 0,
+        redoDepth: 0,
+      },
       editIssue: null,
     },
   });
@@ -248,6 +256,35 @@ describe('column actions', () => {
     expect(store.calls).toEqual(['writeTable', 'manifest']);
     expect(store.writtenTables[0]?.jsonl).toContain('"v":["a",1735689600000,21.5,null]');
     expect(store.manifests.at(-1)?.tables[0]?.columns).toHaveLength(4);
+  });
+
+  it('undoes column add and delete as one history entry each', async () => {
+    const { store, core } = setup();
+
+    expect((await core.actions.addColumn('tbl_1', draft())).ok).toBe(true);
+    expect(core.history.snapshot()).toMatchObject({
+      undoAction: 'table.column.add',
+      undoDepth: 1,
+    });
+    expect(core.store.getState().tables['tbl_1']?.table.columns).toHaveLength(4);
+
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().tables['tbl_1']?.table.columns).toHaveLength(3);
+    expect(core.store.getState().tables['tbl_1']?.rows[0]?.values).toEqual([
+      'a',
+      1735689600000,
+      21.5,
+    ]);
+    await core.actions.flushSaves();
+    expect(store.writtenTables.at(-1)?.jsonl).toContain('"v":["a",1735689600000,21.5]');
+
+    expect((await core.actions.deleteColumn('tbl_1', 'col_value')).ok).toBe(true);
+    expect(core.history.snapshot().undoAction).toBe('table.column.delete');
+    expect(core.store.getState().tables['tbl_1']?.table.columns).toHaveLength(2);
+
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().tables['tbl_1']?.table.columns).toHaveLength(3);
+    expect(core.store.getState().tables['tbl_1']?.rows[0]?.values[2]).toBe(21.5);
   });
 
   it('returns form issues without touching the store or the disk', async () => {

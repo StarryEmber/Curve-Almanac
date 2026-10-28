@@ -84,6 +84,14 @@ describe('app-core store actions', () => {
       error: null,
       dirtyTables: [],
       save: { status: 'idle', pending: 0, error: null },
+      history: {
+        canUndo: false,
+        canRedo: false,
+        undoAction: null,
+        redoAction: null,
+        undoDepth: 0,
+        redoDepth: 0,
+      },
       editIssue: null,
     });
     expect(selectCurrentTable(store.getState())).toBeNull();

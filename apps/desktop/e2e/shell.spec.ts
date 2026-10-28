@@ -64,11 +64,12 @@ test.describe('T0.4 shell', () => {
   });
 
   test('shell: is operable with the keyboard alone', async ({ page }) => {
-    // The skip link is the first tab stop, the title bar second.
+    // The skip link is the first tab stop; the title bar's first action is the
+    // T5.2 Edit/history menu (the panel toggles follow it).
     await page.keyboard.press('Tab');
     await expect(page.getByRole('link', { name: '跳到主内容' })).toBeFocused();
     await page.keyboard.press('Tab');
-    await expect(page.getByRole('button', { name: '切换侧栏' })).toBeFocused();
+    await expect(page.getByRole('button', { name: '历史: 编辑' })).toBeFocused();
 
     // Tabs: arrows move both focus and selection.
     await page.getByRole('tab', { name: '数据表' }).focus();

@@ -144,6 +144,9 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
     onWorkspaceChanged: () => {
       saveQueue.enqueueManifest();
     },
+    onStateChange: (state) => {
+      store.getState().actions.setHistoryState(state);
+    },
   });
   const commands = createCommandBus(store, {
     logger,

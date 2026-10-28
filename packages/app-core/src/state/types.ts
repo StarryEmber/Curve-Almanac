@@ -21,6 +21,24 @@ export interface SaveState {
   error: AppError | null;
 }
 
+/**
+ * UI snapshot of the undo/redo history (T5.2).
+ *
+ * The entries themselves remain private to `EditHistory`; this is the small
+ * amount of state the Edit menu needs to render labels and disabled states.
+ * It is UI-only and never enters Immer document patches.
+ */
+export interface HistoryState {
+  canUndo: boolean;
+  canRedo: boolean;
+  /** Command name of the next undo entry, or null when the stack is empty. */
+  undoAction: string | null;
+  /** Command name of the next redo entry, or null when the stack is empty. */
+  redoAction: string | null;
+  undoDepth: number;
+  redoDepth: number;
+}
+
 /** The open workspace's immutable identity, settings and open-time warnings. */
 export interface WorkspaceInfo {
   formatVersion: 1;
@@ -58,6 +76,8 @@ export interface UiState {
   dirtyTables: DirtyTableEntry[];
   /** Save queue status consumed by the status bar. */
   save: SaveState;
+  /** Undo/redo availability and labels for the Edit menu (T5.2). */
+  history: HistoryState;
   /** The cell validation issue currently shown in the editor/status bar. */
   editIssue: CellIssue | null;
 }
@@ -73,6 +93,8 @@ export interface AppActions {
   clearDirty(tableId: string): void;
   clearAllDirty(): void;
   setSaveState(save: SaveState): void;
+  /** Updates the UI-only history snapshot after record/undo/redo/clear. */
+  setHistoryState(history: HistoryState): void;
   setEditIssue(issue: CellIssue | null): void;
 }
 

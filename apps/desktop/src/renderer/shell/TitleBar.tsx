@@ -3,6 +3,7 @@ import type { MenuItemDefinition } from '@curve/ui';
 
 import { useAppState } from '../app-core/use-app-core';
 import { useWorkspaceController } from '../app-core/use-workspace-controller';
+import { HistoryMenu } from '../features/history/HistoryMenu';
 import { useI18n } from '../i18n';
 import { useTheme } from '../theme/ThemeProvider';
 
@@ -50,6 +51,7 @@ export function TitleBar({
       </div>
 
       <div className="cs-titlebar__actions">
+        <HistoryMenu />
         {workspace === null ? null : (
           <Button
             variant="ghost"

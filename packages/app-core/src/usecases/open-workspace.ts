@@ -14,6 +14,7 @@ import type { JsonlDecodeResult, TableData } from '@curve/table-engine';
 
 import { listPaneEntries } from '../commands/layout';
 import { defaultAppLogger } from '../logging';
+import { createEmptyHistoryState } from '../state/store';
 
 import type { AppLogger } from '../logging';
 import type { AppStore } from '../state/types';
@@ -188,6 +189,7 @@ export function createOpenWorkspace(deps: OpenWorkspaceDependencies): OpenWorksp
             error: null,
             dirtyTables: [],
             save: { status: 'idle', pending: 0, error: null },
+            history: createEmptyHistoryState(),
             editIssue: null,
           },
         },

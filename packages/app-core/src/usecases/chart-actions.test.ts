@@ -182,6 +182,14 @@ describe('chart actions', () => {
     const state = core.store.getState();
     expect(state.ui.activeViewId).toBe(viewId);
     expect(state.charts[chartId]?.title).toBe('Readings chart');
+    expect(core.history.snapshot()).toMatchObject({ undoAction: 'chart.create', undoDepth: 1 });
+
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().charts[chartId]).toBeUndefined();
+    expect(core.store.getState().views[viewId]).toBeUndefined();
+    expect((await core.actions.redo()).ok).toBe(true);
+    expect(core.store.getState().charts[chartId]).toBeDefined();
+    expect(core.store.getState().views[viewId]).toBeDefined();
   });
 
   it('rejects an invalid mapping or a missing table without writing the manifest', async () => {
@@ -233,6 +241,13 @@ describe('chart actions', () => {
     expect(persisted?.mapping).toEqual(LONG);
     expect(persisted?.options.legend).toBe('right');
     expect(persisted?.options.paletteId).toBe('colorblind');
+    expect(core.history.snapshot().undoAction).toBe('chart.update');
+
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().charts[created.data.chartId]?.kind).toBe('line');
+    expect(core.store.getState().charts[created.data.chartId]?.mapping).toEqual(WIDE);
+    expect((await core.actions.redo()).ok).toBe(true);
+    expect(core.store.getState().charts[created.data.chartId]?.kind).toBe('scatter');
 
     store.failManifest = true;
     const failed = await core.actions.updateChart({
@@ -264,6 +279,13 @@ describe('chart actions', () => {
     expect(manifest?.charts).toEqual([]);
     expect(manifest?.views.map((view) => view.id)).toEqual(['viw_table']);
     expect(core.store.getState().ui.activeViewId).toBe('viw_table');
+    expect(core.history.snapshot().undoAction).toBe('chart.delete');
+
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().charts[created.data.chartId]).toBeDefined();
+    expect(core.store.getState().views[created.data.viewId]).toBeDefined();
+    expect((await core.actions.redo()).ok).toBe(true);
+    expect(core.store.getState().charts[created.data.chartId]).toBeUndefined();
   });
 
   it('duplicates a chart with a new id and independent options', async () => {

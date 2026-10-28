@@ -59,7 +59,7 @@ import {
 import { createDuplicateTableView } from '../commands/view-copy';
 import { defaultAppLogger } from '../logging';
 import { stateToManifest } from '../state/manifest';
-import { createIdleSaveState } from '../state/store';
+import { createEmptyHistoryState, createIdleSaveState } from '../state/store';
 import {
   cellIssueToAppError,
   checkTableCellSet,
@@ -1615,6 +1615,7 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
         error: null,
         dirtyTables: [],
         save: createIdleSaveState(),
+        history: createEmptyHistoryState(),
         editIssue: null,
       },
     });

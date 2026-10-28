@@ -1373,7 +1373,7 @@ export interface RenderModel {
 | `table.column.add/update/delete/reorder` | tableId, ... | 是（delete 需二次确认） |
 | `table.meta.update` | tableId, name/primaryKey | 是 |
 | `view.create/delete/update` | view | 是 |
-| `view.layout` | LayoutNode（可选 `activePanePath`，UI-only） | 是 |
+| `view.layout` | LayoutNode（可选 `activePanePath`，UI-only） | 是（仅结构变更；纯焦点/标签切换不入历史） |
 | `style.create/update/delete/apply` | style | 是 |
 | `chart.create/update/delete` | chart | 是 |
 | `workspace.rename` | name | 是 |
@@ -1421,6 +1421,10 @@ export interface RenderModel {
   刷新 `updatedAt`，标题变化同步该图表视图标题；`chart.delete` 级联删除图表视图与 layout 引用。
   复制/打开/重命名/删除由 `WorkspaceActions.duplicateChart/openChart` 组合上述命令实现
   （复制用新 `cht_`/`viw_` 与 ` (2)` 标题）。
+- **实现边界（T5.2，ADR-047）**：`view.layout` 的“可撤销”只适用于结构变更（分栏、移动标签、
+  比例、关闭 pane）；只改变 `activeViewId`/`activePanePath` 的标签/焦点切换是瞬态，不进入历史
+  也不清空 redo。其余产生补丁的命令（表/行/列/视图/样式/图表/工作区）默认进入同一历史栈，
+  不再维护命令白名单。
 
 ### 13.2 撤销/重做
 
@@ -1455,6 +1459,13 @@ export interface RenderModel {
   （`tableId: null`），undo/redo 只改内存文档并触发 manifest 保存；检查器每个控件一次提交对应
   一条记录（文本/数字失焦或 Enter、下拉/复选框每次交互）。复制图表是一条 `chart.create`，
   重命名为一条 `chart.update`，删除的一条撤销同时恢复图表、视图与 layout 引用。
+- **实现边界（T5.2，ADR-047）**：历史条目统一消费 `CommandResult.patches/inversePatches`；
+  只有 `table.cell.set` 在 800ms 内按同一 `mergeKey` 合并，且撤销后同一格的再次编辑不再并进旧
+  条目。`view.layout` 只在布局树（忽略 `activeViewId`）变化时入栈，纯标签/焦点切换不入栈也不
+  清 redo。上限为 100 条或**估算** 256MB（UTF-16 字符串 + 数组指针 + 行数组抽样；不使用
+  `JSON.stringify` 序列化 100k 行）；超限从最旧 undo 条目开始丢弃，单条超限也会被丢弃。
+  撤销/重做按补丁决定落盘：行补丁走表 + manifest，纯 manifest 命令（含删除表的 redo）只写
+  manifest。Edit 菜单显示下一条可撤销命令名；打开/关闭工作区清空两个栈与 `ui.history`。
 
 ### 13.3 自动保存
 

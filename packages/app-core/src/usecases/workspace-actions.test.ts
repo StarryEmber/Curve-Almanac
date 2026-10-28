@@ -190,6 +190,121 @@ describe('workspace actions', () => {
     expect(core.store.getState().views).toEqual({});
   });
 
+  it('undoes table creation and deletion with one history entry each', async () => {
+    const { store, core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const tableId = created.data.table.id;
+    expect(core.history.snapshot()).toMatchObject({
+      undoAction: 'table.create',
+      undoDepth: 1,
+    });
+
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().tables[tableId]).toBeUndefined();
+    expect(core.store.getState().views).toEqual({});
+    expect(core.history.snapshot()).toMatchObject({ redoAction: 'table.create' });
+
+    expect((await core.actions.redo()).ok).toBe(true);
+    expect(core.store.getState().tables[tableId]).toBeDefined();
+    await core.actions.flushSaves();
+    core.store.setState({
+      tables: {
+        [tableId]: {
+          table: { ...created.data.table, rowCount: 1 },
+          rows: [{ id: 'row_1', values: ['alpha'] }],
+        },
+      },
+    });
+
+    store.calls.length = 0;
+    expect((await core.actions.deleteTable(tableId)).ok).toBe(true);
+    expect(core.history.snapshot().undoAction).toBe('table.delete');
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().tables[tableId]).toBeDefined();
+    expect(core.store.getState().tables[tableId]?.rows).toHaveLength(1);
+    await core.actions.flushSaves();
+    expect(store.writtenTables.at(-1)?.tableId).toBe(tableId);
+
+    const tableWritesBeforeRedo = store.writtenTables.length;
+    store.calls.length = 0;
+    expect((await core.actions.redo()).ok).toBe(true);
+    expect(core.store.getState().tables[tableId]).toBeUndefined();
+    await core.actions.flushSaves();
+    // Redo of a deletion is manifest-only: the table file is already trashed.
+    expect(store.writtenTables).toHaveLength(tableWritesBeforeRedo);
+    expect(store.calls).toEqual(['manifest']);
+    expect(store.manifests.at(-1)?.tables).toEqual([]);
+  });
+
+  it('undoes view create, update and delete as one entry per command', async () => {
+    const { core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const sourceViewId = created.data.view.id;
+    const columnId = created.data.table.columns[0]?.id ?? '';
+    core.history.clear();
+
+    const duplicated = await core.actions.duplicateView(sourceViewId);
+    expect(duplicated.ok).toBe(true);
+    if (!duplicated.ok) {
+      return;
+    }
+    const duplicateId = duplicated.data.viewId;
+    expect(core.history.snapshot()).toMatchObject({ undoAction: 'view.create', undoDepth: 1 });
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().views[duplicateId]).toBeUndefined();
+    expect((await core.actions.redo()).ok).toBe(true);
+    expect(core.store.getState().views[duplicateId]).toBeDefined();
+
+    expect((await core.actions.updateView(duplicateId, { widths: { [columnId]: 240 } })).ok).toBe(
+      true,
+    );
+    expect(core.history.snapshot()).toMatchObject({ undoAction: 'view.update', undoDepth: 2 });
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().views[duplicateId]?.tableView?.widths).toEqual({
+      [columnId]: 180,
+    });
+
+    expect((await core.actions.closeView(duplicateId)).ok).toBe(true);
+    expect(core.history.snapshot().undoAction).toBe('view.delete');
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().views[duplicateId]).toBeDefined();
+    expect(core.store.getState().layout).toMatchObject({
+      viewIds: expect.arrayContaining([duplicateId]),
+    });
+  });
+
+  it('undoes a table rename as one manifest-only entry', async () => {
+    const { core } = setup();
+    const created = await core.actions.createTable('Sensors');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const tableId = created.data.table.id;
+    core.history.clear();
+
+    expect((await core.actions.renameTable(tableId, 'Renamed')).ok).toBe(true);
+    expect(core.history.snapshot()).toMatchObject({
+      undoAction: 'table.meta.update',
+      undoDepth: 1,
+    });
+    expect(core.store.getState().tables[tableId]?.table.name).toBe('Renamed');
+
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().tables[tableId]?.table.name).toBe('Sensors');
+    expect(core.store.getState().views[created.data.view.id]?.title).toBe('Sensors');
+    expect((await core.actions.redo()).ok).toBe(true);
+    expect(core.store.getState().tables[tableId]?.table.name).toBe('Renamed');
+  });
+
   it('persists view width updates through view.update', async () => {
     const { store, core } = setup();
     const created = await core.actions.createTable('Sensors');
@@ -281,6 +396,7 @@ describe('workspace actions', () => {
       },
     });
     store.calls.length = 0;
+    const historyDepth = core.history.size();
 
     const outcome = await core.actions.updateCell(tableId, 'row_1', columnId, 'alpha');
     expect(outcome.ok).toBe(true);
@@ -288,7 +404,7 @@ describe('workspace actions', () => {
       expect(outcome.data.changed).toBe(false);
     }
     expect(store.calls).toEqual([]);
-    expect(core.history.canUndo()).toBe(false);
+    expect(core.history.size()).toBe(historyDepth);
     expect(core.store.getState().ui.dirtyTables).toEqual([]);
   });
 
@@ -679,6 +795,7 @@ describe('workspace actions', () => {
   it('closes the workspace and resets the document slices', async () => {
     const { store, core } = setup();
     expect((await core.actions.createTable('Sensors')).ok).toBe(true);
+    expect(core.history.canUndo()).toBe(true);
 
     const outcome = await core.actions.closeWorkspace();
     expect(outcome.ok).toBe(true);
@@ -689,5 +806,7 @@ describe('workspace actions', () => {
     expect(state.views).toEqual({});
     expect(state.layout).toEqual({ type: 'pane', viewIds: [], activeViewId: null });
     expect(state.ui.activeTableId).toBeNull();
+    expect(core.history.canUndo()).toBe(false);
+    expect(state.ui.history).toMatchObject({ canUndo: false, canRedo: false, undoDepth: 0 });
   });
 });

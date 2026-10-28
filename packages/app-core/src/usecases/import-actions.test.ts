@@ -95,6 +95,14 @@ async function setup(): Promise<{
       error: null,
       dirtyTables: [],
       save: { status: 'idle', pending: 0, error: null },
+      history: {
+        canUndo: false,
+        canRedo: false,
+        undoAction: null,
+        redoAction: null,
+        undoDepth: 0,
+        redoDepth: 0,
+      },
       editIssue: null,
     },
   };
@@ -135,6 +143,7 @@ describe('WorkspaceActions.applyImport', () => {
     });
     expect(core.store.getState().tables[TABLE.id]?.rows).toHaveLength(2);
     expect(core.history.canUndo()).toBe(true);
+    expect(core.history.snapshot().undoAction).toBe('table.import');
 
     const written = await memory.readTable({ workspaceId, tableId: TABLE.id });
     expect(written.jsonl).toContain('"row_new"');
@@ -142,6 +151,15 @@ describe('WorkspaceActions.applyImport', () => {
       dir: '/tmp/import-action/Import Action.cstudio',
     });
     expect(storedManifest.manifest.tables[0]?.rowCount).toBe(2);
+
+    expect((await core.actions.undo()).ok).toBe(true);
+    expect(core.store.getState().tables[TABLE.id]?.rows).toHaveLength(1);
+    expect((await core.actions.flushSaves()).ok).toBe(true);
+    const restored = await memory.readTable({ workspaceId, tableId: TABLE.id });
+    expect(restored.jsonl).not.toContain('"row_new"');
+
+    expect((await core.actions.redo()).ok).toBe(true);
+    expect(core.store.getState().tables[TABLE.id]?.rows).toHaveLength(2);
   });
 
   it('does not dispatch when archiving fails', async () => {

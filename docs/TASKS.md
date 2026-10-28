@@ -1412,8 +1412,9 @@ T0.2 + T5.5 → T6.4
 <a id="m5"></a>
 ## M5 体验
 
-> 状态（2026-10-27）：`T5.1`（分栏布局与标签页）已完成（ADR-046）；下一步 `T5.2`
-> （撤销/重做）。M5 验收演示在 T5.1–T5.5 全部完成后执行。
+> 状态（2026-10-28）：`T5.1`（分栏布局与标签页）与 `T5.2`（撤销/重做）已完成
+> （ADR-046、ADR-047）；下一步 `T5.3`（自动保存、恢复与最近打开）。M5 验收演示在
+> T5.1–T5.5 全部完成后执行。
 
 <a id="t51"></a>
 ### T5.1 分栏布局与标签页
@@ -1460,18 +1461,18 @@ T0.2 + T5.5 → T6.4
   - 残留：最后聚焦 pane 不持久化（重启焦点为第一个有活动标签的 pane，每个 pane 的标签选择
     恢复）；分栏不自动创建/移动视图；无跨 pane 拖拽；500ms 去抖窗口在强退时由 T5.3 统一
     flush；空 pane 复用 `workspace-empty`，多 pane 时测试需限定 pane；回退 warning 英文且原
-    文件下一次保存才改写；`view.layout` 不进入 undo 但有 patches 时仍会清 redo（与旧
-    `activateView` 相同），E7 的“选择/标签切换不进历史”由 T5.2 统一处理。详见
+    文件下一次保存才改写。`view.layout` 与历史栈的交互已由 T5.2 统一（ADR-047）：纯焦点/
+    标签切换不入历史且不清 redo，结构变更可撤销。详见
     `docs/reports/t5.1/REPORT.md` 与 ADR-046“复核条件”。
 
 <a id="t52"></a>
 ### T5.2 撤销/重做
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T1.5、T2.2、T2.3、T3.4
 - 覆盖：FR-TBL-02、FR-STY-02
 - 参考：SPEC §13.2
 - 产出：
-  - 基于 Immer patches 的历史栈（上限 100）
+  - 基于 Immer patches 的历史栈（上限 100 条 / 256MB）
   - 合并规则（800ms 单元格编辑）；批量操作单条
   - 快捷键、菜单文案、历史清空
 - 步骤：
@@ -1479,12 +1480,40 @@ T0.2 + T5.5 → T6.4
   2. 新命令入栈丢弃 redo 分支。
   3. 排除 UI 状态（选择/滚动/标签）。
 - 验收：
-  - [ ] 100 步撤销/重做数据一致；历史内存超 256MB 时丢最旧且不崩。
-  - [ ] 粘贴/导入/列变更各为一条历史。
-  - [ ] 图表创建/修改、视图开关、样式修改均可撤销。
-  - [ ] 撤销后自动保存落盘。
-  - [ ] 关闭工作区清空历史。
-- 验证：`pnpm exec vitest run packages/app-core -- --grep "history" && pnpm e2e -- --grep "undo"`
+  - [x] 100 步撤销/重做数据一致；历史内存超 256MB 时丢最旧且不崩。
+  - [x] 粘贴/导入/列变更各为一条历史。
+  - [x] 图表创建/修改、视图开关、样式修改均可撤销。
+  - [x] 撤销后自动保存落盘。
+  - [x] 关闭工作区清空历史。
+- 验证：`pnpm exec vitest run packages/app-core --testNamePattern "history"`（Vitest 5 不支持
+  `--grep`）；`pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/undo.spec.ts`。
+
+  实现备注（2026-10-28，ADR-047）：
+  - 决策：`EditHistory` 默认记录所有产生 patches 的命令，不再维护白名单；只有 `view.layout`
+    在布局树忽略 `activeViewId` 后不变时是瞬态（标签/焦点切换），不入栈也不清 redo；分栏/移动/
+    比例/关闭 pane 仍记录一条可撤销条目。`table.cell.set` 保留 800ms/`mergeKey` 合并，且 redo
+    分支存在时不再并进旧条目；粘贴/导入/列/表/视图/样式/图表各一条。
+  - 内存：默认 100 条与 `256 * 1024 * 1024` bytes 估算，先到者生效；字符串按 UTF-16、数组按
+    指针计，行数组与当前表共享时只计数组本身，独特行数组（import replace/删表/删列的 inverse）
+    抽样 16 行外推；大数组抽样 24 项。超限从最旧 undo 条目丢弃，单条超限也丢弃；不用
+    `JSON.stringify`。
+  - 落盘：行补丁走 `SaveQueue`（表 → manifest）；整表删除/创建的 redo 与纯 manifest 命令只写
+    manifest；删除表的 redo 不重复 `trash`，可能留下无害孤儿表文件。
+  - UI：`ui.history` 快照（`canUndo/canRedo/undoAction/redoAction/depth`）由历史栈发布；
+    TitleBar 新增“编辑”Menu，显示“撤销 编辑单元格（Ctrl+Z）”等文案，命令名到 i18n 的映射
+    在 renderer；快捷键仍由 `WorkspaceView` 处理。
+  - 文件：`packages/app-core/src/history/edit-history.ts`（+test）、`state/{types,store}.ts`、
+    `app-core.ts`、`usecases/{open-workspace,workspace-actions}.ts`、
+    `apps/desktop/src/renderer/features/history/{HistoryMenu.tsx,history-action-label.ts}`
+    （+test）、`shell/TitleBar.tsx`、`i18n/messages/*`、`styles.css`；`e2e/undo.spec.ts`（2 条）。
+  - 实测：`pnpm verify` **165 files / 1532 tests**；depcruise 454 modules / 1913 deps /
+    0 violations；coverage 全局 lines **76.21%** / statements 76.07% / branches 69.07% /
+    functions 74.80%（阈值 70/60 未下调；`app-core/history/edit-history.ts` lines **90.99%**、
+    branches 86.89%）；`pnpm build` exit 0（renderer **3,288.47 kB**、CSS 74.37 kB）；
+    `pnpm e2e` **88 passed**（4.9m；含 undo 3 条 7.6s/3.7s/2.9s）；`pnpm bench` exit 0。
+  - 残留：256MB 是估算（共享行数组低估、独特行高估）；单条超大导入会失去撤销；`table.delete`
+    redo 留孤儿文件；`table.meta.update` 菜单文案不区分重命名/换主键；原生 Electron 菜单仍未与
+    历史同步（in-app Edit 菜单是唯一入口）。详见 `docs/reports/t5.2/REPORT.md` 与 ADR-047“复核条件”。
 
 <a id="t53"></a>
 ### T5.3 自动保存、恢复与最近打开

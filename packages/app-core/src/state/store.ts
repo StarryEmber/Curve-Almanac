@@ -5,7 +5,7 @@ import { DirtyTableTracker } from '@curve/table-engine';
 
 import { findPaneByPath, panePathForView } from '../commands/layout';
 
-import type { AppActions, AppState, AppStore, SaveState, UiState } from './types';
+import type { AppActions, AppState, AppStore, HistoryState, SaveState, UiState } from './types';
 
 export interface InitialAppState extends Partial<Omit<AppState, 'actions' | 'ui'>> {
   ui?: Partial<UiState>;
@@ -23,6 +23,17 @@ export function createIdleSaveState(): SaveState {
   return { status: 'idle', pending: 0, error: null };
 }
 
+export function createEmptyHistoryState(): HistoryState {
+  return {
+    canUndo: false,
+    canRedo: false,
+    undoAction: null,
+    redoAction: null,
+    undoDepth: 0,
+    redoDepth: 0,
+  };
+}
+
 function createEmptyLayout(): LayoutNode {
   return { type: 'pane', viewIds: [], activeViewId: null };
 }
@@ -35,6 +46,7 @@ function createInitialUi(): UiState {
     error: null,
     dirtyTables: [],
     save: createIdleSaveState(),
+    history: createEmptyHistoryState(),
     editIssue: null,
   };
 }
@@ -139,6 +151,20 @@ export function createAppStore(options: CreateAppStoreOptions = {}): AppStore {
       },
       setSaveState(save): void {
         setUi({ save });
+      },
+      setHistoryState(history): void {
+        const current = get().ui.history;
+        if (
+          current.canUndo === history.canUndo &&
+          current.canRedo === history.canRedo &&
+          current.undoAction === history.undoAction &&
+          current.redoAction === history.redoAction &&
+          current.undoDepth === history.undoDepth &&
+          current.redoDepth === history.redoDepth
+        ) {
+          return;
+        }
+        setUi({ history });
       },
       setEditIssue(issue): void {
         if (get().ui.editIssue !== issue) {
