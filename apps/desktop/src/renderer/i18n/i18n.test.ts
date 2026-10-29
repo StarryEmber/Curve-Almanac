@@ -11,6 +11,7 @@ import {
   createTranslator,
   formatMessage,
   isLocale,
+  translateKey,
 } from './translate';
 
 describe('message tables', () => {
@@ -41,6 +42,64 @@ describe('message tables', () => {
   it('really translates, rather than copying the Chinese copy', () => {
     expect(enUS['shell.empty.title']).not.toBe(zhCN['shell.empty.title']);
     expect(enUS['theme.dark']).not.toBe(zhCN['theme.dark']);
+  });
+
+  it('ships a complete English table (only the native language name is CJK)', () => {
+    expect(Object.keys(enUS).length).toBeGreaterThan(850);
+    const cjk = /[\u3400-\u9fff\uf900-\ufaff]/;
+    const untranslated = Object.entries(enUS)
+      .filter(([key, value]) => key !== 'language.zh-CN' && cjk.test(value))
+      .map(([key]) => key);
+    expect(untranslated).toEqual([]);
+  });
+
+  it('covers the T5.5 settings and unsaved-changes copy in both locales', () => {
+    for (const key of [
+      'settings.title',
+      'settings.theme',
+      'settings.language',
+      'settings.autosave',
+      'settings.autosaveOn',
+      'settings.autosaveOff',
+      'settings.defaultStyle',
+      'unsaved.title',
+      'unsaved.save',
+      'unsaved.discard',
+      'unsaved.cancel',
+      'shell.status.autosaveOff',
+      'shell.status.unsaved',
+    ] as const) {
+      expect(zhCN[key], key).toBeTruthy();
+      expect(enUS[key], key).toBeTruthy();
+    }
+  });
+});
+
+describe('translateKey', () => {
+  it('uses the requested locale and interpolates parameters', () => {
+    expect(translateKey('zh-CN', 'shell.titleBar.help')).toBe('帮助');
+    expect(translateKey('en-US', 'shell.status.version', { version: '1.2.3' })).toBe(
+      'Version 1.2.3',
+    );
+  });
+
+  it('throws on a missing key in strict mode (dev builds)', () => {
+    expect(() =>
+      translateKey('en-US', 'missing.key' as never, undefined, {
+        tables: { 'zh-CN': { 'missing.key': '缺失' }, 'en-US': {} },
+        strict: true,
+      }),
+    ).toThrow('Missing message "missing.key" for locale "en-US".');
+  });
+
+  it('falls back to zh-CN in production mode and returns the key if unknown', () => {
+    const tables = { 'zh-CN': { 'only.zh': '只有中文' }, 'en-US': {} };
+    expect(translateKey('en-US', 'only.zh' as never, undefined, { tables, strict: false })).toBe(
+      '只有中文',
+    );
+    expect(translateKey('en-US', 'nowhere' as never, undefined, { tables, strict: false })).toBe(
+      'nowhere',
+    );
   });
 });
 

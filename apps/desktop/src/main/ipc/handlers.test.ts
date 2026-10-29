@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MemoryWorkspaceStore } from '@curve/persistence';
 
 import { IMPLEMENTED_IPC_CHANNELS, IPC_CHANNELS } from '../../shared/contracts/channels';
+import { DEFAULT_APP_SETTINGS } from '../../shared/contracts/settings';
 import { createLogger } from '../logger';
 
 import { registerIpcHandlers } from './handlers';
@@ -11,6 +12,7 @@ import { createIpcRegistrar } from './register';
 import type { IpcMainLike } from './register';
 import type { IpcResult } from '../../shared/contracts/envelope';
 import type { WorkspaceManifest } from '../../shared/contracts/ipc';
+import type { AppSettings } from '../../shared/contracts/settings';
 
 interface FakeIpcMain extends IpcMainLike {
   invoke(channel: string, payload?: unknown): Promise<unknown>;
@@ -61,6 +63,11 @@ function wire(): {
   const removeRecentWorkspace = vi.fn(async () => ({ ok: true as const }));
   const clearRecentWorkspaces = vi.fn(async () => ({ ok: true as const }));
   const respondToQuit = vi.fn(() => ({ ok: true as const }));
+  let appSettings: AppSettings = DEFAULT_APP_SETTINGS;
+  const updateAppSettings = vi.fn(async (settings: AppSettings) => {
+    appSettings = settings;
+    return settings;
+  });
 
   registerIpcHandlers({
     registrar,
@@ -71,6 +78,8 @@ function wire(): {
       locale: 'en-US',
       documentsDir: 'C:\\Users\\test\\Documents',
     }),
+    getAppSettings: () => appSettings,
+    updateAppSettings,
     pickDirectory: async () => ({ path: 'C:\\picked' }),
     readImportFile: async () => ({
       token: 'tok_1',
@@ -131,6 +140,30 @@ describe('registerIpcHandlers', () => {
         documentsDir: 'C:\\Users\\test\\Documents',
       },
     });
+  });
+
+  it('answers app:settings and persists a validated update', async () => {
+    const { ipcMain } = wire();
+
+    await expect(ipcMain.invoke(IPC_CHANNELS.appSettings)).resolves.toEqual({
+      ok: true,
+      data: DEFAULT_APP_SETTINGS,
+    });
+
+    const next = { ...DEFAULT_APP_SETTINGS, theme: 'dark' as const, autosave: false };
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.appSettingsUpdate, { settings: next }),
+    ).resolves.toEqual({ ok: true, data: next });
+    await expect(ipcMain.invoke(IPC_CHANNELS.appSettings)).resolves.toEqual({
+      ok: true,
+      data: next,
+    });
+
+    await expect(
+      ipcMain.invoke(IPC_CHANNELS.appSettingsUpdate, {
+        settings: { ...next, locale: 'fr-FR' },
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'E_IPC_INVALID_PAYLOAD' } });
   });
 
   it('answers dialog:pickDirectory from the injected picker', async () => {

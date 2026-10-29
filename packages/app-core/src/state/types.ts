@@ -11,13 +11,18 @@ import type { DirtyTableEntry, TableData } from '@curve/table-engine';
 import type { CellIssue } from '../validation/cell-issue';
 import type { StoreApi } from 'zustand/vanilla';
 
-export type SavePhase = 'idle' | 'saving' | 'saved' | 'error';
+export type SavePhase = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
 
 /** Status bar state for the T2.2 save queue (SPEC §13.3). */
 export interface SaveState {
   status: SavePhase;
   /** Tables waiting to be written, including the one currently in flight. */
   pending: number;
+  /**
+   * True while the in-memory document differs from disk (pending table/manifest
+   * writes or a failed save). T5.5 uses it for the autosave-off quit prompt.
+   */
+  unsaved: boolean;
   error: AppError | null;
 }
 

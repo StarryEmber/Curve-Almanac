@@ -283,6 +283,12 @@ export interface WorkspaceActionsOptions {
 
 export type PaneDirection = 'horizontal' | 'vertical';
 
+/** T5.5: the unsaved-changes dialog may close a workspace without saving. */
+export interface CloseWorkspaceOptions {
+  /** Defaults to true. `false` discards pending writes before releasing the lock. */
+  save?: boolean;
+}
+
 /** T5.1: layout-only changes are coalesced into one manifest write. */
 export const LAYOUT_SAVE_DELAY_MS = 500;
 
@@ -364,7 +370,11 @@ export interface WorkspaceActions {
   retrySave(): Promise<ActionOutcome>;
   flushSaves(): Promise<ActionOutcome>;
   saveManifest(): Promise<ActionOutcome>;
-  closeWorkspace(): Promise<ActionOutcome>;
+  /**
+   * Flushes and releases the workspace. Pass `{ save: false }` only after the
+   * user explicitly chose "discard" in the T5.5 unsaved-changes dialog.
+   */
+  closeWorkspace(options?: CloseWorkspaceOptions): Promise<ActionOutcome>;
 }
 
 function emptyLayout(): LayoutNode {
@@ -1584,14 +1594,16 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     return outcome.ok ? { ok: true, data: undefined } : fail(outcome.error);
   }
 
-  async function closeWorkspace(): Promise<ActionOutcome> {
+  async function closeWorkspace(options?: CloseWorkspaceOptions): Promise<ActionOutcome> {
     const state = store.getState();
     if (state.workspace === null) {
       return { ok: true, data: undefined };
     }
-    const flushed = await flushSaves();
-    if (!flushed.ok) {
-      return fail(flushed.error);
+    if (options?.save !== false) {
+      const flushed = await flushSaves();
+      if (!flushed.ok) {
+        return fail(flushed.error);
+      }
     }
     try {
       await workspaceStore.close({ workspaceId: state.workspace.id });

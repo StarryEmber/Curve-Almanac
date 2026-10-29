@@ -32,7 +32,7 @@ test.describe('T0.3 typed IPC', () => {
 
     expect(surface).toEqual({
       namespaces: ['app', 'dialog', 'file', 'log', 'manifest', 'table', 'workspace'],
-      appMethods: ['info', 'onQuitRequested', 'respondToQuit'],
+      appMethods: ['info', 'settings', 'updateSettings', 'onQuitRequested', 'respondToQuit'],
       dialogMethods: ['pickDirectory'],
       logMethods: ['write'],
       workspaceMethods: [

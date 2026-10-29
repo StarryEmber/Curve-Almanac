@@ -7,7 +7,13 @@ import {
   isId,
   parseManifest,
 } from '@curve/domain';
-import type { LayoutNode, UuidFactory, ValidationIssue, WorkspaceManifest } from '@curve/domain';
+import type {
+  LayoutNode,
+  UuidFactory,
+  ValidationIssue,
+  WorkspaceManifest,
+  WorkspaceSettings,
+} from '@curve/domain';
 
 import { findManifestPathIssues } from './layout';
 
@@ -16,6 +22,8 @@ export interface CreateEmptyManifestOptions {
   appVersion: string;
   now?: Date;
   uuid?: UuidFactory;
+  /** T5.5: initial workspace settings (new workspaces inherit app preferences). */
+  settings?: Partial<WorkspaceSettings>;
 }
 
 export interface ValidatedManifest {
@@ -73,10 +81,10 @@ export function createEmptyManifest(options: CreateEmptyManifestOptions): Worksp
     tableStyles: [],
     layout: { type: 'pane', viewIds: [], activeViewId: null },
     settings: {
-      theme: 'system',
-      locale: 'zh-CN',
-      defaultTableStyleId: DEFAULT_TABLE_STYLE_ID,
-      autosave: true,
+      theme: options.settings?.theme ?? 'system',
+      locale: options.settings?.locale ?? 'zh-CN',
+      defaultTableStyleId: options.settings?.defaultTableStyleId ?? DEFAULT_TABLE_STYLE_ID,
+      autosave: options.settings?.autosave ?? true,
     },
   };
 

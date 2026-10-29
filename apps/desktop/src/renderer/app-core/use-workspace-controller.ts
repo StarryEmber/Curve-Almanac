@@ -6,6 +6,7 @@
 
 import { useCallback, useMemo } from 'react';
 
+import type { CloseWorkspaceOptions } from '@curve/app-core';
 import { createAppError } from '@curve/domain';
 import type { AppError } from '@curve/domain';
 import { joinPathLike, workspaceFolderName } from '@curve/persistence';
@@ -25,7 +26,8 @@ export interface WorkspaceController {
   /** Read-only pre-flight; never changes the workspace on disk (T5.3). */
   inspectWorkspace(dir: string): Promise<InspectionOutcome>;
   openWorkspace(dir: string, recovery?: WorkspaceRecoveryChoice): Promise<AppError | null>;
-  closeWorkspace(): Promise<AppError | null>;
+  /** T5.5: `{ save: false }` discards pending writes after an explicit choice. */
+  closeWorkspace(options?: CloseWorkspaceOptions): Promise<AppError | null>;
   listRecent(): Promise<RecentEntry[]>;
   removeRecent(path: string): Promise<AppError | null>;
   clearRecent(): Promise<AppError | null>;
@@ -94,10 +96,13 @@ export function useWorkspaceController(): WorkspaceController {
     [core],
   );
 
-  const closeWorkspace = useCallback(async (): Promise<AppError | null> => {
-    const closed = await core.actions.closeWorkspace();
-    return closed.ok ? null : closed.error;
-  }, [core]);
+  const closeWorkspace = useCallback(
+    async (options?: CloseWorkspaceOptions): Promise<AppError | null> => {
+      const closed = await core.actions.closeWorkspace(options);
+      return closed.ok ? null : closed.error;
+    },
+    [core],
+  );
 
   const listRecent = useCallback(async (): Promise<RecentEntry[]> => {
     try {

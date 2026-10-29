@@ -53,13 +53,31 @@ const allowedJsxText = /^[\s×·•—–…:;,.!?()\-/\\]*$/u;
 interface StringViolations {
   cjk: string[];
   jsxText: string[];
+  attributeText: string[];
 }
+
+/** Props that become accessible names / visible copy when passed a literal. */
+const USER_FACING_ATTRIBUTES = new Set([
+  'aria-label',
+  'aria-description',
+  'aria-placeholder',
+  'title',
+  'placeholder',
+  'alt',
+  'label',
+  'hint',
+  'error',
+  'description',
+]);
+
+/** Format hints (not copy) that are allowed to be literal. */
+const ALLOWED_ATTRIBUTE_LITERALS = new Set(['#RRGGBB']);
 
 function inspect(file: string): StringViolations {
   const source = readFileSync(file, 'utf8');
   const kind = file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, kind);
-  const violations: StringViolations = { cjk: [], jsxText: [] };
+  const violations: StringViolations = { cjk: [], jsxText: [], attributeText: [] };
 
   const checkCjk = (text: string): void => {
     if (cjk.test(text)) {
@@ -72,6 +90,18 @@ function inspect(file: string): StringViolations {
       checkCjk(node.text);
       if (!allowedJsxText.test(node.text)) {
         violations.jsxText.push(node.text.trim());
+      }
+    } else if (ts.isJsxAttribute(node)) {
+      const name = node.name.getText(sourceFile);
+      const initializer = node.initializer;
+      if (
+        USER_FACING_ATTRIBUTES.has(name) &&
+        initializer !== undefined &&
+        ts.isStringLiteral(initializer) &&
+        /[A-Za-z]/.test(initializer.text) &&
+        !ALLOWED_ATTRIBUTE_LITERALS.has(initializer.text)
+      ) {
+        violations.attributeText.push(`${name}=${JSON.stringify(initializer.text)}`);
       }
     } else if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
       checkCjk(node.text);
@@ -105,6 +135,14 @@ describe('renderer conventions', () => {
     const offenders = inspections
       .filter((entry) => entry.violations.jsxText.length > 0)
       .map((entry) => `${describeFile(entry.file)}: ${entry.violations.jsxText.join(' | ')}`);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps accessible names and labels in the message tables (T5.5 audit)', () => {
+    const offenders = inspections
+      .filter((entry) => entry.violations.attributeText.length > 0)
+      .map((entry) => `${describeFile(entry.file)}: ${entry.violations.attributeText.join(' | ')}`);
 
     expect(offenders).toEqual([]);
   });

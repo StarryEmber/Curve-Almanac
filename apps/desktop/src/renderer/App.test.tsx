@@ -5,9 +5,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from './App';
 
-function stubApi(info: () => Promise<unknown>): void {
+import type { AppSettings } from '../shared/contracts/settings';
+
+const DEFAULT_SETTINGS: AppSettings = {
+  version: 1,
+  theme: 'system',
+  locale: 'zh-CN',
+  autosave: true,
+  defaultTableStyleId: 'builtin.report-light',
+};
+
+function stubApi(
+  info: () => Promise<unknown>,
+  updateSettings: (settings: AppSettings) => Promise<unknown> = async (settings) => ({
+    ok: true,
+    data: settings,
+  }),
+): void {
   vi.stubGlobal('api', {
-    app: { info },
+    app: {
+      info,
+      settings: async () => ({ ok: true, data: DEFAULT_SETTINGS }),
+      updateSettings,
+    },
     log: {
       write: async () => ({ ok: true, data: { ok: true } }),
     },
@@ -208,6 +228,26 @@ describe('App shell', () => {
     render(<App />);
 
     fireEvent.keyDown(screen.getByLabelText('语言'), { key: 'k', ctrlKey: true });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens the settings dialog and switches the language without a restart', async () => {
+    const updateSettings = vi.fn(async (settings: AppSettings) => ({ ok: true, data: settings }));
+    stubApi(async () => readyInfo, updateSettings);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: '设置' }));
+    expect(screen.getByRole('dialog', { name: '设置' })).toBeDefined();
+
+    fireEvent.change(screen.getByTestId('settings-language'), { target: { value: 'en-US' } });
+
+    expect(screen.getByRole('dialog', { name: 'Settings' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Settings' })).toBeDefined();
+    await waitFor(() => {
+      expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({ locale: 'en-US' }));
+    });
+
+    fireEvent.click(screen.getByTestId('settings-close'));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 

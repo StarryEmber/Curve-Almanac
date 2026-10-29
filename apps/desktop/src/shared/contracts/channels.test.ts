@@ -10,6 +10,8 @@ import {
 /** SPEC §15.1, transcribed independently so a renamed channel fails here. */
 const SPEC_CHANNELS = {
   appInfo: 'app:info',
+  appSettings: 'app:settings',
+  appSettingsUpdate: 'app:settings:update',
   appQuitResponse: 'app:quit-response',
   dialogPickDirectory: 'dialog:pickDirectory',
   dialogSaveFile: 'dialog:saveFile',
@@ -55,6 +57,8 @@ describe('IPC channels', () => {
   it('wires app/log, workspace, manifest, table, directory picker and import files', () => {
     expect([...IMPLEMENTED_IPC_CHANNELS]).toEqual([
       IPC_CHANNELS.appInfo,
+      IPC_CHANNELS.appSettings,
+      IPC_CHANNELS.appSettingsUpdate,
       IPC_CHANNELS.appQuitResponse,
       IPC_CHANNELS.dialogPickDirectory,
       IPC_CHANNELS.logWrite,

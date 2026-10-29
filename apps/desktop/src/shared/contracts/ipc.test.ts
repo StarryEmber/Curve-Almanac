@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   appInfoRequestSchema,
   appInfoResponseSchema,
+  appSettingsRequestSchema,
+  appSettingsResponseSchema,
+  appSettingsUpdateRequestSchema,
   exportCsvRequestSchema,
   exportCsvResponseSchema,
   exportTextRequestSchema,
@@ -95,6 +98,44 @@ describe('app:info contract', () => {
     expect(appInfoRequestSchema.safeParse({}).success).toBe(true);
     expect(appInfoRequestSchema.safeParse({ dir: 'C:/elsewhere' }).success).toBe(false);
     expect(appInfoRequestSchema.safeParse('app:info').success).toBe(false);
+  });
+});
+
+describe('app:settings contract', () => {
+  const SETTINGS = {
+    version: 1,
+    theme: 'dark',
+    locale: 'en-US',
+    autosave: false,
+    defaultTableStyleId: 'builtin.finance',
+  };
+
+  it('accepts an argument-less read and the documented document', () => {
+    expect(appSettingsRequestSchema.safeParse(undefined).success).toBe(true);
+    expect(appSettingsRequestSchema.safeParse({}).success).toBe(true);
+    expect(appSettingsResponseSchema.safeParse(SETTINGS).success).toBe(true);
+  });
+
+  it('rejects unknown locales/themes, a wrong version and extra fields', () => {
+    expect(appSettingsResponseSchema.safeParse({ ...SETTINGS, locale: 'fr-FR' }).success).toBe(
+      false,
+    );
+    expect(appSettingsResponseSchema.safeParse({ ...SETTINGS, theme: 'sepia' }).success).toBe(
+      false,
+    );
+    expect(appSettingsResponseSchema.safeParse({ ...SETTINGS, version: 2 }).success).toBe(false);
+    expect(appSettingsResponseSchema.safeParse({ ...SETTINGS, extra: true }).success).toBe(false);
+    expect(appSettingsResponseSchema.safeParse({ ...SETTINGS, autosave: 'off' }).success).toBe(
+      false,
+    );
+  });
+
+  it('wraps updates in a settings object', () => {
+    expect(appSettingsUpdateRequestSchema.safeParse({ settings: SETTINGS }).success).toBe(true);
+    expect(appSettingsUpdateRequestSchema.safeParse(SETTINGS).success).toBe(false);
+    expect(
+      appSettingsUpdateRequestSchema.safeParse({ settings: { ...SETTINGS, extra: 1 } }).success,
+    ).toBe(false);
   });
 });
 

@@ -4,6 +4,7 @@ import type { MenuItemDefinition } from '@curve/ui';
 import { useAppState } from '../app-core/use-app-core';
 import { useWorkspaceController } from '../app-core/use-workspace-controller';
 import { HistoryMenu } from '../features/history/HistoryMenu';
+import { useUnsavedChangesGuard } from '../features/workspace/unsaved-changes';
 import { useI18n } from '../i18n';
 import { useTheme } from '../theme/ThemeProvider';
 
@@ -17,6 +18,7 @@ export interface TitleBarProps {
   onToggleSidebar: () => void;
   onToggleInspector: () => void;
   onOpenHelp: () => void;
+  onOpenSettings: () => void;
 }
 
 export function TitleBar({
@@ -25,11 +27,21 @@ export function TitleBar({
   onToggleSidebar,
   onToggleInspector,
   onOpenHelp,
+  onOpenSettings,
 }: TitleBarProps): ReactElement {
   const { t } = useI18n();
   const { mode, setMode } = useTheme();
   const workspace = useAppState((state) => state.workspace);
   const workspaceController = useWorkspaceController();
+  const unsavedChanges = useUnsavedChangesGuard();
+
+  const closeWorkspace = async (): Promise<void> => {
+    const choice = await unsavedChanges.request('close-workspace');
+    if (choice === 'cancel') {
+      return;
+    }
+    await workspaceController.closeWorkspace({ save: choice !== 'discard' });
+  };
 
   const themeItems: MenuItemDefinition[] = THEME_MODES.map((option) => ({
     id: option,
@@ -57,12 +69,15 @@ export function TitleBar({
             variant="ghost"
             size="sm"
             onClick={() => {
-              void workspaceController.closeWorkspace();
+              void closeWorkspace();
             }}
           >
             {t('workspace.close')}
           </Button>
         )}
+        <Button variant="ghost" size="sm" data-testid="open-settings" onClick={onOpenSettings}>
+          {t('settings.open')}
+        </Button>
         <Button
           variant="ghost"
           size="sm"

@@ -1412,9 +1412,9 @@ T0.2 + T5.5 → T6.4
 <a id="m5"></a>
 ## M5 体验
 
-> 状态（2026-10-28）：`T5.1`（分栏布局与标签页）、`T5.2`（撤销/重做）、`T5.3`
-> （自动保存、恢复与最近打开）与 `T5.4`（快捷键与命令面板）已完成（ADR-046、ADR-047、
-> ADR-048、ADR-049）；下一步 `T5.5`（设置与国际化）。M5 验收演示在 T5.1–T5.5 全部完成后执行。
+> 状态（2026-10-29）：`T5.1`（分栏布局与标签页）、`T5.2`（撤销/重做）、`T5.3`
+> （自动保存、恢复与最近打开）、`T5.4`（快捷键与命令面板）与 `T5.5`（设置与国际化）已完成
+> （ADR-046、ADR-047、ADR-048、ADR-049、ADR-050）；下一步执行 M5 验收演示，输出报告后停下。
 
 <a id="t51"></a>
 ### T5.1 分栏布局与标签页
@@ -1640,7 +1640,7 @@ T0.2 + T5.5 → T6.4
 
 <a id="t55"></a>
 ### T5.5 设置与国际化
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T0.4、T3.1
 - 覆盖：NFR-04、FR-STY-01
 - 参考：SPEC §16.3–§16.4
@@ -1654,11 +1654,40 @@ T0.2 + T5.5 → T6.4
   3. 语言切换即时生效（不需重启）。
   4. grep 审计并迁移遗漏的硬编码文案。
 - 验收：
-  - [ ] 中英文可切换，无缺失 key（开发模式报错）。
-  - [ ] 设置重启后保留。
-  - [ ] 组件中无硬编码用户文案（grep 检查）。
-  - [ ] 文案变长 30% 不破布局。
-- 验证：`pnpm exec vitest run packages/ui apps/desktop -- --grep "i18n|settings" && pnpm e2e -- --grep "settings"`
+  - [x] 中英文可切换，无缺失 key（开发模式报错）。
+  - [x] 设置重启后保留。
+  - [x] 组件中无硬编码用户文案（grep 检查）。
+  - [x] 文案变长 30% 不破布局。
+- 验证：`pnpm exec vitest run packages/ui apps/desktop --testNamePattern "i18n|settings"` 与
+  `pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/settings.spec.ts`
+  （Vitest 5 不支持 `--grep`；实际执行了 `pnpm verify` 与全量 `pnpm e2e`）。
+
+  实现备注（2026-10-29，ADR-050）：
+  - 设置：`userData/settings.json` 的 `AppSettings { version, theme, locale, autosave,
+    defaultTableStyleId }`；新增 `app:settings` / `app:settings:update`（ALL 22→24、已实现
+    19→21）。main 逐字段回退缺失/损坏文件，原子串行写；renderer 在首帧前读取（1.5s 兜底）。
+  - UI：`SettingsProvider` 为最外层，`I18nProvider`/`ThemeProvider` 受控；标题栏“设置”与命令
+    面板 `app.settings`（无快捷键）打开对话框。主题/语言/自动保存即时生效；默认表格样式在
+    有工作区时走 `style.apply { target:'default' }`，无工作区时写入应用设置并作为新工作区种子。
+  - 自动保存关闭：`SaveQueue` 不安排 1.5s/10s 定时器，`SaveState.unsaved` 标记未落盘；
+    关闭窗口/关闭工作区弹出“保存并继续 / 放弃修改 / 取消”。`closeWorkspace({ save:false })`
+    丢弃内存修改；main 退出握手超时在关闭时放宽到 60s。
+  - i18n：en-US 与 zh-CN key 集一致、无空文案、除 `language.zh-CN` 外无 CJK；`translateKey`
+    在开发构建缺 key 时抛错，生产回退；文案门禁扩展到 `aria-label`/`label`/`placeholder` 等属性。
+  - 文件：`shared/contracts/settings.ts`（+test）、`main/settings/app-settings-store.ts`（+test）、
+    `main/{index,ipc/handlers,quit-guard}.ts`、`main/workspace/file-workspace-store.ts`、
+    `packages/persistence/src/manifest.ts`、`packages/app-core/src/{app-core,state,usecases}`、
+    `renderer/theme/ThemeProvider.tsx`、`i18n/*`、`features/settings/*`、
+    `features/workspace/unsaved-changes.tsx`、`shell/{TitleBar,StatusBar,AppShell}.tsx`、
+    `App.tsx`、`main.tsx`、`styles.css`、`i18n/messages/*`；`e2e/settings.spec.ts`（4 条）。
+  - 实测：`pnpm verify` **179 files / 1682 tests**；ESLint 0；depcruise 492 modules / 2118 deps /
+    0 violations；coverage statements 76.86% / branches 69.64% / functions 75.55% / lines 77.01%；
+    `pnpm build` exit 0（renderer **3,365.14 kB**、CSS **77.89 kB**）；
+    `pnpm e2e` **103 passed**（settings 3.6s/4.9s/3.4s/1.6s）；`pnpm bench` exit 0。
+  - 残留：应用设置与 manifest 的 theme/locale/autosave 是两份快照（manifest 不再更新）；自动保存
+    关闭时显式 action（粘贴/导入/样式/图表）仍会 flush；设置写失败只在对话框内提示；main 原生
+    对话框仍为英文；+30% 用 DOM 伪本地化而非真实语言包。详见 `docs/reports/t5.5/REPORT.md` 与
+    ADR-050“复核条件”。
 
 **M5 验收演示**：建 2 表 3 视图分 2 pane → 撤销/重做 5 步 → 强杀恢复 → 最近打开 → 切英文/深色 → 重启全部还原。输出报告后停下。
 

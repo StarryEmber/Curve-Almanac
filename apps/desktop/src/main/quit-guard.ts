@@ -15,6 +15,13 @@ import type { QuitRequest, QuitResponseRequest } from '../shared/contracts/ipc';
 /** Maximum time the renderer gets to flush before the confirmation (SPEC §13.3). */
 export const QUIT_TIMEOUT_MS = 3_000;
 
+/**
+ * T5.5: with autosave off the renderer may show a "save / discard / cancel"
+ * dialog before it answers. The quit guard waits this long for that decision
+ * instead of falling back to the native confirmation while the user is reading.
+ */
+export const UNSAVED_QUIT_TIMEOUT_MS = 60_000;
+
 export type QuitReason = QuitRequest['reason'];
 
 export type QuitConfirmKind = 'timeout' | 'flush-failed';
@@ -33,7 +40,12 @@ export interface QuitGuardOptions {
   confirm: (options: QuitConfirmOptions) => Promise<boolean>;
   /** Closes the window (and therefore quits) once quitting is approved. */
   close: () => void;
-  timeoutMs?: number;
+  /**
+   * Handshake timeout in milliseconds. A function lets the main process use the
+   * longer T5.5 timeout while autosave is off (the renderer is showing the
+   * unsaved-changes dialog).
+   */
+  timeoutMs?: number | (() => number);
   logger?: Pick<Logger, 'warn'>;
   appName?: string;
 }
@@ -73,7 +85,10 @@ function confirmOptions(kind: QuitConfirmKind, appName: string): QuitConfirmOpti
 
 export function createQuitGuard(options: QuitGuardOptions): QuitGuard {
   const appName = options.appName ?? 'Curve Studio';
-  const timeoutMs = options.timeoutMs ?? QUIT_TIMEOUT_MS;
+  const resolveTimeoutMs = (): number =>
+    typeof options.timeoutMs === 'function'
+      ? options.timeoutMs()
+      : (options.timeoutMs ?? QUIT_TIMEOUT_MS);
   let phase: Phase = 'idle';
   let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -115,6 +130,7 @@ export function createQuitGuard(options: QuitGuardOptions): QuitGuard {
 
   const startTimer = (): void => {
     clearTimer();
+    const timeoutMs = resolveTimeoutMs();
     timer = setTimeout(() => {
       options.logger?.warn(
         `[quit] the renderer did not answer the flush handshake within ${String(timeoutMs)}ms`,

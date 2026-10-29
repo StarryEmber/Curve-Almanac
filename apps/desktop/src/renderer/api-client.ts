@@ -9,6 +9,9 @@
 
 import {
   appInfoResponseSchema,
+  appSettingsRequestSchema,
+  appSettingsResponseSchema,
+  appSettingsUpdateRequestSchema,
   archiveImportRequestSchema,
   archiveImportResponseSchema,
   exportCsvRequestSchema,
@@ -48,6 +51,7 @@ import {
 
 import type { IpcResult } from '../shared/contracts/envelope';
 import type {
+  AppSettings,
   ArchiveImportReply,
   ArchiveImportRequest,
   CurveApi,
@@ -132,6 +136,8 @@ export function createApiClient(bridge: CurveApi | undefined): CurveApi {
     return {
       app: {
         info: unavailable,
+        settings: unavailable,
+        updateSettings: unavailable,
         onQuitRequested: () => () => undefined,
         respondToQuit: unavailable,
       },
@@ -160,6 +166,22 @@ export function createApiClient(bridge: CurveApi | undefined): CurveApi {
   return {
     app: {
       info: () => call(appInfoResponseSchema, () => bridge.app.info()),
+      settings: (): Promise<IpcResult<AppSettings>> => {
+        const parsed = appSettingsRequestSchema.safeParse(undefined);
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(appSettingsResponseSchema, () => bridge.app.settings());
+      },
+      updateSettings: (settings: AppSettings): Promise<IpcResult<AppSettings>> => {
+        const parsed = appSettingsUpdateRequestSchema.safeParse({ settings });
+        if (!parsed.success) {
+          return Promise.resolve(INVALID_REQUEST);
+        }
+        return call(appSettingsResponseSchema, () =>
+          bridge.app.updateSettings(parsed.data.settings),
+        );
+      },
       onQuitRequested: (handler: (request: QuitRequest) => void): (() => void) => {
         // Test doubles and older bridges may not implement the event surface.
         if (typeof bridge.app.onQuitRequested !== 'function') {

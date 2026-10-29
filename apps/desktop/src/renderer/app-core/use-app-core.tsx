@@ -19,6 +19,8 @@ function currentBridge(): CurveApi | undefined {
 
 export interface AppCoreProviderProps {
   children: ReactNode;
+  /** T5.5: initial autosave preference from `settings.json`. */
+  autosaveEnabled?: boolean;
   /** Test hook; production creates the singleton from `window.api`. */
   core?: RendererCore;
 }
@@ -27,8 +29,19 @@ export interface AppCoreProviderProps {
  * Creates exactly one renderer core per app (SPEC §13.1 / ADR-025). The table
  * Worker is terminated when the provider unmounts.
  */
-export function AppCoreProvider({ children, core }: AppCoreProviderProps): ReactElement {
-  const [value] = useState<RendererCore>(() => core ?? createRendererCore(currentBridge()));
+export function AppCoreProvider({
+  children,
+  autosaveEnabled = true,
+  core,
+}: AppCoreProviderProps): ReactElement {
+  const [value] = useState<RendererCore>(
+    () => core ?? createRendererCore(currentBridge(), { autosaveEnabled }),
+  );
+
+  useEffect(() => {
+    // Component tests inject partial cores; only the real app-core exposes this.
+    value.core?.setAutosaveEnabled?.(autosaveEnabled);
+  }, [value, autosaveEnabled]);
 
   useEffect(
     () => () => {

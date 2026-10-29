@@ -3100,3 +3100,25 @@ body {
 .cs-command-palette__list {
   animation: cs-palette-in 120ms ease-out;
 }
+
+/* -------------------------------------------------------------- Settings */
+
+.cs-dialog.cs-settings-dialog {
+  width: min(560px, 100%);
+}
+
+.cs-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-4);
+}
+
+.cs-unsaved-dialog {
+  width: min(520px, 100%);
+}
+
+.cs-unsaved-dialog__hint {
+  margin: 0;
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-sm);
+}

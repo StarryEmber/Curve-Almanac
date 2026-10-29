@@ -113,6 +113,28 @@ describe('createEmptyManifest', () => {
       expect.objectContaining({ code: 'E_VALIDATION' }),
     );
   });
+
+  it('seeds the manifest with the application preferences (T5.5)', () => {
+    const manifest = createEmptyManifest({
+      name: 'Seed',
+      appVersion: '0.1.0',
+      now: NOW,
+      uuid: () => 'seed',
+      settings: {
+        theme: 'dark',
+        locale: 'en-US',
+        autosave: false,
+        defaultTableStyleId: 'builtin.finance',
+      },
+    });
+
+    expect(manifest.settings).toEqual({
+      theme: 'dark',
+      locale: 'en-US',
+      autosave: false,
+      defaultTableStyleId: 'builtin.finance',
+    });
+  });
 });
 
 describe('validateManifest', () => {

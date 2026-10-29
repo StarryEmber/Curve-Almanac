@@ -105,6 +105,31 @@ export const enUS: Record<MessageKey, string> = {
   'language.zh-CN': '简体中文',
   'language.en-US': 'English',
 
+  'settings.open': 'Settings',
+  'settings.title': 'Settings',
+  'settings.description':
+    'Appearance and language apply immediately; autosave and the default style are kept for the next launch.',
+  'settings.theme': 'Theme',
+  'settings.language': 'Language',
+  'settings.autosave': 'Autosave',
+  'settings.autosaveHint':
+    'When off, edits stay in memory. Closing the window or workspace asks you to save, discard or cancel.',
+  'settings.autosaveOn': 'On',
+  'settings.autosaveOff': 'Off',
+  'settings.defaultStyle': 'Default table style',
+  'settings.defaultStyleHint': 'Applies to the current workspace; new table views use it.',
+  'settings.defaultStyleNew': 'Applies to new workspaces; no workspace is currently open.',
+
+  'unsaved.title': 'Unsaved changes',
+  'unsaved.bodyQuit':
+    'Autosave is off and some changes have not been written to disk. Save before quitting?',
+  'unsaved.bodyClose':
+    'Autosave is off and some changes have not been written to disk. Save before closing the workspace?',
+  'unsaved.hint': 'Discarding loses these changes and cannot be undone.',
+  'unsaved.save': 'Save and continue',
+  'unsaved.discard': 'Discard changes',
+  'unsaved.cancel': 'Cancel',
+
   'shell.empty.title': 'Start from a workspace',
   'shell.empty.body':
     'Curve Studio keeps tables, charts and styles in a local folder. It works offline and never sends your data anywhere.',
@@ -134,6 +159,8 @@ export const enUS: Record<MessageKey, string> = {
   'shell.status.saving': 'Saving…',
   'shell.status.saveError': 'Save failed',
   'shell.status.retry': 'Retry',
+  'shell.status.autosaveOff': 'Off',
+  'shell.status.unsaved': 'Unsaved changes',
 
   'shell.help.title': 'Keyboard shortcuts',
   'shell.help.description': 'Every panel can be used with the keyboard alone.',

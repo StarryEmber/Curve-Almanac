@@ -1,4 +1,4 @@
-import { createContext, useContext, useLayoutEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState } from 'react';
 
 import {
   THEME_STORAGE_KEY,
@@ -41,17 +41,41 @@ function rememberMode(mode: ThemeMode): void {
 export interface ThemeProviderProps {
   children: ReactNode;
   initialMode?: ThemeMode;
+  /** Controlled mode (T5.5): the settings provider owns the persisted value. */
+  mode?: ThemeMode;
+  onModeChange?: (mode: ThemeMode) => void;
 }
 
 /**
  * Theme skeleton for T0.4: `mode` is the user's choice (light / dark / system),
  * `resolved` is what the tokens show. The `data-theme` attribute on `<html>` is
  * the single switch `tokens.css` reacts to (TASKS T0.4 step 1).
+ *
+ * T5.5 made the provider controllable so `settings.json` is the only persisted
+ * source; standalone use (tests, `initialMode`) keeps the local state path.
  */
-export function ThemeProvider({ children, initialMode }: ThemeProviderProps): ReactElement {
-  const [mode, setMode] = useState<ThemeMode>(() => initialMode ?? readStoredTheme(storage));
+export function ThemeProvider({
+  children,
+  initialMode,
+  mode: controlledMode,
+  onModeChange,
+}: ThemeProviderProps): ReactElement {
+  const [internalMode, setInternalMode] = useState<ThemeMode>(
+    () => initialMode ?? readStoredTheme(storage),
+  );
+  const mode = controlledMode ?? internalMode;
   const [systemDark, setSystemDark] = useState<boolean>(() => prefersDark(getSystemDarkQuery()));
   const resolved = resolveTheme(mode, systemDark);
+
+  const setMode = useCallback(
+    (next: ThemeMode): void => {
+      if (controlledMode === undefined) {
+        setInternalMode(next);
+      }
+      onModeChange?.(next);
+    },
+    [controlledMode, onModeChange],
+  );
 
   // A layout effect applies the attribute before the first paint, so a stored
   // dark preference does not flash the light palette.
@@ -60,6 +84,8 @@ export function ThemeProvider({ children, initialMode }: ThemeProviderProps): Re
   }, [resolved]);
 
   useLayoutEffect(() => {
+    // Mirrored to `localStorage` as a fallback for standalone providers;
+    // `settings.json` remains the persisted source in the app.
     rememberMode(mode);
   }, [mode]);
 
@@ -77,7 +103,10 @@ export function ThemeProvider({ children, initialMode }: ThemeProviderProps): Re
     };
   }, []);
 
-  const value = useMemo<ThemeContextValue>(() => ({ mode, resolved, setMode }), [mode, resolved]);
+  const value = useMemo<ThemeContextValue>(
+    () => ({ mode, resolved, setMode }),
+    [mode, resolved, setMode],
+  );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

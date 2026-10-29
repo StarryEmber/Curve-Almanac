@@ -309,6 +309,14 @@
 - 伪本地化（文案 +30%）冒烟：按钮不撑破、表格不重叠。
 - 日期/数字在 `zh-CN` 与 `en-US` 下格式正确；CSV 导出不随语言改变。
 
+**T5.5 实现与证据（ADR-050）**：`apps/desktop/e2e/settings.spec.ts` 的
+`settings-i18n-layout` 在真实 Electron、200% 缩放下切到 en-US，然后把全部可见文本节点追加 30%
+自身副本，断言页面无横向溢出、设置对话框面板在视口内；`settings-persist` 覆盖语言/主题/自动保存
+重启保留。单测 `i18n.test.ts` 校验两语言 key 集、无空文案、en-US 无 CJK 残留，并用
+`translateKey(..., { tables, strict })` 覆盖开发报错/生产回退。`ui-conventions.test.ts` 增加用户
+可见 JSX 属性字面量审计（唯一允许 `#RRGGBB`）。main 原生确认/恢复提示仍为英文（不在 renderer
+消息表内），见 ADR-050 复核条件。
+
 ### 6.3 安全
 
 - 打包产物中 `window.require`/`process` 不可用。

@@ -665,3 +665,34 @@
   （table.open 452ms/3s、save 394ms/500ms、query 258ms/400ms、text-sort 365ms/400ms、
   cjk-sort 603ms/800ms、import 862ms/8s、condition 1ms/16ms、chart.resolve-sample 81ms/300ms）。
   不新增 IPC/preload/manifest 字段/运行时依赖，不改 `formatVersion`/JSONL/CSP。
+- T5.5：应用设置落地 `userData/settings.json`（`AppSettings { version, theme, locale,
+  autosave, defaultTableStyleId }`）：main 逐字段回退缺失/损坏文件，`write-file-atomic` 原子写并
+  串行化；新增 `app:settings` / `app:settings:update` 两个 IPC 通道（ALL 22→24、已实现 19→21）、
+  preload `app.settings/updateSettings` 与 renderer 双向 Zod 校验。新工作区从应用设置继承
+  `settings`，已有工作区保留 manifest 默认样式。
+- T5.5：`SettingsProvider` 成为最外层，`I18nProvider`/`ThemeProvider` 受控；`main.tsx` 首帧前
+  读取设置（1.5s 兜底）。标题栏“设置”与命令面板 `app.settings` 打开对话框，主题/语言/自动保存
+  即时生效；默认表格样式在有工作区时走 `style.apply { target:'default' }`，无工作区时作为新
+  工作区种子。
+- T5.5：自动保存开关：`SaveQueue` 增加 `autosaveEnabled`/`setAutosaveEnabled`/
+  `hasUnsavedChanges`，`SaveState` 增加 `unsaved`；关闭时不安排 1.5s/10s 定时器，关闭窗口或
+  工作区弹出“保存并继续 / 放弃修改 / 取消”。新增 `UnsavedChangesProvider` 与
+  `closeWorkspace({ save: false })`；main 退出握手在自动保存关闭时使用 60s 超时，取消保持打开、
+  放弃直接释放 `.lock`。`flush()`/`retry()`/Ctrl+S 仍立即写。
+- T5.5：国际化收口：en-US 与 zh-CN key 集一致、无空文案、除 `language.zh-CN` 外无 CJK；
+  `translateKey` 在开发构建缺 key 时抛错（生产回退 zh-CN）；`ui-conventions.test.ts` 文案门禁扩展
+  到用户可见 JSX 属性（`aria-label`/`title`/`placeholder`/`label`/`hint`/`error`）。新增设置、
+  未保存对话框与状态栏文案。
+- T5.5：新增 `apps/desktop/e2e/settings.spec.ts` 4 条（语言/主题/自动保存重启保留；自动保存
+  关闭时关闭工作区的保存/放弃/取消；退出时取消保持窗口、保存后退出并重启读回；+30% 伪本地化
+  + 200% 缩放布局），截图 `docs/reports/t5.5/`（4 张）；单测新增设置存储/契约/Provider/对话框/
+  未保存守卫/save-queue 自动保存关闭/持久化种子/退出超时与 App 集成。
+  新增 ADR-050、SPEC §12/§13.3/§13.4/§15.1/§15.4/§16.3/§16.4 实现边界、TASKS T5.5 与
+  `docs/reports/t5.5/REPORT.md`。
+- T5.5：`pnpm verify` **179 files / 1682 tests**；depcruise 492 modules / 2118 deps /
+  0 violations；coverage statements 76.86% / branches 69.64% / functions 75.55% / lines 77.01%；
+  `pnpm build` exit 0（renderer **3,365.14 kB**、CSS **77.89 kB**）；
+  `pnpm e2e` **103 passed**（settings 4 条）；`pnpm bench` exit 0（table.open 301ms/3s、
+  save 277ms/500ms、query 199ms/400ms、text-sort 276ms/400ms、cjk-sort 448ms/800ms、
+  import 620ms/8s、condition 0ms/16ms、chart.resolve-sample 69ms/300ms）。不新增运行时依赖，
+  不改 `formatVersion`/JSONL/CSV/PNG/CSP。

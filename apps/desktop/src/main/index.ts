@@ -32,7 +32,8 @@ import { createIpcRegistrar } from './ipc/register';
 import { createConsoleLogger } from './logger';
 import { buildMenuTemplate } from './menu';
 import { isNavigationAllowed } from './navigation';
-import { createQuitGuard } from './quit-guard';
+import { createQuitGuard, QUIT_TIMEOUT_MS, UNSAVED_QUIT_TIMEOUT_MS } from './quit-guard';
+import { createAppSettingsStore } from './settings/app-settings-store';
 import { buildWindowOptions } from './window-options';
 import {
   captureWindowState,
@@ -44,6 +45,7 @@ import {
 import { FileWorkspaceStore } from './workspace/file-workspace-store';
 
 import type { QuitConfirmOptions, QuitGuard } from './quit-guard';
+import type { AppSettingsStore } from './settings/app-settings-store';
 import type { ImportTextRequest, QuitRequest } from '../shared/contracts/ipc';
 import type { MessageBoxOptions, OpenDialogOptions, SaveDialogOptions } from 'electron';
 
@@ -82,7 +84,7 @@ function applyE2EUserDataOverride(): void {
   }
 }
 
-function registerIpc(workspaceStore: FileWorkspaceStore): void {
+function registerIpc(workspaceStore: FileWorkspaceStore, settingsStore: AppSettingsStore): void {
   const registrar = createIpcRegistrar({ ipcMain, logger });
   const importTokens = createImportTokenStore();
   const pickerWindow = (): BrowserWindow | null => BrowserWindow.getFocusedWindow() ?? mainWindow;
@@ -145,6 +147,8 @@ function registerIpc(workspaceStore: FileWorkspaceStore): void {
       locale: app.getLocale(),
       documentsDir: app.getPath('documents'),
     }),
+    getAppSettings: () => settingsStore.get(),
+    updateAppSettings: (settings) => settingsStore.update(settings),
     pickDirectory: async (request) => {
       const stubs = resolveE2EDialogStubs({ isPackaged: app.isPackaged, env: process.env });
       if (stubs !== null) {
@@ -314,7 +318,7 @@ async function confirmQuit(options: QuitConfirmOptions): Promise<boolean> {
   return result.response === 1;
 }
 
-function installQuitGuard(): QuitGuard {
+function installQuitGuard(settingsStore: AppSettingsStore): QuitGuard {
   const guard = createQuitGuard({
     request: (reason) => {
       if (mainWindow === null || mainWindow.isDestroyed()) {
@@ -331,6 +335,9 @@ function installQuitGuard(): QuitGuard {
       }
       app.quit();
     },
+    // T5.5: with autosave off the renderer asks the user before it answers, so
+    // the native fallback must not interrupt that dialog after 3 seconds.
+    timeoutMs: () => (settingsStore.get().autosave ? QUIT_TIMEOUT_MS : UNSAVED_QUIT_TIMEOUT_MS),
     logger,
     appName: APP_NAME,
   });
@@ -406,13 +413,19 @@ async function start(): Promise<void> {
 
   installNavigationGuards();
   installPermissionHandlers();
+  const userDataPath = app.getPath('userData');
+  const settingsStore = createAppSettingsStore({ userDataPath, logger });
+  await settingsStore.load();
   const workspaceStore = new FileWorkspaceStore({
-    userDataPath: app.getPath('userData'),
+    userDataPath,
     appVersion: app.getVersion(),
     logger,
+    // New workspaces inherit the user's default table style (T5.5). Existing
+    // workspaces keep their own manifest setting.
+    appSettings: () => settingsStore.get(),
   });
-  quitGuard = installQuitGuard();
-  registerIpc(workspaceStore);
+  quitGuard = installQuitGuard(settingsStore);
+  registerIpc(workspaceStore, settingsStore);
   installApplicationMenu();
 
   mainWindow = createMainWindow();

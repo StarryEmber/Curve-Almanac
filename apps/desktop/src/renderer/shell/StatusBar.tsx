@@ -3,6 +3,7 @@ import { Button, Select } from '@curve/ui';
 import { useAppState, useRendererCore } from '../app-core/use-app-core';
 import { describeAppError } from '../error-text';
 import { describeCellIssue } from '../features/grid/cell-issue-text';
+import { useSettings } from '../features/settings/SettingsProvider';
 import { LOCALES, isLocale, useI18n } from '../i18n';
 
 import type { RuntimeState } from './use-runtime-info';
@@ -14,6 +15,7 @@ export interface StatusBarProps {
 
 export function StatusBar({ runtime }: StatusBarProps): ReactElement {
   const { t, locale, setLocale } = useI18n();
+  const { settings } = useSettings();
   const { core } = useRendererCore();
   const workspace = useAppState((state) => state.workspace);
   const editIssue = useAppState((state) => state.ui.editIssue);
@@ -44,6 +46,13 @@ export function StatusBar({ runtime }: StatusBarProps): ReactElement {
       : save.status === 'error'
         ? t('shell.status.saveError')
         : t('shell.status.saved');
+  const autosaveText = settings.autosave
+    ? saveText
+    : save.status === 'error'
+      ? t('shell.status.saveError')
+      : save.unsaved
+        ? t('shell.status.unsaved')
+        : t('shell.status.autosaveOff');
   const editText =
     editIssue === null ? null : describeCellIssue(editIssue, t, columnLabel ?? editIssue.columnId);
 
@@ -79,7 +88,7 @@ export function StatusBar({ runtime }: StatusBarProps): ReactElement {
         title={save.error === null ? undefined : describeAppError(save.error, t)}
       >
         {`${t('shell.status.autosave')}: ${
-          workspace === null ? t('shell.status.autosaveIdle') : saveText
+          workspace === null ? t('shell.status.autosaveIdle') : autosaveText
         }`}
         {workspace !== null && save.status === 'error' ? (
           <Button

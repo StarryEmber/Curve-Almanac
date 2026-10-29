@@ -514,6 +514,40 @@ describe('workspace actions', () => {
     expect(core.store.getState().workspace).toBeNull();
   });
 
+  it('discards pending writes when closing with save: false', async () => {
+    const { store, core } = setup();
+    const created = await core.actions.createTable('Discard');
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    const tableId = created.data.table.id;
+    const columnId = created.data.table.columns[0]?.id ?? '';
+    core.store.setState({
+      tables: {
+        [tableId]: {
+          table: { ...created.data.table, rowCount: 1 },
+          rows: [{ id: 'row_1', values: ['alpha'] }],
+        },
+      },
+    });
+    store.calls.length = 0;
+
+    expect((await core.actions.updateCell(tableId, 'row_1', columnId, 'beta')).ok).toBe(true);
+    const closed = await core.actions.closeWorkspace({ save: false });
+
+    expect(closed.ok).toBe(true);
+    expect(store.calls).toEqual(['close']);
+    expect(core.store.getState().workspace).toBeNull();
+    expect(core.store.getState().ui.save).toEqual({
+      status: 'idle',
+      pending: 0,
+      unsaved: false,
+      error: null,
+    });
+    expect(core.store.getState().ui.dirtyTables).toEqual([]);
+  });
+
   it('duplicates a table view with its filter/sort state and persists both', async () => {
     const { store, core } = setup();
     const created = await core.actions.createTable('Sensors');

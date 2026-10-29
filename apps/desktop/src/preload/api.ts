@@ -15,6 +15,7 @@ import { isIpcResult } from '../shared/contracts/envelope';
 import type { IpcResult } from '../shared/contracts/envelope';
 import type {
   AppInfo,
+  AppSettings,
   ArchiveImportReply,
   ArchiveImportRequest,
   CurveApi,
@@ -81,6 +82,10 @@ export function createCurveApi(invoke: InvokeFn, subscribe?: SubscribeFn): Curve
   return {
     app: {
       info: (): Promise<IpcResult<AppInfo>> => call<AppInfo>(invoke, IPC_CHANNELS.appInfo),
+      settings: (): Promise<IpcResult<AppSettings>> =>
+        call<AppSettings>(invoke, IPC_CHANNELS.appSettings),
+      updateSettings: (settings: AppSettings): Promise<IpcResult<AppSettings>> =>
+        call<AppSettings>(invoke, IPC_CHANNELS.appSettingsUpdate, { settings }),
       onQuitRequested: (handler: (request: QuitRequest) => void): (() => void) => {
         if (subscribe === undefined) {
           return () => undefined;

@@ -94,7 +94,7 @@ async function setup(): Promise<{
       activePanePath: 'root',
       error: null,
       dirtyTables: [],
-      save: { status: 'idle', pending: 0, error: null },
+      save: { status: 'idle', pending: 0, unsaved: false, error: null },
       history: {
         canUndo: false,
         canRedo: false,

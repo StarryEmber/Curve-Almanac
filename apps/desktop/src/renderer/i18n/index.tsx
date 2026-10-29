@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, createTranslator, isLocale } from './translate';
 
@@ -37,14 +37,40 @@ function readStoredLocale(): Locale {
 export interface I18nProviderProps {
   children: ReactNode;
   initialLocale?: Locale;
+  /**
+   * Controlled locale (T5.5): when supplied, the provider does not keep its own
+   * state; the settings provider owns the value and persists changes.
+   */
+  locale?: Locale;
+  onLocaleChange?: (locale: Locale) => void;
 }
 
-export function I18nProvider({ children, initialLocale }: I18nProviderProps): ReactElement {
-  const [locale, setLocale] = useState<Locale>(() => initialLocale ?? readStoredLocale());
+export function I18nProvider({
+  children,
+  initialLocale,
+  locale: controlledLocale,
+  onLocaleChange,
+}: I18nProviderProps): ReactElement {
+  const [internalLocale, setInternalLocale] = useState<Locale>(
+    () => initialLocale ?? readStoredLocale(),
+  );
+  const locale = controlledLocale ?? internalLocale;
   const t = useMemo(() => createTranslator(locale), [locale]);
+
+  const setLocale = useCallback(
+    (next: Locale): void => {
+      if (controlledLocale === undefined) {
+        setInternalLocale(next);
+      }
+      onLocaleChange?.(next);
+    },
+    [controlledLocale, onLocaleChange],
+  );
 
   useEffect(() => {
     document.documentElement.lang = locale;
+    // Also mirrored to `localStorage` as a cheap fallback for standalone
+    // providers; `settings.json` remains the persisted source in the app.
     try {
       window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
     } catch {
@@ -52,7 +78,7 @@ export function I18nProvider({ children, initialLocale }: I18nProviderProps): Re
     }
   }, [locale]);
 
-  const value = useMemo<I18nContextValue>(() => ({ locale, setLocale, t }), [locale, t]);
+  const value = useMemo<I18nContextValue>(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

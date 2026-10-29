@@ -41,6 +41,24 @@ describe('createCurveApi', () => {
     expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.appInfo, undefined);
   });
 
+  it('forwards application settings over their channels', async () => {
+    const settings = {
+      version: 1 as const,
+      theme: 'dark' as const,
+      locale: 'en-US' as const,
+      autosave: false,
+      defaultTableStyleId: 'builtin.dark',
+    };
+    const invoke = vi.fn(async () => ({ ok: true, data: settings }));
+    const api = createCurveApi(invoke);
+
+    await expect(api.app.settings()).resolves.toEqual({ ok: true, data: settings });
+    await expect(api.app.updateSettings(settings)).resolves.toEqual({ ok: true, data: settings });
+
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.appSettings, undefined);
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.appSettingsUpdate, { settings });
+  });
+
   it('forwards a log:write request and its reply', async () => {
     const invoke = vi.fn(async () => ({ ok: true, data: { ok: true } }));
     const api = createCurveApi(invoke);
@@ -322,7 +340,13 @@ describe('createCurveApi', () => {
       'table',
       'file',
     ]);
-    expect(Object.keys(api.app)).toEqual(['info', 'onQuitRequested', 'respondToQuit']);
+    expect(Object.keys(api.app)).toEqual([
+      'info',
+      'settings',
+      'updateSettings',
+      'onQuitRequested',
+      'respondToQuit',
+    ]);
     expect(Object.keys(api.dialog)).toEqual(['pickDirectory']);
     expect(Object.keys(api.log)).toEqual(['write']);
     expect(Object.keys(api.workspace)).toEqual([

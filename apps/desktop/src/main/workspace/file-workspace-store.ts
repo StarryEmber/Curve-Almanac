@@ -83,6 +83,7 @@ import {
 import { createRecentList } from './recent-list';
 
 import type { RecentEntry, WorkspaceManifest } from '../../shared/contracts/ipc';
+import type { AppSettings } from '../../shared/contracts/settings';
 import type { Logger } from '../logger';
 import type { AtomicWrite } from './atomic-write';
 import type { LockInspection } from './lock-file';
@@ -97,6 +98,8 @@ export interface FileWorkspaceStoreOptions {
   isProcessAlive?: (pid: number) => boolean;
   /** Injectable for the interrupted-write test; defaults to `write-file-atomic`. */
   writeFile?: AtomicWrite;
+  /** T5.5: seeds a new workspace's manifest with the user's preferences. */
+  appSettings?: () => AppSettings;
 }
 
 interface OpenWorkspace {
@@ -190,6 +193,7 @@ export class FileWorkspaceStore implements WorkspaceStore {
   private readonly isProcessAlive: ((pid: number) => boolean) | undefined;
   private readonly writeFile: AtomicWrite;
   private readonly recent: ReturnType<typeof createRecentList>;
+  private readonly appSettings: (() => AppSettings) | undefined;
 
   constructor(options: FileWorkspaceStoreOptions) {
     this.appVersion = options.appVersion;
@@ -198,6 +202,7 @@ export class FileWorkspaceStore implements WorkspaceStore {
     this.logger = options.logger;
     this.isProcessAlive = options.isProcessAlive;
     this.writeFile = options.writeFile ?? atomicWrite;
+    this.appSettings = options.appSettings;
     this.recent = createRecentList({
       userDataPath: options.userDataPath,
       now: this.now,
@@ -251,11 +256,22 @@ export class FileWorkspaceStore implements WorkspaceStore {
       }
 
       const realRoot = await realpath(root);
+      const appSettings = this.appSettings?.();
       const manifest = createEmptyManifest({
         name,
         appVersion: this.appVersion,
         now: this.now(),
         ...(this.uuid === undefined ? {} : { uuid: this.uuid }),
+        ...(appSettings === undefined
+          ? {}
+          : {
+              settings: {
+                theme: appSettings.theme,
+                locale: appSettings.locale,
+                defaultTableStyleId: appSettings.defaultTableStyleId,
+                autosave: appSettings.autosave,
+              },
+            }),
       });
 
       const manifestPath = await resolveInsideRoot(

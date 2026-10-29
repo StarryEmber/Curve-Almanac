@@ -83,7 +83,7 @@ describe('app-core store actions', () => {
       activePanePath: null,
       error: null,
       dirtyTables: [],
-      save: { status: 'idle', pending: 0, error: null },
+      save: { status: 'idle', pending: 0, unsaved: false, error: null },
       history: {
         canUndo: false,
         canRedo: false,
@@ -181,8 +181,8 @@ describe('app-core store actions', () => {
     const actions = store.getState().actions;
     const error = createAppError('E_FS_WRITE', 'disk full');
 
-    actions.setSaveState({ status: 'error', pending: 0, error });
-    expect(store.getState().ui.save).toEqual({ status: 'error', pending: 0, error });
+    actions.setSaveState({ status: 'error', pending: 0, unsaved: true, error });
+    expect(store.getState().ui.save).toEqual({ status: 'error', pending: 0, unsaved: true, error });
 
     actions.setEditIssue({
       reason: 'type',

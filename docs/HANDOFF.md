@@ -1,41 +1,42 @@
 # HANDOFF — Curve Studio 实施交接
 
 > 本文件面向**下一个实现会话**。**M4 已于 2026-10-27 获用户接受并关闭**；M5 的
-> **T5.1（分栏布局与标签页）、T5.2（撤销/重做）、T5.3（自动保存、恢复与最近打开）与
-> T5.4（快捷键与命令面板）已完成**（报告 `docs/reports/t5.1/REPORT.md`、
-> `docs/reports/t5.2/REPORT.md`、`docs/reports/t5.3/REPORT.md`、`docs/reports/t5.4/REPORT.md`；
-> ADR-046、ADR-047、ADR-048、ADR-049），下一步 **T5.5（设置与国际化）**。
-> 最后更新：2026-10-28 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
+> **T5.1（分栏布局与标签页）、T5.2（撤销/重做）、T5.3（自动保存、恢复与最近打开）、
+> T5.4（快捷键与命令面板）与 T5.5（设置与国际化）已完成**（报告 `docs/reports/t5.1/REPORT.md`、
+> `docs/reports/t5.2/REPORT.md`、`docs/reports/t5.3/REPORT.md`、`docs/reports/t5.4/REPORT.md`、
+> `docs/reports/t5.5/REPORT.md`；ADR-046、ADR-047、ADR-048、ADR-049、ADR-050），
+> 下一步 **M5 验收演示**（输出报告后停下等待用户确认）。
+> 最后更新：2026-10-29 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
 > T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
-> T5.4 代码/报告 **`fb53d9b`**（本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
-> 阅读顺序：`AGENTS.md` → 本文件（§0.3/§0.4/§0.5）→ `docs/reports/t5.4/REPORT.md` →
-> `docs/TASKS.md` 的 T5.5 → `docs/SPEC.md` §16.3–§16.4 → ADR-049 → ADR-048 → ADR-047。
+> T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`（见 git log -1 -- apps/desktop/src/renderer/features/settings）`**
+> （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
+> 阅读顺序：`AGENTS.md` → 本文件（§0.3/§0.4/§0.5/§0.6）→ `docs/reports/t5.5/REPORT.md` →
+> `docs/TASKS.md` 的 M5 → `docs/SPEC.md` §12/§13.3/§16.3–§16.4 → ADR-050 → ADR-048。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
 - **当前状态**：M2/M3/M4 均已获用户接受；`T3.1`–`T3.6`、`T4.1`–`T4.6`、`T5.1`、`T5.2`、
-  `T5.3`、`T5.4` 已完成；下一步 **T5.5（设置与国际化）**。M5 验收演示要等 T5.1–T5.5 全部完成后执行。
-- **本次交付**：renderer 键位注册表（`features/keymap/`，global/workspace/grid/chart
-  作用域、冲突检测、结构化不可用原因）、Ctrl/Cmd+K 命令面板（子序列模糊搜索、最近使用、
-  `aria-activedescendant`、禁用原因）、F1 帮助快捷键表、统一 keydown 分发（输入框/对话框/
-  网格局部处理器优先）。报告 `docs/reports/t5.4/REPORT.md` 与 3 张截图。
-- **基线**：`pnpm verify` **174 files / 1634 tests**（ESLint 0；depcruise 481 modules /
-  2028 deps / 0 violations）；coverage 全局 lines **76.74%** / statements 76.59% / branches
-  69.41% / functions 75.18%；`pnpm build` exit 0（renderer **3,342.56 kB**、CSS 77.49 kB）；
-  `pnpm e2e` **99 passed**（7.4m；palette 3.1s/3.4s/3.1s；chart-perf private **506MB**）；
-  `pnpm bench` exit 0（table.open 452ms/3s、save 394ms/500ms、query 258ms/400ms、text-sort
-  365ms/400ms、cjk-sort 603ms/800ms、import 862ms/8s、condition 1ms/16ms、
-  chart.resolve-sample 81ms/300ms）。
+  `T5.3`、`T5.4`、`T5.5` 已完成；M5 的 T5.1–T5.5 全部完成，下一步执行 **M5 验收演示**。
+- **本次交付**：`userData/settings.json`（theme/locale/autosave/defaultTableStyleId）与
+  `app:settings`/`app:settings:update`、`SettingsProvider` 受控的 i18n/主题、设置对话框与
+  标题栏/命令面板入口、自动保存关闭的“保存/放弃/取消”、en-US 完整性审计、开发模式缺 key 抛错、
+  文案门禁扩展到用户可见属性、+30% 伪本地化 200% 缩放 E2E。报告 `docs/reports/t5.5/REPORT.md`
+  与 4 张截图。
+- **基线**：`pnpm verify` **179 files / 1682 tests**（ESLint 0；depcruise 492 modules /
+  2118 deps / 0 violations）；coverage 全局 lines **77.01%**（statements 76.86% / branches 69.64% / functions 75.55%）；`pnpm build` exit 0（renderer
+  **3,365.14 kB**、CSS 77.89 kB）；`pnpm e2e` **103 passed**（settings 4 条
+  3.6s/4.9s/3.4s/1.6s）；`pnpm bench` exit 0。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑；强杀后不得静默丢数据。
-- **停点**：T5.4 已完成并提交；工作树干净；下一动作是 **T5.5（设置与国际化）**。
+- **停点**：T5.5 已完成并提交；工作树干净；下一动作是 **M5 验收演示**（2 表 3 视图分 2 pane →
+  撤销/重做 5 步 → 强杀恢复 → 最近打开 → 切英文/深色 → 重启全部还原），输出报告后停下等待用户
+  确认，不要自动进入 M6。
 - **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`）；读
-  `docs/reports/t5.4/REPORT.md`（含“残留风险”：快捷键不可自定义、AltGr/输入法、面板打开时
-  快照、功能局部对话框未入面板）；直接领取 T5.5。
+  `docs/reports/t5.5/REPORT.md`（含“残留风险”）、ADR-050、TASKS 的 M5 验收演示；执行演示。
 - **T5.1 完成结果**：2 表 3 视图 → 水平分栏 → 移动标签 → 比例 0.35 → 垂直/4 pane → 关闭空
   pane → 重启恢复；非法 layout（缺失引用/ratio 0.1）回退单 pane 且视图不丢；标签 Arrow/
   Ctrl+W 与 200% 缩放通过；截图在 `docs/reports/t5.1/`。
@@ -92,29 +93,24 @@
    redo 留孤儿文件；`table.meta.update` 菜单文案不区分重命名/换主键；原生 Electron Edit 菜单
    仍未与历史同步。详见报告 §8 与 ADR-047“复核条件”。
 
-### 0.3 下一会话行动清单（T5.5 设置与国际化）
+### 0.3 下一会话行动清单（M5 验收演示）
 
-> 前提：T5.4 已完成；M5 尚未结束。
+> 前提：T5.1–T5.5 全部完成；M5 尚未验收。
 
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
-   174 files / 1634 tests、`pnpm e2e` 99 passed、`pnpm bench` exit 0；读 TASKS 的 T5.5、
-   SPEC §16.3–§16.4、TESTPLAN 的 settings/i18n 条目、ADR-013（轻量 i18n）与 T5.4 的
-   `features/keymap/commands.ts` 文案表。
-2. 领取 **T5.5 设置与国际化**（依赖 T0.4、T3.1；一次只推进一个任务，不开 M6）。
-3. 既有基础：`I18nProvider`/`ThemeProvider` 已用 `localStorage`（`curve-studio.locale`/
-   `curve-studio.theme`）并即时切换；`@curve/ui` 有 Menu/Dialog/Select；工作区默认样式在
-   `workspace.settings.defaultStyleId`，内置模板在 `@curve/domain`。先读代码确认 settings
-   持久化应落在 `userData/settings.json`（非工作区）还是沿用 localStorage，需要时新增 ADR 与
-   IPC/preload 契约（当前没有 settings 通道）。
-4. T5.5 要补：设置对话框（主题、语言、默认表格样式、自动保存开关）、完整 en-US 消息表与
-   zh-CN 补齐、全量文案审计（含 T0.4 之后的 UI 与 T5.4 新命令/面板文案）、设置重启保留、
-   语言切换即时生效、文案 +30% 不破布局。自动保存关闭需要 SPEC §12 的“保存/放弃/取消”
-   三选一（ADR-048 复核条件），不要静默丢弃或假装已保存。
-5. 不要回退：T5.4 的快捷键表/面板文案 key 与 `data-command-id`；T5.3 的 SaveQueue 窗口与
-   flush 语义；T3.1 的内置模板不可变；所有 UI 文案走 `t(key)`（`ui-conventions` 硬门禁）。
-6. 验证按 TASKS：`pnpm exec vitest run packages/ui apps/desktop` + `pnpm exec playwright test
-   --config apps/desktop/playwright.config.ts apps/desktop/e2e/<settings>.spec.ts`（Vitest 5
-   不支持 `--grep`），并独占 CPU 复跑 T5.4 palette / T5.3 autosave / undo 回归。
+   179 files / 1682 tests、`pnpm e2e` 103 passed、`pnpm bench` exit 0；读 TASKS 的 M5
+   （T5.1–T5.5 实现备注）与 M5 验收演示脚本、报告 `docs/reports/t5.5/REPORT.md`、ADR-050。
+2. 执行 **M5 验收演示**：建 2 表 3 视图分 2 pane → 撤销/重做 5 步 → 强杀恢复 → 最近打开 →
+   切英文/深色 → 重启全部还原；写成单条 `apps/desktop/e2e/m5-acceptance.spec.ts`（多次
+   `launchCurveApp`，与 M2/M3/M4 一致），截图放 `docs/reports/m5/`，报告
+   `docs/reports/m5/REPORT.md`。
+3. 演示必须复用真实 UI 与 `window.api` seed，不要为演示改生产代码；必要时只加测试夹具。
+4. 演示覆盖：分栏/比例/标签、撤销 5 步与重做、强杀后“上次未正常退出”恢复、最近列表打开、
+   设置 en-US + dark 后重启仍为英文深色、自动保存关闭的三选一（可选）。
+5. 不要回退：T5.3 的 SaveQueue 窗口/flush、T5.4 的快捷键表、T5.5 的 `settings.json`/
+   `app:settings`/`SettingsProvider`、T3.1 内置模板、M4 图表契约。
+6. 跑全量 E2E 前确认 CPU 空闲；`m0` 截图提交前用 `git checkout --` 还原；演示报告写完即停，
+   等待用户确认后再考虑 M6。
 
 ### 0.4 T5.3 结果（2026-10-28 完成）
 
@@ -176,6 +172,34 @@
    打开时快照（模态期间文档不变，执行前复查）；新建表/导入/筛选/导出/图表向导等局部对话框
    未进入面板（ADR-049 复核条件）。详见报告 §8 与 ADR-049“复核条件”。
 
+### 0.6 T5.5 结果（2026-10-29 完成）
+
+1. 用例：`apps/desktop/e2e/settings.spec.ts` 4 条——语言/主题/自动保存改后重启保留（3.2s）、
+   自动保存关闭时关闭工作区的保存/放弃/取消（5.0s）、退出时取消保持窗口/保存后退出并重启
+   读回（3.4s）、+30% 伪本地化 + 200% 缩放布局（1.7s）。报告 `docs/reports/t5.5/REPORT.md`。
+2. 设置：`userData/settings.json` 的 `AppSettings { version, theme, locale, autosave,
+   defaultTableStyleId }`；新增 `app:settings`/`app:settings:update`（ALL 22→24、已实现
+   19→21），main 逐字段回退、原子串行写；`main.tsx` 首帧前读取（1.5s 兜底）。新工作区从应用
+   设置继承 manifest `settings`；已有工作区保留自己的默认样式。
+3. Provider：`SettingsProvider` 最外层，`I18nProvider`/`ThemeProvider` 受控；标题栏“设置”与
+   命令面板 `app.settings` 打开对话框。默认表格样式在有工作区时走
+   `style.apply { target:'default' }`，无工作区时作为新工作区种子。
+4. 自动保存关闭：`SaveQueue` 不安排定时器，`SaveState.unsaved` 标记；关闭窗口/工作区弹
+   “保存并继续 / 放弃修改 / 取消”。保存走 `flush()`；放弃走 `closeWorkspace({ save:false })`
+   （不写盘、删 `.lock`）；取消保持打开。main 退出握手超时关闭时 60s、开启时 3s。
+5. i18n：en-US 与 zh-CN key 集一致、无空文案、除 `language.zh-CN` 外无 CJK；`translateKey`
+   开发构建缺 key 抛错、生产回退；文案门禁扩展到 `aria-label`/`title`/`placeholder` 等属性。
+6. **不要回退**：`settings.json` 形状与 `app:settings*` 名称、`SettingsProvider` 受控
+   provider 组合、`SaveState.unsaved`/`'unsaved'` 阶段、`closeWorkspace({save:false})`、
+   `UNSAVED_QUIT_TIMEOUT_MS`、`data-testid="settings-*"`/`open-settings` 契约。
+7. 实测：`pnpm verify` **179 files / 1682 tests**；depcruise 492 modules / 2118 deps /
+   0 violations；coverage statements 76.86% / branches 69.64% / functions 75.55% / lines 77.01%；
+   `pnpm build` exit 0（renderer **3,365.14 kB**、CSS **77.89 kB**）；
+   `pnpm e2e` **103 passed**；`pnpm bench` exit 0。
+8. 残留：应用设置与 manifest 为两份快照；自动保存关闭时显式 action 仍 flush；设置写失败只在
+   对话框提示；main 原生对话框仍英文；+30% 是 DOM 伪本地化。详见报告 §8 与 ADR-050
+   “复核条件”。
+
 ---
 
 ## 1. 当前进度快照
@@ -212,14 +236,15 @@
 | `T5.2` 撤销/重做 | **已完成**（2026-10-28，`a9dcf75`）；报告 `docs/reports/t5.2/REPORT.md`；ADR-047；2 张截图 |
 | `T5.3` 自动保存、恢复与最近打开 | **已完成**（2026-10-28，`02e30a8`）；报告 `docs/reports/t5.3/REPORT.md`；ADR-048；5 张截图 |
 | `T5.4` 快捷键与命令面板 | **已完成**（2026-10-28，`fb53d9b`）；报告 `docs/reports/t5.4/REPORT.md`；ADR-049；3 张截图 |
-| 当前里程碑 | **M5 体验**：T5.1、T5.2、T5.3、T5.4 已完成；下一步 T5.5，M5 验收演示待 T5.1–T5.5 全部完成 |
-| 下一步 | **T5.5 设置与国际化**（依赖 T0.4、T3.1；SPEC §16.3–§16.4；TASKS T5.5） |
-| `pnpm verify` 基线 | **174 files / 1634 tests**；ESLint 0；depcruise 481 modules / 2028 deps / 0 violations |
-| `pnpm test:coverage` 基线 | 全局 lines **76.74%** / statements **76.59%** / branches **69.41%** / functions **75.18%**；`features/keymap` lines **90.27%**、branches 82.37%；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **99 passed**（7.4m）；palette 3 条 3.1s/3.4s/3.1s；autosave/recovery/layout/undo/chart-perf 全过；chart-perf 100k 切换 private **506MB**（≤600MB） |
-| `pnpm bench` 基线 | **exit 0**；table.open 452ms/3s、table.save 394ms/500ms、edit 0ms/50ms、query 258ms/400ms、text-sort 365ms/400ms、cjk-sort 603ms/800ms、import 862ms/8s、condition 1ms/16ms；chart.resolve-sample P95 **81ms**/300ms、chart.sample 3ms/50ms、chart.option.2k 1ms/50ms、chart.restyle.100k 0ms/20ms；memoryPeakMB 911（Node 趋势，非应用门禁） |
+| `T5.5` 设置与国际化 | **已完成**（2026-10-29，待提交）；报告 `docs/reports/t5.5/REPORT.md`；ADR-050；4 张截图 |
+| 当前里程碑 | **M5 体验**：T5.1、T5.2、T5.3、T5.4、T5.5 全部完成；下一步执行 M5 验收演示 |
+| 下一步 | **M5 验收演示**（TASKS 的 M5；报告 `docs/reports/m5/REPORT.md`，完成后停下等用户确认） |
+| `pnpm verify` 基线 | **179 files / 1682 tests**；ESLint 0；depcruise 492 modules / 2118 deps / 0 violations |
+| `pnpm test:coverage` 基线 | 全局 statements **76.86%** / branches **69.64%** / functions **75.55%** / lines **77.01%**；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **103 passed**；settings 4 条 3.6s/4.9s/3.4s/1.6s；autosave/recovery/layout/undo/palette/chart-perf 全过；chart-perf 100k 切换 private **507MB**（≤600MB） |
+| `pnpm bench` 基线 | **exit 0**；table.open 301ms/3s、table.save 277ms/500ms、edit 0ms/50ms、query 199ms/400ms、text-sort 276ms/400ms、cjk-sort 448ms/800ms、import 620ms/8s、condition 0ms/16ms；chart.resolve-sample P95 **69ms**/300ms、chart.sample 3ms/50ms、chart.option.2k 1ms/50ms、chart.restyle.100k 0ms/20ms；memoryPeakMB 705（Node 趋势，非应用门禁） |
 | `pnpm format:check` | 通过（提交前对新增文件跑过 Prettier） |
-| 构建 | `pnpm build` exit 0；renderer **3,342.56 kB** + 懒加载 ImportSession 42.82 kB；CSS **77.49 kB**；table/query/import worker 220.68/236.16/270.16 kB（T6.4 评估拆包） |
+| 构建 | `pnpm build` exit 0；renderer **3,365.14 kB** + 懒加载 ImportSession 42.82 kB；CSS **77.89 kB**；table/query/import worker 220.68/236.16/270.16 kB（T6.4 评估拆包） |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
 
 **用户明确要求**：
@@ -227,8 +252,8 @@
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
 - **M1/M2/M3/M4 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6、M4 验收演示、T5.1、
-  T5.2、T5.3 与 T5.4 已完成**；下一步是 **M5 的 T5.5（设置与国际化）**。
-- 不得跨里程碑；M4 已验收关闭，M5 按 TASKS 顺序推进 T5.5，里程碑结束再停。
+  T5.2、T5.3、T5.4 与 T5.5 已完成**；下一步是 **M5 验收演示**。
+- 不得跨里程碑；M4 已验收关闭，M5 在演示报告后停下等待用户确认，不要自动进入 M6。
 
 ---
 
@@ -237,14 +262,15 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 T5.5、docs/SPEC.md §16.3–§16.4、
-docs/TASKS.md 的 M5 与相关 ADR（i18n/样式/自动保存）。
+先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 M5 验收演示、docs/SPEC.md §12/§13.3/§16.3–§16.4、
+docs/reports/t5.5/REPORT.md 与 ADR-050。
 
-现状：M0、M1（已验收）、M2（已验收）、M3（已验收）、M4（已验收）、T1.1–T4.6、T5.1、T5.2、
-T5.3 与 T5.4 已完成；pnpm verify 174 files / 1634 tests、coverage lines 76.74%、pnpm e2e
-99 passed、pnpm bench exit 0。
+现状：M0、M1（已验收）、M2（已验收）、M3（已验收）、M4（已验收）、T1.1–T4.6、T5.1–T5.5
+已完成；pnpm verify 179 files / 1682 tests、pnpm e2e 103 passed、pnpm bench exit 0。
 
-下一步：领取 M5 的 T5.5（设置与国际化）；一次只推进一个任务，完成并验证后更新报告。
+下一步：执行 M5 验收演示（2 表 3 视图分 2 pane → 撤销/重做 5 步 → 强杀恢复 → 最近打开 →
+切英文/深色 → 重启全部还原），写 e2e/m5-acceptance.spec.ts 与 docs/reports/m5/REPORT.md；
+输出报告后停下等待用户确认，不要自动进入 M6。
 ```
 
 ---
@@ -605,6 +631,17 @@ T4.6 又在根 `package.json` 的 devDependencies 增加了 `@curve/chart-echart
   `command-palette-list`、`data-command-id`、`data-command-recent`、dialog 名称“命令面板”/
   “键盘快捷键”；`getByRole('option')` 会误匹配原生 `<select><option>`，必须限定在
   `command-palette-list` 内。
+- T5.5 的 E2E 契约：`data-testid="open-settings"`、`settings-dialog`、`settings-theme`、
+  `settings-language`、`settings-autosave`、`settings-default-style`、`settings-close`、
+  `settings-error`、`settings-style-error`；未保存对话框名称“有未保存的修改”/“Unsaved
+  changes”，按钮“保存并继续/放弃修改/取消”。设置文件路径是 `join(userDataDir, 'settings.json')`。
+- T5.5 的 `settings.spec.ts` 用 `writeSettings()` 预写 `autosave:false` 再启动；不要通过修改
+  `localStorage` 来模拟设置（已不是持久化来源）。`settings-i18n-layout` 的伪本地化是 DOM 文本
+  注入，不是真实语言包；断言用 `[role="dialog"]` 面板的 `boundingBox` 与 document 的
+  `scrollWidth`，不要按截图像素断言。
+- T5.5 修改了 `ipc.spec.ts` 的 bridge 白名单：`appMethods` 现在是
+  `info, settings, updateSettings, onQuitRequested, respondToQuit`（插入顺序）；新增 bridge
+  方法时同步该数组与 preload `api.test.ts`。
 
 ---
 
@@ -750,10 +787,10 @@ encodeCsvChunks(options): Generator<CsvChunk>
 
 ### 4.5 IPC / preload / renderer
 
-`IMPLEMENTED_IPC_CHANNELS` 共 **19** 个：`app:info`、`app:quit-response`、`dialog:pickDirectory`、
-`log:write`、`workspace:create/open/inspect/close/recent`、`workspace:recent:remove|clear`、
-`manifest:write`、`table:read/write/trash`、`file:importText`、`file:exportText`、
-`file:exportCsv`、`file:archiveImport`；另有 1 个 main→renderer 事件
+`IMPLEMENTED_IPC_CHANNELS` 共 **21** 个：`app:info`、`app:settings`、`app:settings:update`、
+`app:quit-response`、`dialog:pickDirectory`、`log:write`、`workspace:create/open/inspect/close/recent`、
+`workspace:recent:remove|clear`、`manifest:write`、`table:read/write/trash`、`file:importText`、
+`file:exportText`、`file:exportCsv`、`file:archiveImport`；另有 1 个 main→renderer 事件
 `app:quit-requested`（`IPC_EVENT_CHANNELS`，不在 `ALL_IPC_CHANNELS` 的 handle 探针里）。
 
 - `dialog:saveFile` / `backup:*` 仍只有通道名。
@@ -774,6 +811,12 @@ encodeCsvChunks(options): Generator<CsvChunk>
   （ALL 20 → 22；已实现 15 → 19；另有 `app:quit-requested` 事件）。
 - `workspace:open` 请求新增可选 `recovery: { acceptStaleLock?, manifestBackup? }`；
   `workspace:inspect` 返回 `{ dir, name, lock, manifest, errorCode?, backups }`（T5.3，ADR-048）。
+- T5.5 新增 `app:settings`（读 `userData/settings.json`）与 `app:settings:update`（完整
+  `AppSettings`，Zod 校验后原子串行写）；preload 暴露 `app.settings()/app.updateSettings()`，
+  不传路径。事件/退出握手不变，只有关闭时超时放宽到 60s。
+  （ALL 22 → 24；已实现 19 → 21。）
+- `AppInfo` 不变；`AppSettings`/`normalizeAppSettings`/`DEFAULT_APP_SETTINGS` 在
+  `shared/contracts/settings.ts`，`ipc.ts` 重新导出类型与 `appSettingsSchema`。
 
 ### 4.6 `@curve/app-core`（T1.5 + T2.1 + T2.2 + T2.3 + T2.4 + T2.5 + T2.6 + T2.7）
 
@@ -1504,6 +1547,66 @@ historyActionKey(command): MessageKey      // features/history/history-action-la
   `data-undo-depth`/`data-redo-depth`。快捷键仍在 `WorkspaceView`。
 - 打开/关闭工作区清空两栈并把 `ui.history` 置空。完整决策/代价见 ADR-047 与
   `docs/reports/t5.2/REPORT.md`。
+
+### 4.26 应用设置、自动保存开关与 i18n（T5.5）
+
+```ts
+// shared/contracts/settings.ts
+type AppSettingsTheme = 'light' | 'dark' | 'system';
+type AppSettingsLocale = 'zh-CN' | 'en-US';
+interface AppSettings {
+  version: 1;
+  theme: AppSettingsTheme;
+  locale: AppSettingsLocale;
+  autosave: boolean;
+  defaultTableStyleId: string;   // 仅 builtin.*
+}
+DEFAULT_APP_SETTINGS;
+normalizeAppSettings(value): AppSettings;  // 逐字段回退
+appSettingsEqual(a, b): boolean;
+
+// main/settings/app-settings-store.ts
+SETTINGS_FILE_NAME = 'settings.json';
+createAppSettingsStore({ userDataPath, logger?, write? }): {
+  get(); load(); update(next);
+}
+
+// IPC / preload
+app:settings         {}            -> AppSettings
+app:settings:update  { settings }  -> AppSettings
+window.api.app.settings() / updateSettings(settings)
+
+// @curve/app-core
+AppCore.setAutosaveEnabled(enabled): void;
+AppCore.hasUnsavedChanges(): boolean;
+SaveQueue.setAutosaveEnabled(enabled): void;
+SaveQueue.isAutosaveEnabled(): boolean;
+SaveQueue.hasUnsavedChanges(): boolean;
+SaveState.unsaved: boolean;
+SavePhase = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
+WorkspaceActions.closeWorkspace(options?: { save?: boolean }): Promise<ActionOutcome>;
+
+// renderer
+SettingsProvider({ initialSettings?, api? }): ReactElement;
+useSettings(): { settings; ready; error; update(patch) };
+I18nProvider({ locale?, onLocaleChange?, initialLocale? }): ReactElement;
+ThemeProvider({ mode?, onModeChange?, initialMode? }): ReactElement;
+UnsavedChangesProvider({ children }): ReactElement;
+useUnsavedChangesGuard(): { request(action: 'quit' | 'close-workspace'): Promise<'save'|'discard'|'cancel'> };
+```
+
+- `main.tsx` 在 `createRoot` 前 `await app.settings()`（1.5s 兜底）；`AppCoreProvider` 用
+  `settings.autosave` 创建队列，并在变化时调用 `setAutosaveEnabled`。
+- `SettingsDialog` 的主题/语言/自动保存即时写应用设置；默认样式有工作区时走
+  `style.apply { target:'default' }`，无工作区时作为新工作区种子（`FileWorkspaceStore.create`
+  → `createEmptyManifest({ settings })`）。
+- 自动保存关闭时 `enqueue`/`enqueueManifest` 只发布 `'unsaved'`；`flush()`/`retry()`/Ctrl+S/
+  显式 action 仍写。关闭窗口/工作区的三选一由 `UnsavedChangesProvider` 统一管理；放弃调用
+  `closeWorkspace({ save:false })`，取消回复 `action:'cancel'`。main 的退出超时在关闭时
+  **60s**、开启时 3s。
+- i18n：`translateKey` 开发构建缺 key 抛错、生产回退 zh-CN；`ui-conventions.test.ts` 同时审计
+  JSX 文本、中文字面量与用户可见属性字面量。完整决策/代价见 ADR-050 与
+  `docs/reports/t5.5/REPORT.md`。
 
 ---
 
@@ -2774,8 +2877,11 @@ T5.3、T5.4 已完成，下一步 T5.5。
 | main 原生退出确认/恢复提示为英文（T5.3） | 中文用户看到英文按钮 | 与既有 About/文件对话框一致；要本地化需把消息表下沉到 main 或改 renderer 驱动，另写 ADR |
 | `workspace:inspect` 多读一次 manifest（T5.3） | 打开延迟几十 KB 级 | 换取取消恢复不写文件的语义；若 manifest 变大再评估缓存/懒读 |
 | E2E 截图重写 | 工作树变脏 | 提交前还原 `docs/reports/m0/*.png` |
-| 覆盖率 76.74%（T5.4 实测；T5.3 76.05%、T5.2 76.21%、T5.1 75.99%、T4.6 76.47%、T4.5 76.26%、T4.4 75.89%、T4.2 75.55%、T4.1 75.34%、M3 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`features/keymap` 90.27% 行/82.37% 分支、`chart-model` render-model.ts 96.88%、`chart-echarts/src` 96.75%、`app-core/history/edit-history.ts` 90.99% 行/86.89% 分支；`quit-guard.ts` 88.52%、`use-quit-guard.ts` 93.75%；恢复对话框/开放流程由 E2E 覆盖；任务报告记录实测 |
-| renderer bundle 3.31MB（T5.3；+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩；ECharts 首次进入主 chunk |
+| 应用设置与 manifest 是两份快照（T5.5） | manifest 的 theme/locale/autosave 创建后不更新 | 读取方以 `settings.json` 为准；保留字段为 v1 格式；详见 ADR-050 |
+| 自动保存关闭时显式 action 仍 flush（T5.5） | 用户可能以为只有 Ctrl+S 写盘 | 粘贴/导入/样式/图表 action 需要保存结果；若要求完全手动保存，需加队列模式并改 action，ADR-050 复核条件 |
+| 设置写失败只在对话框提示（T5.5） | 主题/语言已生效但重启回退 | 下一次设置更新会重试；不新增全局 Toast |
+| 覆盖率 77.01%（T5.5 实测；T5.4 76.74%、T5.3 76.05%、T4.6 76.47%、T4.5 76.26%、T4.4 75.89%、T4.1 75.34%、M3 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`features/keymap` 90.27% 行/82.37% 分支、`chart-model` render-model.ts 96.88%、`chart-echarts/src` 96.75%、`app-core/history/edit-history.ts` 90.99%、`quit-guard.ts` 89.06%、`save-queue.ts` 89.56%、`translate.ts` 86.36%；设置/未保存对话框由单测 + E2E 覆盖 |
+| renderer bundle 3.365MB（T5.5；+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩；ECharts 首次进入主 chunk |
 | 100k CSV 导出 1,716ms/5s（T3.6） | 去掉 Intl formatter 缓存会退到 10s 量级 | `formatCellValue` 的 locale/格式缓存是达标关键；不要改回每单元格 `new Intl.*` |
 | CSV 临时文件残留 | 进程崩溃时 `.curve-export-*.tmp` 留在目标目录 | cancel/`before-quit` 已清理；崩溃残留需手工删除，报告已记录 |
 | 显示格式 CSV 的千分位/本地化日期 | Excel 可能识别为文本 | 数值语义用“原始值”；对话框已说明两种格式 |
@@ -2888,28 +2994,40 @@ T5.3、T5.4 已完成，下一步 T5.5。
   面板打开时快照可用性并只在此期间挂载（ADR-049 §5）。
 - 不让命令面板绕过 `core.actions` 或复制 `isEnabled` 业务规则；`data-command-id`/
   `data-command-recent`/`command-palette-input` 是 E2E 契约，不要改名。
+- 不把设置写回 `localStorage` 当作“持久化”：`settings.json` 是唯一权威，localStorage 只是
+  独立 provider 的兜底镜像；不要让 `I18nProvider`/`ThemeProvider` 重新拥有自己的持久化状态。
+- 不新增 `app:settings` 的路径参数或任意文件读写；不把 `settings.json` 放进工作区；不改
+  `AppSettings.version` 而不写迁移。
+- 不让 `SettingsDialog` 直接改 store 或绕过 `style.apply` 去写工作区默认样式；默认样式是
+  workspace 数据，不是应用设置。
+- 不在自动保存关闭时静默丢弃修改：关闭窗口/工作区必须走三选一；不要删掉
+  `closeWorkspace({ save:false })` 的“不 flush”语义或 `SaveState.unsaved`。
+- 不把 main 退出超时改回固定 3s（自动保存关闭时它必须等用户的 60s 决策）；不要删
+  `UNSAVED_QUIT_TIMEOUT_MS` 或动态 `timeoutMs`。
+- 不在开发构建移除缺 key 抛错来“让页面先渲染”；缺 key 是文案 bug，不是运行时容错点。
+- 不删除 `ui-conventions.test.ts` 的属性文案门禁；新增用户可见属性时同步扩展白名单而不是
+  放宽整条规则。
 - 不自动跨任务/跨里程碑；M3、M4 均已验收并关闭，M4 的 T4.1–T4.6 与验收演示已完成，
-  T5.1、T5.2、T5.3、T5.4 已完成；**下一步是 T5.5（设置与国际化）**；一次只推进一个任务。
+  T5.1–T5.5 已完成；**下一步是 M5 验收演示**，报告后停下等用户确认，不要自动进入 M6。
 
 ---
 
 ## 9. 新会话启动检查清单
 
 - [ ] `git status --short` 干净；`git log` 包含 T5.1 代码/报告 **`eb152b4`**、T5.2 **`a9dcf75`**、
-      T5.3 **`02e30a8`**、T5.4（`git log -1 -- apps/desktop/src/renderer/features/keymap`）
+      T5.3 **`02e30a8`**、T5.4 **`fb53d9b`**、T5.5（`git log -1 -- apps/desktop/src/renderer/features/settings`）
       与本交接文档提交。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
-- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t5.4/REPORT.md`、`docs/TASKS.md` 的 T5.4/T5.5、
-      `docs/SPEC.md` §13.4/§16.3/§16.4、ADR-049/048/047；T5.5 的 settings/i18n 条目与 §0.3
-      行动清单必读。
-- [ ] 已确认 `pnpm verify` 基线（**174 files / 1634 tests**）、coverage lines **76.74%**、
-      `pnpm e2e` **99 passed**（7.4m）、`pnpm bench` exit 0；T5.4 palette 3 条
-      3.1s/3.4s/3.1s；chart-perf 100k 切换 private **506MB**（≤600MB）。
+- [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t5.5/REPORT.md`、`docs/TASKS.md` 的 M5、
+      `docs/SPEC.md` §12/§13.3/§16.3/§16.4、ADR-050/048/047。
+- [ ] 已确认 `pnpm verify` 基线（**179 files / 1682 tests**）、`pnpm e2e` **103 passed**、
+      `pnpm bench` exit 0；T5.5 settings 4 条 3.6s/4.9s/3.4s/1.6s；chart-perf 100k 切换 private
+      **507MB**（≤600MB）。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M1/M2/M3/M4 均已获用户接受、T3.1–T3.6、T4.1–T4.6、M4 验收演示、T5.1、T5.2、
-      T5.3 与 T5.4 已完成；**下一步是 M5 的 T5.5（设置与国际化）**。
+- [ ] 已确认 M1/M2/M3/M4 均已获用户接受、T3.1–T3.6、T4.1–T4.6、M4 验收演示、T5.1–T5.5
+      已完成；**下一步是 M5 验收演示**，不是新任务。
 - [ ] 已确认 T5.1 契约：`LayoutView` 递归渲染、`ui.activePanePath` UI-only、分栏=原 pane+空
       pane、最多 4 pane、移动标签到下一分栏、关闭最后标签折叠 pane、空 pane 才可关分栏、
       500ms 布局去抖（`flushSaves`/关闭/Ctrl+S 冲掉）、`view.layout` 可选 `activePanePath`、
@@ -2927,11 +3045,17 @@ T5.3、T5.4 已完成，下一步 T5.5。
       `createKeymap` 冲突即抛、`isEditableTarget` 保护；面板只在打开时挂载并快照可用性，
       `AppShell` 不订阅 store（否则 chart-perf 100k 切换会到 605–615MB）；E2E 契约
       `command-palette*`/`data-command-id`/`data-command-recent`；`F1` 帮助表由同一注册表生成。
-- [ ] 已确认 E2E 新增 `apps/desktop/e2e/autosave.spec.ts`（4 条）、`recovery.spec.ts`（4 条）、
-      `undo.spec.ts`（3 条）、`layout.spec.ts`（3 条）、`palette.spec.ts`（3 条）与
-      `m4-acceptance.spec.ts`（1 条）；截图在 `docs/reports/t5.4/`、`docs/reports/t5.3/`、
-      `docs/reports/t5.2/`、`docs/reports/t5.1/` 与 `docs/reports/m4/`；`m0` 截图已还原，
-      `test-results/` 未提交。
+- [ ] 已确认 T5.5 契约：`userData/settings.json` 的 `AppSettings`/`normalizeAppSettings`；
+      `app:settings`/`app:settings:update` 与 preload `app.settings/updateSettings`；
+      `SettingsProvider` 是 locale/theme 唯一状态源，`I18nProvider`/`ThemeProvider` 受控；
+      `SaveState.unsaved`/`'unsaved'`、`setAutosaveEnabled`、`closeWorkspace({ save:false })`、
+      `UNSAVED_QUIT_TIMEOUT_MS`；`data-testid="settings-*"`/`open-settings`/未保存对话框名称；
+      开发构建缺 key 抛错与属性文案门禁。不要把这些改回 localStorage/固定超时/静默丢弃。
+- [ ] 已确认 E2E 新增 `apps/desktop/e2e/settings.spec.ts`（4 条）、`autosave.spec.ts`（4 条）、
+      `recovery.spec.ts`（4 条）、`undo.spec.ts`（3 条）、`layout.spec.ts`（3 条）、
+      `palette.spec.ts`（3 条）与 `m4-acceptance.spec.ts`（1 条）；截图在
+      `docs/reports/t5.5/`、`docs/reports/t5.4/`、`docs/reports/t5.3/`、`docs/reports/t5.2/`、
+      `docs/reports/t5.1/` 与 `docs/reports/m4/`；`m0` 截图已还原，`test-results/` 未提交。
 - [ ] 已确认 T4.6：`resolveChartData`/`renderChartModel` 拆分与 `resolveSeries` 组合（输出/快照
       不变）；数据缓存键不含样式字段/`xLabel`、命中要求 `rows` 引用；>20k 行延迟解析 + loading；
       `data-chart-pending/resolve-ms/update-ms/update-count/instances` 诊断契约；rAF 合并交互
@@ -2955,13 +3079,13 @@ T5.3、T5.4 已完成，下一步 T5.5。
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`；`m0` 截图提交前还原；`docs/reports/t4.5/*.png`
       （3 张）与 `docs/reports/t4.6/*.png`（2 张）已提交。
-- [ ] 已确认 renderer 主 chunk 为 **3,342.56 kB**（ECharts + 分栏 + 撤销 + 自动保存/恢复 +
-      快捷键/面板）、CSS 77.49 kB；T6.4 评估拆包，M4/T5.1–T5.4 不改图表层架构或重建实例。
-- [ ] 跑全量 E2E 前已确认没有外部程序占满 CPU（§3.3/§7）；perf 内存门禁 600MB，T5.4 后
-      100k 图表切换实测 **506MB**，但仍需独占运行、不放宽断言。
+- [ ] 已确认 renderer 主 chunk 为 **3,365.14 kB**（ECharts + 分栏 + 撤销 + 自动保存/恢复 +
+      快捷键/面板 + 设置）、CSS **77.89 kB**；T6.4 评估拆包，M4/T5.1–T5.5 不改图表层架构或重建实例。
+- [ ] 跑全量 E2E 前已确认没有外部程序占满 CPU（§3.3/§7）；perf 内存门禁 600MB，T5.5 后
+      100k 图表切换实测 **507MB**，但仍需独占运行、不放宽断言。
 - [ ] M4 验收演示已按 TESTPLAN E6 执行（`e2e/m4-acceptance.spec.ts`，独占 CPU），报告
       `docs/reports/m4/REPORT.md` 与截图已提交；**M4 已于 2026-10-27 获用户接受并关闭**。
-- [ ] T5.1/T5.2/T5.3/T5.4 已完成（报告 `docs/reports/t5.1|t5.2|t5.3|t5.4/REPORT.md`，
-      ADR-046/047/048/049，`e2e/layout.spec.ts` 3 条、`e2e/undo.spec.ts` 3 条、autosave 4 条、
-      recovery 4 条、palette 3 条）；**下一动作 T5.5（设置与国际化）**，不要把 M5 未完成的
-      任务当成已验收。
+- [ ] T5.1–T5.5 已完成（报告 `docs/reports/t5.1|t5.2|t5.3|t5.4|t5.5/REPORT.md`，
+      ADR-046/047/048/049/050，`e2e/layout.spec.ts` 3 条、`undo.spec.ts` 3 条、autosave 4 条、
+      recovery 4 条、palette 3 条、settings 4 条）；**下一动作 M5 验收演示**，不要把 M5 未完成的
+      演示当成已验收。

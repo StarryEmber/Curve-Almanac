@@ -133,6 +133,27 @@ export const zhCN = {
   'language.zh-CN': '简体中文',
   'language.en-US': 'English',
 
+  'settings.open': '设置',
+  'settings.title': '设置',
+  'settings.description': '外观与语言立即生效，自动保存与默认样式会保留到下次启动。',
+  'settings.theme': '主题',
+  'settings.language': '语言',
+  'settings.autosave': '自动保存',
+  'settings.autosaveHint': '关闭后修改只保留在内存中，退出或关闭工作区时会询问保存、放弃或取消。',
+  'settings.autosaveOn': '开启',
+  'settings.autosaveOff': '关闭',
+  'settings.defaultStyle': '默认表格样式',
+  'settings.defaultStyleHint': '应用到当前工作区；新建的表格视图会使用它。',
+  'settings.defaultStyleNew': '应用到新建的工作区；当前没有打开的工作区。',
+
+  'unsaved.title': '有未保存的修改',
+  'unsaved.bodyQuit': '自动保存已关闭，仍有修改没有写入磁盘。退出前要保存吗？',
+  'unsaved.bodyClose': '自动保存已关闭，仍有修改没有写入磁盘。关闭工作区前要保存吗？',
+  'unsaved.hint': '选择“放弃修改”会丢失这些修改，且无法撤销。',
+  'unsaved.save': '保存并继续',
+  'unsaved.discard': '放弃修改',
+  'unsaved.cancel': '取消',
+
   'shell.empty.title': '从一个工作区开始',
   'shell.empty.body':
     'Curve Studio 把数据表、曲线图和样式保存在本地目录里，离线可用，数据不出本机。',
@@ -160,6 +181,8 @@ export const zhCN = {
   'shell.status.saving': '保存中…',
   'shell.status.saveError': '保存失败',
   'shell.status.retry': '重试',
+  'shell.status.autosaveOff': '已关闭',
+  'shell.status.unsaved': '有未保存修改',
 
   'shell.help.title': '键盘快捷键',
   'shell.help.description': '所有面板都可以只用键盘操作。',

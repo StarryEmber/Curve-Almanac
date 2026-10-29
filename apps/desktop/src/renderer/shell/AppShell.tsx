@@ -7,6 +7,7 @@ import { useQuitGuard } from '../app-core/use-quit-guard';
 import { describeAppError } from '../error-text';
 import { CommandPalette } from '../features/keymap/CommandPalette';
 import { useCommandKeymap } from '../features/keymap/use-command-keymap';
+import { SettingsDialog } from '../features/settings/SettingsDialog';
 import { WelcomePage } from '../features/workspace/WelcomePage';
 import { WorkspaceView } from '../features/workspace/WorkspaceView';
 import { useI18n } from '../i18n';
@@ -36,6 +37,7 @@ export function AppShell(): ReactElement {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const reportedRuntimeError = useRef<AppError | null>(null);
   const reportedAppError = useRef<AppError | null>(null);
   const commandKeymap = useCommandKeymap({
@@ -49,6 +51,9 @@ export function AppShell(): ReactElement {
     },
     onOpenHelp: () => {
       setHelpOpen(true);
+    },
+    onOpenSettings: () => {
+      setSettingsOpen(true);
     },
   });
 
@@ -95,6 +100,9 @@ export function AppShell(): ReactElement {
         onOpenHelp={() => {
           setHelpOpen(true);
         }}
+        onOpenSettings={() => {
+          setSettingsOpen(true);
+        }}
       />
 
       {sidebarOpen ? <Sidebar /> : null}
@@ -125,6 +133,15 @@ export function AppShell(): ReactElement {
           open
           onClose={() => {
             setHelpOpen(false);
+          }}
+        />
+      ) : null}
+
+      {settingsOpen ? (
+        <SettingsDialog
+          open
+          onClose={() => {
+            setSettingsOpen(false);
           }}
         />
       ) : null}

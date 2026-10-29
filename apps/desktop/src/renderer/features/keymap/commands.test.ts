@@ -43,6 +43,7 @@ function handlers(): CommandHandlers {
     toggleSidebar: vi.fn(),
     toggleInspector: vi.fn(),
     openHelp: vi.fn(),
+    openSettings: vi.fn(),
     setTheme: vi.fn(),
   };
 }
@@ -75,7 +76,7 @@ describe('APP_COMMANDS', () => {
     expect(findShortcutConflicts(createAppCommands(handlers()))).toEqual([]);
   });
 
-  it('gives every core command a shortcut and leaves only appearance commands shortcutless', () => {
+  it('gives every core command a shortcut and leaves only preference commands shortcutless', () => {
     const commands = createAppCommands(handlers());
     for (const entry of commands) {
       if ((PALETTE_ONLY_COMMAND_IDS as readonly string[]).includes(entry.id)) {
@@ -94,6 +95,7 @@ describe('APP_COMMANDS', () => {
     expect(shortcuts).toEqual({
       'palette.open': ['Ctrl/Cmd+K'],
       'app.help': ['F1'],
+      'app.settings': [],
       'app.save': ['Ctrl/Cmd+S'],
       'app.toggleSidebar': ['Ctrl/Cmd+B'],
       'app.toggleInspector': ['Ctrl/Cmd+Alt+I'],

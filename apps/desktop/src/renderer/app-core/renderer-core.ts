@@ -25,7 +25,15 @@ export interface RendererCore {
   readonly query: QueryClient;
 }
 
-export function createRendererCore(bridge: CurveApi | undefined): RendererCore {
+export interface RendererCoreOptions {
+  /** T5.5: initial autosave preference; toggled later through `core`. */
+  autosaveEnabled?: boolean;
+}
+
+export function createRendererCore(
+  bridge: CurveApi | undefined,
+  options: RendererCoreOptions = {},
+): RendererCore {
   const api = createApiClient(bridge);
   const workspaceStore = createRendererWorkspaceStore(api);
   const tableIo = createTableIoClient();
@@ -33,6 +41,7 @@ export function createRendererCore(bridge: CurveApi | undefined): RendererCore {
 
   const core = createAppCore({
     workspaceStore,
+    ...(options.autosaveEnabled === undefined ? {} : { autosaveEnabled: options.autosaveEnabled }),
     decodeTable: async (jsonl, table) => {
       const decoded = await tableIo.decode(jsonl, table);
       if (!decoded.ok) {

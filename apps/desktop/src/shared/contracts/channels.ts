@@ -8,6 +8,8 @@
 
 export const IPC_CHANNELS = {
   appInfo: 'app:info',
+  appSettings: 'app:settings',
+  appSettingsUpdate: 'app:settings:update',
   appQuitResponse: 'app:quit-response',
   dialogPickDirectory: 'dialog:pickDirectory',
   dialogSaveFile: 'dialog:saveFile',
@@ -54,10 +56,12 @@ export const ALL_IPC_CHANNELS: readonly IpcChannel[] = Object.freeze(Object.valu
  * T1.2 adds the workspace lifecycle and `manifest:write`; T1.3 adds the three
  * `table:*` channels; T2.1 adds `dialog:pickDirectory` for the welcome page.
  * T5.3 adds `workspace:inspect`, the recent-list mutations and the quit
- * handshake response.
+ * handshake response. T5.5 adds the application settings read/update pair.
  */
 export const IMPLEMENTED_IPC_CHANNELS = [
   IPC_CHANNELS.appInfo,
+  IPC_CHANNELS.appSettings,
+  IPC_CHANNELS.appSettingsUpdate,
   IPC_CHANNELS.appQuitResponse,
   IPC_CHANNELS.dialogPickDirectory,
   IPC_CHANNELS.logWrite,

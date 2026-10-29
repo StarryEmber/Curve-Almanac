@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { QUIT_TIMEOUT_MS, createQuitGuard } from './quit-guard';
+import { QUIT_TIMEOUT_MS, UNSAVED_QUIT_TIMEOUT_MS, createQuitGuard } from './quit-guard';
 
 function setup(confirmResult = true): {
   guard: ReturnType<typeof createQuitGuard>;
@@ -137,5 +137,34 @@ describe('quit guard', () => {
       expect(confirm).toHaveBeenCalledTimes(1);
     });
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for the autosave-off prompt with a longer, dynamic timeout (T5.5)', async () => {
+    vi.useFakeTimers();
+    let autosave = false;
+    const confirm = vi.fn(async () => false);
+    const guard = createQuitGuard({
+      request: () => undefined,
+      confirm,
+      close: () => undefined,
+      logger: { warn: () => undefined },
+      timeoutMs: () => (autosave ? QUIT_TIMEOUT_MS : UNSAVED_QUIT_TIMEOUT_MS),
+    });
+
+    guard.request('window-close');
+    await vi.advanceTimersByTimeAsync(QUIT_TIMEOUT_MS + 1);
+    expect(confirm).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(UNSAVED_QUIT_TIMEOUT_MS - QUIT_TIMEOUT_MS - 2);
+    expect(confirm).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ kind: 'timeout' }));
+
+    guard.respond({ action: 'cancel', flushed: true });
+    autosave = true;
+    guard.request('window-close');
+    await vi.advanceTimersByTimeAsync(QUIT_TIMEOUT_MS);
+    expect(confirm).toHaveBeenCalledTimes(2);
   });
 });

@@ -68,6 +68,8 @@ export interface CreateAppCoreOptions {
   encodeTable?: EncodeTable;
   /** Archive writer for imported source files (main-process IPC adapter). */
   archiveImport?: (request: ImportArchiveRequest) => Promise<ImportArchiveResult>;
+  /** T5.5: initial autosave preference (default true). */
+  autosaveEnabled?: boolean;
 }
 
 export interface AppCore {
@@ -76,6 +78,10 @@ export interface AppCore {
   readonly openWorkspace: OpenWorkspace;
   readonly actions: WorkspaceActions;
   readonly history: EditHistory;
+  /** T5.5: toggles the 1.5s/10s autosave window without rebuilding the core. */
+  setAutosaveEnabled(enabled: boolean): void;
+  /** True while the in-memory document is ahead of disk. */
+  hasUnsavedChanges(): boolean;
 }
 
 /**
@@ -133,6 +139,7 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
     workspaceStore: options.workspaceStore,
     logger,
     ...(options.encodeTable === undefined ? {} : { encodeTable: options.encodeTable }),
+    ...(options.autosaveEnabled === undefined ? {} : { autosaveEnabled: options.autosaveEnabled }),
   });
   const history = createEditHistory({
     store,
@@ -215,5 +222,15 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
     ...(options.archiveImport === undefined ? {} : { archiveImport: options.archiveImport }),
   });
 
-  return { store, commands, openWorkspace, actions, history };
+  return {
+    store,
+    commands,
+    openWorkspace,
+    actions,
+    history,
+    setAutosaveEnabled: (enabled: boolean): void => {
+      saveQueue.setAutosaveEnabled(enabled);
+    },
+    hasUnsavedChanges: (): boolean => saveQueue.hasUnsavedChanges(),
+  };
 }

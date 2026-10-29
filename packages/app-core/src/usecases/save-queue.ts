@@ -41,6 +41,8 @@ export interface SaveQueueOptions {
   autosaveDelayMs?: number;
   /** Upper bound measured from the first pending change (default 10s). */
   autosaveMaxDelayMs?: number;
+  /** T5.5: false keeps changes in memory until `flush()`/`retry()` (default true). */
+  autosaveEnabled?: boolean;
 }
 
 export type SaveOutcome =
@@ -53,6 +55,11 @@ export interface SaveQueue {
   enqueueManifest(): void;
   cancel(tableId: string): void;
   retry(): void;
+  /** T5.5: turns the 1.5s/10s autosave window on or off at runtime. */
+  setAutosaveEnabled(enabled: boolean): void;
+  isAutosaveEnabled(): boolean;
+  /** True while table/manifest changes are not on disk yet. */
+  hasUnsavedChanges(): boolean;
   /** Waits for the queue to drain; resolves with the last error, if any. */
   flush(timeoutMs?: number): Promise<SaveOutcome>;
   reset(): void;
@@ -87,6 +94,7 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
   const waiters = new Set<Waiter>();
   let running = false;
   let lastError: AppError | null = null;
+  let autosaveEnabled = options.autosaveEnabled ?? true;
   /** Bumped by every `enqueueManifest` so an in-flight table save can tell. */
   let manifestVersion = 0;
   let manifestDirty = false;
@@ -95,8 +103,10 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
   /** Wall-clock time of the first change in the current dirty window. */
   let firstPendingAt: number | null = null;
 
+  const hasUnsaved = (): boolean => pending.size > 0 || manifestDirty || lastError !== null;
+
   const publish = (status: SaveState['status'], pendingCount: number, error: AppError | null) => {
-    const state: SaveState = { status, pending: pendingCount, error };
+    const state: SaveState = { status, pending: pendingCount, unsaved: hasUnsaved(), error };
     store.getState().actions.setSaveState(state);
   };
 
@@ -126,7 +136,7 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
    * 10-second cap. `flush()`/`retry()` bypass this and call `run()` directly.
    */
   const scheduleAutosave = (): void => {
-    if (running) {
+    if (running || !autosaveEnabled) {
       return;
     }
     const nowMs = Date.now();
@@ -266,7 +276,7 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
         }
       }
       pending.add(tableId);
-      publish('saving', pending.size, null);
+      publish(autosaveEnabled ? 'saving' : 'unsaved', pending.size, null);
       scheduleAutosave();
     },
 
@@ -282,7 +292,7 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
           pending.add(entry.tableId);
         }
       }
-      publish('saving', pending.size, null);
+      publish(autosaveEnabled ? 'saving' : 'unsaved', pending.size, null);
       scheduleAutosave();
     },
 
@@ -309,6 +319,34 @@ export function createSaveQueue(options: SaveQueueOptions): SaveQueue {
       clearAutosave();
       publish('saving', pending.size, null);
       void run();
+    },
+
+    setAutosaveEnabled(enabled: boolean): void {
+      if (autosaveEnabled === enabled) {
+        return;
+      }
+      autosaveEnabled = enabled;
+      if (!enabled) {
+        // Stop the pending window but keep the in-memory changes; the status
+        // bar switches to "unsaved" until Ctrl/Cmd+S or the quit prompt.
+        clearAutosave();
+        if (hasUnsaved()) {
+          publish(lastError === null ? 'unsaved' : 'error', pending.size, lastError);
+        }
+        return;
+      }
+      if (pending.size > 0 || manifestDirty) {
+        publish('saving', pending.size, lastError);
+        scheduleAutosave();
+      }
+    },
+
+    isAutosaveEnabled(): boolean {
+      return autosaveEnabled;
+    },
+
+    hasUnsavedChanges(): boolean {
+      return hasUnsaved();
     },
 
     flush(timeoutMs = DEFAULT_FLUSH_TIMEOUT_MS): Promise<SaveOutcome> {

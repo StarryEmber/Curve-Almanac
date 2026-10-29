@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createApiClient } from './api-client';
 
 import type { CurveApi, WorkspaceManifest } from '../shared/contracts/ipc';
+import type { AppSettings } from '../shared/contracts/settings';
 
 const INFO = {
   version: '0.1.0',
@@ -31,10 +32,20 @@ const MANIFEST: WorkspaceManifest = {
   },
 };
 
+const SETTINGS: AppSettings = {
+  version: 1,
+  theme: 'system',
+  locale: 'zh-CN',
+  autosave: true,
+  defaultTableStyleId: 'builtin.report-light',
+};
+
 function bridge(overrides: Partial<CurveApi> = {}): CurveApi {
   const base: CurveApi = {
     app: {
       info: async () => ({ ok: true, data: INFO }),
+      settings: async () => ({ ok: true, data: SETTINGS }),
+      updateSettings: async (settings) => ({ ok: true, data: settings }),
       onQuitRequested: () => () => undefined,
       respondToQuit: async () => ({ ok: true, data: { ok: true } }),
     },
@@ -82,6 +93,29 @@ describe('createApiClient', () => {
     const client = createApiClient(bridge());
 
     await expect(client.app.info()).resolves.toEqual({ ok: true, data: INFO });
+  });
+
+  it('reads and updates application settings', async () => {
+    const client = createApiClient(bridge());
+
+    await expect(client.app.settings()).resolves.toEqual({ ok: true, data: SETTINGS });
+    await expect(client.app.updateSettings({ ...SETTINGS, theme: 'dark' })).resolves.toEqual({
+      ok: true,
+      data: { ...SETTINGS, theme: 'dark' },
+    });
+  });
+
+  it('rejects an invalid settings update before it reaches the bridge', async () => {
+    const updateSettings = vi.fn();
+    const client = createApiClient(bridge({ app: { ...bridge().app, updateSettings } }));
+
+    await expect(
+      client.app.updateSettings({ ...SETTINGS, locale: 'fr-FR' as never }),
+    ).resolves.toEqual({
+      ok: false,
+      error: { code: 'E_VALIDATION', message: 'The request payload is invalid.' },
+    });
+    expect(updateSettings).not.toHaveBeenCalled();
   });
 
   it('rejects a response whose data does not match the contract', async () => {

@@ -20,7 +20,7 @@ export interface CreateAppStoreOptions {
 }
 
 export function createIdleSaveState(): SaveState {
-  return { status: 'idle', pending: 0, error: null };
+  return { status: 'idle', pending: 0, unsaved: false, error: null };
 }
 
 export function createEmptyHistoryState(): HistoryState {

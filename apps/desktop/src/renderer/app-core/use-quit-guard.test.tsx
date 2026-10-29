@@ -3,12 +3,25 @@
 import { cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { SettingsProvider } from '../features/settings/SettingsProvider';
+import { UnsavedChangesProvider } from '../features/workspace/unsaved-changes';
+import { I18nProvider } from '../i18n';
+
 import { AppCoreProvider } from './use-app-core';
 import { useQuitGuard } from './use-quit-guard';
 
 import type { RendererCore } from './renderer-core';
 import type { QuitRequest } from '../../shared/contracts/ipc';
+import type { AppSettings } from '../../shared/contracts/settings';
 import type { ReactNode } from 'react';
+
+const SETTINGS: AppSettings = {
+  version: 1,
+  theme: 'system',
+  locale: 'zh-CN',
+  autosave: true,
+  defaultTableStyleId: 'builtin.report-light',
+};
 
 interface Harness {
   api: {
@@ -58,7 +71,13 @@ function createHarness(options: {
     api,
     core: {
       actions: { flushSaves },
-      store: { getState: () => ({ workspace }) },
+      store: {
+        getState: () => ({
+          workspace,
+          ui: { save: { status: 'idle', pending: 0, unsaved: false, error: null } },
+        }),
+        subscribe: () => () => undefined,
+      },
     },
     tableIo: { terminate: () => undefined },
     query: { terminate: () => undefined },
@@ -75,8 +94,18 @@ function createHarness(options: {
 }
 
 function renderGuard(core: RendererCore): void {
+  const settingsApi = {
+    settings: async () => ({ ok: true as const, data: SETTINGS }),
+    updateSettings: async (next: AppSettings) => ({ ok: true as const, data: next }),
+  };
   const wrapper = ({ children }: { children: ReactNode }): ReactNode => (
-    <AppCoreProvider core={core}>{children}</AppCoreProvider>
+    <SettingsProvider api={settingsApi}>
+      <I18nProvider initialLocale="zh-CN">
+        <AppCoreProvider core={core}>
+          <UnsavedChangesProvider>{children}</UnsavedChangesProvider>
+        </AppCoreProvider>
+      </I18nProvider>
+    </SettingsProvider>
   );
   renderHook(() => useQuitGuard(), { wrapper });
 }

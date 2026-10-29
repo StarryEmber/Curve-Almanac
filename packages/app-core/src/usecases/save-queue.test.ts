@@ -371,4 +371,60 @@ describe('save queue', () => {
     expect((await queue.flush()).ok).toBe(true);
     expect(workspaceStore.calls).toEqual(['writeTable', 'writeTable', 'writeManifest']);
   });
+
+  it('keeps changes in memory while autosave is off and writes on flush', async () => {
+    vi.useFakeTimers();
+    const { store, workspaceStore, queue } = setup({
+      autosaveEnabled: false,
+      autosaveDelayMs: 1500,
+      autosaveMaxDelayMs: 10_000,
+    });
+
+    queue.enqueue('tbl_test');
+    await vi.advanceTimersByTimeAsync(20_000);
+
+    expect(workspaceStore.calls).toEqual([]);
+    expect(store.getState().ui.save.status).toBe('unsaved');
+    expect(store.getState().ui.save.unsaved).toBe(true);
+    expect(queue.hasUnsavedChanges()).toBe(true);
+
+    const outcome = await queue.flush();
+    expect(outcome.ok).toBe(true);
+    expect(workspaceStore.calls).toEqual(['writeTable', 'writeManifest']);
+    expect(store.getState().ui.save.status).toBe('saved');
+    expect(store.getState().ui.save.unsaved).toBe(false);
+    expect(queue.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('turns the autosave window off and back on at runtime', async () => {
+    vi.useFakeTimers();
+    const { store, workspaceStore, queue } = setup({
+      autosaveDelayMs: 1500,
+      autosaveMaxDelayMs: 10_000,
+    });
+
+    queue.enqueue('tbl_test');
+    queue.setAutosaveEnabled(false);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(workspaceStore.calls).toEqual([]);
+    expect(store.getState().ui.save.status).toBe('unsaved');
+
+    queue.setAutosaveEnabled(true);
+    expect(store.getState().ui.save.status).toBe('saving');
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(workspaceStore.calls).toEqual(['writeTable', 'writeManifest']);
+    expect(store.getState().ui.save.status).toBe('saved');
+  });
+
+  it('leaves manifest-only changes unsaved while autosave is off', async () => {
+    vi.useFakeTimers();
+    const { store, workspaceStore, queue } = setup({ autosaveEnabled: false });
+
+    queue.enqueueManifest();
+    await vi.advanceTimersByTimeAsync(20_000);
+
+    expect(workspaceStore.calls).toEqual([]);
+    expect(store.getState().ui.save.unsaved).toBe(true);
+    expect(queue.hasUnsavedChanges()).toBe(true);
+  });
 });

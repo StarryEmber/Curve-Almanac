@@ -23,6 +23,7 @@ export interface CommandKeymapOptions {
   onToggleSidebar(): void;
   onToggleInspector(): void;
   onOpenHelp(): void;
+  onOpenSettings(): void;
 }
 
 export interface CommandKeymapController {
@@ -118,6 +119,9 @@ export function useCommandKeymap(options: CommandKeymapOptions): CommandKeymapCo
       },
       openHelp: () => {
         optionsRef.current.onOpenHelp();
+      },
+      openSettings: () => {
+        optionsRef.current.onOpenSettings();
       },
       setTheme: (mode) => {
         setMode(mode);

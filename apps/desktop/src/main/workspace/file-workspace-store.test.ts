@@ -21,6 +21,15 @@ import { atomicWrite } from './atomic-write';
 import { FileWorkspaceStore } from './file-workspace-store';
 
 import type { FileWorkspaceStoreOptions } from './file-workspace-store';
+import type { AppSettings } from '../../shared/contracts/settings';
+
+const APP_SETTINGS: AppSettings = {
+  version: 1,
+  theme: 'system',
+  locale: 'zh-CN',
+  autosave: true,
+  defaultTableStyleId: 'builtin.report-light',
+};
 
 const TEMP_DIRECTORIES: string[] = [];
 
@@ -115,6 +124,28 @@ describe('FileWorkspaceStore.create', () => {
 
     await expect(harness.store.close({ workspaceId: manifest.id })).resolves.toEqual({ ok: true });
     expect(existsSync(join(root, '.lock'))).toBe(false);
+  });
+
+  it('seeds a new workspace with the application preferences (T5.5)', async () => {
+    const harness = createHarness({
+      appSettings: () => ({
+        ...APP_SETTINGS,
+        theme: 'dark',
+        locale: 'en-US',
+        autosave: false,
+        defaultTableStyleId: 'builtin.finance',
+      }),
+    });
+    const { parent } = workspacePath(harness);
+
+    const manifest = await harness.store.create({ dir: parent, name: 'Demo' });
+
+    expect(manifest.settings).toEqual({
+      theme: 'dark',
+      locale: 'en-US',
+      autosave: false,
+      defaultTableStyleId: 'builtin.finance',
+    });
   });
 
   it('rejects a duplicate root and an unusable name without leaving a root behind', async () => {

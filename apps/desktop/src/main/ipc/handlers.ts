@@ -14,6 +14,9 @@ import { IPC_CHANNELS } from '../../shared/contracts/channels';
 import {
   appInfoRequestSchema,
   appInfoResponseSchema,
+  appSettingsRequestSchema,
+  appSettingsResponseSchema,
+  appSettingsUpdateRequestSchema,
   archiveImportRequestSchema,
   archiveImportResponseSchema,
   exportCsvRequestSchema,
@@ -54,6 +57,7 @@ import { normalizeLogLevel } from '../logger';
 
 import type {
   AppInfo,
+  AppSettings,
   ArchiveImportReply,
   ArchiveImportRequest,
   ExportCsvReply,
@@ -79,6 +83,10 @@ export interface RegisterIpcHandlersOptions {
   logger: Logger;
   /** Injected so tests can answer without an Electron `app` module. */
   getAppInfo: () => AppInfo;
+  /** Reads the in-memory settings loaded from `userData/settings.json`. */
+  getAppSettings: () => AppSettings;
+  /** Persists a complete settings document and returns the normalised value. */
+  updateAppSettings: (settings: AppSettings) => Promise<AppSettings>;
   /** Injected so tests can answer without Electron's native dialog. */
   pickDirectory: (request: PickDirectoryRequest) => Promise<PickDirectoryResult | null>;
   readImportFile: (request: ImportTextRequest) => Promise<ImportTextReply | null>;
@@ -101,6 +109,18 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     IPC_CHANNELS.appInfo,
     { request: appInfoRequestSchema, response: appInfoResponseSchema },
     () => options.getAppInfo(),
+  );
+
+  registrar.handle(
+    IPC_CHANNELS.appSettings,
+    { request: appSettingsRequestSchema, response: appSettingsResponseSchema },
+    () => options.getAppSettings(),
+  );
+
+  registrar.handle(
+    IPC_CHANNELS.appSettingsUpdate,
+    { request: appSettingsUpdateRequestSchema, response: appSettingsResponseSchema },
+    (request) => options.updateAppSettings(request.settings),
   );
 
   registrar.handle(

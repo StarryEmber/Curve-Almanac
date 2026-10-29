@@ -34,6 +34,7 @@ export interface CommandHandlers {
   toggleSidebar(): void;
   toggleInspector(): void;
   openHelp(): void;
+  openSettings(): void;
   setTheme(mode: ThemeMode): void;
 }
 
@@ -58,8 +59,13 @@ function disabled(reason: CommandDisabledReason): CommandAvailability {
   return { enabled: false, reason };
 }
 
-/** Commands that are reachable from the palette only (appearance preferences). */
-export const PALETTE_ONLY_COMMAND_IDS = ['theme.light', 'theme.dark', 'theme.system'] as const;
+/** Commands that are reachable from the palette only (appearance/preferences). */
+export const PALETTE_ONLY_COMMAND_IDS = [
+  'theme.light',
+  'theme.dark',
+  'theme.system',
+  'app.settings',
+] as const;
 
 function requireWorkspace(context: CommandContext): CommandAvailability | null {
   return context.workspaceOpen ? null : disabled('no-workspace');
@@ -90,6 +96,17 @@ export const APP_COMMANDS: readonly AppCommandDefinition[] = [
     isEnabled: (): CommandAvailability => ENABLED,
     run: (_context: CommandContext, handlers: CommandHandlers): void => {
       handlers.openHelp();
+    },
+  },
+  {
+    id: 'app.settings',
+    labelKey: 'settings.open',
+    shortcuts: [],
+    scopes: ['global'],
+    visibleInPalette: true,
+    isEnabled: (): CommandAvailability => ENABLED,
+    run: (_context: CommandContext, handlers: CommandHandlers): void => {
+      handlers.openSettings();
     },
   },
   {

@@ -18,10 +18,22 @@ import {
 import type { WorkspaceManifest } from '@curve/domain';
 
 import type { IpcResult } from './envelope';
+import type { AppSettings } from './settings';
 
 export { ALL_IPC_CHANNELS, IMPLEMENTED_IPC_CHANNELS, IPC_CHANNELS } from './channels';
 export { IPC_EVENT_CHANNELS } from './channels';
 export type { IpcChannel, IpcEventChannel } from './channels';
+export {
+  APP_SETTINGS_LOCALES,
+  APP_SETTINGS_THEMES,
+  APP_SETTINGS_VERSION,
+  DEFAULT_APP_SETTINGS,
+  appSettingsEqual,
+  isAppSettingsLocale,
+  isAppSettingsTheme,
+  normalizeAppSettings,
+} from './settings';
+export type { AppSettings, AppSettingsLocale, AppSettingsTheme } from './settings';
 export { ipcFail, ipcOk, isIpcResult } from './envelope';
 export type { AppError, ErrorCode, WorkspaceManifest } from '@curve/domain';
 
@@ -241,6 +253,10 @@ export interface ArchiveImportReply {
 export interface CurveApi {
   app: {
     info(): Promise<IpcResult<AppInfo>>;
+    /** Reads `userData/settings.json` (T5.5, ADR-050). */
+    settings(): Promise<IpcResult<AppSettings>>;
+    /** Persists the complete settings document; main normalises it. */
+    updateSettings(settings: AppSettings): Promise<IpcResult<AppSettings>>;
     /**
      * Subscribes to the main-process quit request (T5.3). Returns an
      * unsubscribe function; the bridge itself never exposes `ipcRenderer`.
@@ -294,6 +310,24 @@ export const appInfoResponseSchema = z.strictObject({
   locale: z.string().min(1),
   documentsDir: z.string().min(1),
 });
+
+/** `app:settings` request: no arguments, like `app:info`. */
+export const appSettingsRequestSchema = z.union([z.undefined(), z.strictObject({})]);
+
+/** Complete application settings document (T5.5, ADR-050). */
+export const appSettingsSchema: z.ZodType<AppSettings, AppSettings> = z.strictObject({
+  version: z.literal(1),
+  theme: z.enum(['light', 'dark', 'system']),
+  locale: z.enum(['zh-CN', 'en-US']),
+  autosave: z.boolean(),
+  defaultTableStyleId: z.string().min(1).max(200),
+});
+
+export const appSettingsUpdateRequestSchema = z.strictObject({
+  settings: appSettingsSchema,
+});
+
+export const appSettingsResponseSchema = appSettingsSchema;
 
 export const pickDirectoryRequestSchema: z.ZodType<PickDirectoryRequest, PickDirectoryRequest> =
   z.strictObject({

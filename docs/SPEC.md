@@ -1375,6 +1375,12 @@ export interface RenderModel {
   失败或超时用“退出/取消”确认，取消后应用保持打开并保留重试入口。关闭/切换工作区在 flush 失败时
   保持工作区打开（等价于“取消”）并提示重试，不会静默丢数据。自动保存可关闭后的
   “保存/放弃/取消”三选一留给 T5.5 设置任务。
+- **实现边界（T5.5，ADR-050）**：应用设置存 `userData/settings.json`
+  （`{ version: 1, theme, locale, autosave, defaultTableStyleId }`），通过
+  `app:settings`/`app:settings:update` 读写；主题/语言/自动保存以它为准，工作区 manifest 的
+  `settings` 字段保留为创建时快照。默认表格样式是工作区数据：设置对话框在有工作区时复用
+  `style.apply { target: 'default' }`（可撤销、只写 manifest），无工作区时写入应用设置并
+  作为新工作区的种子。设置对话框从标题栏“设置”或命令面板打开，所有控件即时生效。
 
 ---
 
@@ -1525,6 +1531,17 @@ export interface RenderModel {
   - 状态栏继续显示“已保存/保存中…/保存失败（重试）”；强制退出是否丢数据以恢复对话框的
     “最后 1.5 秒内尚未落盘的修改可能已丢失”提示为准。
   - 应用使用 `app.requestSingleInstanceLock()`；第二个实例聚焦已有窗口后退出。
+- **实现边界（T5.5，ADR-050）**：
+  - 自动保存开关来自 `settings.json`；关闭时 `SaveQueue` 不安排 1.5s/10s 定时器，只入队并发布
+    `status: 'unsaved'` + `unsaved: true`。Ctrl/Cmd+S、显式 action（粘贴/导入/样式/图表提交）
+    与退出握手的 `flush()`/`retry()` 仍立即写；状态栏显示“自动保存：已关闭 / 有未保存修改”。
+  - 关闭窗口/关闭工作区时若自动保存关闭且存在未保存修改，renderer 显示
+    “保存并继续 / 放弃修改 / 取消”；保存走原 `flush()` + `workspace.close`，放弃直接
+    `closeWorkspace({ save: false })`（不 flush、删 `.lock`），取消保持打开并回复
+    `app:quit-response { action: 'cancel' }`。
+  - main 的退出握手超时动态化：自动保存开启 3s；关闭时 60s（`UNSAVED_QUIT_TIMEOUT_MS`），
+    避免原生确认在用户阅读三选一对话框时弹出。
+  - 强杀仍可能丢失最后窗口内的修改；恢复对话框的提示语义不变。
 
 ### 13.4 快捷键与命令面板
 
@@ -1543,6 +1560,7 @@ export interface RenderModel {
   |---|---|---|
   | 打开命令面板 | Ctrl/Cmd+K | global |
   | 键盘快捷键（帮助） | F1 | global |
+  | 设置 | —（仅面板） | global |
   | 立即保存 | Ctrl/Cmd+S | workspace |
   | 切换侧栏 | Ctrl/Cmd+B | global |
   | 切换检查器 | Ctrl/Cmd+Alt+I | global |
@@ -1706,6 +1724,8 @@ export interface PluginCommandContext {
 | 通道 | 方向 | 请求 | 响应 |
 |---|---|---|---|
 | `app:info` | R→M | `{}` | `{ version, platform, locale, documentsDir }` |
+| `app:settings` | R→M | `{}` | `{ version, theme, locale, autosave, defaultTableStyleId }` |
+| `app:settings:update` | R→M | `{ settings }` | 规范化后的 `settings` |
 | `app:quit-requested` | M→R | `{ reason: 'window-close' \| 'app-quit' }` | —（事件，无回复） |
 | `app:quit-response` | R→M | `{ action: 'quit' \| 'cancel', flushed: boolean }` | `{ ok: true }` |
 | `dialog:pickDirectory` | R→M | `{ title?, defaultPath? }` | `{ path } \| null` |
@@ -1746,6 +1766,10 @@ export interface PluginCommandContext {
 - `app:quit-requested` 是 main → renderer 的唯一事件通道（T5.3，ADR-048）；preload 只暴露
   `app.onQuitRequested(handler)` 订阅，不暴露 `ipcRenderer`。`app:quit-response` 由渲染进程在
   flush 完成后调用；`flushed: false` 或 3s 无响应时 main 显示原生确认，取消则保持应用打开。
+- `app:settings`（T5.5，ADR-050）返回 `userData/settings.json` 的内存副本；文件缺失/损坏时逐字段
+  回退默认值。`app:settings:update` 只接受完整的 `AppSettings`（Zod 严格校验），main 规范化后
+  原子写入（临时文件 + fsync + rename）并串行化并发写；不接收路径。自动保存关闭时退出握手超时
+  放宽到 60s，避免原生确认打断“保存/放弃/取消”对话框。
 - 所有响应统一包装：`{ ok: true, data } | { ok: false, error: AppError }`。
 - main 端任何异常都转成 `AppError`，不得把堆栈直接抛给 renderer。
 - `table:read/write` 不接受绝对路径，只接受 `workspaceId + tableId`；main 从内部映射解析路径。
@@ -1822,6 +1846,13 @@ export interface AppInfo {
   /** OS documents directory; the welcome page derives its default parent from it. */
   documentsDir: string;
 }
+export interface AppSettings {
+  version: 1;
+  theme: 'light' | 'dark' | 'system';
+  locale: 'zh-CN' | 'en-US';
+  autosave: boolean;
+  defaultTableStyleId: string;
+}
 export interface RecentEntry { path: string; name: string; lastOpenedAt: string }
 export interface BackupEntry { path: string; createdAt: string; bytes: number }
 export interface FileFilter { name: string; extensions: string[] }
@@ -1881,6 +1912,8 @@ export interface QuitResponse { action: 'quit' | 'cancel'; flushed: boolean }
 interface CurveApi {
   app: {
     info(): Promise<IpcResult<AppInfo>>;
+    settings(): Promise<IpcResult<AppSettings>>;
+    updateSettings(settings: AppSettings): Promise<IpcResult<AppSettings>>;
     onQuitRequested(handler: (request: QuitRequest) => void): () => void;
     respondToQuit(answer: QuitResponse): Promise<IpcResult<{ ok: true }>>;
   };
@@ -1932,6 +1965,11 @@ T5.3 实现边界（ADR-048）：`app.onQuitRequested` 只订阅 main → render
 不把 `ipcRenderer` 或其 `on` 泛入口暴露给页面。`app.respondToQuit` 走 `app:quit-response`
 invoke，入参由 Zod 校验。`workspace.inspect` 与 `workspace.open({ recovery })` 的路径只由 main
 解析，renderer 只传工作区目录与 `backups/` 下的相对备份路径。
+
+T5.5 实现边界（ADR-050）：`app.settings`/`app.updateSettings` 只读写 `userData/settings.json`，
+preload 不暴露路径或任意文件方法；renderer 与 main 双向用 `appSettingsSchema` 校验。渲染进程在
+`main.tsx` 首帧前读取一次设置（1.5s 兜底），`I18nProvider`/`ThemeProvider` 由
+`SettingsProvider` 受控；`localStorage` 只作独立 provider 的兜底镜像。
 
 ---
 
@@ -2049,11 +2087,24 @@ P95 **2ms**（50ms）、`chart.option.2k` P95 **1ms**（50ms，option 构造）�
 - 图表提供 `aria-label` 摘要（系列数、点数、X/Y 范围）；图表旁提供"查看数据表"入口。
 - 200% 缩放下不出现横向裁切；表格允许横向滚动。
 
+**实现边界（T5.5，ADR-050）**：设置与“未保存修改”对话框复用 `@curve/ui` 的 `Dialog`
+（焦点陷阱、Esc 关闭、焦点恢复）；设置控件的标签在两种语言下都可读，默认表格样式使用带
+`label` 的原生 `<select>`。200% 缩放与 +30% 伪本地化的布局冒烟见 §16.4。
+
 ### 16.4 国际化
 
-- v1 内置 `zh-CN` 默认、`en-US` 骨架；所有文案走消息表。
+- v1 内置 `zh-CN` 默认、`en-US` 完整消息表（两语言 key 集一致）；所有文案走消息表。
 - 日期/数字用 `Intl`；CSV 导出编码固定 UTF-8 BOM，不做本地化。
 - 布局允许文案变长 30% 不破。
+
+**实现边界（T5.5，ADR-050）**：
+
+- `translateKey` 在开发构建缺失 key 时抛错，生产构建回退 zh-CN；`ui-conventions.test.ts` 同时
+  拦截用户可见 JSX 属性（`aria-label`/`title`/`placeholder`/`label`/`hint`/`error` 等）的字面量。
+- 语言切换即时生效：`SettingsProvider` 是语言/主题的唯一状态源，对话框、菜单、状态栏、帮助与
+  命令面板都在同一渲染中切换；无需重启。
+- “+30% 文案”由 `e2e/settings.spec.ts` 在真实 Electron、200% 缩放下对可见文本节点做伪本地化
+  冒烟，断言页面无横向溢出且设置对话框面板在视口内。
 
 ### 16.5 日志与崩溃
 

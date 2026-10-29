@@ -34,10 +34,14 @@
   已完成**（`docs/reports/t5.3/REPORT.md`、ADR-048）：1.5s/10s 自动保存窗口、3s 退出 flush
   握手、stale/corrupt 锁与 manifest 备份恢复、最近列表移除/清空；**`T5.4`（快捷键与命令面板）
   已完成**（`docs/reports/t5.4/REPORT.md`、ADR-049）：renderer 键位注册表/作用域/冲突检测、
-  Ctrl/Cmd+K 命令面板（模糊搜索/最近使用/禁用原因）、F1 帮助快捷键表、面板只在打开时挂载。
-  下一步 **T5.5（设置与国际化）**。
+  Ctrl/Cmd+K 命令面板（模糊搜索/最近使用/禁用原因）、F1 帮助快捷键表、面板只在打开时挂载；
+  **`T5.5`（设置与国际化）已完成**（`docs/reports/t5.5/REPORT.md`、ADR-050）：
+  `userData/settings.json` 的 `app:settings`/`app:settings:update`、设置对话框（主题/语言/
+  默认样式/自动保存）、自动保存关闭的“保存/放弃/取消”、完整 en-US 与文案门禁。M5 的 T5.1–T5.5
+  全部完成，下一步执行 **M5 验收演示**（2 表 3 视图分 2 pane → 撤销/重做 → 强杀恢复 → 最近打开
+  → 切英文/深色 → 重启全部还原），输出报告后停下。
 - 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
-  `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 19 个已接线
+  `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 21 个已接线
   IPC 通道（另含 1 个 main→renderer 退出事件）；**续作前先读 `docs/HANDOFF.md`**。
 - 每个任务的协议与里程碑停点见 §8。
 
