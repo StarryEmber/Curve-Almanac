@@ -1,4 +1,4 @@
-# Curve Studio v1 规格说明（Normative）
+# Curve Almanac v1 规格说明（Normative）
 
 <a id="0"></a>
 ## 0. 元信息
@@ -7,7 +7,7 @@
 |---|---|
 | 文档版本 | 1.0 |
 | 状态 | 已锁定，可执行 |
-| 适用产品 | Curve Studio v1（PC 桌面） |
+| 适用产品 | Curve Almanac v1（PC 桌面；2026-10-29 由 Curve Studio 更名，见 ADR-051） |
 | 规范性关键词 | **必须** = MUST，**应当** = SHOULD，**可以** = MAY |
 | 冲突处理 | 本文与 `AGENTS.md` 冲突时，安全/数据条款以 `AGENTS.md` 为准，其余以本文为准 |
 
@@ -18,7 +18,7 @@
 <a id="1"></a>
 ## 1. 产品定义
 
-Curve Studio 是一个**本地优先、单机离线**的桌面数据可视化工具。用户用"自定义表格"承载数据，用"曲线视图"理解数据。
+Curve Almanac 是一个**本地优先、单机离线**的桌面数据可视化工具。用户用"自定义表格"承载数据，用"曲线视图"理解数据。
 
 ### 1.1 目标用户
 
@@ -662,7 +662,7 @@ interface ImportResult {
 
 ### 9.0 工作区入口、表与视图管理
 
-- **欢迎页**：应用启动且无打开工作区时，显示"新建工作区 / 打开工作区 / 最近打开"。新建默认目录为 `app.getPath('documents')/Curve Studio/`，用户可改。该目录是**父目录**：实际工作区根为 `<父目录>/<清洗后的名称>.cstudio`（ADR-020）。
+- **欢迎页**：应用启动且无打开工作区时，显示"新建工作区 / 打开工作区 / 最近打开"。新建默认目录为 `app.getPath('documents')/Curve Almanac/`，用户可改。该目录是**父目录**：实际工作区根为 `<父目录>/<清洗后的名称>.cstudio`（ADR-020）。
 - **新建表向导**：输入表名 + 主键列（默认 `id`，text，必填，自动填充），可选初始列；创建后立即打开该表的表格视图。
 - **表列表**：新建、重命名、删除（移入 `.trash/`）、打开。删除必须二次确认；同时删除引用该表的图表与视图，确认框必须列出将删除的数量。
 - **打开表**：若已存在该表的视图则激活，否则创建 `ViewDef { kind: 'table' }` 并加入当前 pane 标签栏。
@@ -1631,7 +1631,7 @@ export interface PluginLogger {
 }
 
 export interface PluginDefinition {
-  id: string;                  // 反向域名，如 "com.curvestudio.sample"
+  id: string;                  // 反向域名，如 "com.curvealmanac.sample"
   name: string;
   version: string;             // semver
   apiVersion: string;          // 宿主 API 版本，v1 = "1.0"

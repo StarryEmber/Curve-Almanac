@@ -72,6 +72,8 @@ import type {
 } from '@curve/persistence';
 import { countJsonlRows, reconcileRowCounts, tableWriteLimitError } from '@curve/table-engine';
 
+import { APP_NAME } from '../../shared/brand';
+
 import { atomicWrite } from './atomic-write';
 import { inspectLock, lockDocument, removeLockIfOwned, writeLock } from './lock-file';
 import {
@@ -350,7 +352,7 @@ export class FileWorkspaceStore implements WorkspaceStore {
     if (lockInspection.status === 'active') {
       throw createAppError(
         'E_WS_LOCKED',
-        'The workspace is locked by another Curve Studio window.',
+        `The workspace is locked by another ${APP_NAME} window.`,
         { detail: `pid=${String(lockInspection.lock?.pid ?? 'unknown')}` },
       );
     }

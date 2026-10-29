@@ -80,3 +80,4 @@
 | ADR-048 | T5.3 的自动保存窗口、退出握手、锁/清单恢复与最近列表 | 已接受 | [048-t53-autosave-recovery.md](048-t53-autosave-recovery.md) |
 | ADR-049 | T5.4 的键位注册表、作用域、冲突判定与命令面板 | 已接受 | [049-t54-keymap-command-palette.md](049-t54-keymap-command-palette.md) |
 | ADR-050 | T5.5 的应用程序设置、自动保存开关与国际化收口 | 已接受 | [050-t55-settings-i18n.md](050-t55-settings-i18n.md) |
+| ADR-051 | 产品更名为 Curve Almanac，默认目录与用户数据路径随之变更 | 已接受 | [051-brand-rename-curve-almanac.md](051-brand-rename-curve-almanac.md) |

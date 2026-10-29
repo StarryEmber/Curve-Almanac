@@ -4,6 +4,7 @@ import { createAppError } from '@curve/domain';
 import type { AppError } from '@curve/domain';
 import type { WorkspaceRecoveryChoice } from '@curve/persistence';
 
+import { APP_NAME } from '../../../shared/brand';
 import { useWorkspaceController } from '../../app-core/use-workspace-controller';
 
 import { WorkspaceRecoveryDialog } from './WorkspaceRecoveryDialog';
@@ -57,7 +58,7 @@ export function WorkspaceOpenProvider({ children }: { children: ReactNode }): Re
       if (info.manifest === 'unsupported') {
         return createAppError(
           'E_WS_VERSION_UNSUPPORTED',
-          'The workspace was created by a newer Curve Studio version.',
+          `The workspace was created by a newer ${APP_NAME} version.`,
         );
       }
 

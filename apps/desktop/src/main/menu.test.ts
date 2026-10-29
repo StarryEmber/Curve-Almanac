@@ -22,7 +22,7 @@ function build(overrides: { isDev?: boolean; platform?: NodeJS.Platform } = {}) 
   const actions: MenuActions = { showAbout: vi.fn() };
   const template = buildMenuTemplate(
     {
-      appName: 'Curve Studio',
+      appName: 'Curve Almanac',
       isDev: overrides.isDev ?? false,
       platform: overrides.platform ?? 'win32',
     },
@@ -77,7 +77,7 @@ describe('buildMenuTemplate', () => {
     expect(Array.isArray(helpMenu?.submenu)).toBe(true);
     const aboutItem = (helpMenu?.submenu as MenuItemConstructorOptions[])[0];
 
-    expect(aboutItem?.label).toBe('About Curve Studio');
+    expect(aboutItem?.label).toBe('About Curve Almanac');
     (aboutItem?.click as unknown as () => void)();
     expect(actions.showAbout).toHaveBeenCalledTimes(1);
   });

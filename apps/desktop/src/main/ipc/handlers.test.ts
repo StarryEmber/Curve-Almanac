@@ -172,7 +172,7 @@ describe('registerIpcHandlers', () => {
     await expect(
       ipcMain.invoke(IPC_CHANNELS.dialogPickDirectory, {
         title: 'Choose',
-        defaultPath: 'C:\\Users\\test\\Documents\\Curve Studio',
+        defaultPath: 'C:\\Users\\test\\Documents\\Curve Almanac',
       }),
     ).resolves.toEqual({ ok: true, data: { path: 'C:\\picked' } });
   });

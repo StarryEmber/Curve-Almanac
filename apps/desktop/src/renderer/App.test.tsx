@@ -61,7 +61,7 @@ describe('App shell', () => {
 
     render(<App />);
 
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Curve Studio');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Curve Almanac');
     expect(screen.getByTestId('titlebar')).toBeDefined();
     expect(screen.getByTestId('sidebar')).toBeDefined();
     expect(screen.getByRole('main')).toBeDefined();

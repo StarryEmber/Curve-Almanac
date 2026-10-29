@@ -1,6 +1,7 @@
 # Changelog
 
-本文件记录 Curve Studio 的所有重要变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
+本文件记录 Curve Almanac（原 Curve Studio）的所有重要变更。格式参考
+[Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。应用代码尚未发布（0.x），条目按任务 ID 归档在 `Unreleased` 下。
 
 ## [Unreleased]
@@ -702,3 +703,17 @@
   报告 `docs/reports/m5/REPORT.md`（7 张截图 + `m5-metrics.json`）；全量 E2E **104 passed**
   （6.2m，M5 1 条 20.2s）。**2026-10-29 获用户接受，M5 已关闭；M6 未开始**，等用户明确指示后再
   领取 T6.1。
+- T6.0：品牌更名 Curve Studio → Curve Almanac（ADR-051）。新增
+  `apps/desktop/src/shared/brand.ts` 的 `APP_NAME` 作为唯一名称来源：main 的关于对话框/退出
+  确认/日志/窗口标题、`index.html` 的 `<title>`、i18n 的 `app.name` 与欢迎页/模板过滤器文案、
+  `productName` 全部改为引用或与之一致；`src/main/brand.test.ts` 与 `i18n.test.ts` 断言
+  `productName`/`<title>`/`app.name` 同步且消息表无旧名。新建工作区默认父目录改为
+  `Documents/Curve Almanac`；`userData` 随应用名变为 `%APPDATA%/Curve Almanac`（v1 未发布，
+  不做迁移）。T6.4 的 `appId` 改为 `com.curvealmanac.app`。`@curve/*` 作用域、仓库名、
+  `formatVersion`/JSONL/manifest/`.cstudio`/`.curvestyle.json`、`localStorage` 键、`CURVE_*`
+  环境变量、CSS `cs-` 前缀与错误码不变；历史 ADR-001–050 与既有报告保留旧名。
+- T6.0：`pnpm verify` **180 files / 1685 tests**；depcruise 494 modules / 2138 deps /
+  0 violations；coverage statements 76.86% / branches 69.65% / functions 75.55% / lines 77.01%；
+  `pnpm build` exit 0（renderer **3,365.92 kB**、CSS 77.89 kB）；定向 e2e **11 passed**
+  （smoke 5 + shell 6，26.2s）。报告 `docs/reports/t6.0/REPORT.md`（1 张截图，`m0` 截图已还原）。
+  不新增运行时依赖，不改 IPC/preload/数据格式/CSP。

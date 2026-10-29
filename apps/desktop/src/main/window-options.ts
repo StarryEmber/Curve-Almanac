@@ -6,6 +6,8 @@
  * unit test next to this file. SPEC §15.3 is the contract.
  */
 
+import { APP_NAME } from '../shared/brand';
+
 import { MIN_WINDOW_SIZE } from './window-state';
 
 import type { Bounds } from './window-state';
@@ -19,7 +21,7 @@ export interface WindowOptionsInput {
   bounds: Bounds;
 }
 
-export const WINDOW_TITLE = 'Curve Studio';
+export const WINDOW_TITLE = APP_NAME;
 
 export function buildWindowOptions(input: WindowOptionsInput): BrowserWindowConstructorOptions {
   return {

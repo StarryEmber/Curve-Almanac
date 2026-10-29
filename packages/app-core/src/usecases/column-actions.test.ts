@@ -534,7 +534,7 @@ describe('column actions', () => {
           label: 'Value',
           type: 'number',
           role: 'y',
-          fieldTypeId: 'com.curvestudio.rating',
+          fieldTypeId: 'com.curvealmanac.rating',
         },
       ],
       rowCount: 1,
@@ -551,7 +551,7 @@ describe('column actions', () => {
       ).ok,
     ).toBe(true);
     expect(core.store.getState().tables['tbl_1']?.table.columns[1]?.fieldTypeId).toBe(
-      'com.curvestudio.rating',
+      'com.curvealmanac.rating',
     );
 
     expect(

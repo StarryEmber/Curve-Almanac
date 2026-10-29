@@ -1,6 +1,6 @@
-# TASKS — Curve Studio v1 可执行任务清单
+# TASKS — Curve Almanac v1 可执行任务清单
 
-> 39 个任务，按依赖顺序执行。**一次只做一个**；依赖未完成不得开始。
+> 40 个任务，按依赖顺序执行。**一次只做一个**；依赖未完成不得开始。
 > 每个任务的"验证"命令必须在任务报告中附真实输出。完成定义见 `AGENTS.md §10`。
 > 参考人日按人类开发者估算（合计约 65 人日）；AI 协作可压缩，但**验收项不压缩**。
 
@@ -21,7 +21,7 @@
 | M3 | 表格外观 | T3.1–T3.6 | 模板、令牌、条件格式、导入导出 | 9.5 人日 |
 | M4 | 图表 | T4.1–T4.6 | 宽/长表出图、交互、采样、PNG | 9 人日 |
 | M5 | 体验 | T5.1–T5.5 | 布局、撤销、自动保存/恢复、设置 | 8.5 人日 |
-| M6 | 扩展与发布 | T6.1–T6.5 | 插件、安装包、全量验收 | 8 人日 |
+| M6 | 扩展与发布 | T6.0–T6.5 | 插件、安装包、全量验收 | 8 人日 |
 
 ## 2. 依赖图与推荐主路径
 
@@ -64,9 +64,9 @@ T1.2 + T1.3 + T1.5 → T5.3
 T0.4 + T3.1 → T5.5
 
 M6
+T0.2 + T5.5 → T6.0 → T6.4
 T1.1 → T6.1 → T6.2
 T6.2 + T2.5 + T3.2 → T6.3
-T0.2 + T5.5 → T6.4
 全部 → T6.5
 ```
 
@@ -121,7 +121,7 @@ T0.2 + T5.5 → T6.4
 - 步骤：
   1. 装 Electron、electron-vite、React、electron-builder（先不打包）。
   2. main 创建窗口并加载 renderer；dev 用 Vite server，prod 用 `loadFile`。
-  3. preload 只暴露 `app.info`；renderer 渲染 "Curve Studio" 空壳。
+  3. preload 只暴露 `app.info`；renderer 渲染 "Curve Almanac" 空壳。
   4. 加 `will-navigate`/`setWindowOpenHandler` 拒绝与 CSP。
 - 验收：
   - [x] `pnpm dev` 打开窗口，DevTools 仅在开发可用。
@@ -472,7 +472,7 @@ T0.2 + T5.5 → T6.4
   - TanStack Table + Virtual；列宽拖拽、冻结列、矩形选择、键盘导航
   - ARIA grid 语义与焦点管理
 - 步骤：
-  1. 欢迎页接 `workspace.create/open/recent`；新建默认目录 `Documents/Curve Studio/`。
+  1. 欢迎页接 `workspace.create/open/recent`；新建默认目录 `Documents/Curve Almanac/`。
   2. 新建表向导创建 `TableMeta`（默认主键 `id` text）并打开视图。
   3. 用 `TableMeta.columns` 建列定义；`Row.values` 建数据；虚拟化 + sticky 冻结列。
   4. 键盘状态机：移动/选择/编辑入口；标签栏支持 Ctrl/Cmd+W 关闭。
@@ -490,7 +490,7 @@ T0.2 + T5.5 → T6.4
 - 实现备注（2026-10-21，ADR-027）：
   - 决策（用户逐项确认）：新增 `table.create`/`table.delete` 同步命令；结构性操作后立即写 manifest；
     新表只写 manifest 条目不落 0 字节文件；实现 `dialog:pickDirectory` 且默认父目录
-    `Documents/Curve Studio`；删除用 Dialog 列数量后一条命令级联；`openWorkspace` 注入 Worker 异步
+    `Documents/Curve Almanac`；删除用 Dialog 列数量后一条命令级联；`openWorkspace` 注入 Worker 异步
     解码端口；TanStack Table v8 + Virtual v3；`workspace:recent:remove/clear` 后置 T5.3。
   - app-core：`commands/layout.ts`、`commands/tables.ts`、`commands/views.ts`、
     `usecases/workspace-actions.ts`（`stateToManifest`/`countTableReferences`）、`openWorkspace.decodeTable`；
@@ -1702,12 +1702,59 @@ T0.2 + T5.5 → T6.4
 <a id="m6"></a>
 ## M6 扩展与发布
 
+> 状态（2026-10-29）：`T6.0`（品牌更名 Curve Almanac）已完成（ADR-051、
+> `docs/reports/t6.0/REPORT.md`）；`T6.1`–`T6.5` 尚未开始。
+
+<a id="t60"></a>
+### T6.0 品牌更名：Curve Almanac
+- 状态：`[x]`
+- 依赖：T0.2、T5.5
+- 覆盖：NFR-08（发布身份）；SPEC §0、§1、§9.0、§14.2
+- 参考：ADR-051、ADR-020
+- 产出：
+  - 用户可见名称统一为 `Curve Almanac`：窗口标题、标题栏、关于/退出对话框、`productName`、文案
+  - 新建工作区默认父目录改为 `Documents/Curve Almanac`；userData 路径随应用名变更（ADR-051）
+  - `apps/desktop/src/shared/brand.ts` 作为单一名称来源 + 品牌一致性测试
+  - 活文档更新；T6.4 的 `appId` 改为 `com.curvealmanac.app`
+- 步骤：
+  1. 写 ADR-051，更新 SPEC §0/§1/§9.0/§14.2 与 TASKS。
+  2. 建 `APP_NAME` 单一来源，main/renderer/i18n 改为引用；同步 `productName` 与 `index.html`。
+  3. 更新原生菜单/对话框、默认目录与用户可见文案。
+  4. 更新单测/E2E 断言、活文档，补品牌一致性测试。
+- 验收：
+  - [x] 窗口标题、标题栏 h1、关于菜单与 `productName` 均为 `Curve Almanac`。
+  - [x] 新建工作区默认父目录为 `Documents/Curve Almanac`，且用户可修改。
+  - [x] 用户可见文案与活文档无 `Curve Studio` 残留（历史 ADR/报告除外）。
+  - [x] 旧工作区（`.cstudio`、`formatVersion: 1`）仍可直接打开，JSONL 逐行不变。
+  - [x] 品牌一致性测试防止 `productName`/`<title>`/`app.name` 漂移。
+- 验证：`pnpm verify` + 定向 e2e（`smoke.spec.ts`、`shell.spec.ts`）
+
+  实现备注（2026-10-29，ADR-051）：
+  - 决策：`apps/desktop/src/shared/brand.ts` 的 `APP_NAME` 是唯一名称来源；`productName` 与
+    `index.html` 两处静态值由 `src/main/brand.test.ts` 断言一致，i18n 两张表由 `i18n.test.ts`
+    断言 `app.name` 与旧名残留。窗口/关于/退出确认/日志/默认目录/文案全部改为引用该常量。
+  - 路径：`Documents/Curve Studio` → `Documents/Curve Almanac`（ADR-020 的“父目录可改”语义不变）；
+    `userData` 随 `app.setName` 变为 `%APPDATA%/Curve Almanac`，v1 未发布故不做迁移。
+  - 不改：`@curve/*`、仓库名、`formatVersion`/JSONL/manifest/`.cstudio`/`.curvestyle.json`、
+    `localStorage` 键、`CURVE_*` 环境变量、CSS `cs-` 前缀、错误码；历史 ADR/报告保留旧名。
+  - 实测：`pnpm verify` **180 files / 1685 tests**；depcruise 494 modules / 2138 deps /
+    0 violations；coverage statements 76.86% / branches 69.65% / functions 75.55% / lines 77.01%；
+    `pnpm build` exit 0（renderer **3,365.92 kB**、CSS 77.89 kB）；定向 e2e **11 passed**
+    （smoke 5 + shell 6，26.2s）。证据 `docs/reports/t6.0/t6.0-window.png`（`m0` 截图已还原）。
+  - 残留：userData 偏好一次性重置；旧默认目录不再预填；main 原生对话框仍英文；`appId` 只在
+    文档/T6.4 计划中更新。详见 `docs/reports/t6.0/REPORT.md` §5 与 ADR-051“复核条件”。
+
 <a id="t61"></a>
 ### T6.1 插件 SDK 与注册表
 - 状态：`[ ]`
 - 依赖：T1.1
 - 覆盖：FR-EXT-01、FR-EXT-02、FR-EXT-04
 - 参考：SPEC §14
+- 决策（2026-10-29 用户确认，待实现）：
+  - 注册表接口在 SPEC §14.2 的 `register/replace/get/list/dispose` 之外增加
+    `subscribe(listener): () => void`（SPEC §14.3 已要求“纯数据 + 订阅”，§14.2 接口缺该方法）；
+    按 §2.4 先写 **ADR-052** 并更新 SPEC §14.2，再实现。
+  - 激活器的“禁用列表”在 T6.1 只保存在内存并写结构化日志；用户手动禁用/持久化留 T6.3。
 - 产出：
   - `packages/plugin-sdk`：清单、上下文、4 类注册表、生命周期
   - 版本校验（主版本=1）、重复 id、dispose
@@ -1769,7 +1816,7 @@ T0.2 + T5.5 → T6.4
 - 覆盖：NFR-08
 - 参考：SPEC §16.6
 - 产出：
-  - electron-builder：`appId=com.curvestudio.app`、productName、NSIS + portable
+  - electron-builder：`appId=com.curvealmanac.app`、productName、NSIS + portable
   - 图标、许可证、版本号注入、`userData` 路径
   - 安装/卸载/数据保留冒烟
 - 步骤：
@@ -1781,6 +1828,7 @@ T0.2 + T5.5 → T6.4
   - [ ] 安装后工作区默认路径可写；卸载后用户工作区仍在。
   - [ ] 版本号与 `package.json` 一致。
 - 验证：`pnpm package` + 手工安装冒烟
+- 注意事项：打包时注意分清开发过程中无需打包的文件
 
 <a id="t65"></a>
 ### T6.5 全量验收与文档收尾

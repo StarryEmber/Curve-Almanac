@@ -6,7 +6,7 @@
 ## A. 全量执行（推荐）
 
 ```text
-你现在是 Curve Studio v1 的实现代理。工作目录就是仓库根。
+你现在是 Curve Almanac v1 的实现代理。工作目录就是仓库根。
 
 第一步，按顺序完整阅读：
 1. AGENTS.md
@@ -30,7 +30,7 @@
 ## B. 单里程碑执行
 
 ```text
-工作目录是 Curve Studio 仓库根。先读 AGENTS.md、docs/SPEC.md、docs/TASKS.md 中 M{N} 的全部任务，以及 docs/TESTPLAN.md 对应用例。
+工作目录是 Curve Almanac 仓库根。先读 AGENTS.md、docs/SPEC.md、docs/TASKS.md 中 M{N} 的全部任务，以及 docs/TESTPLAN.md 对应用例。
 
 只实现里程碑 M{N}，按任务 ID 顺序执行；每个任务走 AGENTS.md §8 的协议。M{N} 全部任务完成后，运行里程碑验收演示，输出验收报告并停下。不要改动其他里程碑的代码，不要提前实现后续功能。
 
@@ -40,7 +40,7 @@
 ## C. 单任务执行
 
 ```text
-工作目录是 Curve Studio 仓库根。执行 docs/TASKS.md 的 {TASK_ID}。
+工作目录是 Curve Almanac 仓库根。执行 docs/TASKS.md 的 {TASK_ID}。
 
 先读：AGENTS.md、docs/SPEC.md 中与 {TASK_ID} 相关的章节（任务里列了覆盖的 FR）、docs/TESTPLAN.md 中对应测试层。
 
@@ -52,7 +52,7 @@
 ## D. 方案评审（实施前）
 
 ```text
-你是 Curve Studio v1 方案的外部评审。只读，不改代码。
+你是 Curve Almanac v1 方案的外部评审。只读，不改代码。
 
 请阅读 README.md、AGENTS.md、docs/SPEC.md、docs/TASKS.md、docs/DECISIONS.md、docs/TESTPLAN.md，从以下角度找问题：
 
@@ -67,7 +67,7 @@
 ## E. 中断后继续
 
 ```text
-继续 Curve Studio 实施。先读 AGENTS.md、docs/TASKS.md 的任务状态勾选、CHANGELOG.md 最近 10 条、git log --oneline -10。
+继续 Curve Almanac 实施。先读 AGENTS.md、docs/TASKS.md 的任务状态勾选、CHANGELOG.md 最近 10 条、git log --oneline -10。
 
 判断当前进度与下一个未完成任务；如果工作区不干净，先说明改动并等我确认，不要擅自 reset。确认后从下一个任务继续，遵守 AGENTS.md §8。
 ```
@@ -75,7 +75,7 @@
 ## F. 验收代理（里程碑后）
 
 ```text
-你是 Curve Studio 的验收代理。不要修改实现，只做验证与报告。
+你是 Curve Almanac 的验收代理。不要修改实现，只做验证与报告。
 
 针对里程碑 M{N}：
 1. 逐条核对 docs/TASKS.md 中该里程碑任务的验收项。

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { ERROR_CODES } from '@curve/domain';
 
+import { APP_NAME } from '../../shared/brand';
+
 import { enUS } from './messages/en-US';
 import { zhCN } from './messages/zh-CN';
 import {
@@ -42,6 +44,13 @@ describe('message tables', () => {
   it('really translates, rather than copying the Chinese copy', () => {
     expect(enUS['shell.empty.title']).not.toBe(zhCN['shell.empty.title']);
     expect(enUS['theme.dark']).not.toBe(zhCN['theme.dark']);
+  });
+
+  it('ships the product name from the shared brand constant (T6.0, ADR-051)', () => {
+    expect(zhCN['app.name']).toBe(APP_NAME);
+    expect(enUS['app.name']).toBe(APP_NAME);
+    expect(JSON.stringify(zhCN)).not.toContain('Curve Studio');
+    expect(JSON.stringify(enUS)).not.toContain('Curve Studio');
   });
 
   it('ships a complete English table (only the native language name is CJK)', () => {

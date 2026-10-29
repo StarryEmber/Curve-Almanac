@@ -21,6 +21,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session } from 'elec
 
 import { toAppError, createAppError } from '@curve/domain';
 
+import { APP_NAME } from '../shared/brand';
 import { IPC_EVENT_CHANNELS } from '../shared/contracts/channels';
 
 import { resolveE2EDialogStubs, resolveE2EQuitConfirm, resolveE2EUserDataPath } from './e2e-hooks';
@@ -48,8 +49,6 @@ import type { QuitConfirmOptions, QuitGuard } from './quit-guard';
 import type { AppSettingsStore } from './settings/app-settings-store';
 import type { ImportTextRequest, QuitRequest } from '../shared/contracts/ipc';
 import type { MessageBoxOptions, OpenDialogOptions, SaveDialogOptions } from 'electron';
-
-const APP_NAME = 'Curve Studio';
 
 /**
  * Development means "served by `electron-vite dev`", not merely unpackaged: the

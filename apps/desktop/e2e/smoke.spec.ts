@@ -24,9 +24,9 @@ test.describe('E1 startup and security', () => {
     });
 
     expect(page.url().startsWith('file:')).toBe(true);
-    await expect(page).toHaveTitle(/Curve Studio/);
+    await expect(page).toHaveTitle(/Curve Almanac/);
     await expect(page.getByRole('main')).toBeVisible();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Curve Studio');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Curve Almanac');
 
     const nodeGlobals = await page.evaluate(() => ({
       require: typeof (globalThis as { require?: unknown }).require,

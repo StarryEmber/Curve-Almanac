@@ -41,7 +41,7 @@ test.describe('T0.4 shell', () => {
     await expect(page.getByTestId('inspector')).toBeVisible();
     await expect(page.getByTestId('statusbar')).toBeVisible();
     await expect(page.getByRole('main')).toBeVisible();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Curve Studio');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Curve Almanac');
     await expect(page.getByTestId('workspace-label')).toContainText('未打开工作区');
     await expect(page.getByRole('tab', { name: '数据表' })).toBeVisible();
     await expect(page.getByRole('tab', { name: '图表' })).toBeVisible();

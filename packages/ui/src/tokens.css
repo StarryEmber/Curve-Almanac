@@ -1,5 +1,5 @@
 /**
- * Curve Studio design tokens (T0.4).
+ * Curve Almanac design tokens (T0.4).
  *
  * Every visual decision in `@curve/ui` and in the app shell goes through a
  * `--cs-*` custom property. Components must never hard-code a colour; the token

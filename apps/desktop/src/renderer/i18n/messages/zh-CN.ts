@@ -1,5 +1,7 @@
 import type { ErrorCode } from '@curve/domain';
 
+import { APP_NAME } from '../../../shared/brand';
+
 /**
  * zh-CN message table — the source of truth for every user-visible string
  * (SPEC §16.4, ADR-013). Keys are flat and dotted; `error.<code>` covers the
@@ -9,7 +11,7 @@ import type { ErrorCode } from '@curve/domain';
 const errorMessages: Record<`error.${ErrorCode}`, string> = {
   'error.E_WS_NOT_FOUND': '找不到该工作区。',
   'error.E_WS_INVALID_MANIFEST': '工作区清单已损坏，无法打开。',
-  'error.E_WS_VERSION_UNSUPPORTED': '该工作区由更新版本的 Curve Studio 创建，当前版本无法打开。',
+  'error.E_WS_VERSION_UNSUPPORTED': `该工作区由更新版本的 ${APP_NAME} 创建，当前版本无法打开。`,
   'error.E_WS_LOCKED': '该工作区正在另一个窗口中使用。',
   'error.E_WS_BUSY': '工作区正忙，请稍后再试。',
   'error.E_MIGRATION_FAILED': '升级工作区格式失败，原文件已保留。',
@@ -36,7 +38,7 @@ const errorMessages: Record<`error.${ErrorCode}`, string> = {
 };
 
 export const zhCN = {
-  'app.name': 'Curve Studio',
+  'app.name': APP_NAME,
 
   'shell.skipToMain': '跳到主内容',
   'shell.sidebar.label': '侧栏',
@@ -155,8 +157,7 @@ export const zhCN = {
   'unsaved.cancel': '取消',
 
   'shell.empty.title': '从一个工作区开始',
-  'shell.empty.body':
-    'Curve Studio 把数据表、曲线图和样式保存在本地目录里，离线可用，数据不出本机。',
+  'shell.empty.body': `${APP_NAME} 把数据表、曲线图和样式保存在本地目录里，离线可用，数据不出本机。`,
   'shell.empty.create': '新建工作区',
   'shell.empty.open': '打开工作区',
   'shell.empty.unavailable': '工作区功能将在后续里程碑提供，当前版本还不能新建或打开工作区。',
@@ -207,8 +208,7 @@ export const zhCN = {
   'common.import': '导入',
 
   'workspace.welcome.title': '从一个工作区开始',
-  'workspace.welcome.body':
-    'Curve Studio 把数据表、曲线图和样式保存在本地目录里，离线可用，数据不出本机。',
+  'workspace.welcome.body': `${APP_NAME} 把数据表、曲线图和样式保存在本地目录里，离线可用，数据不出本机。`,
   'workspace.welcome.new': '新建工作区',
   'workspace.welcome.open': '打开工作区',
   'workspace.welcome.recent': '最近打开',
@@ -687,8 +687,8 @@ export const zhCN = {
   'style.templates.deleteNoReferences': '没有视图引用该模板。',
   'style.templates.deleteUndoHint': '删除会写入一条撤销记录；可用 Ctrl+Z 恢复模板与视图引用。',
   'style.templates.deleteConfirm': '删除模板',
-  'style.templates.exportFilter': 'Curve Studio 样式',
-  'style.templates.importFilter': 'Curve Studio 样式',
+  'style.templates.exportFilter': `${APP_NAME} 样式`,
+  'style.templates.importFilter': `${APP_NAME} 样式`,
   'style.templates.importTitle': '导入表格样式',
   'style.templates.importDescription':
     '选择 .curvestyle.json 文件；导入会创建新模板并重新分配 ID。',
@@ -709,7 +709,7 @@ export const zhCN = {
   'style.templates.importError.json': '文件不是有效的 JSON。',
   'style.templates.importError.tooLarge': '文件过大，无法导入。',
   'style.templates.importError.version': '该样式文件版本不受支持。',
-  'style.templates.importError.document': '文件不是有效的 Curve Studio 样式。',
+  'style.templates.importError.document': `文件不是有效的 ${APP_NAME} 样式。`,
   'style.editor.saveAs': '另存为模板…',
   'style.editor.saveAsName': '新模板名称',
   'style.editor.saveAsConfirm': '另存为',

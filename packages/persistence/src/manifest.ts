@@ -203,7 +203,7 @@ export function parseManifestDocument(raw: string): ValidatedManifest {
     if (typeof version === 'number' && Number.isFinite(version) && version > 1) {
       throw createAppError(
         'E_WS_VERSION_UNSUPPORTED',
-        'This workspace was created by a newer version of Curve Studio.',
+        'This workspace was created by a newer version of the application.',
         { detail: `formatVersion=${String(version)}` },
       );
     }

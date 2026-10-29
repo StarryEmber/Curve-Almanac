@@ -15,7 +15,7 @@ function setup(confirmResult = true): {
     request,
     confirm,
     close,
-    appName: 'Curve Studio',
+    appName: 'Curve Almanac',
     logger: { warn: () => undefined },
   });
   return { guard, request, confirm, close };
@@ -60,7 +60,7 @@ describe('quit guard', () => {
     });
 
     expect(confirm).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'flush-failed', title: 'Curve Studio' }),
+      expect.objectContaining({ kind: 'flush-failed', title: 'Curve Almanac' }),
     );
     expect(close).toHaveBeenCalledTimes(1);
     expect(guard.canQuit()).toBe(true);

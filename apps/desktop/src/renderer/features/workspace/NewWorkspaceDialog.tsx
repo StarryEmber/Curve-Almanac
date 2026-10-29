@@ -4,6 +4,7 @@ import type { AppError } from '@curve/domain';
 import { joinPathLike, workspaceFolderName } from '@curve/persistence';
 import { Button, Dialog, Input } from '@curve/ui';
 
+import { APP_NAME } from '../../../shared/brand';
 import { useWorkspaceController } from '../../app-core/use-workspace-controller';
 import { describeAppError } from '../../error-text';
 import { useI18n } from '../../i18n';
@@ -20,7 +21,7 @@ function defaultParent(documentsDir: string | undefined): string {
   if (documentsDir === undefined || documentsDir.trim().length === 0) {
     return '';
   }
-  return joinPathLike(documentsDir, 'Curve Studio');
+  return joinPathLike(documentsDir, APP_NAME);
 }
 
 export function NewWorkspaceDialog({

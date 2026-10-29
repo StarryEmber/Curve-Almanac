@@ -145,7 +145,7 @@ describe('dialog:pickDirectory contract', () => {
     expect(
       pickDirectoryRequestSchema.safeParse({
         title: 'Choose',
-        defaultPath: 'C:\\Users\\test\\Documents\\Curve Studio',
+        defaultPath: 'C:\\Users\\test\\Documents\\Curve Almanac',
       }).success,
     ).toBe(true);
     expect(pickDirectoryRequestSchema.safeParse({ defaultPath: '' }).success).toBe(false);

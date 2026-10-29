@@ -9,6 +9,8 @@
  * Electron: `close`/`quit` must never hang on a dead or unsaved renderer.
  */
 
+import { APP_NAME } from '../shared/brand';
+
 import type { Logger } from './logger';
 import type { QuitRequest, QuitResponseRequest } from '../shared/contracts/ipc';
 
@@ -69,7 +71,7 @@ function confirmOptions(kind: QuitConfirmKind, appName: string): QuitConfirmOpti
     return {
       kind,
       title: appName,
-      message: 'Curve Studio is still saving your changes.',
+      message: `${appName} is still saving your changes.`,
       detail:
         'The save did not finish within 3 seconds. Quit anyway? ' +
         'Changes from the last moment may be lost.',
@@ -84,7 +86,7 @@ function confirmOptions(kind: QuitConfirmKind, appName: string): QuitConfirmOpti
 }
 
 export function createQuitGuard(options: QuitGuardOptions): QuitGuard {
-  const appName = options.appName ?? 'Curve Studio';
+  const appName = options.appName ?? APP_NAME;
   const resolveTimeoutMs = (): number =>
     typeof options.timeoutMs === 'function'
       ? options.timeoutMs()

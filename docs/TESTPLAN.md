@@ -1,4 +1,4 @@
-# TESTPLAN — Curve Studio v1 测试与验收
+# TESTPLAN — Curve Almanac v1 测试与验收
 
 > 本文定义"怎么证明做对了"。任务执行时按 `docs/TASKS.md` 的"验证"命令取用；里程碑验收按本文 §3 的场景走。
 > 所有命令在仓库根执行；`pnpm` 脚本定义见 `docs/SPEC.md §5.2`。
@@ -75,7 +75,7 @@
 ### E1 启动与安全冒烟
 
 1. 启动构建产物。
-2. 断言窗口标题包含 `Curve Studio`，主区域可见。
+2. 断言窗口标题包含 `Curve Almanac`，主区域可见。
 3. `page.evaluate(() => typeof window.require)` 为 `undefined`；`process` 为 `undefined`。
 4. 点击一个外部链接（测试页内置）不产生新窗口。
 5. 控制台无 error（允许已知 dev 警告）。

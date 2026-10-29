@@ -1,3 +1,5 @@
+import { APP_NAME } from '../../../shared/brand';
+
 import type { MessageKey } from './zh-CN';
 
 /**
@@ -7,7 +9,7 @@ import type { MessageKey } from './zh-CN';
  */
 
 export const enUS: Record<MessageKey, string> = {
-  'app.name': 'Curve Studio',
+  'app.name': APP_NAME,
 
   'shell.skipToMain': 'Skip to main content',
   'shell.sidebar.label': 'Sidebar',
@@ -131,8 +133,7 @@ export const enUS: Record<MessageKey, string> = {
   'unsaved.cancel': 'Cancel',
 
   'shell.empty.title': 'Start from a workspace',
-  'shell.empty.body':
-    'Curve Studio keeps tables, charts and styles in a local folder. It works offline and never sends your data anywhere.',
+  'shell.empty.body': `${APP_NAME} keeps tables, charts and styles in a local folder. It works offline and never sends your data anywhere.`,
   'shell.empty.create': 'New workspace',
   'shell.empty.open': 'Open workspace',
   'shell.empty.unavailable':
@@ -185,8 +186,7 @@ export const enUS: Record<MessageKey, string> = {
   'common.import': 'Import',
 
   'workspace.welcome.title': 'Start from a workspace',
-  'workspace.welcome.body':
-    'Curve Studio keeps tables, charts and styles in a local folder. It works offline and never sends your data anywhere.',
+  'workspace.welcome.body': `${APP_NAME} keeps tables, charts and styles in a local folder. It works offline and never sends your data anywhere.`,
   'workspace.welcome.new': 'New workspace',
   'workspace.welcome.open': 'Open workspace',
   'workspace.welcome.recent': 'Recently opened',
@@ -684,8 +684,8 @@ export const enUS: Record<MessageKey, string> = {
   'style.templates.deleteUndoHint':
     'The deletion is recorded in history; use Ctrl+Z to restore the template and view references.',
   'style.templates.deleteConfirm': 'Delete template',
-  'style.templates.exportFilter': 'Curve Studio style',
-  'style.templates.importFilter': 'Curve Studio style',
+  'style.templates.exportFilter': `${APP_NAME} style`,
+  'style.templates.importFilter': `${APP_NAME} style`,
   'style.templates.importTitle': 'Import table style',
   'style.templates.importDescription':
     'Choose a .curvestyle.json file; importing creates a new template with fresh IDs.',
@@ -707,7 +707,7 @@ export const enUS: Record<MessageKey, string> = {
   'style.templates.importError.json': 'The file is not valid JSON.',
   'style.templates.importError.tooLarge': 'The file is too large to import.',
   'style.templates.importError.version': 'This style file version is not supported.',
-  'style.templates.importError.document': 'The file is not a valid Curve Studio style.',
+  'style.templates.importError.document': `The file is not a valid ${APP_NAME} style.`,
   'style.editor.saveAs': 'Save as template…',
   'style.editor.saveAsName': 'New template name',
   'style.editor.saveAsConfirm': 'Save as',
@@ -990,8 +990,7 @@ export const enUS: Record<MessageKey, string> = {
 
   'error.E_WS_NOT_FOUND': 'That workspace could not be found.',
   'error.E_WS_INVALID_MANIFEST': 'The workspace manifest is damaged and cannot be opened.',
-  'error.E_WS_VERSION_UNSUPPORTED':
-    'This workspace was created by a newer Curve Studio and cannot be opened here.',
+  'error.E_WS_VERSION_UNSUPPORTED': `This workspace was created by a newer ${APP_NAME} and cannot be opened here.`,
   'error.E_WS_LOCKED': 'The workspace is open in another window.',
   'error.E_WS_BUSY': 'The workspace is busy. Please try again.',
   'error.E_MIGRATION_FAILED':

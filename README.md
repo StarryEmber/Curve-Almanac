@@ -1,6 +1,7 @@
-# Curve Studio
+# Curve Almanac
 
-> 表格驱动的 PC 曲线可视化工具。**实施进行中：T0.1 已完成，下一个任务 T0.2。**
+> 表格驱动的 PC 曲线可视化工具。**实施进行中：M5 已验收关闭；M6（扩展与发布）进行中，
+> 已完成 T6.0 品牌更名（Curve Studio → Curve Almanac，ADR-051）。**
 > 方案版本：`1.0`（已锁定）· 当前进度与续作说明：[docs/HANDOFF.md](docs/HANDOFF.md)
 
 ## 1. 一句话定义
@@ -33,9 +34,9 @@
 | 文件 | 作用 | 谁读 |
 |---|---|---|
 | [AGENTS.md](AGENTS.md) | 实现代理的强制守则、命令、边界、DoD | **每个任务开始前必读** |
-| [docs/HANDOFF.md](docs/HANDOFF.md) | 实施交接：环境事实、T0.1 产出、T0.2 注意事项 | **新会话续作前必读** |
+| [docs/HANDOFF.md](docs/HANDOFF.md) | 实施交接：环境事实、当前进度与续作说明 | **新会话续作前必读** |
 | [docs/SPEC.md](docs/SPEC.md) | 规范：模型、格式、契约、验收标准 | 实现与评审 |
-| [docs/TASKS.md](docs/TASKS.md) | 39 个可执行任务、依赖、验收、验证命令 | 实现排期 |
+| [docs/TASKS.md](docs/TASKS.md) | 40 个可执行任务、依赖、验收、验证命令 | 实现排期 |
 | [docs/TESTPLAN.md](docs/TESTPLAN.md) | 单测/契约/E2E/性能/发布检查 | 测试与验收 |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | 16 条已锁定架构决策与复核触发条件 | 评审与后续升级 |
 | [KICKOFF.md](KICKOFF.md) | 可直接粘贴给 DSH 的启动提示词 | 发起实施 |
