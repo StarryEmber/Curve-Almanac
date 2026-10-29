@@ -9,7 +9,8 @@
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
 > T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
-> T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告 **`50f7ea9`**
+> T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告 **`50f7ea9`**、
+> T6.0 代码/报告 **`cc6dd5c`**、T6.1 代码/报告 **`2ea05cf`**
 > （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.9）→ `docs/reports/m5/REPORT.md` →
 > `docs/reports/t6.0/REPORT.md` → `docs/reports/t6.1/REPORT.md` → `docs/TASKS.md` 的 M5/M6 →
@@ -22,9 +23,10 @@
 - **当前状态**：M1–M5 均已获用户接受；`T3.1`–`T3.6`、`T4.1`–`T4.6`、`T5.1`–`T5.5`、M5 验收
   演示与 **`T6.0`（品牌更名 Curve Almanac）**、**`T6.1`（插件 SDK 与注册表）**均已完成；
   **M5 已于 2026-10-29 关闭**；M6 的 `T6.2`–`T6.5` 尚未开始。
-- **本次交付**：T6.1 插件 SDK——`Registry<T>`（`subscribe` + 带 `source` 的 `list`）、四类贡献
-  注册表、`createPluginHost`（版本校验/错误隔离/回滚/禁用列表/deactivate）、`ImportResult`；
-  ADR-052、报告 `docs/reports/t6.1/REPORT.md`；未接 UI/命令总线（T6.3）。
+- **本次交接范围**：M5 关闭后的两个任务——`T6.0` 品牌更名（`APP_NAME` 单一来源、默认目录/
+  userData 变更、ADR-051、`docs/reports/t6.0/REPORT.md`）与 `T6.1` 插件 SDK/注册表
+  （`Registry.subscribe`/`source`、`createPluginHost` 版本校验/错误隔离/回滚/禁用列表、
+  `ImportResult`、ADR-052、`docs/reports/t6.1/REPORT.md`）。两者都不改 IPC/数据格式/CSP。
 - **基线**：`pnpm verify` **182 files / 1710 tests**（ESLint 0；depcruise 500 modules /
   2156 deps / 0 violations）；coverage 全局 lines **77.24%**（statements 77.08% / branches
   69.85% / functions 75.93%）；`pnpm build` exit 0（renderer **3,365.92 kB**、CSS 77.89 kB）；
@@ -124,7 +126,8 @@
    截图/指标会重写到 `test-results/`，复制回 `docs/reports/m5/`，`m0` 截图提交前还原。
 4. 不要回退：T5.3 的 SaveQueue 窗口/flush、T5.4 的快捷键表、T5.5 的 `settings.json`/
    `app:settings`/`SettingsProvider`、T3.1 内置模板、M4 图表契约、T5.1 的 layout 契约、
-   T6.0 的 `APP_NAME` 单一来源与品牌一致性测试。
+   T6.0 的 `APP_NAME` 单一来源与品牌一致性测试、T6.1 的注册表/宿主语义（`subscribe`、`source`、
+   owner 化 `replace`、错误隔离与 `E_PLUGIN_*`）。
 5. 演示说明：M5 demo 的 999 丢失是 SPEC §13.3 允许的最后 1.5s 窗口；恢复对话框提示已断言。
 6. M5 报告里的 7 张截图是证据，不做像素基线；`m5-metrics.json` 是结构化指标。
 
@@ -461,6 +464,9 @@ T4.6 又在根 `package.json` 的 devDependencies 增加了 `@curve/chart-echart
 - E2E 截图证据字节不稳定；断言不依赖像素。
 - Worker 产物名现在是 `assets/table.worker-<hash>.js`、`assets/import.worker-<hash>.js`、
   `assets/query.worker-<hash>.js`。
+- `packages/plugin-sdk` 的 tsconfig 只增加 `lib: DOM`（仅 `AbortSignal` 类型）与
+  `references: ../domain`；不要给它加 Node types，也不要让它 import table-engine/React/
+  Electron/fs（`ImportResult` 与 `ImportDataset` 只是结构兼容，映射在 T6.3）。
 - T2.6 的筛选/排序 E2E 依赖网格上的 `data-query-mode`/`data-query-busy`/`data-query-ms`/
   `data-visible-rows` 属性断言 Worker 完成与预算；不要移除这些属性。
 - T2.6 的 text sort bench 使用打乱后的 100k 文本主键；若机器繁忙 P95 可能接近 400ms，
@@ -478,7 +484,8 @@ T4.6 又在根 `package.json` 的 devDependencies 增加了 `@curve/chart-echart
   生成 100k×10 夹具（约 15MB，gitignore）；`perf.spec.ts` 把它复制到 `testInfo.outputPath` 再打开。
   单独跑 perf spec 前必须先执行该生成命令。
 - `perf.spec.ts` 的内存门禁用 `app.getAppMetrics().memory.privateBytes`（不含 GPU）；
-  `workingSetSize` 会重复计算共享页，只作诊断。当前 T3.5 实测峰值 568MB/600MB，余量约 5%。
+  `workingSetSize` 会重复计算共享页，只作诊断。T5.5/M5 后 100k 图表切换实测 503MB/600MB，
+  余量约 16%。
 - `pnpm bench` 的 `memoryPeakMB` 是 Node 管线 RSS 趋势（约 900MB），**不是**应用内存门禁；
   600MB 只由 E2E 判定。
 - `bench/baseline.json` 需由 CI Windows runner 的 `pnpm bench -- --write-baseline` 生成后提交；
@@ -1692,6 +1699,57 @@ useUnsavedChangesGuard(): { request(action: 'quit' | 'close-workspace'): Promise
 - i18n：`translateKey` 开发构建缺 key 抛错、生产回退 zh-CN；`ui-conventions.test.ts` 同时审计
   JSX 文本、中文字面量与用户可见属性字面量。完整决策/代价见 ADR-050 与
   `docs/reports/t5.5/REPORT.md`。
+
+### 4.27 `@curve/plugin-sdk`（T6.1）
+
+```ts
+// packages/plugin-sdk/src/index.ts
+PACKAGE_NAME = '@curve/plugin-sdk';
+PLUGIN_API_VERSION = '1.0';
+isCompatibleApiVersion(version: string, hostMajor = 1): boolean;
+createPluginHost(options: { plugins; logger? }): PluginHost;
+
+type ContributionSource =
+  | { kind: 'builtin' }
+  | { kind: 'plugin'; pluginId: string };
+interface RegistryEntry<T> { id: string; def: T; source: ContributionSource }
+interface Registry<T> {
+  register(id, def): () => void;
+  replace(id, def): void;
+  get(id): T | undefined;
+  list(): ReadonlyArray<RegistryEntry<T>>;
+  subscribe(listener: (entries: ReadonlyArray<RegistryEntry<T>>) => void): () => void;
+  dispose(): void;
+}
+interface PluginHost {
+  readonly apiVersion: '1.0';
+  readonly fields: Registry<FieldTypeDef>;
+  readonly importers: Registry<ImporterDef>;
+  readonly chartKinds: Registry<ChartKindDef>;
+  readonly commands: Registry<CommandDef>;
+  activateAll(): Promise<readonly PluginState[]>;
+  activate(pluginId): Promise<PluginState>;
+  deactivate(pluginId): Promise<PluginState>;
+  getPlugins(): readonly PluginState[];
+  getDisabled(): readonly PluginState[];
+  dispose(): void;
+}
+```
+
+- `register` 任何已存在 id（含自己的）→ `E_PLUGIN_INVALID`；`replace` 只能覆盖同 owner（插件不能
+  替换内置或他人贡献）。`list()` 内置在前、插件按注册顺序，`replace` 保持位置，每项带 `source`；
+  `subscribe` 每次变更同步发快照，监听器异常被隔离，取消订阅幂等。
+- 插件上下文拿到的是绑定自身 id 的注册表视图；宿主 `dispose` 关闭全部注册表并拒绝后续注册，
+  插件 `dispose` 只移除自己的贡献（回滚与 deactivate 用它）。
+- `createPluginHost` 顺序激活：定义非法/重复插件 id → `disabled` + `E_PLUGIN_INVALID`；
+  `apiVersion` 主版本 ≠ 1 → `disabled` + `E_PLUGIN_INCOMPATIBLE`（不调用 activate）；activate
+  抛错/拒绝 → 回滚该插件贡献 + `disabled`，保留 AppError 原 code（否则 `E_PLUGIN_ACTIVATE`），
+  其他插件继续。`deactivate` 先调 hook（抛错只记日志），再移除贡献。
+- 字段类型在登记时校验 `storageType`（复用 `builtinColumnTypeSchema`）、必需函数与正
+  `defaultWidth`；导入器/图表类型/命令校验 label、函数与枚举值。
+- 禁用列表只在内存（`getDisabled()` + 日志）；UI、命令总线、手动禁用/持久化留 T6.3。
+- 详情：ADR-052、`docs/reports/t6.1/REPORT.md`；测试 `registry.test.ts` 10 条、
+  `host.test.ts` 15 条。
 
 ---
 
@@ -3018,6 +3076,12 @@ T5.3、T5.4 已完成，下一步 T5.5。
 | `longtask` 门禁依赖浏览器 API | 不支持的运行时跳过断言 | `chart-perf` 记录 `longTaskSupported`；本机支持且 10 次连点缩放计数为 0 |
 | bench `sample` suite 更名 `chart` | 旧报告名消失 | `--sample` 保留别名；基线未生成，无兼容成本；CI 基线生成后新用例自动进入回归比较 |
 | bench 子进程加载 ECharts | `pnpm bench` 启动略慢、`memoryPeakMB` 趋势上升 | `chart` suite 独立子进程；该数字本来不是应用内存门禁（ADR-033） |
+| userData 路径随 T6.0 更名变化 | 升级后主题/语言/最近列表/窗口尺寸重置一次 | ADR-051：v1 未发布，不做迁移；工作区目录/JSONL 不受影响；要保留偏好时加一次性迁移 ADR |
+| 插件禁用列表仅内存（T6.1） | 坏插件每次启动重试并再记日志；没有手动禁用 | 有意取舍；T6.3 决定持久化/手动禁用（写 settings 或独立文件，不进 manifest） |
+| 插件贡献未接 UI/命令总线（T6.1） | 列类型/导入器/图表类型/命令尚不可见 | T6.3 把内置列表改为“注册表 + 内置注册”，接导入向导/命令面板；T6.1 只交付契约 |
+| `ImportResult` 与 table-engine `ImportDataset` 仅结构兼容（T6.1） | 导入管线新增字段时插件输出可能缺字段 | T6.3 显式映射并补契约测试；不要假设两者是同一类型 |
+| `subscribe` 同步通知（T6.1） | 插件批量注册 N 条会触发 N 次回调 | T6.3 的监听器只读快照/合并刷新，不要订阅文档 store（chart-perf 内存门禁） |
+| `plugin-sdk` 增加 `lib: DOM`（T6.1） | 类型层多出 DOM 全局 | 仅用于 `AbortSignal`；不引入 Node 全局或运行时依赖，也不能因此 import Electron/table-engine |
 
 ---
 
@@ -3094,6 +3158,13 @@ T5.3、T5.4 已完成，下一步 T5.5。
   放宽整条规则。
 - 不把 `APP_NAME` 改回散落的字面量，也不要只改其中一处：`productName`、`<title>`、`app.name`
   由 `brand.test.ts`/`i18n.test.ts` 锁定；历史 ADR/报告中的旧名不要批量改写（ADR-051）。
+- 不把插件注册表改回 `{ id, def }` 或无订阅：`source`/`subscribe` 是 T6.3 UI 刷新与来源标注的
+  契约（ADR-052）；`register` 不得静默覆盖同 id。
+- 不让插件替换内置或其他插件的贡献；插件 `dispose`/`deactivate` 后不得残留贡献。
+- 不在 `plugin-sdk` 里 import table-engine/React/Electron/fs；`ImportResult` 只是结构兼容，映射
+  放 T6.3。
+- 不把禁用列表写进 manifest 或 settings（T6.1 仅内存；T6.3 再决定持久化）。
+- 不把宿主激活错误改成一抛就中断整批插件；必须逐插件隔离、记录 `disabled` 状态与日志。
 - 不自动跨任务/跨里程碑；M3、M4 均已验收并关闭，M4 的 T4.1–T4.6 与验收演示已完成，
   T5.1–T5.5 与 M5 验收演示已完成；**M5 已获接受并关闭**，**T6.0 品牌更名与 T6.1 插件
   SDK/注册表已完成**，M6 的 `T6.2`–`T6.5` 未开始。
@@ -3103,8 +3174,8 @@ T5.3、T5.4 已完成，下一步 T5.5。
 ## 9. 新会话启动检查清单
 
 - [ ] `git status --short` 干净；`git log` 包含 T5.1 代码/报告 **`eb152b4`**、T5.2 **`a9dcf75`**、
-      T5.3 **`02e30a8`**、T5.4 **`fb53d9b`**、T5.5（`git log -1 -- apps/desktop/src/renderer/features/settings`）
-      与本交接文档提交。
+      T5.3 **`02e30a8`**、T5.4 **`fb53d9b`**、T5.5（`git log -1 -- apps/desktop/src/renderer/features/settings`）、
+      T6.0 **`cc6dd5c`**、T6.1 **`2ea05cf`** 与本交接文档提交。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
 - [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t5.5/REPORT.md`、`docs/reports/t6.0/REPORT.md`、
