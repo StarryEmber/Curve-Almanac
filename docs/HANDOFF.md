@@ -10,7 +10,7 @@
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
 > T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
-> T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`（见 git log -1 -- apps/desktop/src/renderer/features/settings）`**
+> T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**
 > （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件（§0.3/§0.4/§0.5/§0.6）→ `docs/reports/t5.5/REPORT.md` →
 > `docs/TASKS.md` 的 M5 → `docs/SPEC.md` §12/§13.3/§16.3–§16.4 → ADR-050 → ADR-048。
@@ -236,7 +236,7 @@
 | `T5.2` 撤销/重做 | **已完成**（2026-10-28，`a9dcf75`）；报告 `docs/reports/t5.2/REPORT.md`；ADR-047；2 张截图 |
 | `T5.3` 自动保存、恢复与最近打开 | **已完成**（2026-10-28，`02e30a8`）；报告 `docs/reports/t5.3/REPORT.md`；ADR-048；5 张截图 |
 | `T5.4` 快捷键与命令面板 | **已完成**（2026-10-28，`fb53d9b`）；报告 `docs/reports/t5.4/REPORT.md`；ADR-049；3 张截图 |
-| `T5.5` 设置与国际化 | **已完成**（2026-10-29，待提交）；报告 `docs/reports/t5.5/REPORT.md`；ADR-050；4 张截图 |
+| `T5.5` 设置与国际化 | **已完成**（2026-10-29，`f80acaa`）；报告 `docs/reports/t5.5/REPORT.md`；ADR-050；4 张截图 |
 | 当前里程碑 | **M5 体验**：T5.1、T5.2、T5.3、T5.4、T5.5 全部完成；下一步执行 M5 验收演示 |
 | 下一步 | **M5 验收演示**（TASKS 的 M5；报告 `docs/reports/m5/REPORT.md`，完成后停下等用户确认） |
 | `pnpm verify` 基线 | **179 files / 1682 tests**；ESLint 0；depcruise 492 modules / 2118 deps / 0 violations |
