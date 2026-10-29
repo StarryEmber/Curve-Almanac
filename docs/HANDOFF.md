@@ -4,39 +4,43 @@
 > **T5.1（分栏布局与标签页）、T5.2（撤销/重做）、T5.3（自动保存、恢复与最近打开）、
 > T5.4（快捷键与命令面板）与 T5.5（设置与国际化）已完成**（报告 `docs/reports/t5.1/REPORT.md`、
 > `docs/reports/t5.2/REPORT.md`、`docs/reports/t5.3/REPORT.md`、`docs/reports/t5.4/REPORT.md`、
-> `docs/reports/t5.5/REPORT.md`；ADR-046、ADR-047、ADR-048、ADR-049、ADR-050），
-> 下一步 **M5 验收演示**（输出报告后停下等待用户确认）。
+> `docs/reports/t5.5/REPORT.md`；ADR-046、ADR-047、ADR-048、ADR-049、ADR-050）；
+> **M5 验收演示已于 2026-10-29 执行并通过**（`apps/desktop/e2e/m5-acceptance.spec.ts`、
+> `docs/reports/m5/REPORT.md`），**等待用户确认接受 M5**；确认前不进入 M6。
 > 最后更新：2026-10-29 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
 > T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
-> T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**
-> （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
-> 阅读顺序：`AGENTS.md` → 本文件（§0.3/§0.4/§0.5/§0.6）→ `docs/reports/t5.5/REPORT.md` →
-> `docs/TASKS.md` 的 M5 → `docs/SPEC.md` §12/§13.3/§16.3–§16.4 → ADR-050 → ADR-048。
+> T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告
+> **`（见 git log -1 -- docs/reports/m5）`**（本交接文档的提交见
+> `git log -1 -- docs/HANDOFF.md`）。
+> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.7）→ `docs/reports/m5/REPORT.md` →
+> `docs/reports/t5.5/REPORT.md` → `docs/TASKS.md` 的 M5/M6 → `docs/SPEC.md` → ADR-050/048。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
 - **当前状态**：M2/M3/M4 均已获用户接受；`T3.1`–`T3.6`、`T4.1`–`T4.6`、`T5.1`、`T5.2`、
-  `T5.3`、`T5.4`、`T5.5` 已完成；M5 的 T5.1–T5.5 全部完成，下一步执行 **M5 验收演示**。
-- **本次交付**：`userData/settings.json`（theme/locale/autosave/defaultTableStyleId）与
-  `app:settings`/`app:settings:update`、`SettingsProvider` 受控的 i18n/主题、设置对话框与
-  标题栏/命令面板入口、自动保存关闭的“保存/放弃/取消”、en-US 完整性审计、开发模式缺 key 抛错、
-  文案门禁扩展到用户可见属性、+30% 伪本地化 200% 缩放 E2E。报告 `docs/reports/t5.5/REPORT.md`
-  与 4 张截图。
-- **基线**：`pnpm verify` **179 files / 1682 tests**（ESLint 0；depcruise 492 modules /
-  2118 deps / 0 violations）；coverage 全局 lines **77.01%**（statements 76.86% / branches 69.64% / functions 75.55%）；`pnpm build` exit 0（renderer
-  **3,365.14 kB**、CSS 77.89 kB）；`pnpm e2e` **103 passed**（settings 4 条
-  3.6s/4.9s/3.4s/1.6s）；`pnpm bench` exit 0。
+  `T5.3`、`T5.4`、`T5.5` 已完成；M5 的 T5.1–T5.5 全部完成；**M5 验收演示已于 2026-10-29 执行
+  并通过，等待用户确认接受 M5**。
+- **本次交付**：M5 验收演示 `apps/desktop/e2e/m5-acceptance.spec.ts` 1 条（三次启动 + 强杀）：
+  2 表 3 视图分 2 pane、5 步撤销/重做、强杀恢复、最近打开、英文/深色、重启全部还原；报告
+  `docs/reports/m5/REPORT.md` + 7 张截图 + `m5-metrics.json`。全量 E2E **104 passed**。
+- **基线**：`pnpm verify` **179 files / 1682 tests**（ESLint 0；depcruise 493 modules /
+  2126 deps / 0 violations）；coverage 全局 lines **77.01%**（statements 76.86% / branches 69.64% / functions 75.55%）；`pnpm build` exit 0（renderer
+  **3,365.14 kB**、CSS 77.89 kB）；`pnpm e2e` **104 passed**（6.2m；M5 demo 20.2s）；
+  `pnpm bench` exit 0。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑；强杀后不得静默丢数据。
-- **停点**：T5.5 已完成并提交；工作树干净；下一动作是 **M5 验收演示**（2 表 3 视图分 2 pane →
-  撤销/重做 5 步 → 强杀恢复 → 最近打开 → 切英文/深色 → 重启全部还原），输出报告后停下等待用户
-  确认，不要自动进入 M6。
+- **停点**：M5 演示已完成并提交；**等待用户确认接受 M5**，确认前不进入 M6；确认后下一步为
+  `T6.1`（插件 SDK 与注册表），详见 TASKS M6。
 - **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`）；读
-  `docs/reports/t5.5/REPORT.md`（含“残留风险”）、ADR-050、TASKS 的 M5 验收演示；执行演示。
+  `docs/reports/m5/REPORT.md`、`docs/reports/t5.5/REPORT.md`、ADR-050/048、TASKS 的 M5；
+  用户确认接受 M5 后再领取 M6 的第一个任务。
+- **M5 完成结果**：2 表 3 视图 → 复制视图/水平分栏/移动标签 → 5 次编辑 + 撤销/重做 5 步 →
+  提交 200 后强杀（999 丢弃、200 保留）→ 尝试恢复 → 关闭后从最近列表重开 → 英文 + 深色 →
+  重启后 2 pane / 3 标签 / Readings 活动 / 值 200 全部还原。截图在 `docs/reports/m5/`。
 - **T5.1 完成结果**：2 表 3 视图 → 水平分栏 → 移动标签 → 比例 0.35 → 垂直/4 pane → 关闭空
   pane → 重启恢复；非法 layout（缺失引用/ratio 0.1）回退单 pane 且视图不丢；标签 Arrow/
   Ctrl+W 与 200% 缩放通过；截图在 `docs/reports/t5.1/`。
@@ -93,24 +97,22 @@
    redo 留孤儿文件；`table.meta.update` 菜单文案不区分重命名/换主键；原生 Electron Edit 菜单
    仍未与历史同步。详见报告 §8 与 ADR-047“复核条件”。
 
-### 0.3 下一会话行动清单（M5 验收演示）
+### 0.3 下一会话行动清单（M5 验收 / 之后 M6）
 
-> 前提：T5.1–T5.5 全部完成；M5 尚未验收。
+> 前提：T5.1–T5.5 与 M5 验收演示均已完成；**等待用户确认接受 M5**。
 
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
-   179 files / 1682 tests、`pnpm e2e` 103 passed、`pnpm bench` exit 0；读 TASKS 的 M5
-   （T5.1–T5.5 实现备注）与 M5 验收演示脚本、报告 `docs/reports/t5.5/REPORT.md`、ADR-050。
-2. 执行 **M5 验收演示**：建 2 表 3 视图分 2 pane → 撤销/重做 5 步 → 强杀恢复 → 最近打开 →
-   切英文/深色 → 重启全部还原；写成单条 `apps/desktop/e2e/m5-acceptance.spec.ts`（多次
-   `launchCurveApp`，与 M2/M3/M4 一致），截图放 `docs/reports/m5/`，报告
-   `docs/reports/m5/REPORT.md`。
-3. 演示必须复用真实 UI 与 `window.api` seed，不要为演示改生产代码；必要时只加测试夹具。
-4. 演示覆盖：分栏/比例/标签、撤销 5 步与重做、强杀后“上次未正常退出”恢复、最近列表打开、
-   设置 en-US + dark 后重启仍为英文深色、自动保存关闭的三选一（可选）。
-5. 不要回退：T5.3 的 SaveQueue 窗口/flush、T5.4 的快捷键表、T5.5 的 `settings.json`/
-   `app:settings`/`SettingsProvider`、T3.1 内置模板、M4 图表契约。
-6. 跑全量 E2E 前确认 CPU 空闲；`m0` 截图提交前用 `git checkout --` 还原；演示报告写完即停，
-   等待用户确认后再考虑 M6。
+   179 files / 1682 tests、`pnpm e2e` 104 passed、`pnpm bench` exit 0；读 TASKS 的 M5 验收记录、
+   报告 `docs/reports/m5/REPORT.md` 与 §0.7。
+2. **不要在未获确认时开始 M6**。用户确认接受 M5 后，M5 关闭，下一步领取 TASKS 的 `T6.1`
+   （插件 SDK 与注册表），并先读 SPEC §14 与 ADR-010/ADR-013。
+3. 若用户要求重跑演示：独占 CPU 执行
+   `pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/m5-acceptance.spec.ts`，
+   截图/指标会重写到 `test-results/`，复制回 `docs/reports/m5/`，`m0` 截图提交前还原。
+4. 不要回退：T5.3 的 SaveQueue 窗口/flush、T5.4 的快捷键表、T5.5 的 `settings.json`/
+   `app:settings`/`SettingsProvider`、T3.1 内置模板、M4 图表契约、T5.1 的 layout 契约。
+5. 演示说明：M5 demo 的 999 丢失是 SPEC §13.3 允许的最后 1.5s 窗口；恢复对话框提示已断言。
+6. M5 报告里的 7 张截图是证据，不做像素基线；`m5-metrics.json` 是结构化指标。
 
 ### 0.4 T5.3 结果（2026-10-28 完成）
 
@@ -174,9 +176,9 @@
 
 ### 0.6 T5.5 结果（2026-10-29 完成）
 
-1. 用例：`apps/desktop/e2e/settings.spec.ts` 4 条——语言/主题/自动保存改后重启保留（3.2s）、
+1. 用例：`apps/desktop/e2e/settings.spec.ts` 4 条——语言/主题/自动保存改后重启保留（3.9s）、
    自动保存关闭时关闭工作区的保存/放弃/取消（5.0s）、退出时取消保持窗口/保存后退出并重启
-   读回（3.4s）、+30% 伪本地化 + 200% 缩放布局（1.7s）。报告 `docs/reports/t5.5/REPORT.md`。
+   读回（3.6s）、+30% 伪本地化 + 200% 缩放布局（1.7s）。报告 `docs/reports/t5.5/REPORT.md`。
 2. 设置：`userData/settings.json` 的 `AppSettings { version, theme, locale, autosave,
    defaultTableStyleId }`；新增 `app:settings`/`app:settings:update`（ALL 22→24、已实现
    19→21），main 逐字段回退、原子串行写；`main.tsx` 首帧前读取（1.5s 兜底）。新工作区从应用
@@ -199,6 +201,24 @@
 8. 残留：应用设置与 manifest 为两份快照；自动保存关闭时显式 action 仍 flush；设置写失败只在
    对话框提示；main 原生对话框仍英文；+30% 是 DOM 伪本地化。详见报告 §8 与 ADR-050
    “复核条件”。
+
+### 0.7 M5 验收演示结果（2026-10-29 执行，等待接受）
+
+1. 用例：`apps/desktop/e2e/m5-acceptance.spec.ts` 1 条、**20.2s**、三次启动 + 一次
+   `taskkill /F /T`。报告 `docs/reports/m5/REPORT.md` + 7 张截图 + `m5-metrics.json`。
+2. 结果：2 表 3 视图（复制视图）→ 水平分栏 2 pane → 移动标签（pane0 Sensors+Readings，
+   pane1 Sensors (2)）；5 次编辑（间隔 >800ms）后历史深度 3→8，撤销 5 次回 3/值 5，重做 5 次
+   回 8/值 105；提交 200 落盘后编辑 999 强杀 → 恢复提示“最后 1.5 秒”；尝试恢复后 2 pane/3 标签
+   与 200 保留、999 丢弃；关闭后最近列表重开无提示；设置 en-US/dark 后重启全部还原。
+3. 指标：`baseDepth=3`、`editDepth=8`、`redoDepth=0`、`recoveredValue=200`、
+   `recentEntries=1`、`finalPanes=2`、`finalTabs=3`、`manifestTables=2`、`manifestViews=3`。
+4. 全量 E2E **104 passed**（6.2m，含 M5 1 条 20.2s；chart-perf private **503MB**）。
+   `pnpm verify` **179 files / 1682 tests**；depcruise 492/2118；`pnpm build` exit 0
+   （renderer 3,365.14 kB、CSS 77.89 kB）；`pnpm bench` exit 0。
+5. 证据：`docs/reports/m5/m5-01-two-panes.png`、`m5-02-history.png`、`m5-03-before-kill.png`、
+   `m5-04-recovery.png`、`m5-05-restored-layout.png`、`m5-06-english-dark.png`、
+   `m5-07-restart-restored.png`。`m0` 截图已还原。
+6. **停点**：等待用户确认接受 M5。确认前不进入 M6；确认后下一步 T6.1（插件 SDK 与注册表）。
 
 ---
 
@@ -237,11 +257,12 @@
 | `T5.3` 自动保存、恢复与最近打开 | **已完成**（2026-10-28，`02e30a8`）；报告 `docs/reports/t5.3/REPORT.md`；ADR-048；5 张截图 |
 | `T5.4` 快捷键与命令面板 | **已完成**（2026-10-28，`fb53d9b`）；报告 `docs/reports/t5.4/REPORT.md`；ADR-049；3 张截图 |
 | `T5.5` 设置与国际化 | **已完成**（2026-10-29，`f80acaa`）；报告 `docs/reports/t5.5/REPORT.md`；ADR-050；4 张截图 |
-| 当前里程碑 | **M5 体验**：T5.1、T5.2、T5.3、T5.4、T5.5 全部完成；下一步执行 M5 验收演示 |
-| 下一步 | **M5 验收演示**（TASKS 的 M5；报告 `docs/reports/m5/REPORT.md`，完成后停下等用户确认） |
-| `pnpm verify` 基线 | **179 files / 1682 tests**；ESLint 0；depcruise 492 modules / 2118 deps / 0 violations |
+| M5 验收演示 | **已执行并通过**（2026-10-29）；`e2e/m5-acceptance.spec.ts` + `docs/reports/m5/REPORT.md`（7 张截图 + metrics）；**等待用户确认接受** |
+| 当前里程碑 | **M5 体验**：T5.1–T5.5 与验收演示全部完成；等待用户确认接受 M5 |
+| 下一步 | 用户确认后进入 **M6**，领取 `T6.1`（插件 SDK 与注册表）；确认前不开始 |
+| `pnpm verify` 基线 | **179 files / 1682 tests**；ESLint 0；depcruise 493 modules / 2126 deps / 0 violations |
 | `pnpm test:coverage` 基线 | 全局 statements **76.86%** / branches **69.64%** / functions **75.55%** / lines **77.01%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **103 passed**；settings 4 条 3.6s/4.9s/3.4s/1.6s；autosave/recovery/layout/undo/palette/chart-perf 全过；chart-perf 100k 切换 private **507MB**（≤600MB） |
+| `pnpm e2e` 基线 | **104 passed**（6.2m；含 M5 1 条 20.2s、settings 4 条、autosave/recovery/layout/undo/palette/chart-perf）；chart-perf 100k 切换 private **503MB**（≤600MB） |
 | `pnpm bench` 基线 | **exit 0**；table.open 301ms/3s、table.save 277ms/500ms、edit 0ms/50ms、query 199ms/400ms、text-sort 276ms/400ms、cjk-sort 448ms/800ms、import 620ms/8s、condition 0ms/16ms；chart.resolve-sample P95 **69ms**/300ms、chart.sample 3ms/50ms、chart.option.2k 1ms/50ms、chart.restyle.100k 0ms/20ms；memoryPeakMB 705（Node 趋势，非应用门禁） |
 | `pnpm format:check` | 通过（提交前对新增文件跑过 Prettier） |
 | 构建 | `pnpm build` exit 0；renderer **3,365.14 kB** + 懒加载 ImportSession 42.82 kB；CSS **77.89 kB**；table/query/import worker 220.68/236.16/270.16 kB（T6.4 评估拆包） |
@@ -251,9 +272,9 @@
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **M1/M2/M3/M4 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6、M4 验收演示、T5.1、
-  T5.2、T5.3、T5.4 与 T5.5 已完成**；下一步是 **M5 验收演示**。
-- 不得跨里程碑；M4 已验收关闭，M5 在演示报告后停下等待用户确认，不要自动进入 M6。
+- **M1/M2/M3/M4 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6、M4 验收演示、T5.1–
+  T5.5 与 M5 验收演示已完成**；下一步等待用户确认接受 M5，确认后进入 M6。
+- 不得跨里程碑；M4 已验收关闭，M5 演示已执行并停下等待用户确认，不要自动进入 M6。
 
 ---
 
@@ -262,15 +283,14 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md、docs/TASKS.md 的 M5 验收演示、docs/SPEC.md §12/§13.3/§16.3–§16.4、
-docs/reports/t5.5/REPORT.md 与 ADR-050。
+先读 AGENTS.md、docs/HANDOFF.md（尤其 §0.3/§0.7）、docs/TASKS.md 的 M5/M6、
+docs/reports/m5/REPORT.md、docs/SPEC.md §14、ADR-050/048。
 
-现状：M0、M1（已验收）、M2（已验收）、M3（已验收）、M4（已验收）、T1.1–T4.6、T5.1–T5.5
-已完成；pnpm verify 179 files / 1682 tests、pnpm e2e 103 passed、pnpm bench exit 0。
+现状：M0、M1–M4（均已验收）、T1.1–T4.6、T5.1–T5.5 与 M5 验收演示已完成；
+pnpm verify 179 files / 1682 tests、pnpm e2e 104 passed、pnpm bench exit 0。
 
-下一步：执行 M5 验收演示（2 表 3 视图分 2 pane → 撤销/重做 5 步 → 强杀恢复 → 最近打开 →
-切英文/深色 → 重启全部还原），写 e2e/m5-acceptance.spec.ts 与 docs/reports/m5/REPORT.md；
-输出报告后停下等待用户确认，不要自动进入 M6。
+下一步：M5 演示已执行，等待用户确认接受 M5。确认前不要开始 M6；确认后领取 T6.1
+（插件 SDK 与注册表），一次只推进一个任务。
 ```
 
 ---
@@ -642,6 +662,13 @@ T4.6 又在根 `package.json` 的 devDependencies 增加了 `@curve/chart-echart
 - T5.5 修改了 `ipc.spec.ts` 的 bridge 白名单：`appMethods` 现在是
   `info, settings, updateSettings, onQuitRequested, respondToQuit`（插入顺序）；新增 bridge
   方法时同步该数组与 preload `api.test.ts`。
+- M5 验收演示是 `apps/desktop/e2e/m5-acceptance.spec.ts` 1 条（20.2s，三次
+  `launchCurveApp` + 一次 `taskkill /F /T`）：seed 2 表后，复制视图/水平分栏/移动标签、
+  5 次编辑 + 撤销/重做、提交 200 后强杀、尝试恢复、关闭后最近列表重开、英文/深色、重启还原。
+  多 pane 下编辑单元格必须先 `locator.focus()` 再按 F2（pane 聚焦会重建网格子树）；不要把它
+  改回单 pane 的 `editCell` helper。
+- M5 证据在 `docs/reports/m5/`（7 张 PNG + `m5-metrics.json`）；`m5-metrics.json` 的
+  `baseDepth=3`（复制视图+分栏+移动）、`editDepth=8`、`recoveredValue=200` 是重跑时的对照值。
 
 ---
 
@@ -3008,7 +3035,7 @@ T5.3、T5.4 已完成，下一步 T5.5。
 - 不删除 `ui-conventions.test.ts` 的属性文案门禁；新增用户可见属性时同步扩展白名单而不是
   放宽整条规则。
 - 不自动跨任务/跨里程碑；M3、M4 均已验收并关闭，M4 的 T4.1–T4.6 与验收演示已完成，
-  T5.1–T5.5 已完成；**下一步是 M5 验收演示**，报告后停下等用户确认，不要自动进入 M6。
+  T5.1–T5.5 与 M5 验收演示已完成；**等待用户确认接受 M5**，确认前不要进入 M6。
 
 ---
 
@@ -3021,13 +3048,13 @@ T5.3、T5.4 已完成，下一步 T5.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
 - [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t5.5/REPORT.md`、`docs/TASKS.md` 的 M5、
       `docs/SPEC.md` §12/§13.3/§16.3/§16.4、ADR-050/048/047。
-- [ ] 已确认 `pnpm verify` 基线（**179 files / 1682 tests**）、`pnpm e2e` **103 passed**、
-      `pnpm bench` exit 0；T5.5 settings 4 条 3.6s/4.9s/3.4s/1.6s；chart-perf 100k 切换 private
-      **507MB**（≤600MB）。
+- [ ] 已确认 `pnpm verify` 基线（**179 files / 1682 tests**）、`pnpm e2e` **104 passed**、
+      `pnpm bench` exit 0；M5 demo 1 条 20.2s；settings 4 条 3.9s/5.0s/3.6s/1.7s；chart-perf
+      100k 切换 private **503MB**（≤600MB）。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M1/M2/M3/M4 均已获用户接受、T3.1–T3.6、T4.1–T4.6、M4 验收演示、T5.1–T5.5
-      已完成；**下一步是 M5 验收演示**，不是新任务。
+- [ ] 已确认 M1/M2/M3/M4 均已获用户接受、T3.1–T3.6、T4.1–T4.6、M4 验收演示、T5.1–T5.5 与
+      **M5 验收演示**已完成；**等待用户确认接受 M5**；确认前不要领取 M6。
 - [ ] 已确认 T5.1 契约：`LayoutView` 递归渲染、`ui.activePanePath` UI-only、分栏=原 pane+空
       pane、最多 4 pane、移动标签到下一分栏、关闭最后标签折叠 pane、空 pane 才可关分栏、
       500ms 布局去抖（`flushSaves`/关闭/Ctrl+S 冲掉）、`view.layout` 可选 `activePanePath`、
@@ -3082,10 +3109,11 @@ T5.3、T5.4 已完成，下一步 T5.5。
 - [ ] 已确认 renderer 主 chunk 为 **3,365.14 kB**（ECharts + 分栏 + 撤销 + 自动保存/恢复 +
       快捷键/面板 + 设置）、CSS **77.89 kB**；T6.4 评估拆包，M4/T5.1–T5.5 不改图表层架构或重建实例。
 - [ ] 跑全量 E2E 前已确认没有外部程序占满 CPU（§3.3/§7）；perf 内存门禁 600MB，T5.5 后
-      100k 图表切换实测 **507MB**，但仍需独占运行、不放宽断言。
+      100k 图表切换实测 **503MB**，但仍需独占运行、不放宽断言。
 - [ ] M4 验收演示已按 TESTPLAN E6 执行（`e2e/m4-acceptance.spec.ts`，独占 CPU），报告
       `docs/reports/m4/REPORT.md` 与截图已提交；**M4 已于 2026-10-27 获用户接受并关闭**。
 - [ ] T5.1–T5.5 已完成（报告 `docs/reports/t5.1|t5.2|t5.3|t5.4|t5.5/REPORT.md`，
       ADR-046/047/048/049/050，`e2e/layout.spec.ts` 3 条、`undo.spec.ts` 3 条、autosave 4 条、
-      recovery 4 条、palette 3 条、settings 4 条）；**下一动作 M5 验收演示**，不要把 M5 未完成的
-      演示当成已验收。
+      recovery 4 条、palette 3 条、settings 4 条）；**M5 验收演示已执行**
+      （`e2e/m5-acceptance.spec.ts` 1 条、`docs/reports/m5/REPORT.md`、7 张截图），
+      **等待用户确认接受 M5**；确认前不要开始 M6。

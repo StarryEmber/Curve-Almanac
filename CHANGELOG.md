@@ -696,3 +696,8 @@
   save 277ms/500ms、query 199ms/400ms、text-sort 276ms/400ms、cjk-sort 448ms/800ms、
   import 620ms/8s、condition 0ms/16ms、chart.resolve-sample 69ms/300ms）。不新增运行时依赖，
   不改 `formatVersion`/JSONL/CSV/PNG/CSP。
+- M5 验收演示：新增 `apps/desktop/e2e/m5-acceptance.spec.ts` 1 条（约 20s，三次启动 + 一次
+  `taskkill /F /T`），覆盖 2 表 3 视图 → 复制视图/水平分栏/移动标签 → 5 次编辑 + 撤销/重做 5 步
+  → 提交 200 后强杀恢复（999 丢弃、200 保留）→ 最近列表重开 → 英文/深色 → 重启全部还原。
+  报告 `docs/reports/m5/REPORT.md`（7 张截图 + `m5-metrics.json`）；全量 E2E **104 passed**
+  （6.2m，M5 1 条 20.2s）。等待用户确认接受 M5，未进入 M6。
