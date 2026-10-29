@@ -1616,11 +1616,24 @@ export interface RenderModel {
 
 ```ts
 // packages/plugin-sdk/src/index.ts
+export type ContributionSource =
+  | { readonly kind: 'builtin' }
+  | { readonly kind: 'plugin'; readonly pluginId: string };
+
+export interface RegistryEntry<T> {
+  readonly id: string;
+  readonly def: T;
+  /** T6.1/ADR-052: who registered the contribution (builtin or a plugin). */
+  readonly source: ContributionSource;
+}
+
 export interface Registry<T> {
   register(id: string, def: T): () => void;
   replace(id: string, def: T): void;
   get(id: string): T | undefined;
-  list(): ReadonlyArray<{ id: string; def: T }>;
+  list(): ReadonlyArray<RegistryEntry<T>>;
+  /** T6.1/ADR-052: synchronous notification after every mutation. */
+  subscribe(listener: (entries: ReadonlyArray<RegistryEntry<T>>) => void): () => void;
   dispose(): void;
 }
 
@@ -1667,6 +1680,17 @@ export interface ImporterDef {
   parse(input: ImportInput, signal: AbortSignal): Promise<ImportResult>;
 }
 
+export type ImportCellValue = string | number | boolean | null;
+export type ImportColumnType = 'text' | 'number' | 'date' | 'boolean';
+
+/** T6.1/ADR-052: structurally compatible with table-engine's ImportDataset. */
+export interface ImportResult {
+  headers: string[];
+  rows: ImportCellValue[][];
+  columns?: { name: string; type: ImportColumnType }[];
+  warnings?: string[];
+}
+
 export interface ImportInput {
   fileName: string;
   text: string;
@@ -1694,12 +1718,15 @@ export interface PluginCommandContext {
 
 ### 14.3 注册表语义
 
-- 字段类型额外约束：`storageType` 必须是 5 种内置存储类型之一；`ColumnDef.fieldTypeId` 必须与 `column.type` 匹配。语义类型只改变解析、校验与格式化，不改变 JSONL 物理形态。
-- `register(id, def)`：重复 id 抛错；`replace(id, def)` 仅允许同插件覆盖自己。
-- `list()` 返回稳定顺序：内置在前，插件按注册顺序。
-- `dispose`：插件 `deactivate` 后移除其全部贡献；移除后 UI 不得残留引用。
+- 字段类型额外约束：`storageType` 必须是 5 种内置存储类型之一；`ColumnDef.fieldTypeId` 必须与 `column.type` 匹配。语义类型只改变解析、校验与格式化，不改变 JSONL 物理形态。注册表在登记时校验 `storageType` 与必需函数（T6.1，ADR-052）。
+- `register(id, def)`：任何已存在的 id（包括调用者自己的）抛 `E_PLUGIN_INVALID`；返回只移除该条贡献的 disposer。
+- `replace(id, def)`：目标必须存在，且贡献者必须是调用者自己（内置只能由宿主替换）；跨插件或替换内置抛 `E_PLUGIN_INVALID`。
+- `list()` 返回稳定顺序：内置在前，插件按注册顺序；`replace` 保持原位置。每项含 `source`（`builtin` 或 `pluginId`），供 UI 标注来源与报错。
+- `subscribe(listener)`：每次变更后同步通知，参数为当前 `list()` 快照；返回幂等的取消订阅函数。监听器异常被隔离，不影响注册与其他监听器。
+- `dispose`：宿主视图清空全部贡献并关闭注册表（之后 `register/replace` 抛 `E_PLUGIN_INVALID`）；插件视图只移除该插件自己的贡献。插件 `deactivate` 后移除其全部贡献，UI 不得残留引用。
 - 宿主校验 `apiVersion` 主版本 = 1；不兼容 → 禁用插件并提示，不影响其他插件。
-- 注册表本身是纯数据 + 订阅，不依赖 React。
+- 单个插件 `activate` 抛错/拒绝时，宿主回滚该插件已注册的贡献并标记禁用（`E_PLUGIN_ACTIVATE`），继续激活其他插件；插件 id 重复/定义非法为 `E_PLUGIN_INVALID`。禁用列表在 T6.1 只存在于宿主内存并写日志，不持久化（手动禁用/持久化见 T6.3）。
+- 注册表本身是纯数据 + 订阅，不依赖 React；`@curve/plugin-sdk` 只依赖 `@curve/domain`。
 
 ### 14.4 内置贡献点
 

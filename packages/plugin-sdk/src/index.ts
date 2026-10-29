@@ -1,9 +1,13 @@
 /**
- * @curve/plugin-sdk — plugin manifest, contribution registries and host API types.
+ * @curve/plugin-sdk — plugin contract, contribution registries and host.
  *
- * Dependency rule (SPEC §4.2): may import @curve/domain types only.
- * Plugins import this package; they must never reach into app internals.
- *
- * Placeholder export created in T0.1; the real public API lands in T6.1.
+ * SPEC §14.2/§14.3 define the public surface; ADR-052 records the T6.1
+ * additions (`subscribe`, contribution `source`) and the host activator.
+ * Plugins import this package (and `@curve/domain` types) only; they must never
+ * reach into app internals (SPEC §4.3.6).
  */
+
 export const PACKAGE_NAME = '@curve/plugin-sdk' as const;
+
+export { PLUGIN_API_VERSION, createPluginHost, isCompatibleApiVersion } from './host';
+export type * from './types';

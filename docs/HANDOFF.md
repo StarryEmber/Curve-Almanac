@@ -2,38 +2,40 @@
 
 > 本文件面向**下一个实现会话**。**M5 已于 2026-10-29 获用户接受并关闭**（T5.1–T5.5、
 > `docs/reports/m5/REPORT.md`、ADR-046–050）。**M6 已开始：`T6.0`（品牌更名
-> Curve Studio → Curve Almanac）已完成**（`docs/reports/t6.0/REPORT.md`、ADR-051）；
-> `T6.1`（插件 SDK 与注册表）–`T6.5` 尚未开始，**不要自动领取**：等用户明确指示后再开始 `T6.1`。
+> Curve Studio → Curve Almanac）与 `T6.1`（插件 SDK 与注册表）已完成**
+> （`docs/reports/t6.0/REPORT.md`、`docs/reports/t6.1/REPORT.md`；ADR-051、ADR-052）；
+> `T6.2`（示例插件）–`T6.5` 尚未开始，**不要自动领取**：等用户明确指示后再开始 `T6.2`。
 > 最后更新：2026-10-29 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
 > T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
 > T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告 **`50f7ea9`**
 > （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
-> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.8）→ `docs/reports/m5/REPORT.md` →
-> `docs/reports/t6.0/REPORT.md` → `docs/TASKS.md` 的 M5/M6 → `docs/SPEC.md` → ADR-051/050/048。
+> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.9）→ `docs/reports/m5/REPORT.md` →
+> `docs/reports/t6.0/REPORT.md` → `docs/reports/t6.1/REPORT.md` → `docs/TASKS.md` 的 M5/M6 →
+> `docs/SPEC.md` → ADR-052/051/050/048。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
 - **当前状态**：M1–M5 均已获用户接受；`T3.1`–`T3.6`、`T4.1`–`T4.6`、`T5.1`–`T5.5`、M5 验收
-  演示与 **`T6.0`（品牌更名 Curve Almanac）**均已完成；**M5 已于 2026-10-29 关闭**；M6 的
-  `T6.1`–`T6.5` 尚未开始。
-- **本次交付**：T6.0 品牌更名——`APP_NAME` 单一来源、`productName`/窗口标题/标题栏/关于菜单/
-  文案、新建默认父目录 `Documents/Curve Almanac`、ADR-051、报告
-  `docs/reports/t6.0/REPORT.md` + 1 张截图；未改 `formatVersion`/JSONL/IPC/依赖。
-- **基线**：`pnpm verify` **180 files / 1685 tests**（ESLint 0；depcruise 494 modules /
-  2138 deps / 0 violations）；coverage 全局 lines **77.01%**（statements 76.86% / branches
-  69.65% / functions 75.55%）；`pnpm build` exit 0（renderer **3,365.92 kB**、CSS 77.89 kB）；
-  `pnpm e2e` **104 passed**（6.2m；T6.0 只重跑定向 11 条）；`pnpm bench` exit 0。
+  演示与 **`T6.0`（品牌更名 Curve Almanac）**、**`T6.1`（插件 SDK 与注册表）**均已完成；
+  **M5 已于 2026-10-29 关闭**；M6 的 `T6.2`–`T6.5` 尚未开始。
+- **本次交付**：T6.1 插件 SDK——`Registry<T>`（`subscribe` + 带 `source` 的 `list`）、四类贡献
+  注册表、`createPluginHost`（版本校验/错误隔离/回滚/禁用列表/deactivate）、`ImportResult`；
+  ADR-052、报告 `docs/reports/t6.1/REPORT.md`；未接 UI/命令总线（T6.3）。
+- **基线**：`pnpm verify` **182 files / 1710 tests**（ESLint 0；depcruise 500 modules /
+  2156 deps / 0 violations）；coverage 全局 lines **77.24%**（statements 77.08% / branches
+  69.85% / functions 75.93%）；`pnpm build` exit 0（renderer **3,365.92 kB**、CSS 77.89 kB）；
+  `pnpm e2e` **104 passed**（6.2m；T6.0 只重跑定向 11 条，T6.1 无 UI 变更）；`pnpm bench` exit 0。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑；强杀后不得静默丢数据。
-- **停点**：T6.0 已完成；**M6 其余任务（T6.1–T6.5）未开始**。不要自动领取 `T6.1`；等用户明确
-  指示后再开始。
+- **停点**：T6.0/T6.1 已完成；**M6 其余任务（T6.2–T6.5）未开始**。不要自动领取 `T6.2`；等用户
+  明确指示后再开始。
 - **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`）；读
-  `docs/reports/t6.0/REPORT.md`、`docs/reports/m5/REPORT.md`、ADR-051/050/048、TASKS 的 M6；
-  收到“开始 M6”后按 §0.3 领取 `T6.1`。
+  `docs/reports/t6.1/REPORT.md`、`docs/reports/t6.0/REPORT.md`、ADR-052/051/050/048、TASKS 的
+  M6；收到“开始 M6”后按 §0.3 领取 `T6.2`。
 - **M5 完成结果**：2 表 3 视图 → 复制视图/水平分栏/移动标签 → 5 次编辑 + 撤销/重做 5 步 →
   提交 200 后强杀（999 丢弃、200 保留）→ 尝试恢复 → 关闭后从最近列表重开 → 英文 + 深色 →
   重启后 2 pane / 3 标签 / Readings 活动 / 值 200 全部还原。截图在 `docs/reports/m5/`。
@@ -41,6 +43,10 @@
   `productName`/窗口标题/`<title>`/`app.name`/关于菜单/文案；新建默认父目录
   `Documents/Curve Almanac`；userData 改为 `%APPDATA%/Curve Almanac`（v1 未发布，不做迁移）；
   品牌一致性测试 2 条 + i18n 旧名断言 1 条；截图 `docs/reports/t6.0/t6.0-window.png`。
+- **T6.1 完成结果**：`@curve/plugin-sdk` 的公开契约与宿主——`Registry<T>`（`subscribe`、带
+  `source` 的 `list`、owner 化 `replace`）、四类注册表、`createPluginHost`（版本主版本校验、
+  定义/贡献校验、激活失败回滚 + `disabled`、deactivate、内存禁用列表）、`ImportResult`；
+  26 条单测（registry 10 + host 15 + 骨架 1）；报告 `docs/reports/t6.1/REPORT.md`。
 - **T5.1 完成结果**：2 表 3 视图 → 水平分栏 → 移动标签 → 比例 0.35 → 垂直/4 pane → 关闭空
   pane → 重启恢复；非法 layout（缺失引用/ratio 0.1）回退单 pane 且视图不丢；标签 Arrow/
   Ctrl+W 与 200% 缩放通过；截图在 `docs/reports/t5.1/`。
@@ -60,7 +66,10 @@
   保留 `.lock`、`workspace:inspect` 只读、`recentRemove`/`recentClear` 名称；T5.4 的
   `APP_COMMANDS` 快捷键表/作用域、`KeymapConflictError`、`data-command-id`/
   `data-command-recent`、面板只在打开时挂载与 AppShell 不订阅 store 的性能约束；T6.0 的
-  `APP_NAME` 单一来源与 `productName`/`<title>`/`app.name` 一致性测试（再改名前先看 ADR-051）。
+  `APP_NAME` 单一来源与 `productName`/`<title>`/`app.name` 一致性测试（再改名前先看 ADR-051）；
+  T6.1 的 `Registry` 语义（`subscribe` 同步快照、`source`、插件只能 `replace` 自己的贡献、
+  宿主 `dispose` 关闭/插件 `dispose` 只清自己）、`isCompatibleApiVersion` 主版本规则、
+  `createPluginHost` 的错误隔离与 `E_PLUGIN_*` code（不要改成抛错中断整批插件）。
 
 ### 0.1 T5.1 结果（2026-10-27 完成）
 
@@ -98,17 +107,18 @@
    redo 留孤儿文件；`table.meta.update` 菜单文案不区分重命名/换主键；原生 Electron Edit 菜单
    仍未与历史同步。详见报告 §8 与 ADR-047“复核条件”。
 
-### 0.3 下一会话行动清单（M6 剩余任务启动前；T6.0 已完成）
+### 0.3 下一会话行动清单（M6 剩余任务启动前；T6.0/T6.1 已完成）
 
-> 前提：T5.1–T5.5、M5 验收演示与 **T6.0 品牌更名**均已完成，**M5 已于 2026-10-29 获用户接受
-> 并关闭**。**M6 的 `T6.1`–`T6.5` 尚未开始；不要自动领取任何 M6 任务。**
+> 前提：T5.1–T5.5、M5 验收演示、**T6.0 品牌更名**与 **T6.1 插件 SDK/注册表**均已完成，
+> **M5 已于 2026-10-29 获用户接受并关闭**。**M6 的 `T6.2`–`T6.5` 尚未开始；不要自动领取任何
+> M6 任务。**
 
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
-   180 files / 1685 tests、`pnpm e2e` 104 passed、`pnpm bench` exit 0；读 TASKS 的 M5 验收记录、
-   报告 `docs/reports/m5/REPORT.md`、`docs/reports/t6.0/REPORT.md` 与 §0.7/§0.8。
-2. 只有收到用户明确的“开始 M6”指令后，才领取 TASKS 的 `T6.1`（插件 SDK 与注册表）；先读
-   SPEC §14、ADR-010（插件静态加载）、ADR-013（i18n）、ADR-051（品牌标识，不随任务改变）与
-   TASKS 的 M6 顺序。
+   182 files / 1710 tests、`pnpm e2e` 104 passed、`pnpm bench` exit 0；读 TASKS 的 M5 验收记录、
+   报告 `docs/reports/m5/REPORT.md`、`docs/reports/t6.0/REPORT.md`、`docs/reports/t6.1/REPORT.md`
+   与 §0.7–§0.9。
+2. 只有收到用户明确的“开始 M6”指令后，才领取 TASKS 的 `T6.2`（示例插件）；先读 SPEC §14.2、
+   ADR-010（插件静态加载）、ADR-015（存储类型）、ADR-052（注册表/宿主语义）与 TASKS 的 M6 顺序。
 3. 若用户要求重跑 M5 演示：独占 CPU 执行
    `pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/m5-acceptance.spec.ts`，
    截图/指标会重写到 `test-results/`，复制回 `docs/reports/m5/`，`m0` 截图提交前还原。
@@ -222,8 +232,8 @@
 5. 证据：`docs/reports/m5/m5-01-two-panes.png`、`m5-02-history.png`、`m5-03-before-kill.png`、
    `m5-04-recovery.png`、`m5-05-restored-layout.png`、`m5-06-english-dark.png`、
    `m5-07-restart-restored.png`。`m0` 截图已还原。
-6. **验收**：用户于 2026-10-29 接受 M5；**M5 已关闭**。M6 的 `T6.1`–`T6.5` 尚未开始；收到
-   用户“开始 M6”的明确指示后，下一步才是 `T6.1`（插件 SDK 与注册表）。
+6. **验收**：用户于 2026-10-29 接受 M5；**M5 已关闭**。M6 后续进展见 §0.8（T6.0）与
+   §0.9（T6.1）。
 
 ### 0.8 T6.0 结果（2026-10-29 完成）
 
@@ -243,6 +253,25 @@
    `git log -1 -- docs/HANDOFF.md`）。
 6. 残留：userData 偏好一次性重置；旧默认目录不再预填；main 原生对话框仍英文；`appId` 只在
    文档/T6.4 计划中更新。详见报告 §5 与 ADR-051“复核条件”。
+
+### 0.9 T6.1 结果（2026-10-29 完成）
+
+1. 交付：`packages/plugin-sdk/src/{types,registry,host,logging}.ts`；`index.ts` 只导出
+   `PLUGIN_API_VERSION`、`createPluginHost`、`isCompatibleApiVersion` 与公开类型。
+   `Registry<T>` 增加 `subscribe` 与带 `source` 的 `list`；插件视图绑定自身 id；宿主激活器
+   做版本/定义/贡献校验、失败回滚、禁用列表与 deactivate。ADR-052、报告
+   `docs/reports/t6.1/REPORT.md`。
+2. 实测：`pnpm exec vitest run packages/plugin-sdk` **3 files / 26 tests**；`pnpm verify`
+   **182 files / 1710 tests**；depcruise 500 modules / 2156 deps / 0 violations；coverage
+   statements 77.08% / branches 69.85% / functions 75.93% / lines 77.24%（plugin-sdk lines
+   87.96%）；`pnpm build` exit 0（renderer 3,365.92 kB 不变）。
+3. **不要回退**：`subscribe` 同步快照 + 监听器异常隔离；`source`/owner 规则；插件只能替换自己
+   的贡献；宿主 `dispose` 关闭注册表、插件 `dispose` 只清自己；`E_PLUGIN_*` 语义；禁用列表
+   仅内存。
+4. 提交：`feat(plugin): add plugin SDK registries and host (T6.1)`（hash 见
+   `git log -1 -- docs/HANDOFF.md`）。
+5. 残留：未接 UI/命令总线（T6.3）；禁用列表不持久化；`ImportResult` 与 table-engine 的
+   `ImportDataset` 仅结构兼容；`lib` 增加 DOM 仅为 `AbortSignal`。详见报告 §5 与 ADR-052。
 
 ---
 
@@ -283,11 +312,12 @@
 | `T5.5` 设置与国际化 | **已完成**（2026-10-29，`f80acaa`）；报告 `docs/reports/t5.5/REPORT.md`；ADR-050；4 张截图 |
 | M5 验收演示 | **已获用户接受并关闭**（2026-10-29）；`e2e/m5-acceptance.spec.ts` + `docs/reports/m5/REPORT.md`（7 张截图 + metrics） |
 | `T6.0` 品牌更名 | **已完成**（2026-10-29）；`docs/reports/t6.0/REPORT.md`；ADR-051；默认目录 `Documents/Curve Almanac` |
-| 当前里程碑 | **M6 扩展与发布**：`T6.0` 已完成；`T6.1`–`T6.5` 尚未开始 |
-| 下一步 | 等用户明确指示后领取 **`T6.1`**（插件 SDK 与注册表）；**不要自动开始** |
-| `pnpm verify` 基线 | **180 files / 1685 tests**；ESLint 0；depcruise 494 modules / 2138 deps / 0 violations |
-| `pnpm test:coverage` 基线 | 全局 statements **76.86%** / branches **69.65%** / functions **75.55%** / lines **77.01%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **104 passed**（6.2m；T6.0 只重跑定向 smoke/shell **11 passed**）；chart-perf 100k 切换 private **503MB**（≤600MB） |
+| `T6.1` 插件 SDK 与注册表 | **已完成**（2026-10-29）；`docs/reports/t6.1/REPORT.md`；ADR-052；`packages/plugin-sdk` 26 条单测 |
+| 当前里程碑 | **M6 扩展与发布**：`T6.0`/`T6.1` 已完成；`T6.2`–`T6.5` 尚未开始 |
+| 下一步 | 等用户明确指示后领取 **`T6.2`**（示例插件）；**不要自动开始** |
+| `pnpm verify` 基线 | **182 files / 1710 tests**；ESLint 0；depcruise 500 modules / 2156 deps / 0 violations |
+| `pnpm test:coverage` 基线 | 全局 statements **77.08%** / branches **69.85%** / functions **75.93%** / lines **77.24%**；`plugin-sdk/src` lines **87.96%**；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **104 passed**（6.2m；T6.0 只重跑定向 smoke/shell **11 passed**，T6.1 无 UI 变更未跑）；chart-perf 100k 切换 private **503MB**（≤600MB） |
 | `pnpm bench` 基线 | **exit 0**；table.open 301ms/3s、table.save 277ms/500ms、edit 0ms/50ms、query 199ms/400ms、text-sort 276ms/400ms、cjk-sort 448ms/800ms、import 620ms/8s、condition 0ms/16ms；chart.resolve-sample P95 **69ms**/300ms、chart.sample 3ms/50ms、chart.option.2k 1ms/50ms、chart.restyle.100k 0ms/20ms；memoryPeakMB 705（Node 趋势，非应用门禁） |
 | `pnpm format:check` | 通过（提交前对新增文件跑过 Prettier） |
 | 构建 | `pnpm build` exit 0；renderer **3,365.92 kB** + 懒加载 ImportSession 42.82 kB；CSS **77.89 kB**；table/query/import worker 220.68/236.16/270.16 kB（T6.4 评估拆包） |
@@ -298,8 +328,9 @@
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
 - **M1/M2/M3/M4/M5 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6、M4 验收演示、
-  T5.1–T5.5、M5 验收演示与 T6.0 品牌更名已完成**；M5 已关闭，M6 的 `T6.1`–`T6.5` 未开始。
-- 不得跨任务/里程碑；**`T6.1` 必须等用户明确指示后再开始**，不要自动领取 M6 任务。
+  T5.1–T5.5、M5 验收演示、T6.0 品牌更名与 T6.1 插件 SDK/注册表已完成**；M5 已关闭，M6 的
+  `T6.2`–`T6.5` 未开始。
+- 不得跨任务/里程碑；**`T6.2` 必须等用户明确指示后再开始**，不要自动领取 M6 任务。
 
 ---
 
@@ -308,14 +339,15 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md（尤其 §0.3/§0.8）、docs/TASKS.md 的 M5/M6、
-docs/reports/m5/REPORT.md、docs/reports/t6.0/REPORT.md、docs/SPEC.md §14、ADR-051/050/048。
+先读 AGENTS.md、docs/HANDOFF.md（尤其 §0.3/§0.9）、docs/TASKS.md 的 M5/M6、
+docs/reports/m5/REPORT.md、docs/reports/t6.0/REPORT.md、docs/reports/t6.1/REPORT.md、
+docs/SPEC.md §14、ADR-052/051/050/048。
 
-现状：M0–M5（均已验收）、T1.1–T4.6、T5.1–T5.5、M5 验收演示与 T6.0 品牌更名（Curve Almanac）
-已完成；M5 已于 2026-10-29 关闭；M6 的 T6.1–T6.5 未开始。
-pnpm verify 180 files / 1685 tests、pnpm e2e 104 passed（T6.0 定向 11 条）、pnpm bench exit 0。
+现状：M0–M5（均已验收）、T1.1–T4.6、T5.1–T5.5、M5 验收演示、T6.0 品牌更名（Curve Almanac）与
+T6.1 插件 SDK/注册表已完成；M5 已于 2026-10-29 关闭；M6 的 T6.2–T6.5 未开始。
+pnpm verify 182 files / 1710 tests、pnpm e2e 104 passed（T6.0 定向 11 条）、pnpm bench exit 0。
 
-下一步：等待用户明确指示后再开始 M6 剩余任务（第一个是 T6.1，插件 SDK 与注册表）。
+下一步：等待用户明确指示后再开始 M6 剩余任务（第一个是 T6.2，示例插件）。
 不要自动领取 M6 任务，一次只推进一个任务。
 ```
 
@@ -3063,8 +3095,8 @@ T5.3、T5.4 已完成，下一步 T5.5。
 - 不把 `APP_NAME` 改回散落的字面量，也不要只改其中一处：`productName`、`<title>`、`app.name`
   由 `brand.test.ts`/`i18n.test.ts` 锁定；历史 ADR/报告中的旧名不要批量改写（ADR-051）。
 - 不自动跨任务/跨里程碑；M3、M4 均已验收并关闭，M4 的 T4.1–T4.6 与验收演示已完成，
-  T5.1–T5.5 与 M5 验收演示已完成；**M5 已获接受并关闭**，**T6.0 品牌更名已完成**，
-  M6 的 `T6.1`–`T6.5` 未开始。
+  T5.1–T5.5 与 M5 验收演示已完成；**M5 已获接受并关闭**，**T6.0 品牌更名与 T6.1 插件
+  SDK/注册表已完成**，M6 的 `T6.2`–`T6.5` 未开始。
 
 ---
 
@@ -3076,15 +3108,16 @@ T5.3、T5.4 已完成，下一步 T5.5。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
 - [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t5.5/REPORT.md`、`docs/reports/t6.0/REPORT.md`、
-      `docs/TASKS.md` 的 M5/M6、`docs/SPEC.md` §12/§13.3/§16.3/§16.4、ADR-051/050/048/047。
-- [ ] 已确认 `pnpm verify` 基线（**180 files / 1685 tests**）、`pnpm e2e` **104 passed**
-      （T6.0 定向 smoke/shell 11 条）、`pnpm bench` exit 0；M5 demo 1 条 20.2s；settings 4 条
-      3.9s/5.0s/3.6s/1.7s；chart-perf 100k 切换 private **503MB**（≤600MB）。
+      `docs/reports/t6.1/REPORT.md`、`docs/TASKS.md` 的 M5/M6、`docs/SPEC.md`
+      §12/§13.3/§14/§16.3/§16.4、ADR-052/051/050/048/047。
+- [ ] 已确认 `pnpm verify` 基线（**182 files / 1710 tests**）、`pnpm e2e` **104 passed**
+      （T6.0 定向 smoke/shell 11 条，T6.1 无 UI 变更）、`pnpm bench` exit 0；M5 demo 1 条 20.2s；
+      settings 4 条 3.9s/5.0s/3.6s/1.7s；chart-perf 100k 切换 private **503MB**（≤600MB）。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
 - [ ] 已确认 M1/M2/M3/M4/M5 均已获用户接受、T3.1–T3.6、T4.1–T4.6、M4 验收演示、T5.1–T5.5、
-      **M5 验收演示与 T6.0 品牌更名已完成**；**M5 已关闭，M6 的 T6.1–T6.5 未开始**，不要自动
-      领取 T6.1。
+      **M5 验收演示、T6.0 品牌更名与 T6.1 插件 SDK 已完成**；**M5 已关闭，M6 的 T6.2–T6.5
+      未开始**，不要自动领取 T6.2。
 - [ ] 已确认 T5.1 契约：`LayoutView` 递归渲染、`ui.activePanePath` UI-only、分栏=原 pane+空
       pane、最多 4 pane、移动标签到下一分栏、关闭最后标签折叠 pane、空 pane 才可关分栏、
       500ms 布局去抖（`flushSaves`/关闭/Ctrl+S 冲掉）、`view.layout` 可选 `activePanePath`、
@@ -3108,6 +3141,10 @@ T5.3、T5.4 已完成，下一步 T5.5。
       `SaveState.unsaved`/`'unsaved'`、`setAutosaveEnabled`、`closeWorkspace({ save:false })`、
       `UNSAVED_QUIT_TIMEOUT_MS`；`data-testid="settings-*"`/`open-settings`/未保存对话框名称；
       开发构建缺 key 抛错与属性文案门禁。不要把这些改回 localStorage/固定超时/静默丢弃。
+- [ ] 已确认 T6.1 契约：`Registry.subscribe` 同步快照 + 监听器异常隔离、`list()` 每项带
+      `source`、插件只能 `replace` 自己的贡献、宿主 `dispose` 关闭/插件 `dispose` 只清自己；
+      `createPluginHost` 的版本主版本校验、失败回滚 + `disabled`、`E_PLUGIN_*` code；禁用列表
+      仅内存；`pnpm exec vitest run packages/plugin-sdk` 26 条。
 - [ ] 已确认 E2E 新增 `apps/desktop/e2e/settings.spec.ts`（4 条）、`autosave.spec.ts`（4 条）、
       `recovery.spec.ts`（4 条）、`undo.spec.ts`（3 条）、`layout.spec.ts`（3 条）、
       `palette.spec.ts`（3 条）与 `m4-acceptance.spec.ts`（1 条）；截图在
@@ -3147,5 +3184,6 @@ T5.3、T5.4 已完成，下一步 T5.5。
       recovery 4 条、palette 3 条、settings 4 条）；**M5 验收演示已执行**
       （`e2e/m5-acceptance.spec.ts` 1 条、`docs/reports/m5/REPORT.md`、7 张截图），
       **M5 已获用户接受并关闭**；**T6.0 品牌更名已完成**（`docs/reports/t6.0/REPORT.md`、
-      ADR-051、`e2e/smoke|shell` 断言已更新）；**M6 的 T6.1–T6.5 未开始**，等用户明确指示后
-      再开始。
+      ADR-051、`e2e/smoke|shell` 断言已更新）；**T6.1 插件 SDK/注册表已完成**
+      （`docs/reports/t6.1/REPORT.md`、ADR-052、`packages/plugin-sdk` 26 条）；**M6 的
+      T6.2–T6.5 未开始**，等用户明确指示后再开始。

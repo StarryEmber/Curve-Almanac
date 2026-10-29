@@ -1702,8 +1702,9 @@ T6.2 + T2.5 + T3.2 → T6.3
 <a id="m6"></a>
 ## M6 扩展与发布
 
-> 状态（2026-10-29）：`T6.0`（品牌更名 Curve Almanac）已完成（ADR-051、
-> `docs/reports/t6.0/REPORT.md`）；`T6.1`–`T6.5` 尚未开始。
+> 状态（2026-10-29）：`T6.0`（品牌更名 Curve Almanac）与 `T6.1`（插件 SDK 与注册表）已完成
+> （ADR-051、ADR-052；报告 `docs/reports/t6.0/REPORT.md`、`docs/reports/t6.1/REPORT.md`）；
+> `T6.2`–`T6.5` 尚未开始。
 
 <a id="t60"></a>
 ### T6.0 品牌更名：Curve Almanac
@@ -1746,11 +1747,11 @@ T6.2 + T2.5 + T3.2 → T6.3
 
 <a id="t61"></a>
 ### T6.1 插件 SDK 与注册表
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T1.1
 - 覆盖：FR-EXT-01、FR-EXT-02、FR-EXT-04
 - 参考：SPEC §14
-- 决策（2026-10-29 用户确认，待实现）：
+- 决策（2026-10-29 用户确认，已实现）：
   - 注册表接口在 SPEC §14.2 的 `register/replace/get/list/dispose` 之外增加
     `subscribe(listener): () => void`（SPEC §14.3 已要求“纯数据 + 订阅”，§14.2 接口缺该方法）；
     按 §2.4 先写 **ADR-052** 并更新 SPEC §14.2，再实现。
@@ -1764,11 +1765,37 @@ T6.2 + T2.5 + T3.2 → T6.3
   2. `activatePlugin`：校验 apiVersion → activate → 记录贡献。
   3. 失败回滚已注册项，标记禁用。
 - 验收：
-  - [ ] 注册/列出/移除/重复 id 全部有测试。
-  - [ ] 插件激活抛错不影响内置功能。
-  - [ ] 不兼容版本被禁用并提示。
-  - [ ] `deactivate` 后 UI 无残留贡献。
+  - [x] 注册/列出/移除/重复 id 全部有测试。
+  - [x] 插件激活抛错不影响内置功能。
+  - [x] 不兼容版本被禁用并提示。
+  - [x] `deactivate` 后 UI 无残留贡献。
 - 验证：`pnpm exec vitest run packages/plugin-sdk`
+
+  实现备注（2026-10-29，ADR-052）：
+  - 结构：`packages/plugin-sdk/src/{types,registry,host,logging}.ts`；`index.ts` 只导出
+    `PLUGIN_API_VERSION`、`createPluginHost`、`isCompatibleApiVersion` 与公开类型，不导出
+    registry 内部实现。`tsconfig` 增加 `references: ../domain`，`lib` 增加 DOM 仅为
+    `AbortSignal` 类型（无 Node 全局/运行时依赖）。
+  - 注册表：`createRegistryState` 共享一份状态，宿主视图 owner 为 `builtin`，插件视图绑定
+    `pluginId`；`register` 重复 id（含自己的）抛 `E_PLUGIN_INVALID`，`replace` 只能覆盖同
+    owner，`list()` 内置在前、`replace` 保持位置、每项带 `source`；`subscribe` 同步发快照、
+    监听器异常隔离；宿主 `dispose` 关闭注册表，插件 `dispose` 只移除自己的贡献。
+  - 宿主：`activateAll/activate/deactivate/dispose/getPlugins/getDisabled`；`apiVersion` 主版本
+    必须为 1；定义非法/重复 id → `E_PLUGIN_INVALID`，版本不兼容 → `E_PLUGIN_INCOMPATIBLE`
+    （不调用 activate），activate 抛错 → 回滚并保留 AppError code（否则 `E_PLUGIN_ACTIVATE`）；
+    一个插件失败不阻断其他插件；deactivate hook 抛错仍移除贡献；禁用列表仅内存。
+  - 校验：字段类型在登记时校验 `storageType`（复用 domain 的 `builtinColumnTypeSchema`）、
+    必需函数与正 `defaultWidth`；导入器/图表类型/命令校验 label、函数与枚举值。
+  - 测试：`registry.test.ts` 10 条、`host.test.ts` 15 条 + 包骨架 1 条；覆盖注册/列出/移除/
+    重复 id、replace 归属、顺序、订阅/取消/异常隔离、dispose、版本、回滚、重复插件、非法定义、
+    字段校验、deactivate（含 hook 抛错）、dispose 后拒绝。
+  - 实测：`pnpm exec vitest run packages/plugin-sdk` **3 files / 26 tests**；`pnpm verify`
+    **182 files / 1710 tests**；depcruise 500 modules / 2156 deps / 0 violations；coverage
+    全局 statements 77.08% / branches 69.85% / functions 75.93% / lines 77.24%
+    （`packages/plugin-sdk/src` lines **87.96%**、branches 81.98%）；`pnpm build` exit 0
+    （renderer 无变化，3,365.92 kB）。
+  - 残留：禁用列表不持久化、T6.1 不接到命令总线/UI（T6.3）；`ImportResult` 与 table-engine
+    的 `ImportDataset` 只是结构兼容，T6.3 需显式映射。详见 ADR-052“复核条件”。
 
 <a id="t62"></a>
 ### T6.2 示例插件

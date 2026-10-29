@@ -39,8 +39,9 @@
   `userData/settings.json` 的 `app:settings`/`app:settings:update`、设置对话框（主题/语言/
   默认样式/自动保存）、自动保存关闭的“保存/放弃/取消”、完整 en-US 与文案门禁。**M5 验收演示已于
   2026-10-29 执行并通过并获用户接受，M5 已关闭**（`docs/reports/m5/REPORT.md`、
-  `e2e/m5-acceptance.spec.ts`）。**M6 已开始：`T6.0`（品牌更名 Curve Almanac，ADR-051）已完成**
-  （`docs/reports/t6.0/REPORT.md`）；`T6.1`–`T6.5` 尚未开始，等用户明确指示后再领取 `T6.1`，
+  `e2e/m5-acceptance.spec.ts`）。**M6 已开始：`T6.0`（品牌更名 Curve Almanac，ADR-051）与
+  `T6.1`（插件 SDK 与注册表，ADR-052）已完成**（`docs/reports/t6.0/REPORT.md`、
+  `docs/reports/t6.1/REPORT.md`）；`T6.2`–`T6.5` 尚未开始，等用户明确指示后再领取 `T6.2`，
   不要自动跨任务/里程碑。
 - 仓库已有 pnpm workspace（8 个 `@curve/*` 包 + `@curve/desktop`）、可运行的 Electron 壳、
   `domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的 App Shell，以及 21 个已接线

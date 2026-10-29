@@ -4,7 +4,12 @@
     "composite": true,
     "rootDir": "src",
     "outDir": "dist-types",
-    "tsBuildInfoFile": "dist-types/tsconfig.tsbuildinfo"
+    "tsBuildInfoFile": "dist-types/tsconfig.tsbuildinfo",
+    // `ImporterDef.parse` receives an `AbortSignal` (SPEC §14.2); the SDK is
+    // type-only and runs in the renderer, so the DOM lib gives that type
+    // without adding Node globals or a runtime dependency.
+    "lib": ["ES2022", "DOM"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../domain" }]
 }

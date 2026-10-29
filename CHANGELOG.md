@@ -703,6 +703,19 @@
   报告 `docs/reports/m5/REPORT.md`（7 张截图 + `m5-metrics.json`）；全量 E2E **104 passed**
   （6.2m，M5 1 条 20.2s）。**2026-10-29 获用户接受，M5 已关闭；M6 未开始**，等用户明确指示后再
   领取 T6.1。
+- T6.1：插件 SDK 与注册表落地（ADR-052）。`@curve/plugin-sdk` 新增
+  `types/registry/host/logging` 四个模块：`Registry<T>` 增加 `subscribe(listener)` 与带
+  `source`（`builtin` / 插件 id）的 `list()`；插件上下文拿到绑定自身 id 的注册表视图，
+  `register` 重复 id 抛错、`replace` 只能覆盖同 owner、插件 `dispose` 只移除自己的贡献；
+  `createPluginHost` 顺序激活插件，校验 `apiVersion` 主版本、定义与贡献（字段类型
+  `storageType` 复用 `builtinColumnTypeSchema`），激活失败回滚并标记 `disabled`，其他插件继续；
+  `deactivate` 调 hook 后移除贡献，`getDisabled()` 仅内存。新增 `ImportResult` 类型
+  （与 table-engine `ImportDataset` 结构兼容）。
+- T6.1：`plugins` 包新增 `registry.test.ts` 10 条与 `host.test.ts` 15 条；`pnpm exec vitest run
+  packages/plugin-sdk` **3 files / 26 tests**；`pnpm verify` **182 files / 1710 tests**；depcruise
+  500 modules / 2156 deps / 0 violations；coverage statements 77.08% / branches 69.85% /
+  functions 75.93% / lines 77.24%（plugin-sdk lines 87.96%）；`pnpm build` exit 0。不新增运行时
+  依赖，不改 IPC/preload/数据格式/CSP。
 - T6.0：品牌更名 Curve Studio → Curve Almanac（ADR-051）。新增
   `apps/desktop/src/shared/brand.ts` 的 `APP_NAME` 作为唯一名称来源：main 的关于对话框/退出
   确认/日志/窗口标题、`index.html` 的 `<title>`、i18n 的 `app.name` 与欢迎页/模板过滤器文案、
