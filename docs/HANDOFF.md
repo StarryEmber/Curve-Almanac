@@ -5,8 +5,9 @@
 > T5.4（快捷键与命令面板）与 T5.5（设置与国际化）已完成**（报告 `docs/reports/t5.1/REPORT.md`、
 > `docs/reports/t5.2/REPORT.md`、`docs/reports/t5.3/REPORT.md`、`docs/reports/t5.4/REPORT.md`、
 > `docs/reports/t5.5/REPORT.md`；ADR-046、ADR-047、ADR-048、ADR-049、ADR-050）；
-> **M5 验收演示已于 2026-10-29 执行并通过**（`apps/desktop/e2e/m5-acceptance.spec.ts`、
-> `docs/reports/m5/REPORT.md`），**等待用户确认接受 M5**；确认前不进入 M6。
+> **M5 验收演示已于 2026-10-29 执行并通过，并于同日获用户接受，M5 已关闭**
+> （`apps/desktop/e2e/m5-acceptance.spec.ts`、`docs/reports/m5/REPORT.md`）。
+> 下一步是 **M6**（插件 SDK/打包/发布），但**不要自动开始**：等用户明确指示后再领取 `T6.1`。
 > 最后更新：2026-10-29 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
@@ -20,9 +21,8 @@
 
 ## 0. 一页摘要（给下一个会话）
 
-- **当前状态**：M2/M3/M4 均已获用户接受；`T3.1`–`T3.6`、`T4.1`–`T4.6`、`T5.1`、`T5.2`、
-  `T5.3`、`T5.4`、`T5.5` 已完成；M5 的 T5.1–T5.5 全部完成；**M5 验收演示已于 2026-10-29 执行
-  并通过，等待用户确认接受 M5**。
+- **当前状态**：M1/M2/M3/M4/M5 均已获用户接受；`T3.1`–`T3.6`、`T4.1`–`T4.6`、`T5.1`–`T5.5`
+  与 M5 验收演示全部完成；**M5 已于 2026-10-29 关闭**；M6 尚未开始。
 - **本次交付**：M5 验收演示 `apps/desktop/e2e/m5-acceptance.spec.ts` 1 条（三次启动 + 强杀）：
   2 表 3 视图分 2 pane、5 步撤销/重做、强杀恢复、最近打开、英文/深色、重启全部还原；报告
   `docs/reports/m5/REPORT.md` + 7 张截图 + `m5-metrics.json`。全量 E2E **104 passed**。
@@ -32,11 +32,10 @@
   `pnpm bench` exit 0。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑；强杀后不得静默丢数据。
-- **停点**：M5 演示已完成并提交；**等待用户确认接受 M5**，确认前不进入 M6；确认后下一步为
-  `T6.1`（插件 SDK 与注册表），详见 TASKS M6。
+- **停点**：M5 已获接受并关闭；**M6 未开始**。不要自动领取 `T6.1`；等用户明确指示后再开始。
 - **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`）；读
-  `docs/reports/m5/REPORT.md`、`docs/reports/t5.5/REPORT.md`、ADR-050/048、TASKS 的 M5；
-  用户确认接受 M5 后再领取 M6 的第一个任务。
+  `docs/reports/m5/REPORT.md`、`docs/reports/t5.5/REPORT.md`、ADR-050/048、TASKS 的 M6；
+  收到“开始 M6”后按 §0.3 领取 `T6.1`。
 - **M5 完成结果**：2 表 3 视图 → 复制视图/水平分栏/移动标签 → 5 次编辑 + 撤销/重做 5 步 →
   提交 200 后强杀（999 丢弃、200 保留）→ 尝试恢复 → 关闭后从最近列表重开 → 英文 + 深色 →
   重启后 2 pane / 3 标签 / Readings 活动 / 值 200 全部还原。截图在 `docs/reports/m5/`。
@@ -96,16 +95,17 @@
    redo 留孤儿文件；`table.meta.update` 菜单文案不区分重命名/换主键；原生 Electron Edit 菜单
    仍未与历史同步。详见报告 §8 与 ADR-047“复核条件”。
 
-### 0.3 下一会话行动清单（M5 验收 / 之后 M6）
+### 0.3 下一会话行动清单（M6 启动前；M5 已接受，未开始）
 
-> 前提：T5.1–T5.5 与 M5 验收演示均已完成；**等待用户确认接受 M5**。
+> 前提：T5.1–T5.5 与 M5 验收演示均已完成，**M5 已于 2026-10-29 获用户接受并关闭**。
+> **M6 尚未开始；不要自动领取任何 M6 任务。**
 
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
    179 files / 1682 tests、`pnpm e2e` 104 passed、`pnpm bench` exit 0；读 TASKS 的 M5 验收记录、
    报告 `docs/reports/m5/REPORT.md` 与 §0.7。
-2. **不要在未获确认时开始 M6**。用户确认接受 M5 后，M5 关闭，下一步领取 TASKS 的 `T6.1`
-   （插件 SDK 与注册表），并先读 SPEC §14 与 ADR-010/ADR-013。
-3. 若用户要求重跑演示：独占 CPU 执行
+2. 只有收到用户明确的“开始 M6”指令后，才领取 TASKS 的 `T6.1`（插件 SDK 与注册表）；先读
+   SPEC §14、ADR-010（插件静态加载）、ADR-013（i18n）与 TASKS 的 M6 顺序。
+3. 若用户要求重跑 M5 演示：独占 CPU 执行
    `pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/m5-acceptance.spec.ts`，
    截图/指标会重写到 `test-results/`，复制回 `docs/reports/m5/`，`m0` 截图提交前还原。
 4. 不要回退：T5.3 的 SaveQueue 窗口/flush、T5.4 的快捷键表、T5.5 的 `settings.json`/
@@ -201,7 +201,7 @@
    对话框提示；main 原生对话框仍英文；+30% 是 DOM 伪本地化。详见报告 §8 与 ADR-050
    “复核条件”。
 
-### 0.7 M5 验收演示结果（2026-10-29 执行，等待接受）
+### 0.7 M5 验收演示结果（2026-10-29 执行并获接受，M5 已关闭）
 
 1. 用例：`apps/desktop/e2e/m5-acceptance.spec.ts` 1 条、**20.2s**、三次启动 + 一次
    `taskkill /F /T`。报告 `docs/reports/m5/REPORT.md` + 7 张截图 + `m5-metrics.json`。
@@ -212,12 +212,13 @@
 3. 指标：`baseDepth=3`、`editDepth=8`、`redoDepth=0`、`recoveredValue=200`、
    `recentEntries=1`、`finalPanes=2`、`finalTabs=3`、`manifestTables=2`、`manifestViews=3`。
 4. 全量 E2E **104 passed**（6.2m，含 M5 1 条 20.2s；chart-perf private **503MB**）。
-   `pnpm verify` **179 files / 1682 tests**；depcruise 492/2118；`pnpm build` exit 0
+   `pnpm verify` **179 files / 1682 tests**；depcruise 493/2126；`pnpm build` exit 0
    （renderer 3,365.14 kB、CSS 77.89 kB）；`pnpm bench` exit 0。
 5. 证据：`docs/reports/m5/m5-01-two-panes.png`、`m5-02-history.png`、`m5-03-before-kill.png`、
    `m5-04-recovery.png`、`m5-05-restored-layout.png`、`m5-06-english-dark.png`、
    `m5-07-restart-restored.png`。`m0` 截图已还原。
-6. **停点**：等待用户确认接受 M5。确认前不进入 M6；确认后下一步 T6.1（插件 SDK 与注册表）。
+6. **验收**：用户于 2026-10-29 接受 M5；**M5 已关闭**。M6 未开始；收到用户“开始 M6”的明确
+   指示后，下一步才是 `T6.1`（插件 SDK 与注册表）。
 
 ---
 
@@ -256,9 +257,9 @@
 | `T5.3` 自动保存、恢复与最近打开 | **已完成**（2026-10-28，`02e30a8`）；报告 `docs/reports/t5.3/REPORT.md`；ADR-048；5 张截图 |
 | `T5.4` 快捷键与命令面板 | **已完成**（2026-10-28，`fb53d9b`）；报告 `docs/reports/t5.4/REPORT.md`；ADR-049；3 张截图 |
 | `T5.5` 设置与国际化 | **已完成**（2026-10-29，`f80acaa`）；报告 `docs/reports/t5.5/REPORT.md`；ADR-050；4 张截图 |
-| M5 验收演示 | **已执行并通过**（2026-10-29）；`e2e/m5-acceptance.spec.ts` + `docs/reports/m5/REPORT.md`（7 张截图 + metrics）；**等待用户确认接受** |
-| 当前里程碑 | **M5 体验**：T5.1–T5.5 与验收演示全部完成；等待用户确认接受 M5 |
-| 下一步 | 用户确认后进入 **M6**，领取 `T6.1`（插件 SDK 与注册表）；确认前不开始 |
+| M5 验收演示 | **已获用户接受并关闭**（2026-10-29）；`e2e/m5-acceptance.spec.ts` + `docs/reports/m5/REPORT.md`（7 张截图 + metrics） |
+| 当前里程碑 | **M5 体验**：已获用户接受并关闭；M6 尚未开始 |
+| 下一步 | 等用户明确指示后进入 **M6**，领取 `T6.1`（插件 SDK 与注册表）；**不要自动开始** |
 | `pnpm verify` 基线 | **179 files / 1682 tests**；ESLint 0；depcruise 493 modules / 2126 deps / 0 violations |
 | `pnpm test:coverage` 基线 | 全局 statements **76.86%** / branches **69.64%** / functions **75.55%** / lines **77.01%**；阈值 70/60 未下调 |
 | `pnpm e2e` 基线 | **104 passed**（6.2m；含 M5 1 条 20.2s、settings 4 条、autosave/recovery/layout/undo/palette/chart-perf）；chart-perf 100k 切换 private **503MB**（≤600MB） |
@@ -271,9 +272,9 @@
 
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
-- **M1/M2/M3/M4 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6、M4 验收演示、T5.1–
-  T5.5 与 M5 验收演示已完成**；下一步等待用户确认接受 M5，确认后进入 M6。
-- 不得跨里程碑；M4 已验收关闭，M5 演示已执行并停下等待用户确认，不要自动进入 M6。
+- **M1/M2/M3/M4/M5 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6、M4 验收演示、
+  T5.1–T5.5 与 M5 验收演示已完成**；M5 已关闭，M6 未开始。
+- 不得跨里程碑；M5 已验收关闭，**M6 必须等用户明确指示后再开始**，不要自动领取 T6.1。
 
 ---
 
@@ -285,11 +286,12 @@
 先读 AGENTS.md、docs/HANDOFF.md（尤其 §0.3/§0.7）、docs/TASKS.md 的 M5/M6、
 docs/reports/m5/REPORT.md、docs/SPEC.md §14、ADR-050/048。
 
-现状：M0、M1–M4（均已验收）、T1.1–T4.6、T5.1–T5.5 与 M5 验收演示已完成；
+现状：M0、M1–M5（均已验收）、T1.1–T4.6、T5.1–T5.5 与 M5 验收演示已完成；
+M5 已于 2026-10-29 关闭；M6 未开始。
 pnpm verify 179 files / 1682 tests、pnpm e2e 104 passed、pnpm bench exit 0。
 
-下一步：M5 演示已执行，等待用户确认接受 M5。确认前不要开始 M6；确认后领取 T6.1
-（插件 SDK 与注册表），一次只推进一个任务。
+下一步：等待用户明确指示后再开始 M6（第一个任务 T6.1，插件 SDK 与注册表）。
+不要自动领取 M6 任务，一次只推进一个任务。
 ```
 
 ---
@@ -3034,7 +3036,7 @@ T5.3、T5.4 已完成，下一步 T5.5。
 - 不删除 `ui-conventions.test.ts` 的属性文案门禁；新增用户可见属性时同步扩展白名单而不是
   放宽整条规则。
 - 不自动跨任务/跨里程碑；M3、M4 均已验收并关闭，M4 的 T4.1–T4.6 与验收演示已完成，
-  T5.1–T5.5 与 M5 验收演示已完成；**等待用户确认接受 M5**，确认前不要进入 M6。
+  T5.1–T5.5 与 M5 验收演示已完成；**M5 已获接受并关闭**，M6 未开始。
 
 ---
 
@@ -3052,8 +3054,8 @@ T5.3、T5.4 已完成，下一步 T5.5。
       100k 切换 private **503MB**（≤600MB）。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
-- [ ] 已确认 M1/M2/M3/M4 均已获用户接受、T3.1–T3.6、T4.1–T4.6、M4 验收演示、T5.1–T5.5 与
-      **M5 验收演示**已完成；**等待用户确认接受 M5**；确认前不要领取 M6。
+- [ ] 已确认 M1/M2/M3/M4/M5 均已获用户接受、T3.1–T3.6、T4.1–T4.6、M4 验收演示、T5.1–T5.5 与
+      **M5 验收演示已完成**；**M5 已关闭，M6 未开始**，不要自动领取 T6.1。
 - [ ] 已确认 T5.1 契约：`LayoutView` 递归渲染、`ui.activePanePath` UI-only、分栏=原 pane+空
       pane、最多 4 pane、移动标签到下一分栏、关闭最后标签折叠 pane、空 pane 才可关分栏、
       500ms 布局去抖（`flushSaves`/关闭/Ctrl+S 冲掉）、`view.layout` 可选 `activePanePath`、
@@ -3115,4 +3117,4 @@ T5.3、T5.4 已完成，下一步 T5.5。
       ADR-046/047/048/049/050，`e2e/layout.spec.ts` 3 条、`undo.spec.ts` 3 条、autosave 4 条、
       recovery 4 条、palette 3 条、settings 4 条）；**M5 验收演示已执行**
       （`e2e/m5-acceptance.spec.ts` 1 条、`docs/reports/m5/REPORT.md`、7 张截图），
-      **等待用户确认接受 M5**；确认前不要开始 M6。
+      **M5 已获用户接受并关闭**；**M6 未开始**，等用户明确指示后再开始。
