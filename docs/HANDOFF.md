@@ -11,9 +11,8 @@
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
 > T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
-> T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告
-> **`（见 git log -1 -- docs/reports/m5）`**（本交接文档的提交见
-> `git log -1 -- docs/HANDOFF.md`）。
+> T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告 **`50f7ea9`**
+> （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.7）→ `docs/reports/m5/REPORT.md` →
 > `docs/reports/t5.5/REPORT.md` → `docs/TASKS.md` 的 M5/M6 → `docs/SPEC.md` → ADR-050/048。
 
