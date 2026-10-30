@@ -825,3 +825,6 @@
 - M6：验收演示（示例插件 → 安装包 → 全量报告 → 九步演示 → 发布清单）执行完毕；
   用户于 **2026-10-30 接受并关闭 M6**，v1 实施阶段（M0–M6）结束。汇总
   `docs/reports/m6/REPORT.md`；安装包已重打并 `package:smoke` PASS（含 electron-log）。
+- Docs：扩充 `docs/MANUAL.md` 为用户手册（安装/15 分钟上手/功能详解/截图/FAQ/限制/术语），
+  新增 `docs/DSH.md`（DSH/自动化代理使用手册：环境、命令、测试/打包/发布流程、已知 flake、
+  当前待办与禁做清单）；README/HANDOFF 文档索引同步。

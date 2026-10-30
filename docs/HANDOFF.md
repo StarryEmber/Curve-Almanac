@@ -14,7 +14,7 @@
 > T6.0 代码/报告 **`cc6dd5c`**、T6.1 代码/报告 **`2ea05cf`**、T6.2 代码/报告 **`15e43ed`**、
 > T6.3 代码/报告 **`a78a5ca`**、T6.4 代码/报告 **`666f3ba`**、T6.5 代码/报告 **`25dcd92`**、
 > T6.6 代码/报告 **`7be939a`**（M6 关闭文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
-> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.15）→ `docs/reports/m6/REPORT.md` →
+> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.15）→ `docs/DSH.md` → `docs/reports/m6/REPORT.md` →
 > `t6.6` → `t6.5` → `t6.4` → `t6.3` → `t6.2` → `t6.1` → `t6.0` → `docs/SPEC.md`
 > §14/§16.1/§16.5/§16.6/§17 → ADR-057/056/055/054/053/052/051/050/048。
 
@@ -153,8 +153,9 @@
 > 按用户决定提高到 1GB（ADR-057）。**不要自动关闭 M6，也不要自动领取新任务。**
 
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
-   198 files / 1831 tests、`pnpm e2e` 功能测试 111 passed；读 TASKS 的 M6、
-   `docs/reports/t6.6/REPORT.md`、T6.5 报告 §5/§6/§9、ADR-056/057 与 §0.10–§0.15。
+   198 files / 1831 tests、`pnpm e2e` 功能测试 111 passed；读 `docs/DSH.md`、
+   `docs/MANUAL.md`、TASKS 的 M6、`docs/reports/t6.6/REPORT.md`、T6.5 报告 §5/§6/§9、
+   ADR-056/057 与 §0.10–§0.15。
 2. 安装包已在 T6.6 后重打并冒烟（asar 含 electron-log）；若再改运行时/依赖，发布前重新跑
    `pnpm package && pnpm package:smoke`。
 3. 若要复跑全量 E2E：先确认外部程序负载（§3.6）；内存门禁现为 **1GB**（ADR-057），两条内存
@@ -552,9 +553,9 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md（尤其 §0.3/§0.15）、docs/reports/t6.6/REPORT.md、
-docs/reports/t6.5/REPORT.md、docs/TASKS.md 的 M6、docs/SPEC.md §14/§16.1/§16.5/§16.6/§17、
-ADR-057/056/055/054/053/052/051/050/048。
+先读 AGENTS.md、docs/DSH.md（代理操作手册）、docs/HANDOFF.md（尤其 §0.3/§0.15）、
+docs/MANUAL.md、docs/reports/t6.6/REPORT.md、docs/reports/t6.5/REPORT.md、docs/TASKS.md 的
+M6、docs/SPEC.md §14/§16.1/§16.5/§16.6/§17、ADR-057/056/055/054/053/052/051/050/048。
 
 现状：M0–M5（均已验收）、T1.1–T4.6、T5.1–T5.5、M5 验收演示、T6.0 品牌更名（Curve Almanac）、
 T6.1 插件 SDK/注册表、T6.2 示例插件、T6.3 插件接入 UI 与隔离、T6.4 安装包与发布配置、

@@ -56,7 +56,7 @@ SmartScreen“未知发布者”提示；选择“更多信息 → 仍要运行�
 2. 工作区是一个目录 `Demo.cstudio`：`manifest.json` + `tables/*.jsonl` + `backups/`。
 3. 用“新建表”建第一张表，再用右侧“列”面板加列。
 
-完整操作说明见 [用户手册](docs/MANUAL.md)。
+完整操作说明见 [用户手册](docs/MANUAL.md)；代理/自动化操作见 [DSH 使用手册](docs/DSH.md)。
 
 ## 4. 五分钟上手
 
@@ -82,7 +82,8 @@ SmartScreen“未知发布者”提示；选择“更多信息 → 仍要运行�
 
 | 文件 | 作用 |
 |---|---|
-| [docs/MANUAL.md](docs/MANUAL.md) | 用户手册：每个功能怎么用、快捷键、限制 |
+| [docs/MANUAL.md](docs/MANUAL.md) | 用户手册：安装、15 分钟上手、每个功能怎么用、快捷键、FAQ、限制 |
+| [docs/DSH.md](docs/DSH.md) | DSH/自动化代理使用手册：环境、命令、测试、打包、发布、排障 |
 | [docs/DEVELOPER.md](docs/DEVELOPER.md) | 开发者指南：目录、命令、边界、测试、打包 |
 | [docs/SPEC.md](docs/SPEC.md) | 规范：模型、格式、契约、验收标准（契约源） |
 | [docs/TASKS.md](docs/TASKS.md) | 任务、依赖、验收与实现备注 |
