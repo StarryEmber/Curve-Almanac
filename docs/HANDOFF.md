@@ -12,8 +12,7 @@
 > T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
 > T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告 **`50f7ea9`**、
 > T6.0 代码/报告 **`cc6dd5c`**、T6.1 代码/报告 **`2ea05cf`**、T6.2 代码/报告 **`15e43ed`**、
-> T6.3 代码/报告 **`a78a5ca`**、T6.4 代码/报告 **提交见
-> `git log -1 -- docs/reports/t6.4/REPORT.md`**（本交接文档的提交见
+> T6.3 代码/报告 **`a78a5ca`**、T6.4 代码/报告 **`666f3ba`**（本交接文档的提交见
 > `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.13）→ `docs/reports/t6.4/REPORT.md` →
 > `docs/reports/t6.3/REPORT.md` → `docs/reports/t6.2/REPORT.md` → `docs/reports/t6.1/REPORT.md` →
@@ -30,8 +29,9 @@
   均已完成；**M5 已于 2026-10-29 关闭**；M6 的 `T6.5` 尚未开始。
 - **本次交接范围**：T6.4 安装包与发布配置——electron-builder（NSIS 当前用户安装 + portable）、
   `appId`/`productName`/版本、图标与许可证、`release/` 产物、`pnpm package`/`pnpm package:smoke`、
-  真实安装/启动/卸载/数据保留冒烟、ADR-055 与 `docs/reports/t6.4/REPORT.md`。不改 IPC/数据
-  格式/CSP/Electron 安全选项，不新增运行时依赖。
+  真实安装/启动/卸载/数据保留冒烟、ADR-055 与 `docs/reports/t6.4/REPORT.md`；并记录本机受限
+  shell 的手工启动/安装步骤（§3.7）。不改 IPC/数据格式/CSP/Electron 安全选项，不新增运行时
+  依赖。
 - **基线**：`pnpm verify` **196 files / 1816 tests**（ESLint 0；depcruise 530 modules / 2300 deps /
   0 violations）；coverage 全局 lines **77.28%**（statements 77.13% / branches 69.82% /
   functions 76.51%）；`pnpm build` exit 0（renderer **3,469.35 kB**、CSS 81.34 kB、main 338.76 kB）；
@@ -42,7 +42,8 @@
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑；强杀后不得静默丢数据。
 - **停点**：T6.4 已完成；**M6 仅剩 `T6.5`（全量验收与文档收尾）未开始**。不要自动领取；等用户
   明确指示后再开始（T6.5 是全量 E2E/性能/可访问性、九步演示与发布清单）。
-- **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`）；读
+- **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`）；`release/` 是
+  gitignore 的本地产物，不存在时先 `pnpm package`（手工启动见 §3.7）；读
   `docs/reports/t6.4/REPORT.md`、ADR-055/054/053/052/051/050/048、TASKS 的 M6；收到“开始 M6
   下一任务”后按 §0.11 领取 `T6.5`。
 - **M5 完成结果**：2 表 3 视图 → 复制视图/水平分栏/移动标签 → 5 次编辑 + 撤销/重做 5 步 →
@@ -349,20 +350,41 @@
 
 ### 0.11 T6.5 接手要点（未领取，等用户明确指示）
 
-> 本节只记录 **T6.5（全量验收与文档收尾）的起点与约束**，不代表任务已开始。T6.5 依赖
-> M0–M6 全部任务（T6.5 除外）：T6.4 安装包已产出、T6.0–T6.3 已完成。
+> 本节记录 **T6.5（全量验收与文档收尾）的起点、产出清单与约束**，不代表任务已开始。T6.5 依赖
+> M0–M6 全部任务（T6.5 除外）：T6.4 安装包已产出、T6.0–T6.3 已完成。领取后仍按 AGENTS §8
+> 先 5 行复述，再逐项执行。
 
-1. **范围（TASKS T6.5，覆盖全部 FR/NFR；参考 TESTPLAN §3–§7）**：
-   - 全量 `pnpm verify && pnpm e2e && pnpm bench` 并归档报告；可访问性/性能证据；
-   - README 改为产品说明、用户手册、开发者指南、ADR 索引、发布检查清单与已知限制；
-   - 按 README §6 九步验收演示一次通过（录屏/截图）；对照 SPEC §17 逐条勾选；
-   - 安装包在干净机器复验（T6.4 的 `pnpm package:smoke` 只是干净应用态）。
-2. **不要回退**：T6.4 的 `appId`/`productName`/NSIS 每用户参数/`files` 白名单/图标与
-   许可证/`package:smoke`；`docs/reports/*` 的既有证据不被新截图覆盖；`m0` 截图提交前还原。
-3. **已知注意点**：全量 E2E 必须独占 CPU（§3.6）；`chart-perf` 内存门禁本机波动 509–608MB；
-   `file-workspace-store` 的 5s 超时是既有 flake；打包需要网络/镜像（§3.6）。
-4. **验证形态（预期）**：`pnpm verify && pnpm e2e && pnpm bench` 全绿 + 九步演示报告 + 发布
-   检查清单；不要把“已实现”写成“已验收”，未达标项要显式列出。
+1. **范围（TASKS T6.5，覆盖全部 FR/NFR；参考 TESTPLAN §3–§7、README §6）**：
+   - 全量 `pnpm verify && pnpm e2e && pnpm bench` 并归档结果（E2E 报告、性能报告、可访问性
+     证据）；必要时重跑 TESTPLAN §3–§6 中受影响的 E1–E11 用例与 `m5` 演示。
+   - README 改为产品说明（安装/首次启动/工作区/导入/样式/图表/插件/设置/限制）；补用户手册
+     （可放 `docs/MANUAL.md`）、开发者指南（目录、命令、边界、测试、打包）、ADR 索引与
+     `docs/ROADMAP.md`（v2 设想：动态插件、SQLite、公式列、单文件导出等）。
+   - 按 README §6 的九步验收演示一次通过并录屏/截图（M1–M5 已有各自演示，T6.5 是端到端）。
+   - 对照 SPEC §17 的 FR/NFR 逐条建立“需求 → 证据（测试名/截图/报告）”表；未达标项显式列出，
+     不得用“已实现”冒充“已验收”。
+   - 发布检查清单（TESTPLAN §7）逐项签字：版本/appId/图标/许可证、干净机器安装复验、无测试
+     钩子/DevTools/多余 source map、日志与已知限制。
+2. **必须复用的既有证据**：`docs/reports/m0`–`m5`、`t2.*`–`t6.4` 的报告与截图；不要重写历史
+   报告，只新增 T6.5 汇总报告（建议 `docs/reports/t6.5/REPORT.md`）与索引。
+3. **不要回退**：T6.4 的 `appId`/`productName`/NSIS 每用户参数/`files` 白名单/图标与许可证/
+   `package:smoke`；T6.3 的插件来源标识/错误隔离；T5.5 的 `settings.json`；`docs/reports/*` 的
+   既有证据不被新截图覆盖；`m0` 截图提交前还原。
+4. **已知注意点**：
+   - 全量 E2E 必须独占 CPU；本机有游戏/聊天等常驻程序时先确认负载（§3.6）。
+   - `chart-perf` 的 100k 图表/映射切换内存门禁本机波动 **509–608MB**（门禁 600MB）；失败先
+     确认环境再复跑，不放宽门槛。
+   - `apps/desktop/src/main/workspace/file-workspace-store.test.ts` 的 “caps the list” 在 66
+     worker 并行时偶发 5s 超时（单跑 2.6s 通过）；不要放宽全局超时。
+   - 打包需要网络（Electron/NSIS/winCodeSign）；本机 GitHub 不可达时用 npmmirror 镜像（§3.6）。
+   - 手工启动已打包应用见 §3.7：必须去掉 `ELECTRON_RUN_AS_NODE`，受限 shell 还要
+     `--no-sandbox`；工作区内的 exe 受 DSH 文件沙箱限制，需复制到 `%TEMP%` 或安装后再启动。
+   - 九步演示的 100k 导入夹具由 `pnpm e2e` 生成；单独演示前先跑
+     `tsx scripts/gen-100k.ts --workspace bench/.fixtures/100k-workspace`。
+5. **验证形态（预期）**：`pnpm verify && pnpm e2e && pnpm bench` 全绿 + 九步演示报告 + 发布
+   检查清单 + 干净机器安装复验记录；报告里分开写“自动化证据”与“手工复验”。
+6. **收尾**：勾选 TASKS T6.5 与 M6 验收演示、更新 CHANGELOG、必要时补 ADR（只补 T6.5 发现的
+   偏差）、提交 `docs(release): ...`；**M6 验收演示后停下来等人类确认**，不要自动关闭 M6。
 
 ### 0.12 T6.3 结果（2026-10-30 完成）
 
@@ -404,7 +426,7 @@
 3. **不要回退**：`appId`/`productName`/`files` 白名单/NSIS 每用户参数/`deleteAppDataOnUninstall:
    false`；`build/icon*` 与 `build/license.txt`（NSIS 许可证页默认文件名）；`package` 必须先
    build；冒烟脚本的“已有安装时拒绝运行 + finally 清理 + 安装器复制到 `%TEMP%`”三件事。
-4. 提交：见 `git log -1 -- docs/reports/t6.4/REPORT.md`。
+4. 提交：**`666f3ba`**（`feat(package): add Windows installer and release config (T6.4)`）。
 5. 残留：未签名（SmartScreen）；体积 391MB/112MB；打包需网络（本机用 npmmirror 镜像）；
    冒烟会短暂写真实用户目录；portable 只验证产出；macOS/Linux 未配置。详见报告 §6 与
    ADR-055“复核条件”。
@@ -460,6 +482,7 @@
 | `pnpm bench` 基线 | **exit 0**（T6.3 基线，T6.4 未重跑）；table.encode 360ms/1500、table.decode 650ms/3000、table.open 582ms/3000、table.save 401ms/500、edit 0ms/50、query 217ms/400、text-sort 364ms/400、cjk-sort 587ms/800、condition 1ms/16、import 925ms/8s；chart.resolve-sample P95 **60ms**/300、chart.sample 2ms/50、chart.option.2k 1ms/50、chart.restyle.100k 0ms/20；memoryPeakMB 944（Node 趋势，非应用门禁） |
 | `pnpm package` 基线 | **exit 0**；NSIS `Curve Almanac Setup 0.1.0.exe` **112,400,939 B**、portable `Curve Almanac 0.1.0.exe` **112,163,368 B**、`win-unpacked` **391,112,000 B**；Electron 44.9.0；未签名 |
 | `pnpm package:smoke` 基线 | **PASS**；install **17.3s**、launch **4.4s**、uninstall **8.9s**；工作区与 `%APPDATA%\Curve Almanac` 卸载后保留；asar 23 文件、无开发文件；metrics `docs/reports/t6.4/t6.4-package-metrics.json` |
+| 本地产物 | `release/`（gitignore）：`Curve Almanac Setup 0.1.0.exe`、`Curve Almanac 0.1.0.exe`、`win-unpacked/`；由 `pnpm package` 生成；手工启动见 §3.7 |
 | `pnpm format:check` | 通过（`apps/desktop/build` 已加入 `.prettierignore`） |
 | 构建 | `pnpm build` exit 0；renderer **3,469.35 kB**；CSS **81.34 kB**；main 338.76 kB；`ImportSession` 懒加载；table/query/import worker 220.68/236.16/270.54 kB |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
@@ -529,6 +552,13 @@ T2.1–T2.5 全程 `danger-full-access`，审批提示已关闭——**不要使
 - 直接启动 Electron 默认会因 Chromium OS 沙箱退出；E2E 必须删除 `ELECTRON_RUN_AS_NODE` 并设置
   `$env:CURVE_E2E_NO_SANDBOX = '1'`（只被 `apps/desktop/e2e/fixtures.ts` 读取，不影响应用
   `webPreferences.sandbox`）。
+- **手工启动已打包应用（T6.4 实测）**：本机 DSH shell 会导出 `ELECTRON_RUN_AS_NODE=1`，Electron
+  会以 Node 模式运行并立刻退出（带参数时打印 `bad option: --no-sandbox`）。启动前必须
+  `Remove-Item Env:ELECTRON_RUN_AS_NODE`；受限 shell 还要加 `--no-sandbox`（仅测试环境，
+  不改变 `webPreferences.sandbox`）。完整命令见 §3.7。
+- DSH 文件沙箱会限制“位于工作区内”的可执行文件写用户目录（安装器在 `release/` 直接运行会静默
+  失败；Electron 会 EPERM 写 `%TEMP%`）。手工验证时先把 `win-unpacked` 或安装器复制到
+  `%TEMP%`，或安装到 `%LOCALAPPDATA%` 后再启动；安装后的应用不受该限制。
 - 跑 E2E 前先 `pnpm build`（`pnpm e2e` 自带 build）。
 - 全量 E2E 必须独占 CPU：跑之前确认没有外部程序占用（T4.2 实测外部游戏占 ~7.7 核时
   `grid.spec` 的 100k 首帧 1045/1062ms 超 1000ms 预算，暂停后 72 passed）。不要为通过改预算。
@@ -934,6 +964,37 @@ T4.6 又在根 `package.json` 的 devDependencies 增加了 `@curve/chart-echart
   两张 PNG 由冒烟直接写入 `docs/reports/t6.4/`，不是 E2E 截图，不会改写 `m0`。
 - T6.4 的 `packaging.test.ts` 读取 `apps/desktop/package.json` 的 `version` 与根 `version`
   必须相等；发版时若只改一处会失败。
+
+### 3.7 本地产物与手工启动/安装（T6.4 之后）
+
+- `pnpm package` 产出（`release/` 已 gitignore，仓库里没有安装包；需要时重新生成）：
+
+  | 产物 | 路径 | 约 |
+  |---|---|---|
+  | NSIS 安装包 | `release/Curve Almanac Setup 0.1.0.exe` | 112.4 MB |
+  | portable | `release/Curve Almanac 0.1.0.exe` | 112.2 MB |
+  | 解包版 | `release/win-unpacked/Curve Almanac.exe` | 391 MB 目录 |
+
+- **正常桌面用户**：双击 Setup → 装到 `%LOCALAPPDATA%\Programs\Curve Almanac` → 从开始菜单/桌面
+  快捷方式启动；或直接双击 portable；或双击 `win-unpacked\Curve Almanac.exe`。不需要任何参数。
+- **从本代理 shell 手工启动**（受限环境，仅调试用）：
+
+  ```powershell
+  Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
+  # 工作区里的 exe 受 DSH 沙箱限制，先复制到 TEMP（安装版可跳过复制）
+  $dest = Join-Path $env:TEMP 'CurveAlmanacUnpacked'
+  Copy-Item release/win-unpacked $dest -Recurse -Force
+  Start-Process (Join-Path $dest 'Curve Almanac.exe') -ArgumentList '--no-sandbox'
+  ```
+
+  预期：进程 `Curve Almanac` 出现、窗口标题 `Curve Almanac`、首次启动创建
+  `%APPDATA%\Curve Almanac`（`window-state.json` 在正常关闭后写入）。
+- **手工安装**：Setup 从 `release/` 直接运行时可能被沙箱静默拦下；先复制到 `%TEMP%` 再执行
+  （这也是 `package:smoke` 的做法）。卸载用安装目录的
+  `Uninstall Curve Almanac.exe /currentuser /S`，或“应用和功能”里的卸载项。
+- 启动/安装失败时的排查顺序：① `ELECTRON_RUN_AS_NODE` 是否已清除；② 是否在受限 shell 且缺
+  `--no-sandbox`；③ exe 是否仍在工作区内（复制到 `%TEMP%` 或安装后再试）；④ 查看
+  `%APPDATA%\Curve Almanac` 是否可写（Electron 被拒写时通常秒退）。
 
 ---
 
