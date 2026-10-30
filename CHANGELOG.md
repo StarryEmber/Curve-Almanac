@@ -827,4 +827,5 @@
   `docs/reports/m6/REPORT.md`；安装包已重打并 `package:smoke` PASS（含 electron-log）。
 - Docs：扩充 `docs/MANUAL.md` 为用户手册（安装/15 分钟上手/功能详解/截图/FAQ/限制/术语），
   新增 `docs/DSH.md`（DSH/自动化代理使用手册：环境、命令、测试/打包/发布流程、已知 flake、
-  当前待办与禁做清单）；README/HANDOFF 文档索引同步。
+  当前待办与禁做清单）、`docs/HANDOFF-MAINTENANCE.md`（v1 后维护/升级/发布/排障交接）与
+  `docs/PROMPTS.md`（修复/升级/发布/文档/新功能提示词模板）；README/HANDOFF 文档索引同步。

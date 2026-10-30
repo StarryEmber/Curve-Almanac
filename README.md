@@ -89,6 +89,8 @@ SmartScreen“未知发布者”提示；选择“更多信息 → 仍要运行�
 | [docs/TASKS.md](docs/TASKS.md) | 任务、依赖、验收与实现备注 |
 | [docs/TESTPLAN.md](docs/TESTPLAN.md) | 测试分层、E2E 场景、性能预算、发布检查清单 |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | 实施交接：环境事实、进度、续作说明 |
+| [docs/HANDOFF-MAINTENANCE.md](docs/HANDOFF-MAINTENANCE.md) | 维护交接：v1 发布后的更新、升级、发布与故障处理 |
+| [docs/PROMPTS.md](docs/PROMPTS.md) | 维护提示词模板：修复/升级/发布/文档/新功能 |
 | [docs/DECISIONS.md](docs/DECISIONS.md) + [docs/adr/](docs/adr/README.md) | 16 条锁定决策与 55 篇 ADR 索引 |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | v2 设想与 v1 已知限制 |
 | [AGENTS.md](AGENTS.md) | 实现代理的强制守则 |
