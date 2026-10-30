@@ -66,10 +66,10 @@ packages/ui/src/table-style-format.test.ts +1 条：`formatField` 优先与回�
 E2E（`apps/desktop/e2e/plugin.spec.ts`，1 worker）：
 
 ```text
-ok 1 rating 列：新建 → 存 number → ★★★ → 0/6 显示「超出允许范围」→ 重载无警告且仍格式化 (5.9s)
-ok 2 200% 缩放：键盘打开对话框、键盘切换存储类型、键盘选择语义类型、Dialog 不越界 (2.6s)
-ok 3 示例导入器：下拉列出 Points JSON → 预览 2 行 → 映射 → 校验 → 提交（JSONL 两行）(3.4s)
-3 passed (12.8s)
+ok 1 rating 列：新建 → 存 number → ★★★ → 0/6 显示「超出允许范围」→ 重载无警告且仍格式化 (6.2s)
+ok 2 200% 缩放：键盘打开对话框、键盘切换存储类型、键盘选择语义类型、Dialog 不越界 (2.5s)
+ok 3 示例导入器：下拉列出 Points JSON → 预览 2 行 → 映射 → 校验 → 提交（JSONL 两行）(3.3s)
+3 passed (13.0s)
 ```
 
 ## 4. 验证
@@ -94,7 +94,7 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/deskto
   3 passed（13.0s）
 
 pnpm e2e
-  107 passed（6.5m，1 worker；含 plugin.spec 3 条 12.8s、m5-acceptance 20.2s）
+  107 passed（6.5m，1 worker；含 plugin.spec 3 条 13.0s、m5-acceptance 20.2s）
   chart-perf 100k 图表/映射切换单独复跑 privatePeak 505 / 516 MB（门禁 600MB）
 
 pnpm bench

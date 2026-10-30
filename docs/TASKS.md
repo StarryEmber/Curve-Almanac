@@ -1833,8 +1833,8 @@ T6.2 + T2.5 + T3.2 → T6.3
     “cannot verify field type”警告。
   - `ColumnDraft.fieldTypeId` 三态：字符串=选择、`null`=显式清除、`undefined`=保留（T2.3 兼容）。
   - 测试：`plugins/plugin-sample` 3 files / **29 tests**（rating 15、importer 9、plugin 5）；
-    `apps/desktop/e2e/plugin.spec.ts` 3 条（rating 列 + 0/6 拒绝 + 重载无警告 5.9s、200% 缩放键盘
-    选择 2.6s、示例导入器完成导入 3.4s）。报告 `docs/reports/t6.2/REPORT.md` + 2 张截图。
+    `apps/desktop/e2e/plugin.spec.ts` 3 条（rating 列 + 0/6 拒绝 + 重载无警告 6.2s、200% 缩放键盘
+    选择 2.5s、示例导入器完成导入 3.3s，合计 13.0s）。报告 `docs/reports/t6.2/REPORT.md` + 2 张截图。
   - 实测（见报告 §4）：`pnpm verify` **188 files / 1761 tests**；depcruise 514 modules / 2209 deps /
     0 violations；coverage statements 77.11% / branches 69.95% / functions 76.23% / lines 77.25%；
     `pnpm build` exit 0（renderer 3,394.50 kB、CSS 77.89 kB）；定向 e2e **3 passed**（13.0s）；
