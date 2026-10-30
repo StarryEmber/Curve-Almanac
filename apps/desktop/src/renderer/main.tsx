@@ -5,6 +5,7 @@ import { DEFAULT_APP_SETTINGS } from '../shared/contracts/settings';
 
 import { createApiClient } from './api-client';
 import { App } from './App';
+import { activateRendererPlugins } from './plugins';
 import './styles.css';
 
 import type { CurveApi } from '../shared/contracts/ipc';
@@ -44,8 +45,18 @@ async function readInitialSettings(): Promise<AppSettings> {
   }
 }
 
-void readInitialSettings().then((initialSettings) => {
-  createRoot(container).render(
+void bootstrap(container);
+
+/**
+ * Startup order (T5.5/T6.2): settings → plugin activation → first paint. The
+ * plugin host has already isolated activation failures (rollback + disabled +
+ * log), so a broken plugin cannot block the window from rendering.
+ */
+async function bootstrap(root: HTMLElement): Promise<void> {
+  const initialSettings = await readInitialSettings();
+  await activateRendererPlugins();
+
+  createRoot(root).render(
     <StrictMode>
       <App initialSettings={initialSettings} />
     </StrictMode>,
@@ -59,4 +70,4 @@ void readInitialSettings().then((initialSettings) => {
       performance.mark('curve:app-ready');
     });
   });
-});
+}

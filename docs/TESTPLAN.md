@@ -197,6 +197,13 @@
 3. 导入向导出现示例导入器；导入 `fixtures/json/points.json` 成功。
 4. 注入一个激活即抛错的测试插件（仅测试构建）：断言应用继续启动、插件被禁用、其他功能正常。
 
+> T6.2 覆盖（ADR-053）：`apps/desktop/e2e/plugin.spec.ts` 3 条——新建 rating 列（`★` 格式化、
+> JSONL 存 number、0/6 显示“超出允许范围”、重载后无 “cannot verify field type” 警告且仍格式化、
+> 列表面板带字段类型徽标）覆盖第 2 步；`导入向导列出 Points JSON 并导入 points.json` 覆盖第 3 步；
+> 200% 缩放 + 键盘选择语义类型覆盖 UI 冒烟。第 1 步由“rating/Points JSON 选项出现”间接断言，
+> 宿主激活状态另由 `packages/plugin-sdk` 的 host 单测覆盖；第 4 步的错误隔离由 T6.1
+> `host.test.ts`（激活抛错回滚/禁用）覆盖，UI 侧的错误边界与“禁用插件”入口属 T6.3。
+
 ### E10 CSV 导出（T3.6）
 
 1. 3 行夹具含逗号/引号/内嵌换行/首尾空白/中文/空值；筛选 `value >= 2` + `value desc`，

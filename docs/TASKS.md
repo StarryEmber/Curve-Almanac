@@ -1799,7 +1799,7 @@ T6.2 + T2.5 + T3.2 → T6.3
 
 <a id="t62"></a>
 ### T6.2 示例插件
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T6.1
 - 覆盖：FR-EXT-03
 - 参考：SPEC §14.2
@@ -1811,10 +1811,36 @@ T6.2 + T2.5 + T3.2 → T6.3
   2. 导入器：解析 `{points:[{x,y}]}`。
   3. 在桌面组装点静态导入并激活。
 - 验收：
-  - [ ] 新建列可选 `rating`，存为 number，重启后仍可解析。
-  - [ ] 示例导入器出现在导入向导并可完成导入。
-  - [ ] 插件测试独立运行，不依赖桌面。
+  - [x] 新建列可选 `rating`，存为 number，重启后仍可解析。
+  - [x] 示例导入器出现在导入向导并可完成导入。
+  - [x] 插件测试独立运行，不依赖桌面。
 - 验证：`pnpm exec vitest run plugins/plugin-sample && pnpm e2e -- --grep "plugin"`
+
+  实现备注（2026-10-30，ADR-053）：
+  - 插件包：`plugins/plugin-sample`（`@curve/plugin-sample`），只依赖 `@curve/plugin-sdk` 与
+    `@curve/domain`；字段类型 id `com.curvealmanac.rating`（label `Rating`，storageType number，
+    defaultWidth 96），导入器 id `com.curvealmanac.points`（接受 `{"points":[…]}` 或点数组，
+    兼容 `fixtures/json/points.json`）。`parseText` 接受整数文本、值域在 `validate` 收口，
+    因此 0/6 报“超出允许范围”。
+  - 组装点：`apps/desktop/src/renderer/plugins/index.ts` 的宿主单例在 `main.tsx` 首帧前
+    `activateAll()`；列对话框新增“语义类型”下拉（只列 storageType 匹配的类型，换类型清空），
+    列表面板显示字段类型徽标；导入向导第 1 步新增“导入器”下拉，插件导入器在渲染进程解码+解析、
+    内联规划（内置 CSV/JSON 仍走 Worker）。网格/自动列宽/样式预览使用字段类型的 `format`。
+  - 校验：`app-core` 用结构化 `FieldTypeLookup`（不 import plugin-sdk）；`checkTableCellSet` /
+    `validateCellBatch` 先存储后语义；命令层与编辑器同规则。主进程通过
+    `apps/desktop/src/main/plugins.ts` 只读 `sampleFieldTypes` 建立 resolver，
+    `validateManifest`/`parseManifestDocument`/`FileWorkspaceStore` 用它严格校验，载入不再出现
+    “cannot verify field type”警告。
+  - `ColumnDraft.fieldTypeId` 三态：字符串=选择、`null`=显式清除、`undefined`=保留（T2.3 兼容）。
+  - 测试：`plugins/plugin-sample` 3 files / **29 tests**（rating 15、importer 9、plugin 5）；
+    `apps/desktop/e2e/plugin.spec.ts` 3 条（rating 列 + 0/6 拒绝 + 重载无警告 5.9s、200% 缩放键盘
+    选择 2.6s、示例导入器完成导入 3.4s）。报告 `docs/reports/t6.2/REPORT.md` + 2 张截图。
+  - 实测（见报告 §4）：`pnpm verify` **188 files / 1761 tests**；depcruise 514 modules / 2209 deps /
+    0 violations；coverage statements 77.11% / branches 69.95% / functions 76.23% / lines 77.25%；
+    `pnpm build` exit 0（renderer 3,394.50 kB、CSS 77.89 kB）；定向 e2e **3 passed**（13.0s）；
+    全量 e2e **107 passed**（6.5m）；`pnpm bench` exit 0（全部预算内）；`pnpm format:check` 通过。
+  - 残留：插件导入在主线程规划（大文件需迁移 Worker）；每次导入多一份字节副本；字段类型 label
+    不本地化；CSV 导出未接语义格式化；T6.3 仍负责其余贡献点、来源标识、错误边界与手动禁用。
 
 <a id="t63"></a>
 ### T6.3 插件接入 UI 与隔离

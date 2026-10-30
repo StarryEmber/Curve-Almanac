@@ -565,4 +565,33 @@ describe('column actions', () => {
     ).toBe(true);
     expect(core.store.getState().tables['tbl_1']?.table.columns[1]?.fieldTypeId).toBeUndefined();
   });
+
+  it('clears a semantic field type when the draft says null (T6.2)', async () => {
+    const table = makeTable({
+      columns: [
+        { id: 'col_id', key: 'id', label: 'ID', type: 'text', role: 'none', required: true },
+        {
+          id: 'col_value',
+          key: 'value',
+          label: 'Value',
+          type: 'number',
+          role: 'y',
+          fieldTypeId: 'com.curvealmanac.rating',
+        },
+      ],
+      rowCount: 1,
+    });
+    const { core } = setup({ table, rows: [{ id: 'row_1', values: ['a', 3] }] });
+
+    expect(
+      (
+        await core.actions.updateColumn(
+          'tbl_1',
+          'col_value',
+          draft({ label: 'Value', key: 'value', type: 'number', role: 'y', fieldTypeId: null }),
+        )
+      ).ok,
+    ).toBe(true);
+    expect(core.store.getState().tables['tbl_1']?.table.columns[1]?.fieldTypeId).toBeUndefined();
+  });
 });

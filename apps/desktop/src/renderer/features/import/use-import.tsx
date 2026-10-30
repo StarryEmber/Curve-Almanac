@@ -2,27 +2,69 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { autoMapImportColumns, createImportColumns } from '@curve/app-core';
 import type { ImportColumnDraft } from '@curve/app-core';
-import { toAppError } from '@curve/domain';
+import { createAppError, toAppError } from '@curve/domain';
 import type { Cell, ColumnDef } from '@curve/domain';
-import { MAX_ROWS_PER_TABLE } from '@curve/table-engine';
-import type { ImportColumnMapping, ImportDelimiter, ImportPlan } from '@curve/table-engine';
+import { MAX_ROWS_PER_TABLE, planImport } from '@curve/table-engine';
+import type {
+  ImportColumnMapping,
+  ImportDelimiter,
+  ImportPlan,
+  ParsedImportData,
+} from '@curve/table-engine';
 
 import { useRendererCore } from '../../app-core/use-app-core';
 import { describeAppError } from '../../error-text';
 import { useI18n } from '../../i18n';
 import { createImportWorkerClient } from '../../import/client';
+import { findImporter, listImporters } from '../../plugins';
 
 import { buildImportErrorCsv, importErrorFileName } from './import-error-csv';
 import { ImportWizardDialog } from './ImportWizardDialog';
+import { runPluginImport } from './plugin-import';
 
 import type { ImportPlanView } from './import-plan-view';
 import type { ImportWorkerClient } from '../../import/client';
 import type { ImportEncodingChoice } from '../../import/encoding';
-import type { ImportPreview } from '../../import/worker-protocol';
+import type {
+  ImportPlanPayload,
+  ImportPreview,
+  ImportWorkerCallResult,
+} from '../../import/worker-protocol';
 import type { ReactElement } from 'react';
 
 export const IMPORT_LARGE_ROW_THRESHOLD = 100_000;
 export const IMPORT_MAX_ROWS = MAX_ROWS_PER_TABLE;
+
+/**
+ * Plans a plugin-imported dataset in the renderer (T6.2).
+ *
+ * The Worker payload and this call carry the same fields (`rows: []` plus the
+ * compact existing-key snapshot, exactly like the Worker handler), so both paths
+ * produce an identical `ImportPlan`.
+ */
+function planInRenderer(
+  request: ImportPlanPayload,
+  dataset: ParsedImportData,
+): ImportWorkerCallResult<ImportPlan> {
+  try {
+    return {
+      ok: true,
+      result: planImport({
+        table: request.table,
+        rows: [],
+        existingKeys: request.existingKeys,
+        existingRowCount: request.existingRowCount,
+        dataset,
+        mappings: request.mappings,
+        ...(request.newColumns === undefined ? {} : { newColumns: request.newColumns }),
+        mode: request.mode,
+        skipInvalid: request.skipInvalid,
+      }),
+    };
+  } catch (thrown) {
+    return { ok: false, error: toAppError(thrown) };
+  }
+}
 
 interface Session {
   tableId: string;
@@ -31,7 +73,15 @@ interface Session {
   sha256: string;
   size: number;
   format: 'csv' | 'json';
+  /** Raw bytes, kept for plugin importers (they run in the renderer). */
+  bytes: Uint8Array;
   preview: ImportPreview;
+  /** Last Worker preview; restored when a plugin importer is cleared again. */
+  builtinPreview: ImportPreview;
+  /** Selected plugin importer (T6.2), or null for the builtin Worker path. */
+  importer: { id: string; label: string } | null;
+  /** Dataset produced by the plugin importer; planned in the renderer. */
+  dataset: ParsedImportData | null;
   encoding: ImportEncodingChoice;
   delimiter?: ImportDelimiter;
   hasHeader: boolean;
@@ -83,7 +133,7 @@ export interface UseImportResult {
 
 export function useImport(options: UseImportOptions = {}): UseImportResult {
   const { core, api } = useRendererCore();
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const onClosed = options.onClosed;
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -98,12 +148,15 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
   const [replaceConfirmed, setReplaceConfirmed] = useState(false);
   const [largeConfirmed, setLargeConfirmed] = useState(false);
   const clientRef = useRef<ImportWorkerClient | null>(null);
+  const pluginAbortRef = useRef<AbortController | null>(null);
   const planRef = useRef<ImportPlan | null>(null);
   const tableIdRef = useRef<string | null>(null);
   const generationRef = useRef(0);
 
   const reset = useCallback((): void => {
     generationRef.current += 1;
+    pluginAbortRef.current?.abort();
+    pluginAbortRef.current = null;
     clientRef.current?.terminate();
     clientRef.current = null;
     planRef.current = null;
@@ -126,6 +179,8 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
   useEffect(
     () => () => {
       generationRef.current += 1;
+      pluginAbortRef.current?.abort();
+      pluginAbortRef.current = null;
       clientRef.current?.terminate();
     },
     [],
@@ -180,6 +235,10 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
           }
           const client = createImportWorkerClient();
           clientRef.current = client;
+          // The Worker takes the bytes by transfer, which detaches the renderer
+          // buffer. T6.2 plugin importers run in the renderer, so keep a copy
+          // for the "switch importer" path before transferring.
+          const importBytes = new Uint8Array(imported.data.bytes);
           const opened = await client.open(imported.data.bytes, imported.data.name);
           if (generation !== generationRef.current) {
             return;
@@ -198,7 +257,11 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
             sha256: imported.data.sha256,
             size: imported.data.size,
             format: imported.data.format,
+            bytes: importBytes,
             preview,
+            builtinPreview: preview,
+            importer: null,
+            dataset: null,
             encoding: 'auto',
             ...(preview.delimiter === undefined ? {} : { delimiter: preview.delimiter }),
             hasHeader: preview.hasHeader,
@@ -253,11 +316,12 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
           return;
         }
         setSession((previous) =>
-          previous === null
+          previous === null || previous.importer !== null
             ? previous
             : {
                 ...previous,
                 preview: result.result,
+                builtinPreview: result.result,
                 encoding: patch.encoding ?? previous.encoding,
                 ...(result.result.delimiter === undefined
                   ? { delimiter: undefined }
@@ -271,6 +335,95 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
       })();
     },
     [busy, invalidatePlan, session, t],
+  );
+
+  /**
+   * Switches between the builtin Worker parser and a plugin importer (T6.2).
+   *
+   * Plugin importers are renderer modules, so they get the decoded text and the
+   * resulting dataset is planned in the renderer; the builtin path keeps using
+   * the Worker. `null` restores the Worker preview of the same file.
+   */
+  const selectImporter = useCallback(
+    (importerId: string | null): void => {
+      const current = session;
+      if (current === null || busy) {
+        return;
+      }
+      pluginAbortRef.current?.abort();
+      pluginAbortRef.current = null;
+
+      if (importerId === null) {
+        setError(null);
+        setSession({
+          ...current,
+          importer: null,
+          dataset: null,
+          preview: current.builtinPreview,
+          hasHeader: current.builtinPreview.hasHeader,
+          ...(current.builtinPreview.delimiter === undefined
+            ? { delimiter: undefined }
+            : { delimiter: current.builtinPreview.delimiter }),
+        });
+        invalidatePlan();
+        return;
+      }
+
+      const importer = findImporter(importerId);
+      if (importer === undefined) {
+        setError(
+          describeAppError(
+            createAppError('E_PLUGIN_INVALID', `Unknown plugin importer "${importerId}".`),
+            t,
+          ),
+        );
+        return;
+      }
+
+      const controller = new AbortController();
+      pluginAbortRef.current = controller;
+      const generation = generationRef.current;
+      setBusy(true);
+      setBusyLabel(t('import.busy.parsing'));
+      setError(null);
+      void (async () => {
+        const outcome = await runPluginImport({
+          importer,
+          bytes: current.bytes,
+          fileName: current.name,
+          locale,
+          signal: controller.signal,
+        });
+        if (generation !== generationRef.current) {
+          return;
+        }
+        pluginAbortRef.current = null;
+        setBusy(false);
+        setBusyLabel(null);
+        if (!outcome.ok) {
+          setError(describeAppError(outcome.error, t));
+          return;
+        }
+        setSession((previous) =>
+          previous === null
+            ? previous
+            : {
+                ...previous,
+                importer: {
+                  id: outcome.session.importerId,
+                  label: outcome.session.importerLabel,
+                },
+                dataset: outcome.session.dataset,
+                preview: outcome.session.preview,
+                encoding: 'auto',
+                delimiter: undefined,
+                hasHeader: true,
+              },
+        );
+        invalidatePlan();
+      })();
+    },
+    [busy, invalidatePlan, locale, session, t],
   );
 
   const initializeMapping = useCallback((): void => {
@@ -407,7 +560,7 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
     (skip: boolean, targetStep: 4 | 5 = 4, planMode: 'append' | 'replace' = mode): void => {
       const client = clientRef.current;
       const current = session;
-      if (client === null || current === null) {
+      if (current === null || (client === null && current.dataset === null)) {
         return;
       }
       const built = buildPlanRequest(skip, planMode);
@@ -420,7 +573,13 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
       setError(null);
       setStep(targetStep);
       void (async () => {
-        const planned = await client.plan(built.request);
+        // A plugin importer already produced a dataset in the renderer; planning
+        // is pure, so it runs inline with the exact Worker payload shape. The
+        // builtin path keeps planning inside the Worker.
+        const planned =
+          current.dataset !== null
+            ? planInRenderer(built.request, current.dataset)
+            : await (client as ImportWorkerClient).plan(built.request);
         if (generation !== generationRef.current) {
           return;
         }
@@ -579,6 +738,11 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
 
   const duplicateTarget = session === null ? false : hasDuplicateTargets(session.mappings);
   const largeRows = plan?.ok === true && plan.finalRowCount > IMPORT_LARGE_ROW_THRESHOLD;
+  // The plugin registry is only read while the wizard is open (T5.4 performance
+  // rule: closed panels must not subscribe to registries/stores).
+  const importers = open
+    ? listImporters().map((entry) => ({ id: entry.id, label: entry.def.label }))
+    : [];
 
   return {
     start,
@@ -591,6 +755,8 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
         existingRowCount={tableData?.rows.length ?? 0}
         step={step}
         preview={session?.preview ?? null}
+        importers={importers}
+        importerId={session?.importer?.id ?? null}
         existingColumns={existingColumns}
         encoding={session?.encoding ?? 'auto'}
         delimiter={session?.delimiter}
@@ -612,6 +778,7 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
         onEncodingChange={(encoding) => configure({ encoding })}
         onDelimiterChange={(delimiter) => configure({ delimiter })}
         onHeaderChange={(hasHeader) => configure({ hasHeader })}
+        onImporterChange={selectImporter}
         onMappingChange={updateMapping}
         onDraftChange={updateDraft}
         onNext={goNext}

@@ -32,6 +32,8 @@ export interface ImportPreview {
   previewRows: ImportCellValue[][];
   totalRows: number;
   warnings: string[];
+  /** T6.2: set when a plugin importer produced this preview (renderer only). */
+  importerLabel?: string;
 }
 
 export interface ImportOpenPayload {

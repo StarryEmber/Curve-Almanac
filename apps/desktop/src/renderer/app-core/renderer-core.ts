@@ -7,6 +7,7 @@ import { createAppCore } from '@curve/app-core';
 import type { AppCore } from '@curve/app-core';
 
 import { createApiClient } from '../api-client';
+import { fieldTypeLookup } from '../plugins';
 import { createQueryClient } from '../query/client';
 import { createTableIoClient } from '../table-io/client';
 
@@ -42,6 +43,9 @@ export function createRendererCore(
   const core = createAppCore({
     workspaceStore,
     ...(options.autosaveEnabled === undefined ? {} : { autosaveEnabled: options.autosaveEnabled }),
+    // T6.2: the command layer must enforce the same semantic field-type rules
+    // as the grid, so both read the plugin host registry.
+    fieldTypes: fieldTypeLookup,
     decodeTable: async (jsonl, table) => {
       const decoded = await tableIo.decode(jsonl, table);
       if (!decoded.ok) {

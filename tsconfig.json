@@ -7,6 +7,7 @@
     { "path": "packages/chart-echarts" },
     { "path": "packages/persistence" },
     { "path": "packages/plugin-sdk" },
+    { "path": "plugins/plugin-sample" },
     { "path": "packages/ui" },
     { "path": "packages/app-core" },
     { "path": "apps/desktop/tsconfig.node.json" },

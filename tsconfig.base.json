@@ -14,6 +14,7 @@
       "@curve/chart-echarts": ["packages/chart-echarts/src/index.ts"],
       "@curve/persistence": ["packages/persistence/src/index.ts"],
       "@curve/plugin-sdk": ["packages/plugin-sdk/src/index.ts"],
+      "@curve/plugin-sample": ["plugins/plugin-sample/src/index.ts"],
       "@curve/ui": ["packages/ui/src/index.ts"],
       "@curve/app-core": ["packages/app-core/src/index.ts"]
     },

@@ -1611,8 +1611,18 @@ export interface RenderModel {
 - 内置插件在 `apps/desktop/src/renderer/plugins/index.ts` 注册；示例插件在 `plugins/plugin-sample/`。
 - 每个插件导出 `PluginDefinition`，由宿主在启动时 `activate`。
 - 插件异常必须隔离：单个插件激活失败 → 记日志、标记禁用、应用继续启动。
+- T6.2：示例插件 `@curve/plugin-sample` 实现 `rating` 语义字段类型与 `points` 导入器；渲染进程
+  组装点在**首帧渲染前** `activateAll()`，UI 通过宿主注册表读取贡献（T6.2 只接字段类型与导入器，
+  其余贡献点与来源标识/错误边界在 T6.3）。
+- T6.2：主进程也需要解析 `fieldTypeId`（§14.3），因此只读取插件包导出的字段类型定义建立
+  “字段类型 → storageType”映射；主进程**不激活**插件、不执行插件代码。两个进程共用同一份定义。
 
 ### 14.2 契约
+
+字段类型 id 使用反向域名（例如 `com.curvealmanac.rating`），不得与五种内置存储类型重名；
+`ImporterDef.parse` 在渲染进程执行（插件是渲染进程模块）：渲染进程解码文件文本并调用
+`parse`，再把 `ImportResult` 转成导入管线的 `ParsedImportData`；内置 CSV/JSON 仍由导入 Worker
+解析（T6.2、ADR-053）。
 
 ```ts
 // packages/plugin-sdk/src/index.ts
@@ -1727,6 +1737,17 @@ export interface PluginCommandContext {
 - 宿主校验 `apiVersion` 主版本 = 1；不兼容 → 禁用插件并提示，不影响其他插件。
 - 单个插件 `activate` 抛错/拒绝时，宿主回滚该插件已注册的贡献并标记禁用（`E_PLUGIN_ACTIVATE`），继续激活其他插件；插件 id 重复/定义非法为 `E_PLUGIN_INVALID`。禁用列表在 T6.1 只存在于宿主内存并写日志，不持久化（手动禁用/持久化见 T6.3）。
 - 注册表本身是纯数据 + 订阅，不依赖 React；`@curve/plugin-sdk` 只依赖 `@curve/domain`。
+- **`fieldTypeId` 的解析点（T6.2，ADR-053）**：主进程在载入/写入 manifest 时用**编译进包**的
+  字段类型映射校验（未知类型或 `storageType !== column.type` → 拒绝并给 `E_WS_INVALID_MANIFEST`）；
+  渲染进程用**实际激活**的插件注册表做单元格解析/校验/格式化（§9.2 的编辑器与命令层共用同一
+  套规则）。没有注册表的调用方只能给 warning，不得静默接受。
+- **插件导入器的执行位置（T6.2，ADR-053）**：`ImporterDef.parse` 在渲染进程执行；它产出的
+  `ImportResult` 转成 `ParsedImportData` 后按与导入 Worker 相同的载荷规划。内置 CSV/JSON 的
+  解码、解析与规划仍在 Worker 中，插件不得绕过该边界。
+- 语义类型只在**列的存储类型未变**时保留；改变存储类型会清空 `fieldTypeId`（ADR-015）。用户可在
+  列对话框中显式清除语义类型（`ColumnDraft.fieldTypeId = null`）。
+- 列表面板显示字段类型的 label（插件提供、不本地化）；网格、自动列宽与样式预览都使用该类型
+  的 `format`，CSV 导出仍用存储格式化（导出接语义类型另议）。
 
 ### 14.4 内置贡献点
 

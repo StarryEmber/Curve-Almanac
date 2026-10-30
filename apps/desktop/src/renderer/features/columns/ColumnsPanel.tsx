@@ -8,6 +8,7 @@ import { Button } from '@curve/ui';
 import { useAppState, useRendererCore } from '../../app-core/use-app-core';
 import { describeAppError } from '../../error-text';
 import { useI18n } from '../../i18n';
+import { findFieldType } from '../../plugins';
 
 import { isDestructiveColumnChange } from './column-form';
 import { ColumnChangeDialog } from './ColumnChangeDialog';
@@ -296,11 +297,18 @@ export function ColumnsPanel({ tableId }: ColumnsPanelProps): ReactElement | nul
           {table.columns.map((column, index) => {
             const isPrimaryKey = column.id === table.primaryKey;
             const enumCount = column.enumOptions?.length ?? 0;
+            // T6.2: show the plugin semantic type next to the storage type, so a
+            // rating column is distinguishable from a plain number column.
+            const fieldTypeLabel =
+              column.fieldTypeId === undefined
+                ? null
+                : (findFieldType(column.fieldTypeId)?.label ?? column.fieldTypeId);
             return (
               <li
                 key={column.id}
                 className="cs-columns__item"
                 data-testid={`column-row-${column.id}`}
+                data-field-type={column.fieldTypeId}
               >
                 <button
                   type="button"
@@ -315,6 +323,9 @@ export function ColumnsPanel({ tableId }: ColumnsPanelProps): ReactElement | nul
                   <span className="cs-columns__badges">
                     <span className="cs-columns__badge">{t(`columns.type.${column.type}`)}</span>
                     <span className="cs-columns__badge">{t(`columns.role.${column.role}`)}</span>
+                    {fieldTypeLabel === null ? null : (
+                      <span className="cs-columns__badge">{fieldTypeLabel}</span>
+                    )}
                     {isPrimaryKey ? (
                       <span className="cs-columns__badge cs-columns__badge--key">
                         {t('columns.primaryKeyBadge')}

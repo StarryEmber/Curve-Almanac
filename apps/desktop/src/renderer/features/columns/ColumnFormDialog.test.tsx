@@ -4,8 +4,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ColumnDef, TableMeta } from '@curve/domain';
+import { RATING_FIELD_TYPE_ID } from '@curve/plugin-sample';
 
 import { I18nProvider } from '../../i18n';
+import { activateRendererPlugins } from '../../plugins';
 
 import { ColumnFormDialog } from './ColumnFormDialog';
 
@@ -180,5 +182,63 @@ describe('ColumnFormDialog', () => {
     });
     // The panel owns the confirmation state; the form must not close it.
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('offers the plugin semantic types that match the storage type (T6.2)', async () => {
+    await activateRendererPlugins();
+    const { onSubmit } = renderForm();
+
+    fireEvent.change(screen.getByLabelText('显示名称'), { target: { value: 'Rating' } });
+    fireEvent.change(screen.getByLabelText('存储类型'), { target: { value: 'number' } });
+
+    const fieldType = screen.getByTestId('column-form-field-type') as HTMLSelectElement;
+    expect(fieldType.value).toBe('');
+    fireEvent.change(fieldType, { target: { value: RATING_FIELD_TYPE_ID } });
+
+    fireEvent.click(screen.getByRole('button', { name: '添加列' }));
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+    const [draft] = onSubmit.mock.calls[0] as [Record<string, unknown>];
+    expect(draft).toMatchObject({
+      label: 'Rating',
+      type: 'number',
+      fieldTypeId: RATING_FIELD_TYPE_ID,
+    });
+  });
+
+  it('clears the semantic type when the storage type changes', async () => {
+    await activateRendererPlugins();
+    const table = makeTable({
+      columns: [
+        { id: 'col_id', key: 'id', label: 'ID', type: 'text', role: 'none', required: true },
+        {
+          id: 'col_rating',
+          key: 'rating',
+          label: 'Rating',
+          type: 'number',
+          role: 'none',
+          fieldTypeId: RATING_FIELD_TYPE_ID,
+        },
+      ],
+    });
+    const { onSubmit } = renderForm({
+      mode: 'edit',
+      table,
+      column: table.columns[1] as ColumnDef,
+    });
+
+    expect((screen.getByTestId('column-form-field-type') as HTMLSelectElement).value).toBe(
+      RATING_FIELD_TYPE_ID,
+    );
+    fireEvent.change(screen.getByLabelText('存储类型'), { target: { value: 'text' } });
+    expect(screen.queryByTestId('column-form-field-type')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '保存列' }));
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+    const [draft] = onSubmit.mock.calls[0] as [Record<string, unknown>];
+    expect(draft['fieldTypeId']).toBeNull();
   });
 });

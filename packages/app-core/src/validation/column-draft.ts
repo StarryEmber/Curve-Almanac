@@ -20,10 +20,25 @@ export interface ColumnDraft {
   precision?: number;
   enumOptions?: EnumOption[];
   required?: boolean;
+  /**
+   * T6.2 semantic field type. `undefined` keeps the current value (T2.3
+   * behaviour for callers that do not know about field types), `null` clears it
+   * explicitly, and a string selects a registered plugin field type.
+   */
+  fieldTypeId?: string | null;
 }
 
 export type ColumnDraftField =
-  'label' | 'key' | 'type' | 'role' | 'unit' | 'precision' | 'enumOptions' | 'required' | 'form';
+  | 'label'
+  | 'key'
+  | 'type'
+  | 'role'
+  | 'unit'
+  | 'precision'
+  | 'enumOptions'
+  | 'required'
+  | 'fieldTypeId'
+  | 'form';
 
 export type ColumnDraftIssueReason =
   | 'required'
@@ -54,6 +69,7 @@ const FIELD_BY_PATH: Record<string, ColumnDraftField> = {
   precision: 'precision',
   enumOptions: 'enumOptions',
   required: 'required',
+  fieldTypeId: 'fieldTypeId',
 };
 
 function fieldForPath(path: string): ColumnDraftField {
@@ -155,6 +171,8 @@ export function checkColumnDraft(
     });
   }
 
+  const fieldTypeId = typeof draft.fieldTypeId === 'string' ? draft.fieldTypeId.trim() : undefined;
+
   const candidate: ColumnDef = {
     id: columnId,
     key,
@@ -165,6 +183,7 @@ export function checkColumnDraft(
     ...(draft.precision === undefined ? {} : { precision: draft.precision }),
     ...(enumOptions === undefined ? {} : { enumOptions }),
     ...(draft.required === true ? { required: true } : {}),
+    ...(fieldTypeId === undefined || fieldTypeId.length === 0 ? {} : { fieldTypeId }),
   };
   const parsed = parseColumnDef(candidate);
   if (!parsed.ok) {

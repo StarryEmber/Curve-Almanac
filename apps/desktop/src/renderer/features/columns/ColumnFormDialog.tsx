@@ -6,6 +6,7 @@ import type { ColumnDef, ColumnRole, ColumnType, TableMeta } from '@curve/domain
 import { Button, Dialog, Input, Select } from '@curve/ui';
 
 import { useI18n } from '../../i18n';
+import { listFieldTypes } from '../../plugins';
 
 import { columnIssueText } from './column-error-text';
 import {
@@ -90,10 +91,13 @@ export function ColumnFormDialog({
 
   const changeType = (type: ColumnType): void => {
     setForm((current) => {
+      // A semantic type must store the column's type (ADR-015), so changing the
+      // storage type clears it; the select only offers compatible field types.
       if (type === 'enum') {
         return {
           ...current,
           type,
+          fieldTypeId: null,
           enumOptions:
             current.enumOptions === undefined || current.enumOptions.length === 0
               ? [{ value: '', label: '' }]
@@ -102,7 +106,7 @@ export function ColumnFormDialog({
       }
       const rest: ColumnDraft = { ...current };
       delete rest.enumOptions;
-      return { ...rest, type };
+      return { ...rest, type, fieldTypeId: null };
     });
   };
 
@@ -150,6 +154,22 @@ export function ColumnFormDialog({
   const formIssue = issueFor('form');
   const enumError = issueFor('enumOptions');
   const isPrimaryKey = column !== undefined && column.id === table.primaryKey;
+
+  // T6.2: semantic field types come from the plugin host registry; only those
+  // storing the selected storage type can be applied (ADR-015).
+  const selectedFieldTypeId = form.fieldTypeId ?? '';
+  const compatibleFieldTypes = listFieldTypes().filter(
+    (entry) => entry.def.storageType === form.type,
+  );
+  const unknownFieldType =
+    selectedFieldTypeId !== '' &&
+    !compatibleFieldTypes.some((entry) => entry.id === selectedFieldTypeId);
+  const showFieldType = compatibleFieldTypes.length > 0 || unknownFieldType;
+  const fieldTypeOptions = [
+    { value: '', label: t('columns.form.fieldTypeNone') },
+    ...compatibleFieldTypes.map((entry) => ({ value: entry.id, label: entry.def.label })),
+    ...(unknownFieldType ? [{ value: selectedFieldTypeId, label: selectedFieldTypeId }] : []),
+  ];
 
   return (
     <Dialog
@@ -251,6 +271,20 @@ export function ColumnFormDialog({
         </div>
         {isPrimaryKey ? (
           <p className="cs-dialog__hint">{t('columns.form.primaryKeyNote')}</p>
+        ) : null}
+        {showFieldType ? (
+          <Select
+            label={t('columns.form.fieldType')}
+            hint={t('columns.form.fieldTypeHint')}
+            data-testid="column-form-field-type"
+            value={selectedFieldTypeId}
+            options={fieldTypeOptions}
+            disabled={isPrimaryKey}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              update({ fieldTypeId: value === '' ? null : value });
+            }}
+          />
         ) : null}
 
         <div className="cs-column-form__row">

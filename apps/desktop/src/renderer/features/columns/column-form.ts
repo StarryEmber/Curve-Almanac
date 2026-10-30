@@ -13,6 +13,9 @@ export function draftFromColumn(column: ColumnDef): ColumnDraft {
     key: column.key,
     type: column.type,
     role: column.role,
+    // T6.2: `null` means "explicitly no semantic type", so clearing it in the
+    // dialog is not undone by the T2.3 "keep the current field type" fallback.
+    fieldTypeId: column.fieldTypeId ?? null,
     ...(column.unit === undefined ? {} : { unit: column.unit }),
     ...(column.precision === undefined ? {} : { precision: column.precision }),
     ...(column.enumOptions === undefined
@@ -60,6 +63,7 @@ export function newColumnDraft(table: { columns: readonly ColumnDef[] }): Column
     key: uniqueColumnKey('column', existing),
     type: 'text',
     role: 'none',
+    fieldTypeId: null,
   };
 }
 

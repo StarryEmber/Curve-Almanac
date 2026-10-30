@@ -17,6 +17,8 @@
     { "path": "../../packages/app-core" },
     { "path": "../../packages/chart-model" },
     { "path": "../../packages/chart-echarts" },
+    { "path": "../../packages/plugin-sdk" },
+    { "path": "../../plugins/plugin-sample" },
     { "path": "../../packages/ui" }
   ],
   "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx", "src/shared/**/*.ts"]

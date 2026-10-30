@@ -33,6 +33,7 @@ import { createIpcRegistrar } from './ipc/register';
 import { createConsoleLogger } from './logger';
 import { buildMenuTemplate } from './menu';
 import { isNavigationAllowed } from './navigation';
+import { resolveFieldTypeStorage } from './plugins';
 import { createQuitGuard, QUIT_TIMEOUT_MS, UNSAVED_QUIT_TIMEOUT_MS } from './quit-guard';
 import { createAppSettingsStore } from './settings/app-settings-store';
 import { buildWindowOptions } from './window-options';
@@ -422,6 +423,9 @@ async function start(): Promise<void> {
     // New workspaces inherit the user's default table style (T5.5). Existing
     // workspaces keep their own manifest setting.
     appSettings: () => settingsStore.get(),
+    // T6.2: semantic field types are compiled in, so the manifest can be
+    // validated before the renderer (and its plugin host) exists.
+    resolveFieldTypeStorage,
   });
   quitGuard = installQuitGuard(settingsStore);
   registerIpc(workspaceStore, settingsStore);

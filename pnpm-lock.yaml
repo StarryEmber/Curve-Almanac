@@ -108,6 +108,12 @@ importers:
       '@curve/persistence':
         specifier: workspace:*
         version: link:../../packages/persistence
+      '@curve/plugin-sample':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-sample
+      '@curve/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
       '@curve/table-engine':
         specifier: workspace:*
         version: link:../../packages/table-engine
@@ -260,6 +266,15 @@ importers:
       react-dom:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
+
+  plugins/plugin-sample:
+    dependencies:
+      '@curve/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@curve/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
 
 packages:
 

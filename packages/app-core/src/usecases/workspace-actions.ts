@@ -84,6 +84,7 @@ import type {
   ColumnChangeSummary,
 } from '../validation/column-change';
 import type { ColumnDraft, ColumnDraftIssue } from '../validation/column-draft';
+import type { FieldTypeLookup } from '../validation/field-types';
 import type { PasteIssue, PastePlanSuccess } from '../validation/paste-plan';
 
 export { stateToManifest } from '../state/manifest';
@@ -279,6 +280,8 @@ export interface WorkspaceActionsOptions {
   uuid?: UuidFactory;
   /** Debounce for layout-only manifest writes (T5.1; default 500 ms). */
   layoutSaveDelayMs?: number;
+  /** T6.2: plugin semantic field types for the renderer-side pre-check. */
+  fieldTypes?: FieldTypeLookup;
 }
 
 export type PaneDirection = 'horizontal' | 'vertical';
@@ -994,7 +997,11 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     columnId: string,
     value: unknown,
   ): Promise<ActionOutcome<CellUpdateResult>> {
-    const check = checkTableCellSet(store.getState(), { tableId, rowId, columnId, value });
+    const check = checkTableCellSet(
+      store.getState(),
+      { tableId, rowId, columnId, value },
+      options.fieldTypes === undefined ? {} : { fieldTypes: options.fieldTypes },
+    );
     if (!check.ok) {
       store.getState().actions.setEditIssue(check.issue);
       return { ok: false, error: cellIssueToAppError(check.issue), issue: check.issue };
@@ -1401,7 +1408,27 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
       : { ok: false, error: flushed.error, committed: true };
   }
 
-  function preserveFieldType(column: ColumnDef, current: ColumnDef | undefined): ColumnDef {
+  /**
+   * Applies the semantic field type requested by the form (T6.2, ADR-015).
+   *
+   * - a string selects a plugin field type;
+   * - `null` clears it (the user picked "no semantic type");
+   * - `undefined` keeps the current type when the storage type did not change,
+   *   which is the T2.3 behaviour for callers that ignore field types.
+   */
+  function resolveFieldType(
+    draft: ColumnDraft,
+    column: ColumnDef,
+    current: ColumnDef | undefined,
+  ): ColumnDef {
+    const requested = draft.fieldTypeId;
+    if (requested === null) {
+      return column;
+    }
+    if (typeof requested === 'string') {
+      const fieldTypeId = requested.trim();
+      return fieldTypeId.length === 0 ? column : { ...column, fieldTypeId };
+    }
     if (
       current !== undefined &&
       current.fieldTypeId !== undefined &&
@@ -1475,7 +1502,7 @@ export function createWorkspaceActions(options: WorkspaceActionsOptions): Worksp
     if (!checked.ok) {
       return failDraft(checked.issues);
     }
-    const column = preserveFieldType(checked.column, current);
+    const column = resolveFieldType(draft, checked.column, current);
     const change: ColumnChange = { kind: 'update', tableId, column };
     const inspection = inspectColumnChange(change);
     if (!inspection.ok) {

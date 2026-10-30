@@ -12,6 +12,8 @@
   "references": [
     { "path": "../../packages/domain" },
     { "path": "../../packages/persistence" },
+    { "path": "../../packages/plugin-sdk" },
+    { "path": "../../plugins/plugin-sample" },
     { "path": "../../packages/table-engine" }
   ],
   "include": [

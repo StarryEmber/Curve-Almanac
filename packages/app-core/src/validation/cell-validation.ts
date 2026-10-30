@@ -8,11 +8,12 @@
  */
 
 import { coerceCell } from '@curve/domain';
-import type { Cell, Row, TableMeta } from '@curve/domain';
+import type { Cell, ColumnDef, Row, TableMeta } from '@curve/domain';
 
 import { cellIssueFromResult } from './cell-issue';
 
 import type { CellIssue } from './cell-issue';
+import type { FieldTypeLookup, FieldTypeRule } from './field-types';
 import type { AppState } from '../state/types';
 
 export type { CellIssue, CellIssueReason } from './cell-issue';
@@ -26,6 +27,14 @@ export interface CellEditTarget {
 }
 
 export type CellEdit = Omit<CellEditTarget, 'tableId'>;
+
+/**
+ * T6.2: semantic field types (plugin contributions). Omitted means "storage
+ * rules only", which keeps every pre-T6.2 caller working.
+ */
+export interface CellValidationOptions {
+  fieldTypes?: FieldTypeLookup;
+}
 
 export type CellSetCheck =
   | {
@@ -61,6 +70,60 @@ function findDuplicateKeyRow(
 }
 
 /**
+ * Applies the storage coercion first, then the semantic field type (T6.2).
+ *
+ * The storage rule decides the physical cell shape (`coerceCell`); the plugin
+ * field type may normalise the text further (`parseText`, e.g. `"3"` -> `3`) and
+ * reject values the storage type alone would accept (`rating` 0/6).
+ */
+function coerceWithFieldType(
+  raw: unknown,
+  column: ColumnDef,
+  fieldType: FieldTypeRule | undefined,
+  rowNumber: number,
+): { ok: true; value: Cell } | { ok: false; issue: CellIssue } {
+  const coerced = coerceCell(raw, column);
+  if (!coerced.ok) {
+    return { ok: false, issue: cellIssueFromResult(coerced, column, rowNumber) };
+  }
+  if (fieldType === undefined) {
+    return { ok: true, value: coerced.value };
+  }
+
+  let value = coerced.value;
+  if (typeof raw === 'string') {
+    const parsed = fieldType.parseText(raw);
+    if (!parsed.ok) {
+      return {
+        ok: false,
+        issue: {
+          reason: 'type',
+          code: 'E_TYPE',
+          columnId: column.id,
+          rowNumber,
+          message: parsed.message,
+        },
+      };
+    }
+    value = parsed.value;
+  }
+  const message = fieldType.validate(value, column);
+  if (message !== null) {
+    return {
+      ok: false,
+      issue: {
+        reason: 'range',
+        code: 'E_VALIDATION',
+        columnId: column.id,
+        rowNumber,
+        message,
+      },
+    };
+  }
+  return { ok: true, value };
+}
+
+/**
  * Validates one `table.cell.set` payload against the current document.
  *
  * The command and the renderer use the same function, so the command cannot
@@ -69,6 +132,7 @@ function findDuplicateKeyRow(
 export function checkTableCellSet(
   state: Pick<AppState, 'tables'>,
   payload: CellEditTarget,
+  options: CellValidationOptions = {},
 ): CellSetCheck {
   const tableData = state.tables[payload.tableId];
   if (tableData === undefined) {
@@ -162,12 +226,11 @@ export function checkTableCellSet(
     };
   }
 
-  const coerced = coerceCell(payload.value, column);
+  const fieldType =
+    column.fieldTypeId === undefined ? undefined : options.fieldTypes?.(column.fieldTypeId);
+  const coerced = coerceWithFieldType(payload.value, column, fieldType, rowIndex + 1);
   if (!coerced.ok) {
-    return {
-      ok: false,
-      issue: cellIssueFromResult(coerced, column, rowIndex + 1),
-    };
+    return coerced;
   }
 
   if (column.id === table.primaryKey) {
@@ -225,6 +288,7 @@ export function validateCellBatch(
   table: TableMeta,
   rows: readonly Row[],
   edits: readonly CellEdit[],
+  options: CellValidationOptions = {},
 ): CellIssue[] {
   const issues: CellIssue[] = [];
   const rowIndexById = new Map(rows.map((row, index) => [row.id, index]));
@@ -288,9 +352,11 @@ export function validateCellBatch(
       continue;
     }
 
-    const coerced = coerceCell(edit.value, column);
+    const fieldType =
+      column.fieldTypeId === undefined ? undefined : options.fieldTypes?.(column.fieldTypeId);
+    const coerced = coerceWithFieldType(edit.value, column, fieldType, rowIndex + 1);
     if (!coerced.ok) {
-      issues.push(cellIssueFromResult(coerced, column, rowIndex + 1));
+      issues.push(coerced.issue);
       continue;
     }
 

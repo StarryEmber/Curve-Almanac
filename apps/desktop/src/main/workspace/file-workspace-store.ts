@@ -24,7 +24,7 @@ import {
 import { basename, join } from 'node:path';
 
 import { createAppError, isAppError, isId, toAppError } from '@curve/domain';
-import type { AppError, TableMeta, UuidFactory } from '@curve/domain';
+import type { AppError, ColumnType, TableMeta, UuidFactory } from '@curve/domain';
 import {
   MAX_BACKUPS_PER_TARGET,
   WORKSPACE_BACKUPS_DIR,
@@ -62,6 +62,7 @@ import type {
   RestoreBackupRequest,
   TableReadResult,
   TableRef,
+  ValidateManifestOptions,
   WorkspaceInspection,
   WorkspaceManifestStatus,
   WorkspaceOpenResult,
@@ -102,6 +103,11 @@ export interface FileWorkspaceStoreOptions {
   writeFile?: AtomicWrite;
   /** T5.5: seeds a new workspace's manifest with the user's preferences. */
   appSettings?: () => AppSettings;
+  /**
+   * T6.2: resolves a plugin semantic field type to its storage type so loaded
+   * manifests can be validated against the compiled-in contributions.
+   */
+  resolveFieldTypeStorage?: (fieldTypeId: string) => ColumnType | undefined;
 }
 
 interface OpenWorkspace {
@@ -196,6 +202,13 @@ export class FileWorkspaceStore implements WorkspaceStore {
   private readonly writeFile: AtomicWrite;
   private readonly recent: ReturnType<typeof createRecentList>;
   private readonly appSettings: (() => AppSettings) | undefined;
+  /**
+   * T6.2: compiled-in plugin field types. Manifest validation must resolve a
+   * semantic `fieldTypeId` to its storage type before the renderer exists
+   * (SPEC §14.3); without it the loader can only warn.
+   */
+  private readonly resolveFieldTypeStorage:
+    ((fieldTypeId: string) => ColumnType | undefined) | undefined;
 
   constructor(options: FileWorkspaceStoreOptions) {
     this.appVersion = options.appVersion;
@@ -205,10 +218,21 @@ export class FileWorkspaceStore implements WorkspaceStore {
     this.isProcessAlive = options.isProcessAlive;
     this.writeFile = options.writeFile ?? atomicWrite;
     this.appSettings = options.appSettings;
+    this.resolveFieldTypeStorage = options.resolveFieldTypeStorage;
     this.recent = createRecentList({
       userDataPath: options.userDataPath,
       now: this.now,
     });
+  }
+
+  /** Manifest validation options shared by open, write and backup restore. */
+  private manifestOptions(workspaceId?: string): ValidateManifestOptions {
+    return {
+      ...(workspaceId === undefined ? {} : { workspaceId }),
+      ...(this.resolveFieldTypeStorage === undefined
+        ? {}
+        : { resolveFieldTypeStorage: this.resolveFieldTypeStorage }),
+    };
   }
 
   async create(request: CreateWorkspaceRequest): Promise<WorkspaceManifest> {
@@ -394,7 +418,7 @@ export class FileWorkspaceStore implements WorkspaceStore {
       }
     }
 
-    const validated = parseManifestDocument(raw);
+    const validated = parseManifestDocument(raw, this.manifestOptions());
     const warnings = [...recoveryWarnings, ...validated.warnings];
     await this.collectMissingTableWarnings(realRoot, validated.manifest, warnings);
 
@@ -597,7 +621,7 @@ export class FileWorkspaceStore implements WorkspaceStore {
 
   async writeManifest(request: WriteManifestRequest): Promise<OkReply> {
     const workspace = this.requireWorkspace(request.workspaceId);
-    const validated = validateManifest(request.manifest, { workspaceId: workspace.id });
+    const validated = validateManifest(request.manifest, this.manifestOptions(workspace.id));
     const manifestPath = await resolveInsideRoot(
       workspace.root,
       join(workspace.root, WORKSPACE_MANIFEST_FILE),
@@ -877,7 +901,7 @@ export class FileWorkspaceStore implements WorkspaceStore {
         error: AppError;
       } {
     try {
-      return { ok: true, manifest: parseManifestDocument(raw).manifest };
+      return { ok: true, manifest: parseManifestDocument(raw, this.manifestOptions()).manifest };
     } catch (error) {
       return { ok: false, error: isAppError(error) ? error : toAppError(error) };
     }
@@ -980,7 +1004,7 @@ export class FileWorkspaceStore implements WorkspaceStore {
       throw toFsError('E_FS_READ', `Cannot read the manifest backup ${fileName}.`, error);
     }
 
-    const validated = parseManifestDocument(content);
+    const validated = parseManifestDocument(content, this.manifestOptions());
     if (await pathExists(manifestPath)) {
       await this.backupManifestFile(root, manifestPath);
     }

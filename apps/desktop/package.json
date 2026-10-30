@@ -20,6 +20,8 @@
     "@curve/chart-model": "workspace:*",
     "@curve/domain": "workspace:*",
     "@curve/persistence": "workspace:*",
+    "@curve/plugin-sample": "workspace:*",
+    "@curve/plugin-sdk": "workspace:*",
     "@curve/table-engine": "workspace:*",
     "@curve/ui": "workspace:*",
     "@tanstack/react-table": "^8.21.3",

@@ -12,6 +12,19 @@ import {
 
 const NOW = new Date('2026-10-20T00:00:00.000Z');
 
+/** T6.2: a table whose value column carries a plugin semantic field type. */
+const RATING_COLUMNS: TableMeta['columns'] = [
+  { id: 'col_id', key: 'id', label: 'ID', type: 'text', role: 'none' },
+  {
+    id: 'col_value',
+    key: 'value',
+    label: 'Value',
+    type: 'number',
+    role: 'none',
+    fieldTypeId: 'com.curvealmanac.rating',
+  },
+];
+
 function table(overrides: Partial<TableMeta> = {}): TableMeta {
   return {
     id: 'tbl_1',
@@ -168,6 +181,30 @@ describe('validateManifest', () => {
 
   it('rejects a manifest id that does not match the open workspace', () => {
     expect(() => validateManifest(manifestWithTable(), { workspaceId: 'ws_other' })).toThrow(
+      expect.objectContaining({ code: 'E_WS_INVALID_MANIFEST' }),
+    );
+  });
+
+  it('warns when a semantic field type cannot be resolved', () => {
+    const manifest = manifestWithTable({ columns: RATING_COLUMNS });
+
+    const validated = validateManifest(manifest);
+    expect(validated.warnings.join('\n')).toContain('cannot verify field type');
+
+    const resolved = validateManifest(manifest, {
+      resolveFieldTypeStorage: (fieldTypeId) =>
+        fieldTypeId === 'com.curvealmanac.rating' ? 'number' : undefined,
+    });
+    expect(resolved.warnings).toEqual([]);
+  });
+
+  it('rejects unknown or mismatched semantic field types when a resolver is passed', () => {
+    const manifest = manifestWithTable({ columns: RATING_COLUMNS });
+
+    expect(() => validateManifest(manifest, { resolveFieldTypeStorage: () => undefined })).toThrow(
+      expect.objectContaining({ code: 'E_WS_INVALID_MANIFEST' }),
+    );
+    expect(() => validateManifest(manifest, { resolveFieldTypeStorage: () => 'text' })).toThrow(
       expect.objectContaining({ code: 'E_WS_INVALID_MANIFEST' }),
     );
   });

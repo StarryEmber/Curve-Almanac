@@ -21,6 +21,7 @@ import {
 } from '@curve/ui';
 
 import { useI18n } from '../../i18n';
+import { formatFieldCell } from '../../plugins';
 import { GridCell } from '../grid/GridCell';
 
 import type { CSSProperties, ReactElement } from 'react';
@@ -165,6 +166,8 @@ export function StylePreview({
                         locale,
                         trueLabel: t('grid.editor.true'),
                         falseLabel: t('grid.editor.false'),
+                        formatField: (cellValue, cellColumn) =>
+                          formatFieldCell(cellValue, cellColumn, locale),
                       });
                       const match = conditionalRow.cellRule(column.id);
                       const conditional = conditionalCellStyle(match, {

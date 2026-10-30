@@ -51,6 +51,12 @@ export interface StyledCellOptions {
   locale?: string;
   trueLabel?: string;
   falseLabel?: string;
+  /**
+   * T6.2: plugin semantic field-type formatter. Returns `null` when the column
+   * has no registered field type, so the storage-type formatting below applies.
+   * `ui` stays free of plugin-sdk types by taking a function from the caller.
+   */
+  formatField?: (value: Cell, column: ColumnDef) => string | null;
 }
 
 export interface StyledCellPresentation {
@@ -142,6 +148,13 @@ export function formatStyledCellValue(
 ): string {
   if (value === null) {
     return '';
+  }
+
+  // Semantic field type first (T6.2): it owns the textual representation of its
+  // values (`3` -> `★★★`); unknown/unregistered types fall through.
+  const fieldText = options.formatField?.(value, column);
+  if (fieldText !== undefined && fieldText !== null) {
+    return fieldText;
   }
 
   const override: ColumnStyleOverride | undefined = style.columnOverrides[column.id];

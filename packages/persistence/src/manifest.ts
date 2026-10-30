@@ -8,6 +8,7 @@ import {
   parseManifest,
 } from '@curve/domain';
 import type {
+  ColumnType,
   LayoutNode,
   UuidFactory,
   ValidationIssue,
@@ -34,6 +35,13 @@ export interface ValidatedManifest {
 export interface ValidateManifestOptions {
   /** When present, the manifest id must match this open workspace id. */
   workspaceId?: string;
+  /**
+   * T6.2: field-type storage lookup from the compiled-in plugin contributions.
+   * Without it a semantic `fieldTypeId` can only produce a warning (SPEC §14.3);
+   * with it the manifest is rejected when the type is unknown or stores a
+   * different column type.
+   */
+  resolveFieldTypeStorage?: (fieldTypeId: string) => ColumnType | undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -124,7 +132,12 @@ export function validateManifest(
     invalidManifest('The workspace manifest contains an unsafe table path.', pathIssues[0]);
   }
 
-  const report = checkInvariants(parsed.data);
+  const report = checkInvariants(
+    parsed.data,
+    options.resolveFieldTypeStorage === undefined
+      ? {}
+      : { resolveFieldTypeStorage: options.resolveFieldTypeStorage },
+  );
   if (report.issues.length > 0) {
     invalidManifest(
       'The workspace manifest violates a domain invariant.',
@@ -162,13 +175,16 @@ function fallbackLayoutOf(
   return { type: 'pane', viewIds, activeViewId: viewIds[0] ?? null };
 }
 
-function validateWithLayoutFallback(value: Record<string, unknown>): ValidatedManifest | null {
+function validateWithLayoutFallback(
+  value: Record<string, unknown>,
+  options: ValidateManifestOptions,
+): ValidatedManifest | null {
   const fallback = fallbackLayoutOf(value);
   if (fallback === null) {
     return null;
   }
   try {
-    const validated = validateManifest({ ...value, layout: fallback });
+    const validated = validateManifest({ ...value, layout: fallback }, options);
     return {
       manifest: validated.manifest,
       warnings: [
@@ -190,7 +206,10 @@ function validateWithLayoutFallback(value: Record<string, unknown>): ValidatedMa
  * a single pane containing every view, with a warning (SPEC §12/§19). Other
  * invalid fields still reject the manifest.
  */
-export function parseManifestDocument(raw: string): ValidatedManifest {
+export function parseManifestDocument(
+  raw: string,
+  options: ValidateManifestOptions = {},
+): ValidatedManifest {
   let value: unknown;
   try {
     value = JSON.parse(raw) as unknown;
@@ -210,12 +229,12 @@ export function parseManifestDocument(raw: string): ValidatedManifest {
   }
 
   try {
-    return validateManifest(value);
+    return validateManifest(value, options);
   } catch (error) {
     if (!isRecord(value)) {
       throw error;
     }
-    const recovered = validateWithLayoutFallback(value);
+    const recovered = validateWithLayoutFallback(value, options);
     if (recovered === null) {
       throw error;
     }

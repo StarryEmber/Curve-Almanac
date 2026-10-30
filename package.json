@@ -15,7 +15,7 @@
     "package": "pnpm build && pnpm --filter @curve/desktop package",
     "postinstall": "node scripts/install-electron.mjs",
     "lint": "eslint . --max-warnings=0 && pnpm lint:boundaries",
-    "lint:boundaries": "depcruise apps packages --config .dependency-cruiser.cjs",
+    "lint:boundaries": "depcruise apps packages plugins --config .dependency-cruiser.cjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -b --pretty false",

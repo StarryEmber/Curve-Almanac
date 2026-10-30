@@ -703,6 +703,25 @@
   报告 `docs/reports/m5/REPORT.md`（7 张截图 + `m5-metrics.json`）；全量 E2E **104 passed**
   （6.2m，M5 1 条 20.2s）。**2026-10-29 获用户接受，M5 已关闭；M6 未开始**，等用户明确指示后再
   领取 T6.1。
+- T6.2：示例插件落地（ADR-053）。新增 `plugins/plugin-sample`（`@curve/plugin-sample`，只依赖
+  `@curve/plugin-sdk` 与 `@curve/domain`）：`rating` 语义字段类型（id `com.curvealmanac.rating`，
+  storageType `number`，`★` 格式化，1–5 校验，nulls-last 比较）与 points JSON 导入器
+  （id `com.curvealmanac.points`，接受 `{"points":[…]}` 或点对象数组）；插件定义
+  `com.curvealmanac.sample` 由 `apps/desktop/src/renderer/plugins/index.ts` 静态导入并在首帧前
+  `activateAll()`。列对话框新增“语义类型”下拉（只列 storageType 匹配的类型、换类型清空）与列表
+  徽标；导入向导第 1 步新增“导入器”下拉，插件导入器在渲染进程解码+解析、内联规划（内置
+  CSV/JSON 仍走 Worker）；网格/自动列宽/样式预览使用字段类型 `format`。`app-core` 新增结构化
+  `FieldTypeLookup`（不依赖 plugin-sdk），命令层与编辑器共用存储+语义校验；`ColumnDraft.fieldTypeId`
+  为三态（选择/`null` 清除/`undefined` 保留）。主进程只读插件包导出的字段类型映射，在
+  `validateManifest`/`parseManifestDocument` 中严格解析 `fieldTypeId`，载入不再出现
+  “cannot verify field type”警告。不改 `formatVersion`/JSONL/IPC/CSP，不新增运行时依赖。
+- T6.2：新增 `apps/desktop/e2e/plugin.spec.ts` 3 条（rating 列 + 0/6 拒绝 + 重载无警告 6.2s、
+  200% 缩放键盘选择语义类型 2.5s、示例导入器完成导入 3.3s）；`pnpm exec vitest run
+  plugins/plugin-sample` **3 files / 29 tests**；`pnpm verify` **188 files / 1761 tests**；
+  depcruise 514 modules / 2209 deps / 0 violations；coverage statements 77.11% / branches 69.95% /
+  functions 76.23% / lines 77.25%；`pnpm build` exit 0（renderer **3,394.50 kB**、CSS 77.89 kB）；
+  `pnpm e2e` **107 passed**（6.5m）；`pnpm bench` exit 0（全部预算内）。报告
+  `docs/reports/t6.2/REPORT.md`（2 张截图）。
 - T6.1：插件 SDK 与注册表落地（ADR-052）。`@curve/plugin-sdk` 新增
   `types/registry/host/logging` 四个模块：`Registry<T>` 增加 `subscribe(listener)` 与带
   `source`（`builtin` / 插件 id）的 `list()`；插件上下文拿到绑定自身 id 的注册表视图，

@@ -28,6 +28,10 @@ export interface ImportWizardDialogProps {
   existingRowCount: number;
   step: 1 | 2 | 3 | 4 | 5;
   preview: ImportPreview | null;
+  /** T6.2: plugin importers offered next to the builtin CSV/JSON detection. */
+  importers: readonly { id: string; label: string }[];
+  /** The selected plugin importer, or null for the builtin path. */
+  importerId: string | null;
   existingColumns: readonly ColumnDef[];
   encoding: ImportEncodingChoice;
   delimiter: ImportDelimiter | undefined;
@@ -49,6 +53,7 @@ export interface ImportWizardDialogProps {
   onEncodingChange: (encoding: ImportEncodingChoice) => void;
   onDelimiterChange: (delimiter: ImportDelimiter) => void;
   onHeaderChange: (hasHeader: boolean) => void;
+  onImporterChange: (importerId: string | null) => void;
   onMappingChange: (sourceIndex: number, target: ImportColumnMapping['target']) => void;
   onDraftChange: (index: number, patch: Partial<ImportColumnDraft>) => void;
   onNext: () => void;
@@ -126,6 +131,8 @@ export function ImportWizardDialog(props: ImportWizardDialogProps): ReactElement
     existingRowCount,
     step,
     preview,
+    importers,
+    importerId,
     existingColumns,
     encoding,
     delimiter,
@@ -295,12 +302,31 @@ export function ImportWizardDialog(props: ImportWizardDialogProps): ReactElement
             <dt>{t('import.file.size')}</dt>
             <dd>{formatBytes(fileSize)}</dd>
             <dt>{t('import.file.format')}</dt>
-            <dd>{preview.format.toUpperCase()}</dd>
+            <dd>{preview.importerLabel ?? preview.format.toUpperCase()}</dd>
           </dl>
+          {importers.length === 0 ? null : (
+            <Select
+              label={t('import.file.importer')}
+              data-testid="import-importer"
+              value={importerId ?? ''}
+              options={[
+                { value: '', label: t('import.file.importerAuto') },
+                ...importers.map((importer) => ({
+                  value: importer.id,
+                  label: importer.label,
+                })),
+              ]}
+              onChange={(event) => {
+                const value = event.currentTarget.value;
+                props.onImporterChange(value === '' ? null : value);
+              }}
+            />
+          )}
           <Select
             label={t('import.file.encoding')}
             data-testid="import-encoding"
             value={encoding}
+            disabled={importerId !== null}
             options={[
               { value: 'auto', label: t('import.file.encodingAuto') },
               { value: 'utf-8', label: t('import.file.encodingUtf8') },

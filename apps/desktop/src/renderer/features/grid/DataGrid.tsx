@@ -35,6 +35,7 @@ import {
 } from '@curve/ui';
 
 import { useI18n } from '../../i18n';
+import { formatFieldCell } from '../../plugins';
 import { ExportCsvDialog } from '../export/ExportCsvDialog';
 import { FilterDialog } from '../filter/FilterDialog';
 
@@ -144,6 +145,12 @@ export function DataGrid({
   const rowHeight = tableRowHeight(tableStyle.tokens);
   const trueLabel = t('grid.editor.true');
   const falseLabel = t('grid.editor.false');
+  // T6.2: plugin semantic field types own the cell text when the column declares
+  // a registered `fieldTypeId`; otherwise the storage-type formatting applies.
+  const formatField = useCallback(
+    (value: Cell, column: DomainColumn): string | null => formatFieldCell(value, column, locale),
+    [locale],
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
   const focusPending = useRef(false);
@@ -516,6 +523,7 @@ export function DataGrid({
               locale,
               trueLabel,
               falseLabel,
+              formatField,
             }),
           fontFamily: tableStyle.tokens.fontFamily,
           fontSize: tableStyle.tokens.fontSize,
@@ -525,7 +533,17 @@ export function DataGrid({
       setColumnSizing(next);
       commitWidths(next);
     },
-    [columnSizing, commitWidths, falseLabel, locale, rows, tableStyle, trueLabel, visibleColumns],
+    [
+      columnSizing,
+      commitWidths,
+      falseLabel,
+      formatField,
+      locale,
+      rows,
+      tableStyle,
+      trueLabel,
+      visibleColumns,
+    ],
   );
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -824,6 +842,7 @@ export function DataGrid({
                         locale,
                         trueLabel,
                         falseLabel,
+                        formatField,
                       });
                       const isFrozen = colIndex < frozenCount;
                       const isEditing =

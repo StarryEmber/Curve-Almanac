@@ -53,6 +53,7 @@ import type {
   ImportArchiveResult,
   WorkspaceActions,
 } from './usecases/workspace-actions';
+import type { FieldTypeLookup } from './validation/field-types';
 
 export interface CreateAppCoreOptions {
   /** Injected persistence port (FileWorkspaceStore or MemoryWorkspaceStore). */
@@ -70,6 +71,12 @@ export interface CreateAppCoreOptions {
   archiveImport?: (request: ImportArchiveRequest) => Promise<ImportArchiveResult>;
   /** T5.5: initial autosave preference (default true). */
   autosaveEnabled?: boolean;
+  /**
+   * T6.2: plugin semantic field types. The renderer passes the plugin host
+   * registry so the command layer validates exactly what the grid validates;
+   * omitted keeps the storage-type rules only.
+   */
+  fieldTypes?: FieldTypeLookup;
 }
 
 export interface AppCore {
@@ -172,7 +179,12 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
     ...(options.uuid === undefined ? {} : { uuid: options.uuid }),
   };
 
-  commands.register(createTableCellSetCommand({ now }));
+  commands.register(
+    createTableCellSetCommand({
+      now,
+      ...(options.fieldTypes === undefined ? {} : { fieldTypes: options.fieldTypes }),
+    }),
+  );
   commands.register(createPasteCommand(commandOptions));
   commands.register(createImportCommand(commandOptions));
   commands.register(createRowInsertCommand(commandOptions));
@@ -220,6 +232,7 @@ export function createAppCore(options: CreateAppCoreOptions): AppCore {
     now,
     ...(options.uuid === undefined ? {} : { uuid: options.uuid }),
     ...(options.archiveImport === undefined ? {} : { archiveImport: options.archiveImport }),
+    ...(options.fieldTypes === undefined ? {} : { fieldTypes: options.fieldTypes }),
   });
 
   return {

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist-types",
+    "tsBuildInfoFile": "dist-types/tsconfig.tsbuildinfo",
+    // `ImporterDef.parse` takes an `AbortSignal` (SPEC §14.2). The plugin runs
+    // in the renderer, so DOM gives that type without Node globals.
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../../packages/domain" }, { "path": "../../packages/plugin-sdk" }]
+}

@@ -212,3 +212,94 @@ describe('validateCellBatch', () => {
     expect(issues).toEqual([]);
   });
 });
+
+/**
+ * T6.2: the renderer passes the plugin host as a structural lookup. These tests
+ * use a plain object so app-core keeps no plugin-sdk dependency.
+ */
+describe('semantic field types', () => {
+  const RATING_ID = 'com.curvealmanac.rating';
+  const RATED_TABLE: TableMeta = {
+    ...TABLE,
+    columns: TABLE.columns.map((column) =>
+      column.id === 'col_value' ? { ...column, fieldTypeId: RATING_ID } : column,
+    ),
+  };
+  const FIELD_TYPES = {
+    [RATING_ID]: {
+      id: RATING_ID,
+      storageType: 'number' as const,
+      parseText: (raw: string) =>
+        raw.trim() === ''
+          ? { ok: true as const, value: null }
+          : /^\d+$/.test(raw.trim())
+            ? { ok: true as const, value: Number(raw.trim()) }
+            : { ok: false as const, message: 'not an integer' },
+      validate: (value: string | number | boolean | null) =>
+        value === null || (typeof value === 'number' && value >= 1 && value <= 5)
+          ? null
+          : 'a rating must be 1..5',
+    },
+  };
+  const fieldTypes = (id: string): (typeof FIELD_TYPES)[keyof typeof FIELD_TYPES] | undefined =>
+    FIELD_TYPES[id as keyof typeof FIELD_TYPES];
+
+  function ratedStore(): ReturnType<typeof createAppStore> {
+    return createAppStore({
+      initialState: {
+        workspace: WORKSPACE,
+        tables: { tbl_test: { table: RATED_TABLE, rows: ROWS } },
+      },
+    });
+  }
+
+  it('parses the text through the field type before storing it', () => {
+    const store = ratedStore();
+    const outcome = checkTableCellSet(
+      store.getState(),
+      { tableId: 'tbl_test', rowId: 'row_1', columnId: 'col_value', value: '4' },
+      { fieldTypes },
+    );
+
+    expect(outcome).toMatchObject({ ok: true, value: 4, changed: true });
+  });
+
+  it('rejects an out-of-range rating with the range reason', () => {
+    const store = ratedStore();
+    const outcome = checkTableCellSet(
+      store.getState(),
+      { tableId: 'tbl_test', rowId: 'row_1', columnId: 'col_value', value: '6' },
+      { fieldTypes },
+    );
+
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) {
+      expect(outcome.issue.reason).toBe('range');
+      expect(outcome.issue.code).toBe('E_VALIDATION');
+      expect(outcome.issue.columnId).toBe('col_value');
+    }
+  });
+
+  it('keeps storage rules when no field type lookup is passed', () => {
+    const store = ratedStore();
+    const outcome = checkTableCellSet(store.getState(), {
+      tableId: 'tbl_test',
+      rowId: 'row_1',
+      columnId: 'col_value',
+      value: '6',
+    });
+
+    expect(outcome).toMatchObject({ ok: true, value: 6 });
+  });
+
+  it('applies the field type to batch validation too', () => {
+    const issues = validateCellBatch(
+      RATED_TABLE,
+      ROWS,
+      [{ rowId: 'row_1', columnId: 'col_value', value: '9' }],
+      { fieldTypes },
+    );
+
+    expect(issues.map((issue) => issue.reason)).toEqual(['range']);
+  });
+});

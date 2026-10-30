@@ -35,6 +35,7 @@ export * from './validation/cell-validation';
 export * from './validation/column-change';
 export * from './validation/column-draft';
 export * from './validation/condition-builder';
+export * from './validation/field-types';
 export * from './validation/filter-builder';
 export * from './validation/import-planning';
 export * from './validation/paste-columns';

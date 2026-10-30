@@ -148,6 +148,22 @@ describe('formatStyledCellValue', () => {
     expect(formatStyledCellValue('archived', status, DEFAULT_TABLE_STYLE)).toBe('archived');
   });
 
+  it('delegates to a semantic field type when one is supplied (T6.2)', () => {
+    const rating = column('number', { fieldTypeId: 'com.curvealmanac.rating' });
+    const formatField = (value: Cell): string | null =>
+      typeof value === 'number' ? '★'.repeat(value) : null;
+
+    expect(
+      formatStyledCellValue(3, rating, DEFAULT_TABLE_STYLE, { locale: 'en-US', formatField }),
+    ).toBe('★★★');
+    // A `null` return falls back to the storage-type formatting.
+    expect(
+      formatStyledCellValue('plain', rating, DEFAULT_TABLE_STYLE, { locale: 'en-US', formatField }),
+    ).toBe('plain');
+    expect(formatStyledCellValue(3, rating, DEFAULT_TABLE_STYLE, { locale: 'en-US' })).toBe('3');
+    expect(formatStyledCellValue(null, rating, DEFAULT_TABLE_STYLE, { formatField })).toBe('');
+  });
+
   it('does not mutate the column or the style when applying overrides', () => {
     const number = column('number', { label: 'Amount' });
     const style = overrideFor('col_test', {

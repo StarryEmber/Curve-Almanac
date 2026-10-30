@@ -42,7 +42,16 @@ describe('column form helpers', () => {
       unit: '°C',
       required: true,
       enumOptions: [{ value: 'a', label: 'A' }],
+      // T6.2: "explicitly no semantic type" so clearing it in the form sticks.
+      fieldTypeId: null,
     });
+  });
+
+  it('keeps a semantic field type when copying a column', () => {
+    expect(draftFromColumn(column({ fieldTypeId: 'com.curvealmanac.rating' })).fieldTypeId).toBe(
+      'com.curvealmanac.rating',
+    );
+    expect(newColumnDraft({ columns: [] }).fieldTypeId).toBeNull();
   });
 
   it('builds a unique default key for a new column', () => {

@@ -1,0 +1,17 @@
+{
+  "name": "@curve/plugin-sample",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Example Curve Almanac plugin: a 1-5 rating field type and a points JSON importer.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@curve/domain": "workspace:*",
+    "@curve/plugin-sdk": "workspace:*"
+  }
+}

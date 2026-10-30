@@ -9,6 +9,7 @@ import { frozenRows } from './frozen-rows';
 import type { CommandDefinition } from './types';
 import type { AppState } from '../state/types';
 import type { CellEditTarget } from '../validation/cell-validation';
+import type { FieldTypeLookup } from '../validation/field-types';
 import type { Draft } from 'immer';
 
 export type TableCellSetPayload = CellEditTarget;
@@ -16,6 +17,8 @@ export type TableCellSetPayload = CellEditTarget;
 export interface TableCellSetCommandOptions {
   /** Injected so `updatedAt` assertions are deterministic. */
   now?: () => Date;
+  /** T6.2: semantic field types keep the command as strict as the editor. */
+  fieldTypes?: FieldTypeLookup;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -77,7 +80,11 @@ export function createTableCellSetCommand(
       // Validate against the unmodified base: running `findIndex` over the draft
       // array also pays Immer's per-element proxy cost (~190ms per Lookup on 100k).
       const base = original(draft) ?? (draft as unknown as AppState);
-      const check = checkTableCellSet(base, payload);
+      const check = checkTableCellSet(
+        base,
+        payload,
+        options.fieldTypes === undefined ? {} : { fieldTypes: options.fieldTypes },
+      );
       if (!check.ok) {
         throw cellIssueToAppError(check.issue);
       }

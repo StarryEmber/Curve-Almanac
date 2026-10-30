@@ -186,4 +186,31 @@ describe('checkColumnDraft', () => {
       expect(result.issues[0]).toMatchObject({ field: 'type', reason: 'primary-key-type' });
     }
   });
+
+  it('passes a semantic field type through to the column definition (T6.2)', () => {
+    const result = checkColumnDraft(
+      makeTable(),
+      draft({ type: 'number', fieldTypeId: ' com.curvealmanac.rating ' }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.column.fieldTypeId).toBe('com.curvealmanac.rating');
+      expect(result.column.type).toBe('number');
+    }
+  });
+
+  it('treats null as "no semantic type" and undefined as unspecified', () => {
+    const cleared = checkColumnDraft(makeTable(), draft({ fieldTypeId: null }));
+    expect(cleared.ok).toBe(true);
+    if (cleared.ok) {
+      expect(cleared.column.fieldTypeId).toBeUndefined();
+    }
+
+    const unspecified = checkColumnDraft(makeTable(), draft());
+    expect(unspecified.ok).toBe(true);
+    if (unspecified.ok) {
+      expect(unspecified.column.fieldTypeId).toBeUndefined();
+    }
+  });
 });
