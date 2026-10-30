@@ -50,6 +50,7 @@ pnpm bench
 
 pnpm package
   exit 0；NSIS 112,400,989 B、portable 112,163,369 B、win-unpacked 391,112,000 B
+  （T6.6 后重打：112,421,391 / 112,183,788 / 391,201,681 B，`package:smoke` PASS）
   （与 T6.4 的 112,400,939 / 112,163,368 B 仅差时间戳字节；asar 内容未变）
 ```
 
@@ -120,7 +121,7 @@ pnpm package
 | 性能基准 | `pnpm bench` | exit 0，全部预算内 |
 | 构建 | `pnpm build`（e2e 内） | exit 0；renderer 3,469.35 kB |
 | 安装包 | `pnpm package` | exit 0；NSIS/portable/win-unpacked 产出，体积与 T6.4 一致 |
-| 安装/卸载/数据保留 | `pnpm package:smoke`（T6.4 执行，本次未重跑） | PASS；install 17.3s / launch 4.4s / uninstall 8.9s；工作区与 userData 保留 |
+| 安装/卸载/数据保留 | `pnpm package:smoke`（T6.4 执行；T6.6 重打后再跑一次） | PASS；T6.6 重打后 install 20.6s / launch 9.4s / uninstall 9.2s；工作区与 userData 保留 |
 
 ### 4.2 手工/人工确认
 

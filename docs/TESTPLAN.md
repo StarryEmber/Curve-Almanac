@@ -382,6 +382,7 @@
 - [x] `pnpm verify`、`pnpm e2e`、`pnpm bench` 全绿，报告归档。
   → T6.6：198 files / 1831 tests；全量 E2E 功能测试 111 passed（含 T6.5 九步 25.6s、
   logging 2 条）；两条内存门禁 618–639MB 按 ADR-057 的 1GB 门禁记通过（用户指示未重跑）；
+  T6.6 后安装包已重打并通过 `package:smoke`（20.6s/9.4s/9.2s）。
   bench exit 0；见 `docs/reports/t6.5/REPORT.md` §2 与 `t6.6/REPORT.md` §4。
 - [x] README §6 九步演示一次通过（录屏/截图）。
   → `e2e/t6.5-acceptance.spec.ts` 1 条 26.2s；13 张 UI 截图 + 导出 PNG + metrics。
@@ -412,5 +413,6 @@ portable；`pnpm package:smoke` 在真实 Windows 上静默安装 → 启动已�
 **T6.5 签字（2026-10-30）**：9 项中 8 项通过、1 项用户豁免（干净机器复验）。T6.5 首轮发现的
 日志落盘缺口已由 **T6.6**（`electron-log`，ADR-056 选项 B）闭环，`e2e/logging.spec.ts` 与单测
 14 条通过；发布清单第 7 项已签字。内存门禁按用户决定提高到 **1GB**（ADR-057）；按用户指示未
-重跑全量/安装冒烟。**M6 已于 2026-10-30 获用户接受并关闭**（汇总
+重跑全量。**安装包已于 2026-10-30 重打并通过 `package:smoke`**（asar 含 electron-log；install
+20.6s / launch 9.4s / uninstall 9.2s）。**M6 已于 2026-10-30 获用户接受并关闭**（汇总
 `docs/reports/m6/REPORT.md`）；详见 T6.5 报告 §6 与 T6.6 报告。

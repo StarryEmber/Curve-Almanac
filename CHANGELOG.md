@@ -715,7 +715,8 @@
   `package-smoke.ts` required 增加 electron-log、开发文件扫描排除 `node_modules/`，
   `packaging.test.ts` +1 条。全量 E2E 功能测试 111 passed；chart-perf/perf 内存 618–639MB
   超旧 600MB 门禁——用户决定把门禁提高到 **1024MB**（ADR-057），按新门禁记通过，**未重跑**
-  （用户 2026-10-30 明确）；`package/package:smoke` 也未重跑（发布前补跑）。报告
+  （用户 2026-10-30 明确）；安装包随后重打并 `package:smoke` PASS（NSIS 112,421,391 B、
+  portable 112,183,788 B；asar 含 electron-log）。报告
   `docs/reports/t6.6/REPORT.md`。
 - T6.5：最终九步验收与文档收尾。新增 `apps/desktop/e2e/t6.5-acceptance.spec.ts`（README §6：
   新建 Demo 工作区 → 建温度记录表/4 列 → 200 行粘贴（整批拒绝 + 单格校验）→ 样式/密度/条件格式/
@@ -823,5 +824,4 @@
   不新增运行时依赖，不改 IPC/preload/数据格式/CSP。
 - M6：验收演示（示例插件 → 安装包 → 全量报告 → 九步演示 → 发布清单）执行完毕；
   用户于 **2026-10-30 接受并关闭 M6**，v1 实施阶段（M0–M6）结束。汇总
-  `docs/reports/m6/REPORT.md`；发布前仍建议补跑 `pnpm package && pnpm package:smoke`
-  （T6.6 新增 electron-log 后尚未重打包）。
+  `docs/reports/m6/REPORT.md`；安装包已重打并 `package:smoke` PASS（含 electron-log）。

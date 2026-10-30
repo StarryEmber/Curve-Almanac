@@ -72,10 +72,13 @@ pnpm e2e（2026-10-30 全量一次）
   整应用 private 内存门禁 600MB → 1024MB；上述 618–639MB 在新门禁内
   按用户指示：改完不重跑全量，直接按新门禁记通过（本报告如实记录“未重跑”）
 
-pnpm package / pnpm package:smoke
-  按用户 2026-10-30 指示未重跑；`electron-log` 是 main 的外部 require，
-  electron-builder 的 pnpm 依赖收集会打包；`package-smoke` required 与 `packaging.test.ts`
-  已同步。发布前应补跑一次并确认 asar 含 `node_modules/electron-log/src/index.js`。
+pnpm package / pnpm package:smoke（2026-10-30 21:33 补跑）
+  pnpm package exit 0；NSIS 112,421,391 B、portable 112,183,788 B、win-unpacked 391,201,681 B
+  app.asar：82 个条目（smoke 计 58 个文件），含 `node_modules/electron-log/src/index.js`、
+  `write-file-atomic`、`signal-exit`；无 `*.map`、无 app 的 src/e2e/test/docs/fixtures
+  pnpm package:smoke PASS：install 20,628ms / launch 9,411ms / uninstall 9,183ms；
+  工作区与 `%APPDATA%\Curve Almanac` 卸载后保留；CSP/无 Node 全局/无测试钩子均通过
+  metrics：`docs/reports/t6.6/t6.6-package-metrics.json`（T6.4 历史 metrics 已保留）
 ```
 
 ## 5. 日志样例（格式）
@@ -97,14 +100,16 @@ pnpm package / pnpm package:smoke
 - **无日志查看器/导出**：用户需到 `%APPDATA%\Curve Almanac\logs\` 查看。
 - **内存门禁放宽到 1GB**（ADR-057）：600–1024MB 的真实增长不再被 E2E 拦截，需要靠 bench 趋势
   与人工复核；这是用户明确的发布取舍。
-- **打包未复跑**：electron-log 进 asar 与安装冒烟需在发布前补一次。
+- **打包已复跑**：electron-log 进 asar（82 条目 / 58 文件）与安装冒烟 PASS 已验证；安装包体积
+  比 T6.4 增加约 20 KB。
 - 日志仍可能含 renderer bundle URL/stack；单元格内容/工作区路径的既有纪律不变。
 
 ## 7. 结论
 
 T6.6 已按 ADR-056 选项 B 交付并闭环 T6.5 的 NFR-06 日志缺口：main 写 `userData/logs/main.log`、
 按天归档/7 天保留、renderer 全局错误限流转发；单测 14 条 + E2E 2 条通过。全量 E2E 的功能测试
-111 passed；两条内存门禁按用户决定提高到 1GB（ADR-057）后记为通过，未重跑、未重打安装包。
+111 passed；两条内存门禁按用户决定提高到 1GB（ADR-057）后记为通过，未重跑。安装包已于
+2026-10-30 重打（含 electron-log）并通过 `package:smoke`。
 
-**M6 已于 2026-10-30 获用户接受并关闭**（汇总 `docs/reports/m6/REPORT.md`）；发布前建议补跑
-`pnpm package && pnpm package:smoke`。
+**M6 已于 2026-10-30 获用户接受并关闭**（汇总 `docs/reports/m6/REPORT.md`）；安装包已重打并
+通过安装/卸载冒烟。

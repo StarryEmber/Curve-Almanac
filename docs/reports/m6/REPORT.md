@@ -26,8 +26,10 @@ pnpm verify              198 files / 1831 tests；ESLint 0；depcruise 538 modul
 pnpm e2e                 功能测试 111 passed（含 T6.5 九步 25.6s、T6.6 logging 2 条）
                          内存门禁 chart-perf 618–639MB / perf 612–625MB，按 1GB（ADR-057）记通过
 pnpm bench               exit 0（T6.5 实测；全部预算内）
-pnpm package             exit 0（T6.4 包：NSIS 112,400,989 B / portable 112,163,369 B）
-pnpm package:smoke       PASS（T6.4；install 17.3s / launch 4.4s / uninstall 8.9s）
+pnpm package             exit 0（2026-10-30 T6.6 后重打：NSIS 112,421,391 B / portable 112,183,788 B；
+                         asar 82 条目，含 electron-log）
+pnpm package:smoke       PASS（2026-10-30 重打后：install 20.6s / launch 9.4s / uninstall 9.2s；
+                         工作区与 userData 保留）
 pnpm build               exit 0；renderer 3,471.75 kB、CSS 81.34 kB、main 338.76 kB
 coverage                 沿用 T6.5：lines 77.28% / statements 77.13% / branches 69.82% / functions 76.51%
 ```
@@ -50,8 +52,9 @@ coverage                 沿用 T6.5：lines 77.28% / statements 77.13% / branch
   冒烟，不是全新 Windows 镜像。
 - **内存门禁**：600MB → 1GB（ADR-057）。600–1024MB 之间的真实增长不再被 E2E 拦截；环境受控后
   连续 3 次 <600MB 可降回（新 ADR）。
-- **安装包未重打**：T6.6 新增 `electron-log` 后未重跑 `pnpm package`/`package:smoke`；发布前必须
-  补跑并确认 asar 含 `node_modules/electron-log/src/index.js`。
+- **安装包已重打并冒烟**：T6.6 新增 `electron-log` 后已重跑 `pnpm package`/`package:smoke`，
+  asar 含 `node_modules/electron-log/src/index.js`，安装/启动/卸载/数据保留 PASS；metrics
+  `docs/reports/t6.6/t6.6-package-metrics.json`（T6.4 历史 metrics 保留）。
 - **T6.6 全量 E2E 未重跑**：用户指示按 1GB 门禁直接记通过；功能测试证据取自此前的全量运行。
 - **已知限制**：见 `docs/ROADMAP.md`、README/MANUAL §已知限制、T6.5/T6.6 报告 §6/§7。
 

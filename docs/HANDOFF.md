@@ -31,14 +31,16 @@
   0 violations**）；coverage 沿用 T6.5 **77.28%**；`pnpm build` exit 0（renderer **3,471.75 kB**、
   CSS 81.34 kB、main 338.76 kB）；`pnpm e2e` 功能测试 **111 passed**（含 T6.5 九步、logging 2 条；
   两条内存门禁 618–639MB 按 1GB 记通过，**用户指示未重跑**）；`pnpm bench` 沿用 T6.5 exit 0；
-  `pnpm package`/`package:smoke` **T6.6 未重跑**（T6.4 smoke PASS）。
+  `pnpm package` exit 0（2026-10-30 重打：NSIS 112,421,391 B、portable 112,183,788 B、
+  win-unpacked 391,201,681 B；asar 含 electron-log）；`pnpm package:smoke` PASS（install 20.6s /
+  launch 9.4s / uninstall 9.2s，工作区/userData 保留）。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；强杀后不得静默丢数据。
 - **停点**：**M6 已关闭，v1 实施结束**。没有待领取的实现任务；新功能需求走 v2（参见
   `docs/ROADMAP.md` 与 ADR 复核条件），发布/运维修复按新任务单独领取。
 - **接手动作**：确认工作树干净；读 `docs/reports/m6/REPORT.md`、T6.5/T6.6 报告、ADR-056/057；
-  发布前补跑 `pnpm package && pnpm package:smoke`（确认 asar 含 electron-log）；若要恢复 600MB
-  门禁，先按 ADR-057 复核条件连续 3 次全量 <600MB。
+  若要恢复 600MB 门禁，先按 ADR-057 复核条件连续 3 次全量 <600MB；安装包已在 T6.6 后重打并
+  冒烟通过。
 - **T6.6 完成结果**：文件日志 + renderer 限流转发；单测 14 条、logging E2E 2 条通过；
   `pnpm verify` 198/1831；内存门禁改 1GB 后按用户指示直接记通过（未重跑）。
 - **T6.5 完成结果**：九步一次通过（26.2s，14 张 PNG + metrics）；README/MANUAL/DEVELOPER/
@@ -153,8 +155,8 @@
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
    198 files / 1831 tests、`pnpm e2e` 功能测试 111 passed；读 TASKS 的 M6、
    `docs/reports/t6.6/REPORT.md`、T6.5 报告 §5/§6/§9、ADR-056/057 与 §0.10–§0.15。
-2. 发布前补跑：`pnpm package && pnpm package:smoke`（确认 asar 含 electron-log、安装/卸载/数据
-   保留）；本机先设镜像与 `CURVE_E2E_NO_SANDBOX=1`（见 §3.6），并注意不要覆盖 T6.4 历史 metrics。
+2. 安装包已在 T6.6 后重打并冒烟（asar 含 electron-log）；若再改运行时/依赖，发布前重新跑
+   `pnpm package && pnpm package:smoke`。
 3. 若要复跑全量 E2E：先确认外部程序负载（§3.6）；内存门禁现为 **1GB**（ADR-057），两条内存
    用例的目标值在这一范围内。复跑九步演示见 §0.14 第 4 条。
 4. 若要恢复 600MB 门禁：按 ADR-057 复核条件，连续 3 次全量 <600MB 后新写 ADR；不要只改常量。
@@ -173,8 +175,7 @@
    10 条每分钟限流与 `[renderer]` 前缀。
 7. 演示说明：九步演示的 `999` 丢弃是 SPEC §13.3 允许的最后 1.5s 窗口；恢复对话框提示已断言。
 8. T6.5 的 13 张 UI 截图是证据，不做像素基线；`t6.5-metrics.json` 是结构化指标。
-9. 不要把“console 日志”写成“已实现文件日志”；T6.6 已实现，但 `pnpm package`/冒烟未重跑，
-   发布前必须补。
+9. 不要把“console 日志”写成“已实现文件日志”；T6.6 已实现且安装包已重打/冒烟。
 
 ### 0.4 T5.3 结果（2026-10-28 完成）
 
@@ -521,16 +522,16 @@
 | `T6.3` 插件接入 UI 与隔离 | **已完成**（2026-10-30）；`docs/reports/t6.3/REPORT.md`；ADR-054；内置注册 + 来源标识 + 错误隔离 + 插件管理器；`plugin-ui.spec.ts` 3 条 |
 | `T6.4` 安装包与发布配置 | **已完成**（2026-10-30）；`docs/reports/t6.4/REPORT.md`；ADR-055；NSIS 每用户 + portable；`pnpm package:smoke` 真实安装/卸载 |
 | `T6.5` 全量验收与文档收尾 | **已完成，待用户验收**（2026-10-30）；`docs/reports/t6.5/REPORT.md`；九步演示 26.2s；NFR-06 由 T6.6 闭环 |
-| `T6.6` 日志文件落盘与 renderer 错误转发 | **已完成**（2026-10-30）；`docs/reports/t6.6/REPORT.md`；ADR-056 选项 B；ADR-057 内存门禁 1GB；单测 14 + E2E 2 |
+| `T6.6` 日志文件落盘与 renderer 错误转发 | **已完成**（2026-10-30）；`docs/reports/t6.6/REPORT.md`；ADR-056 选项 B；ADR-057 内存门禁 1GB；单测 14 + E2E 2；安装包已重打并冒烟 |
 | 当前里程碑 | **M6 扩展与发布：已完成并关闭**（2026-10-30）；`T6.0`–`T6.6` 全部完成；v1 实施阶段结束 |
 | 下一步 | M6 已关闭、v1 实施结束；发布前补跑 `pnpm package && pnpm package:smoke`（确认 asar 含 electron-log）；新功能需求走 v2 流程，按新任务领取 |
 | `pnpm verify` 基线 | **198 files / 1831 tests**；ESLint 0；depcruise **538 modules / 2331 deps / 0 violations** |
 | `pnpm test:coverage` 基线 | 全局 statements **77.13%** / branches **69.82%** / functions **76.51%** / lines **77.28%**；`renderer/plugins` lines **94.44%**、`features/plugins` lines **86.84%**、`plugins/plugin-sample/src` lines 97.64%；阈值 70/60 未下调（`scripts/package-smoke.ts` 不进覆盖率） |
 | `pnpm e2e` 基线 | 功能测试 **111 passed**（含 T6.5 九步 25.6s、T6.6 logging 2 条）；chart-perf 618–639MB / perf 612–625MB 按 **1GB 门禁**（ADR-057）记通过，用户指示未重跑；历史 T6.5 通过值为 520/590MB（旧 600MB 门禁） |
 | `pnpm bench` 基线 | **exit 0**；table.encode 322ms/1500、table.decode 431ms/3000、table.open 510ms/3000、table.save 408ms/500、edit 0ms/50、query 209ms/400、text-sort 370ms/400、cjk-sort 661ms/800、condition 1ms/16、import 1,009ms/8s；chart.resolve-sample P95 **80ms**/300、chart.sample 3ms/50、chart.option.2k 1ms/50、chart.restyle.100k 0ms/20；memoryPeakMB 912（Node 趋势，非应用门禁） |
-| `pnpm package` 基线 | **exit 0**；NSIS `Curve Almanac Setup 0.1.0.exe` **112,400,989 B**、portable `Curve Almanac 0.1.0.exe` **112,163,369 B**、`win-unpacked` **391,112,000 B**；Electron 44.9.0；未签名（与 T6.4 体积差为时间戳字节） |
-| `pnpm package:smoke` 基线 | **PASS**；install **17.3s**、launch **4.4s**、uninstall **8.9s**；工作区与 `%APPDATA%\Curve Almanac` 卸载后保留；asar 23 文件、无开发文件；metrics `docs/reports/t6.4/t6.4-package-metrics.json` |
-| 本地产物 | `release/`（gitignore）：`Curve Almanac Setup 0.1.0.exe`、`Curve Almanac 0.1.0.exe`、`win-unpacked/`；由 `pnpm package` 生成；手工启动见 §3.7 |
+| `pnpm package` 基线 | **exit 0**（2026-10-30 T6.6 后重打）；NSIS **112,421,391 B**、portable **112,183,788 B**、`win-unpacked` **391,201,681 B**；asar 含 `electron-log`；Electron 44.9.0；未签名 |
+| `pnpm package:smoke` 基线 | **PASS**（2026-10-30 重打后）；install **20.6s**、launch **9.4s**、uninstall **9.2s**；工作区与 `%APPDATA%\Curve Almanac` 卸载后保留；asar 82 条目/58 文件、无 source map/开发文件；metrics `docs/reports/t6.6/t6.6-package-metrics.json`（T6.4 历史 metrics 保留） |
+| 本地产物 | `release/`（gitignore）：`Curve Almanac Setup 0.1.0.exe`、`Curve Almanac 0.1.0.exe`、`win-unpacked/`；2026-10-30 重打并冒烟；手工启动见 §3.7 |
 | `pnpm format:check` | 通过（`apps/desktop/build` 已加入 `.prettierignore`） |
 | 构建 | `pnpm build` exit 0；renderer **3,471.75 kB**；CSS **81.34 kB**；main 338.76 kB；`ImportSession` 懒加载；table/query/import worker 220.68/236.16/270.54 kB；electron-log 外部 require |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
@@ -561,8 +562,8 @@ T6.5 全量验收与文档收尾、T6.6 日志文件落盘已完成；M5 于 202
 关闭。pnpm verify 198 files / 1831 tests；pnpm e2e 功能测试 111 passed（内存门禁 1GB，
 ADR-057，未重跑）；pnpm bench / pnpm package 沿用 T6.5/T6.4 结果。
 
-下一步：v1 实施阶段结束。发布前补跑 pnpm package && pnpm package:smoke（确认 asar 含
-electron-log）；新功能需求走 v2 流程，不要自动领取任务，一次只推进一个任务。
+下一步：v1 实施阶段结束。安装包已在 T6.6 后重打并冒烟通过（asar 含 electron-log）；
+新功能需求走 v2 流程，不要自动领取任务，一次只推进一个任务。
 ```
 
 ---

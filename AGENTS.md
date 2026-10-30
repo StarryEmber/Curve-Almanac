@@ -45,8 +45,8 @@
   `T6.6`（日志文件落盘与 renderer 错误转发，ADR-056 选项 B）均已完成**
   （`docs/reports/t6.0/REPORT.md`–`t6.6/REPORT.md`、M6 汇总 `docs/reports/m6/REPORT.md`）。
   **M6 已于 2026-10-30 获用户接受并关闭；v1 实施阶段（M0–M6）结束。** 整应用内存门禁按用户
-  决定为 1GB（ADR-057）；发布前仍需补跑 `pnpm package && pnpm package:smoke`（确认 asar 含
-  electron-log）。不要自动领取新任务；新功能需求走 v2 流程。**不要跨任务/里程碑。**
+  决定为 1GB（ADR-057）；安装包已在 T6.6 后重打并通过 `package:smoke`（asar 含 electron-log）。
+  不要自动领取新任务；新功能需求走 v2 流程。**不要跨任务/里程碑。**
 - 仓库已有 pnpm workspace（9 个 `@curve/*` 包 + `@curve/desktop` + `plugins/plugin-sample`）、
   可运行的 Electron 壳、`domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的
   App Shell、插件 SDK/宿主与示例插件，以及 21 个已接线 IPC 通道（另含 1 个 main→renderer 退出

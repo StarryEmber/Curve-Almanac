@@ -2010,8 +2010,9 @@ T6.2 + T2.5 + T3.2 → T6.3
   - [x] `userData/logs/main.log` 含 main 启动行与 renderer 未捕获错误/未处理 rejection 行。
   - [x] 跨天轮转为 `main-YYYY-MM-DD.log`，保留含今天 7 天，旧归档删除（单测 + E2E）。
   - [x] renderer 转发限流 10 条/60 秒，桥故障不影响应用（单测）。
-  - [x] `pnpm package` asar 含 electron-log、`pnpm package:smoke` PASS（按用户 2026-10-30 指示**未重跑**；
-    代码/冒烟断言与 `packaging.test.ts` 已更新，发布前应补跑一次）。
+  - [x] `pnpm package` asar 含 electron-log、`pnpm package:smoke` PASS（2026-10-30 补跑：
+    NSIS 112,421,391 B / portable 112,183,788 B；asar 82 条目、58 个文件；install 20.6s /
+    launch 9.4s / uninstall 9.2s）。
 - 验证：`pnpm verify && pnpm e2e && pnpm package && pnpm package:smoke`
 
   实现备注（2026-10-30，ADR-056 选项 B）：
@@ -2032,8 +2033,8 @@ T6.2 + T2.5 + T3.2 → T6.3
     0 violations）；`pnpm build` renderer **3,471.75 kB**（+2.4 kB）、CSS 81.34 kB、main 338.76 kB；
     全量 `pnpm e2e` 功能测试 **111 passed**，T6.6 的 2 条 logging E2E 在全量中通过；两条内存门禁
     实测 **chart-perf 618–639MB / perf 612–625MB**，超过旧 600MB 门禁。按用户 2026-10-30 决定，
-    内存门禁提高到 **1GB**（ADR-057），上述数值在新门禁内记为通过；**按用户指示未重跑全量**，
-    `pnpm package`/`package:smoke` 也未重跑（发布前补跑）。
+    内存门禁提高到 **1GB**（ADR-057），上述数值在新门禁内记为通过；**按用户指示未重跑全量**。
+    安装包已于 2026-10-30 重打（含 electron-log）并通过 `package:smoke`。
   - 残留：轮转发生在跨天后的第一次写入（无 00:00 定时器）；单日日志无大小上限；renderer
     超限静默丢弃（console 仍有原生输出）；无日志查看器。内存门禁放宽到 1GB 的代价见 ADR-057。
     详见 ADR-056 与 T6.6 报告。
@@ -2047,4 +2048,4 @@ T6.2 + T2.5 + T3.2 → T6.3
   T6.5 首轮未达标的日志项已由 **T6.6**（ADR-056 选项 B）闭环；内存门禁按用户决定提高到
   **1GB**（ADR-057）。发布清单 9 项中 8 项通过、1 项用户豁免（干净机器）。M6 汇总见
   `docs/reports/m6/REPORT.md`；**M6 已于 2026-10-30 关闭**。发布前仍建议补跑一次
-  `pnpm package && pnpm package:smoke`（T6.6 新增了 electron-log，尚未重打包）。
+  `pnpm package && pnpm package:smoke`（T6.6 新增 electron-log 后已重打并 PASS，见 T6.6 报告）。

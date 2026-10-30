@@ -1,0 +1,63 @@
+{
+  "artifacts": {
+    "setup": {
+      "file": "D:\\DSH_Work_Space\\curve-studio\\release\\Curve Almanac Setup 0.1.0.exe",
+      "bytes": 112421391
+    },
+    "portable": {
+      "file": "D:\\DSH_Work_Space\\curve-studio\\release\\Curve Almanac 0.1.0.exe",
+      "bytes": 112183788
+    },
+    "unpackedBytes": 391201681
+  },
+  "asar": {
+    "files": 58,
+    "required": [
+      "out/main/index.cjs",
+      "out/preload/index.cjs",
+      "out/renderer/index.html",
+      "package.json",
+      "node_modules/write-file-atomic/lib/index.js",
+      "node_modules/signal-exit/dist/cjs/index.js",
+      "node_modules/electron-log/src/index.js"
+    ],
+    "forbidden": 0
+  },
+  "installed": {
+    "dir": "C:\\Users\\MECHREVO\\AppData\\Local\\Programs\\Curve Almanac",
+    "exe": "C:\\Users\\MECHREVO\\AppData\\Local\\Programs\\Curve Almanac\\Curve Almanac.exe",
+    "startMenuShortcut": "C:\\Users\\MECHREVO\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Curve Almanac.lnk",
+    "desktopShortcut": "C:\\Users\\MECHREVO\\Desktop\\Curve Almanac.lnk",
+    "uninstallDisplayName": "Curve Almanac 0.1.0"
+  },
+  "runtime": {
+    "isPackaged": true,
+    "version": "0.1.0",
+    "userData": "C:\\Users\\MECHREVO\\AppData\\Roaming\\Curve Almanac",
+    "userDataExistedBefore": true,
+    "windowStateCreated": true,
+    "nodeGlobals": "absent",
+    "csp": "production"
+  },
+  "workspace": {
+    "dir": "C:\\Users\\MECHREVO\\Documents\\Curve Almanac\\T6.4 Smoke.cstudio",
+    "manifestSha256": "07a26586ac0012885c09030809eba34fed753a91968c5388c30acadad784ad61",
+    "retainedAfterUninstall": true
+  },
+  "uninstall": {
+    "installDirRemoved": true,
+    "shortcutsRemoved": true,
+    "uninstallEntryRemoved": true,
+    "userDataRetained": true
+  },
+  "timings": {
+    "installMs": 20628,
+    "launchMs": 9411,
+    "uninstallMs": 9183
+  },
+  "timestamps": {
+    "date": "2026-10-30T13:34:59.095Z",
+    "appId": "com.curvealmanac.app",
+    "electron": "44.9.0"
+  }
+}
