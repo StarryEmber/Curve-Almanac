@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "description": "Local-first desktop tool for table-driven curve visualization.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "author": "Curve Almanac",
   "main": "./out/main/index.cjs",
   "scripts": {

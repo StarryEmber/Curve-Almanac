@@ -73,10 +73,11 @@ pnpm e2e（2026-10-30 全量一次）
   按用户指示：改完不重跑全量，直接按新门禁记通过（本报告如实记录“未重跑”）
 
 pnpm package / pnpm package:smoke（2026-10-30 21:33 补跑）
-  pnpm package exit 0；NSIS 112,421,391 B、portable 112,183,788 B、win-unpacked 391,201,681 B
+  pnpm package exit 0；NSIS 112,421,420 B、portable 112,183,605 B、win-unpacked 391,201,674 B
+  （MIT 许可证重打后；之前的 T6.6 包为 112,421,391 / 112,183,788 / 391,201,681 B）
   app.asar：82 个条目（smoke 计 58 个文件），含 `node_modules/electron-log/src/index.js`、
   `write-file-atomic`、`signal-exit`；无 `*.map`、无 app 的 src/e2e/test/docs/fixtures
-  pnpm package:smoke PASS：install 20,628ms / launch 9,411ms / uninstall 9,183ms；
+  pnpm package:smoke PASS：install 19,514ms / launch 10,042ms / uninstall 9,174ms；
   工作区与 `%APPDATA%\Curve Almanac` 卸载后保留；CSP/无 Node 全局/无测试钩子均通过
   metrics：`docs/reports/t6.6/t6.6-package-metrics.json`（T6.4 历史 metrics 已保留）
 ```

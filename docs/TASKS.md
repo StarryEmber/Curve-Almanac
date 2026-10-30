@@ -1923,8 +1923,8 @@ T6.2 + T2.5 + T3.2 → T6.3
   - 身份：`appId=com.curvealmanac.app`、`productName=Curve Almanac`、版本来
     `apps/desktop/package.json`（0.1.0）；`author`/`description`/`license` 写入 desktop
     package（exe 的 `FileDescription`/`CompanyName` 是用户可读值）。图标 3 件套在
-    `apps/desktop/build/`（svg 源 + 1024 PNG + 7 档 ICO），许可证 `license.txt`（专有，
-    与 `UNLICENSED` 一致，NSIS 许可证页）。
+    `apps/desktop/build/`（svg 源 + 1024 PNG + 7 档 ICO），许可证 `license.txt`（当时专有，
+    与 `UNLICENSED` 一致；ADR-058 已改为 MIT，NSIS 许可证页同步）。
   - 安装：NSIS 辅助安装器，`oneClick:false`/`perMachine:false`/`allowElevation:false`/
     `deleteAppDataOnUninstall:false`/`asInvoker`；默认装到
     `%LOCALAPPDATA%\Programs\Curve Almanac`，创建开始菜单与桌面快捷方式；portable 同步产出。
@@ -2010,9 +2010,9 @@ T6.2 + T2.5 + T3.2 → T6.3
   - [x] `userData/logs/main.log` 含 main 启动行与 renderer 未捕获错误/未处理 rejection 行。
   - [x] 跨天轮转为 `main-YYYY-MM-DD.log`，保留含今天 7 天，旧归档删除（单测 + E2E）。
   - [x] renderer 转发限流 10 条/60 秒，桥故障不影响应用（单测）。
-  - [x] `pnpm package` asar 含 electron-log、`pnpm package:smoke` PASS（2026-10-30 补跑：
-    NSIS 112,421,391 B / portable 112,183,788 B；asar 82 条目、58 个文件；install 20.6s /
-    launch 9.4s / uninstall 9.2s）。
+  - [x] `pnpm package` asar 含 electron-log、`pnpm package:smoke` PASS（2026-10-30 补跑；
+    MIT 重打后 NSIS 112,421,420 B / portable 112,183,605 B；asar 82 条目、58 个文件；
+    install 19.5s / launch 10.0s / uninstall 9.2s）。
 - 验证：`pnpm verify && pnpm e2e && pnpm package && pnpm package:smoke`
 
   实现备注（2026-10-30，ADR-056 选项 B）：

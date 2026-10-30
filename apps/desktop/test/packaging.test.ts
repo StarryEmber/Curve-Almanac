@@ -94,11 +94,11 @@ describe('T6.4 packaging configuration', () => {
     expect(desktopPackage.version).toMatch(/^\d+\.\d+\.\d+$/);
     // The release checklist compares the installer/app version with package.json.
     expect(rootPackage.version).toBe(desktopPackage.version);
-    expect(desktopPackage.license).toBe('UNLICENSED');
+    expect(desktopPackage.license).toBe('MIT');
     expect(desktopPackage.description).not.toContain('Electron main');
   });
 
-  it('ships an ICO/PNG icon and a license the installer can show', () => {
+  it('ships an ICO/PNG icon and the MIT license the installer can show', () => {
     const icoPath = join(desktopDirectory, 'build', 'icon.ico');
     const pngPath = join(desktopDirectory, 'build', 'icon.png');
     const licensePath = join(desktopDirectory, 'build', 'license.txt');
@@ -128,7 +128,8 @@ describe('T6.4 packaging configuration', () => {
 
     const license = readFileSync(licensePath, 'utf8');
     expect(license).toContain(PRODUCT_NAME);
-    expect(license).toContain('All rights reserved');
+    expect(license).toContain('MIT License');
+    expect(license).toContain('Permission is hereby granted');
   });
 
   it('wires the package scripts so packaging always builds first', () => {

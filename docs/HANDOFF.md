@@ -32,9 +32,9 @@
   0 violations**）；coverage 沿用 T6.5 **77.28%**；`pnpm build` exit 0（renderer **3,471.75 kB**、
   CSS 81.34 kB、main 338.76 kB）；`pnpm e2e` 功能测试 **111 passed**（含 T6.5 九步、logging 2 条；
   两条内存门禁 618–639MB 按 1GB 记通过，**用户指示未重跑**）；`pnpm bench` 沿用 T6.5 exit 0；
-  `pnpm package` exit 0（2026-10-30 重打：NSIS 112,421,391 B、portable 112,183,788 B、
-  win-unpacked 391,201,681 B；asar 含 electron-log）；`pnpm package:smoke` PASS（install 20.6s /
-  launch 9.4s / uninstall 9.2s，工作区/userData 保留）。
+  `pnpm package` exit 0（2026-10-30 MIT 重打：NSIS 112,421,420 B、portable 112,183,605 B、
+  win-unpacked 391,201,674 B；asar 含 electron-log）；`pnpm package:smoke` PASS（install 19.5s /
+  launch 10.0s / uninstall 9.2s，工作区/userData 保留）。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；强杀后不得静默丢数据。
 - **停点**：**M6 已关闭，v1 实施结束**。没有待领取的实现任务；新功能需求走 v2（参见
@@ -531,8 +531,8 @@
 | `pnpm test:coverage` 基线 | 全局 statements **77.13%** / branches **69.82%** / functions **76.51%** / lines **77.28%**；`renderer/plugins` lines **94.44%**、`features/plugins` lines **86.84%**、`plugins/plugin-sample/src` lines 97.64%；阈值 70/60 未下调（`scripts/package-smoke.ts` 不进覆盖率） |
 | `pnpm e2e` 基线 | 功能测试 **111 passed**（含 T6.5 九步 25.6s、T6.6 logging 2 条）；chart-perf 618–639MB / perf 612–625MB 按 **1GB 门禁**（ADR-057）记通过，用户指示未重跑；历史 T6.5 通过值为 520/590MB（旧 600MB 门禁） |
 | `pnpm bench` 基线 | **exit 0**；table.encode 322ms/1500、table.decode 431ms/3000、table.open 510ms/3000、table.save 408ms/500、edit 0ms/50、query 209ms/400、text-sort 370ms/400、cjk-sort 661ms/800、condition 1ms/16、import 1,009ms/8s；chart.resolve-sample P95 **80ms**/300、chart.sample 3ms/50、chart.option.2k 1ms/50、chart.restyle.100k 0ms/20；memoryPeakMB 912（Node 趋势，非应用门禁） |
-| `pnpm package` 基线 | **exit 0**（2026-10-30 T6.6 后重打）；NSIS **112,421,391 B**、portable **112,183,788 B**、`win-unpacked` **391,201,681 B**；asar 含 `electron-log`；Electron 44.9.0；未签名 |
-| `pnpm package:smoke` 基线 | **PASS**（2026-10-30 重打后）；install **20.6s**、launch **9.4s**、uninstall **9.2s**；工作区与 `%APPDATA%\Curve Almanac` 卸载后保留；asar 82 条目/58 文件、无 source map/开发文件；metrics `docs/reports/t6.6/t6.6-package-metrics.json`（T6.4 历史 metrics 保留） |
+| `pnpm package` 基线 | **exit 0**（2026-10-30 MIT 重打）；NSIS **112,421,420 B**、portable **112,183,605 B**、`win-unpacked` **391,201,674 B**；asar 含 `electron-log`；Electron 44.9.0；未签名 |
+| `pnpm package:smoke` 基线 | **PASS**（2026-10-30 MIT 重打后）；install **19.5s**、launch **10.0s**、uninstall **9.2s**；工作区与 `%APPDATA%\Curve Almanac` 卸载后保留；asar 82 条目/58 文件、无 source map/开发文件；metrics `docs/reports/t6.6/t6.6-package-metrics.json`（T6.4 历史 metrics 保留） |
 | 本地产物 | `release/`（gitignore）：`Curve Almanac Setup 0.1.0.exe`、`Curve Almanac 0.1.0.exe`、`win-unpacked/`；2026-10-30 重打并冒烟；手工启动见 §3.7 |
 | `pnpm format:check` | 通过（`apps/desktop/build` 已加入 `.prettierignore`） |
 | 构建 | `pnpm build` exit 0；renderer **3,471.75 kB**；CSS **81.34 kB**；main 338.76 kB；`ImportSession` 懒加载；table/query/import worker 220.68/236.16/270.54 kB；electron-log 外部 require |

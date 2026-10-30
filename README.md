@@ -156,5 +156,6 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts \
 
 ## 10. 许可证
 
-专有软件，`All rights reserved`（根 `package.json` 的 `UNLICENSED`）。NSIS 许可证页使用
-`apps/desktop/build/license.txt`；Electron/Chromium 自身许可证随包提供。
+**MIT License**（见根 [LICENSE](LICENSE)）。NSIS 许可证页使用
+`apps/desktop/build/license.txt`（同一 MIT 文本）；Electron/Chromium 与 npm 依赖的许可证随包
+提供。MIT 覆盖本项目代码，不授予 “Curve Almanac” 商标使用权；第三方组件仍受各自许可证约束。

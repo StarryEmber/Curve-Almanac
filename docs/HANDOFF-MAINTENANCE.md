@@ -13,13 +13,13 @@
 | 阶段 | v1 实施完成；**M0–M6 已关闭**；进入维护/发布阶段 |
 | 最新提交 | `git log -1 --oneline`（本维护交接提交；上一版为 `ad36d19`） |
 | 工作树 | 干净；**无 GitHub remote、无 tag** |
-| 安装包 | `release/Curve Almanac Setup 0.1.0.exe`（112,421,391 B）· `release/Curve Almanac 0.1.0.exe`（112,183,788 B） |
-| SHA-256 | Setup `1CEAC6F2B12C4DEFE67A348F809A9B47AFE35A806CD90FEC69238860F0E039D7`；portable `B5746C5E787AF2555251C1DA23D6F7A8E285F8D9275D3D9FFF8FDBD504C553F6` |
+| 安装包 | `release/Curve Almanac Setup 0.1.0.exe`（112,421,420 B）· `release/Curve Almanac 0.1.0.exe`（112,183,605 B） |
+| SHA-256 | Setup `F328DFA4523C250CBE05367A4C9942B39F9EB4586C07E1B943F6DD0C92D5B293`；portable `4E1181F23A1FB56C99996D5D7C2CD21DD6D625C07868FB350AADDB081A4825E5` |
 | 验证基线 | `pnpm verify` 198 files / 1831 tests；`pnpm e2e` 功能 111 passed + 2 内存门禁；`pnpm bench` exit 0 |
 | 内存门禁 | 整应用 private ≤ **1024MB**（ADR-057；600MB 为历史） |
-| 打包冒烟 | `pnpm package:smoke` PASS（install 20.6s / launch 9.4s / uninstall 9.2s） |
+| 打包冒烟 | `pnpm package:smoke` PASS（install 19.5s / launch 10.0s / uninstall 9.2s，MIT 重打后） |
 | 签名 | **未签名**（SmartScreen 提示）；证书/签名策略未定 |
-| 许可证 | 根/desktop `UNLICENSED`，`build/license.txt` 专有；公开源码前必须决策 |
+| 许可证 | **MIT**（根 `LICENSE`，ADR-058）；`build/license.txt` 同步；第三方组件各自许可 |
 | 文档 | README、SPEC、TASKS、TESTPLAN、HANDOFF、MANUAL、DSH、DEVELOPER、ROADMAP、ADR-001–057 |
 
 ## 1. 30 分钟接手清单
@@ -53,8 +53,8 @@
 
 - 本地安装包已重打（含 T6.6 的 `electron-log`）并通过冒烟；`release/` 被 gitignore，**未提交**。
 - **尚未推送 GitHub**：无 remote、无 tag。GitHub 发布前必须先定：
-  1. 源码公开还是仅公开二进制：私有仓库的 Release 附件不对公众开放；公开源码则要处理
-     `UNLICENSED`/`LICENSE`（专有 or MIT/Apache，二者含义不同）。
+  1. 源码公开还是仅公开二进制：私有仓库的 Release 附件不对公众开放；**当前已按用户决定
+     公开源码并采用 MIT（ADR-058）**；仍需仓库名、推送方式与 GitHub 网络。
   2. 证书/签名：未签名可发布，但要在发布说明写明 SmartScreen；签名方案见 ADR-055 复核条件。
   3. 分发渠道与仓库名（`curve-almanac` 建议）。
 - 建议路径（不改代码）：源码暂不公开 → 建公开的 `curve-almanac-releases` 仓库，只放发布说明、
@@ -184,8 +184,8 @@ pnpm format:check
 
 ## 13. 立即待办与待决策（交接给用户）
 
-1. **GitHub 发布决策**：源码公开/仅公开二进制/许可证（UNLICENSED → 专有或开源）；仓库名；
-   是否打 tag/Release。
+1. **GitHub 发布**：公开源码 + MIT 已决定（ADR-058）；待仓库名/owner、推送网络（本机到
+   github.com:443 不通）、tag/Release 与附件上传。
 2. **干净机器复验**：正式发布前在全新 Windows 用户/VM 执行安装/启动/建工作区/卸载/数据保留。
 3. **签名**：是否购买 OV/EV 或使用企业自签名；未签名则发布说明必须写明 SmartScreen。
 4. **分发渠道**：官网/内网/网盘/GitHub Release；是否提供校验和。

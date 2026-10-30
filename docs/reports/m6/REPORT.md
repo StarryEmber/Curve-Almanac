@@ -26,9 +26,9 @@ pnpm verify              198 files / 1831 tests；ESLint 0；depcruise 538 modul
 pnpm e2e                 功能测试 111 passed（含 T6.5 九步 25.6s、T6.6 logging 2 条）
                          内存门禁 chart-perf 618–639MB / perf 612–625MB，按 1GB（ADR-057）记通过
 pnpm bench               exit 0（T6.5 实测；全部预算内）
-pnpm package             exit 0（2026-10-30 T6.6 后重打：NSIS 112,421,391 B / portable 112,183,788 B；
+pnpm package             exit 0（2026-10-30 MIT 重打：NSIS 112,421,420 B / portable 112,183,605 B；
                          asar 82 条目，含 electron-log）
-pnpm package:smoke       PASS（2026-10-30 重打后：install 20.6s / launch 9.4s / uninstall 9.2s；
+pnpm package:smoke       PASS（2026-10-30 MIT 重打后：install 19.5s / launch 10.0s / uninstall 9.2s；
                          工作区与 userData 保留）
 pnpm build               exit 0；renderer 3,471.75 kB、CSS 81.34 kB、main 338.76 kB
 coverage                 沿用 T6.5：lines 77.28% / statements 77.13% / branches 69.82% / functions 76.51%

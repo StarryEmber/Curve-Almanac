@@ -829,3 +829,6 @@
   新增 `docs/DSH.md`（DSH/自动化代理使用手册：环境、命令、测试/打包/发布流程、已知 flake、
   当前待办与禁做清单）、`docs/HANDOFF-MAINTENANCE.md`（v1 后维护/升级/发布/排障交接）与
   `docs/PROMPTS.md`（修复/升级/发布/文档/新功能提示词模板）；README/HANDOFF 文档索引同步。
+- License：UNLICENSED → **MIT**（ADR-058）。新增根 `LICENSE`，根/desktop `package.json`、
+  `build/license.txt`、`packaging.test.ts`、README/发布说明同步；已用 MIT 重打安装包
+  （NSIS 112,421,420 B / portable 112,183,605 B）并通过 `package:smoke`。
