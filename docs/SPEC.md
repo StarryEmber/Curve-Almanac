@@ -176,7 +176,7 @@ Curve Almanac 是一个**本地优先、单机离线**的桌面数据可视化�
 
 ```jsonc
 {
-  "name": "curve-studio",
+  "name": "curve-almanac",
   "private": true,
   "packageManager": "pnpm@<锁定版本>",
   "engines": { "node": ">=20.11" },

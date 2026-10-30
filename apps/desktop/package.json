@@ -6,7 +6,7 @@
   "type": "module",
   "description": "Local-first desktop tool for table-driven curve visualization.",
   "license": "MIT",
-  "author": "Curve Almanac",
+  "author": "StarryEmber",
   "main": "./out/main/index.cjs",
   "scripts": {
     "dev": "electron-vite dev",

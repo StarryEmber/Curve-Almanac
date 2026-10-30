@@ -24,7 +24,7 @@ v1 之前按“专有软件”交付：根与 `apps/desktop/package.json` 的 `l
 
 具体变更：
 
-- 新增根 `LICENSE`：标准 MIT 文本，`Copyright (c) 2026 Curve Almanac`。
+- 新增根 `LICENSE`：标准 MIT 文本，`Copyright (c) 2026 StarryEmber`（主体见 ADR-059）。
 - 根 `package.json` 与 `apps/desktop/package.json` 的 `license` 改为 `"MIT"`。
 - `apps/desktop/build/license.txt`（NSIS 许可证页）改为 MIT 文本 + 第三方许可说明。
 - `apps/desktop/test/packaging.test.ts`：断言 `MIT`、`MIT License`、`Permission is hereby granted`，
@@ -35,7 +35,7 @@ v1 之前按“专有软件”交付：根与 `apps/desktop/package.json` 的 `l
 ## 代价
 
 - **不可撤回**：已按 MIT 发布的版本，任何人都可以按 MIT 使用/修改/再分发；不能对已发布版本
-  “收回”许可。发布前确认版权主体名称（当前为 “Curve Almanac”）。
+  “收回”许可。发布前确认版权主体名称（当前为 “StarryEmber”，见 ADR-059）。
 - MIT **不含专利授权**（Apache-2.0 有）；若产品涉及专利，发布前应改 Apache-2.0。
 - MIT 不授予商标权；“Curve Almanac”名称/图标不随代码许可自动授权。
 - 安装包许可证页文本变化 → 必须重打包；旧的专有安装包（若已分发）仍按旧条款。
@@ -55,7 +55,7 @@ v1 之前按“专有软件”交付：根与 `apps/desktop/package.json` 的 `l
 
 - 若发布前决定改用 **Apache-2.0**：替换 `LICENSE` 与 `build/license.txt`、`package.json` 的
   `license`、测试断言与 README/发布说明，重新打包并更新校验和；不要只改一处。
-- 若版权主体不是 “Curve Almanac”（公司/个人）：同步修改 LICENSE、license.txt、package 的
+- 若版权主体不是 “StarryEmber”（公司/个人）：同步修改 LICENSE、license.txt、package 的
   `author`/`copyright` 与发布说明。
 - 若将来需要闭源：只能对**新版本**改许可证；已发布的 MIT 版本不能撤回。
 - 若引入 GPL/AGPL 等 copyleft 依赖：先评估与 MIT 分发/安装包的兼容性，并更新第三方许可说明。

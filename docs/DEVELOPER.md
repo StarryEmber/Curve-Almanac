@@ -20,7 +20,7 @@ pnpm dev        # electron-vite 开发模式
 ## 2. 目录
 
 ```
-curve-studio/
+curve-almanac/
 ├─ apps/desktop/
 │  ├─ src/main/           # 窗口、菜单、IPC、FileWorkspaceStore、日志、退出握手
 │  ├─ src/preload/        # contextBridge 白名单 API

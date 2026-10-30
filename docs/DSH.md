@@ -9,7 +9,7 @@
 
 | 项 | 值 |
 |---|---|
-| 仓库根 | `D:\DSH_Work_Space\curve-studio` |
+| 仓库根 | `D:\DSH_Work_Space\curve-studio`（GitHub 仓库名：**curve-almanac**；本地目录可继续用旧名） |
 | 产品/版本 | **Curve Almanac 0.1.0**（Windows x64） |
 | 阶段 | **v1 实施完成；M0–M6 全部关闭（M6 于 2026-10-30 关闭）** |
 | 最近提交 | `e559d9b`（重打含 `electron-log` 的安装包并冒烟） |

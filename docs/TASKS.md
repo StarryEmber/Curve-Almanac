@@ -2011,8 +2011,8 @@ T6.2 + T2.5 + T3.2 → T6.3
   - [x] 跨天轮转为 `main-YYYY-MM-DD.log`，保留含今天 7 天，旧归档删除（单测 + E2E）。
   - [x] renderer 转发限流 10 条/60 秒，桥故障不影响应用（单测）。
   - [x] `pnpm package` asar 含 electron-log、`pnpm package:smoke` PASS（2026-10-30 补跑；
-    MIT 重打后 NSIS 112,421,420 B / portable 112,183,605 B；asar 82 条目、58 个文件；
-    install 19.5s / launch 10.0s / uninstall 9.2s）。
+    StarryEmber 版权重打后 NSIS 112,421,015 B / portable 112,183,688 B；asar 82 条目、58 个文件；
+    install 18.6s / launch 10.1s / uninstall 9.1s）。
 - 验证：`pnpm verify && pnpm e2e && pnpm package && pnpm package:smoke`
 
   实现备注（2026-10-30，ADR-056 选项 B）：

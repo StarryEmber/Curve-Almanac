@@ -88,3 +88,4 @@
 | ADR-056 | T6.5 发现的日志落盘偏差：v1 仅 console，文件日志与渲染进程全局转发未实现（T6.6 按选项 B 闭环） | 已接受 | [056-t65-log-file-deviation.md](056-t65-log-file-deviation.md) |
 | ADR-057 | 整应用内存门禁由 600MB 提高到 1024MB（1GB） | 已接受 | [057-memory-gate-1gb.md](057-memory-gate-1gb.md) |
 | ADR-058 | 开源许可证切换：UNLICENSED → MIT（公开发布） | 已接受 | [058-mit-license.md](058-mit-license.md) |
+| ADR-059 | 发布身份与仓库命名（StarryEmber / curve-almanac） | 已接受 | [059-release-identity.md](059-release-identity.md) |

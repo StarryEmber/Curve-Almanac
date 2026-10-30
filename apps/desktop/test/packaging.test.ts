@@ -29,6 +29,7 @@ const desktopPackage = JSON.parse(readFileSync(join(desktopDirectory, 'package.j
   main: string;
   scripts: Record<string, string>;
   license?: string;
+  author?: string;
   dependencies?: Record<string, string>;
 };
 const rootPackage = JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8')) as {
@@ -95,6 +96,7 @@ describe('T6.4 packaging configuration', () => {
     // The release checklist compares the installer/app version with package.json.
     expect(rootPackage.version).toBe(desktopPackage.version);
     expect(desktopPackage.license).toBe('MIT');
+    expect(desktopPackage.author).toBe('StarryEmber');
     expect(desktopPackage.description).not.toContain('Electron main');
   });
 
@@ -130,6 +132,7 @@ describe('T6.4 packaging configuration', () => {
     expect(license).toContain(PRODUCT_NAME);
     expect(license).toContain('MIT License');
     expect(license).toContain('Permission is hereby granted');
+    expect(license).toContain('StarryEmber');
   });
 
   it('wires the package scripts so packaging always builds first', () => {

@@ -13,13 +13,14 @@
 | 阶段 | v1 实施完成；**M0–M6 已关闭**；进入维护/发布阶段 |
 | 最新提交 | `git log -1 --oneline`（本维护交接提交；上一版为 `ad36d19`） |
 | 工作树 | 干净；**无 GitHub remote、无 tag** |
-| 安装包 | `release/Curve Almanac Setup 0.1.0.exe`（112,421,420 B）· `release/Curve Almanac 0.1.0.exe`（112,183,605 B） |
-| SHA-256 | Setup `F328DFA4523C250CBE05367A4C9942B39F9EB4586C07E1B943F6DD0C92D5B293`；portable `4E1181F23A1FB56C99996D5D7C2CD21DD6D625C07868FB350AADDB081A4825E5` |
+| 安装包 | `release/Curve Almanac Setup 0.1.0.exe`（112,421,015 B）· `release/Curve Almanac 0.1.0.exe`（112,183,688 B） |
+| SHA-256 | Setup `3F8685C7BE60CA2AC5CA8DD63098F7F1A38A98657E979D9841A0A169B20BF33E`；portable `D95E61436FC2DE5E60DD7F3EF791AD4A4495E24E10EDC2EAA904BFFEB6F52F28` |
 | 验证基线 | `pnpm verify` 198 files / 1831 tests；`pnpm e2e` 功能 111 passed + 2 内存门禁；`pnpm bench` exit 0 |
 | 内存门禁 | 整应用 private ≤ **1024MB**（ADR-057；600MB 为历史） |
-| 打包冒烟 | `pnpm package:smoke` PASS（install 19.5s / launch 10.0s / uninstall 9.2s，MIT 重打后） |
+| 打包冒烟 | `pnpm package:smoke` PASS（install 18.6s / launch 10.1s / uninstall 9.1s，StarryEmber 版权重打后） |
 | 签名 | **未签名**（SmartScreen 提示）；证书/签名策略未定 |
-| 许可证 | **MIT**（根 `LICENSE`，ADR-058）；`build/license.txt` 同步；第三方组件各自许可 |
+| 许可证/主体 | **MIT**（根 `LICENSE`，ADR-058）；Copyright © 2026 **StarryEmber**；`build/license.txt` 同步；第三方组件各自许可 |
+| 仓库/作者 | GitHub 仓库 **curve-almanac**；根包名 `curve-almanac`；Git 作者 **StarryEmber**（ADR-059） |
 | 文档 | README、SPEC、TASKS、TESTPLAN、HANDOFF、MANUAL、DSH、DEVELOPER、ROADMAP、ADR-001–057 |
 
 ## 1. 30 分钟接手清单
@@ -184,8 +185,8 @@ pnpm format:check
 
 ## 13. 立即待办与待决策（交接给用户）
 
-1. **GitHub 发布**：公开源码 + MIT 已决定（ADR-058）；待仓库名/owner、推送网络（本机到
-   github.com:443 不通）、tag/Release 与附件上传。
+1. **GitHub 发布**：公开源码 + MIT + 版权主体 StarryEmber 已决定（ADR-058/059）；仓库名
+   `curve-almanac`；待推送网络（本机到 github.com:443 不通）、tag/Release 与附件上传。
 2. **干净机器复验**：正式发布前在全新 Windows 用户/VM 执行安装/启动/建工作区/卸载/数据保留。
 3. **签名**：是否购买 OV/EV 或使用企业自签名；未签名则发布说明必须写明 SmartScreen。
 4. **分发渠道**：官网/内网/网盘/GitHub Release；是否提供校验和。

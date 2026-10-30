@@ -2,13 +2,13 @@
   "artifacts": {
     "setup": {
       "file": "D:\\DSH_Work_Space\\curve-studio\\release\\Curve Almanac Setup 0.1.0.exe",
-      "bytes": 112421420
+      "bytes": 112421015
     },
     "portable": {
       "file": "D:\\DSH_Work_Space\\curve-studio\\release\\Curve Almanac 0.1.0.exe",
-      "bytes": 112183605
+      "bytes": 112183688
     },
-    "unpackedBytes": 391201674
+    "unpackedBytes": 391201672
   },
   "asar": {
     "files": 58,
@@ -41,7 +41,7 @@
   },
   "workspace": {
     "dir": "C:\\Users\\MECHREVO\\Documents\\Curve Almanac\\T6.4 Smoke.cstudio",
-    "manifestSha256": "ff65f5420bdf59aa274884541e871437fc7ed14bb655ceced8e9a054529c351b",
+    "manifestSha256": "fe500763168fa9693d771cc114df9e697a10ea17f70977cf8b0d96b20df750a4",
     "retainedAfterUninstall": true
   },
   "uninstall": {
@@ -51,12 +51,12 @@
     "userDataRetained": true
   },
   "timings": {
-    "installMs": 19514,
-    "launchMs": 10042,
-    "uninstallMs": 9174
+    "installMs": 18637,
+    "launchMs": 10066,
+    "uninstallMs": 9110
   },
   "timestamps": {
-    "date": "2026-10-30T15:16:01.662Z",
+    "date": "2026-10-30T15:31:55.419Z",
     "appId": "com.curvealmanac.app",
     "electron": "44.9.0"
   }
