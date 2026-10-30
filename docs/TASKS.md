@@ -1702,9 +1702,9 @@ T6.2 + T2.5 + T3.2 → T6.3
 <a id="m6"></a>
 ## M6 扩展与发布
 
-> 状态（2026-10-29）：`T6.0`（品牌更名 Curve Almanac）与 `T6.1`（插件 SDK 与注册表）已完成
-> （ADR-051、ADR-052；报告 `docs/reports/t6.0/REPORT.md`、`docs/reports/t6.1/REPORT.md`）；
-> `T6.2`–`T6.5` 尚未开始。
+> 状态（2026-10-30）：`T6.0`（品牌更名 Curve Almanac）、`T6.1`（插件 SDK 与注册表）与 `T6.2`
+> （示例插件）已完成（ADR-051、ADR-052、ADR-053；报告 `docs/reports/t6.0/REPORT.md`、
+> `docs/reports/t6.1/REPORT.md`、`docs/reports/t6.2/REPORT.md`）；`T6.3`–`T6.5` 尚未开始。
 
 <a id="t60"></a>
 ### T6.0 品牌更名：Curve Almanac

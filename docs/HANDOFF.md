@@ -13,7 +13,7 @@
 > T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告 **`50f7ea9`**、
 > T6.0 代码/报告 **`cc6dd5c`**、T6.1 代码/报告 **`2ea05cf`**、T6.2 代码/报告 **`15e43ed`**
 > （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
-> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.10）→ `docs/reports/m5/REPORT.md` →
+> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.11）→ `docs/reports/m5/REPORT.md` →
 > `docs/reports/t6.0/REPORT.md` → `docs/reports/t6.1/REPORT.md` → `docs/reports/t6.2/REPORT.md` →
 > `docs/TASKS.md` 的 M6 → `docs/SPEC.md` → ADR-053/052/051/050/048。
 
@@ -129,7 +129,7 @@
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
    188 files / 1761 tests、`pnpm e2e` 全量结果见 §0.10、`pnpm bench` exit 0；读 TASKS 的 M5 验收
    记录、报告 `docs/reports/m5/REPORT.md`、`docs/reports/t6.0/REPORT.md`、
-   `docs/reports/t6.1/REPORT.md`、`docs/reports/t6.2/REPORT.md` 与 §0.7–§0.10。
+   `docs/reports/t6.1/REPORT.md`、`docs/reports/t6.2/REPORT.md` 与 §0.7–§0.11。
 2. 只有收到用户明确的“开始 M6 下一任务”指令后，才领取 TASKS 的 `T6.3`（插件接入 UI 与隔离）；
    先读 SPEC §14.3、ADR-010（插件静态加载）、ADR-015（存储类型）、ADR-052（注册表/宿主语义）、
    ADR-053（T6.2 接线）与 TASKS 的 M6 顺序。
@@ -249,8 +249,8 @@
 5. 证据：`docs/reports/m5/m5-01-two-panes.png`、`m5-02-history.png`、`m5-03-before-kill.png`、
    `m5-04-recovery.png`、`m5-05-restored-layout.png`、`m5-06-english-dark.png`、
    `m5-07-restart-restored.png`。`m0` 截图已还原。
-6. **验收**：用户于 2026-10-29 接受 M5；**M5 已关闭**。M6 后续进展见 §0.8（T6.0）与
-   §0.9（T6.1）。
+6. **验收**：用户于 2026-10-29 接受 M5；**M5 已关闭**。M6 后续进展见 §0.8（T6.0）、
+   §0.9（T6.1）与 §0.10（T6.2）。
 
 ### 0.8 T6.0 结果（2026-10-29 完成）
 
@@ -317,6 +317,39 @@
    label 不本地化；CSV 导出未接语义格式化；UI 只在启动时读共享注册表快照，运行时启用/禁用、
    来源徽标、错误 toast 与手动禁用仍属 T6.3。详见报告 §6 与 ADR-053“复核条件”。
 
+### 0.11 T6.3 接手要点（未领取，等用户明确指示）
+
+> 本节只记录 **T6.3 的起点与约束**，不代表任务已开始。T6.3 依赖 T6.2、T2.5、T3.2 已满足。
+
+1. **范围（TASKS T6.3，覆盖 FR-EXT-01/02）**：
+   - 列类型选择器/导入器列表/图表类型列表**全部**改为读取插件宿主注册表；
+   - 移除剩余硬编码内置列表，改为“注册表 + 内置注册”（内置字段类型 5 种、CSV/TSV + JSON 导入器、
+     line/scatter/bar 图表类型、§13.1 的命令）；
+   - 插件贡献的菜单项/选项加**来源标识**（`source` 已由 T6.1 提供）；错误 toast 带插件名、可跳日志；
+   - **错误边界**与“禁用插件”入口（手动禁用/持久化在此决定，ADR-052 复核条件）；
+   - 贡献点变更后的 **UI 刷新**（使用 `Registry.subscribe`）。
+2. **T6.2 留下的确切状态**：
+   - 字段类型：列对话框只读 `listFieldTypes()`（插件贡献）；**内置 5 种存储类型仍是硬编码**
+     `COLUMN_TYPES`（`features/columns/column-form.ts`）。
+   - 导入：向导的插件分支已读 `listImporters()`；内置 CSV/JSON 仍由 Worker 的自动检测驱动，
+     **没有内置 ImporterDef 注册**。
+   - 图表类型/命令：**尚未**读 `chartKinds`/`commands`（T6.2 未接）。
+   - 激活：只在 `main.tsx` 首帧前 `activateAll()` 一次；没有运行时启用/禁用、没有订阅刷新、
+     没有来源徽标/错误 toast/插件管理面板。
+3. **不要破坏的 T6.2 契约**：`com.curvealmanac.rating`/`com.curvealmanac.points` id、
+   `parseText` 只做类型而 `validate` 管值域（0/6 → “超出允许范围”）、`ColumnDraft.fieldTypeId`
+   三态、app-core 的 `FieldTypeLookup` 结构化端口、`@curve/ui` 的 `formatField` 回调、
+   `plugin.spec.ts` 的 `column-form-field-type`/`import-importer`/`data-field-type`。
+4. **性能与架构约束**：`subscribe` 是同步快照，UI 监听器必须合并刷新且只在面板打开时快照
+   （T5.4 的 AppShell 不订阅 store、chart-perf 600MB 门禁）；不要常驻订阅文档 store。
+5. **已知可回收的点（T6.3 决定）**：插件导入在主线程规划 + 字节副本（ADR-053 复核条件：
+   需要大文件时把数据集送入 Worker 或拆 Worker）；主进程/渲染进程字段类型集合分离（主进程按
+   编译进包定义严格校验、渲染进程按实际激活解析）；`ImportResult` ↔ `ImportDataset` 的映射已在
+   `features/import/plugin-import.ts`，内置注册时复用同一映射。
+6. **验证形态（预期）**：`pnpm e2e -- --grep "plugin-ui"`（TASKS 指定）新增 `plugin-ui` spec，覆盖
+   “移除示例插件后 UI 不残留选项”“插件抛错只影响自身”“贡献点全部来自注册表（grep 无硬编码）”；
+   同时保持 `plugin.spec.ts` 3 条与全量套件为绿（T6.2 基线 107 passed，新增 spec 后计数会变）。
+
 ---
 
 ## 1. 当前进度快照
@@ -362,7 +395,7 @@
 | 下一步 | 等用户明确指示后领取 **`T6.3`**（插件接入 UI 与隔离）；**不要自动开始** |
 | `pnpm verify` 基线 | **188 files / 1761 tests**；ESLint 0；depcruise 514 modules / 2209 deps / 0 violations |
 | `pnpm test:coverage` 基线 | 全局 statements **77.11%** / branches **69.95%** / functions **76.23%** / lines **77.25%**；`plugins/plugin-sample/src` lines **97.64%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **107 passed**（6.5m；含 T6.2 3 条 12.8s、M5 1 条 20.2s）；chart-perf 100k 切换单独复跑 privatePeak **505 / 516MB**（≤600MB；全量通过） |
+| `pnpm e2e` 基线 | **107 passed**（6.5m；含 T6.2 3 条 13.0s、M5 1 条 20.2s）；chart-perf 100k 切换单独复跑 privatePeak **505 / 516MB**（≤600MB；全量通过） |
 | `pnpm bench` 基线 | **exit 0**；table.open 486ms/3s、table.save 365ms/500ms、edit 0ms/50ms、query 183ms/400ms、text-sort 315ms/400ms、cjk-sort 575ms/800ms、import 890ms/8s、condition 1ms/16ms；chart.resolve-sample P95 **58ms**/300ms、chart.sample 2ms/50ms、chart.option.2k 0ms/50ms、chart.restyle.100k 0ms/20ms；memoryPeakMB 923（Node 趋势，非应用门禁） |
 | `pnpm format:check` | 通过（提交前对新增文件跑过 Prettier） |
 | 构建 | `pnpm build` exit 0；renderer **3,394.50 kB** + 懒加载 ImportSession 87.80 kB；CSS **77.89 kB**；main 338.76 kB；table/query/import worker 220.68/236.16/270.16 kB（T6.4 评估拆包） |
@@ -542,8 +575,9 @@ T4.6 又在根 `package.json` 的 devDependencies 增加了 `@curve/chart-echart
   生成 100k×10 夹具（约 15MB，gitignore）；`perf.spec.ts` 把它复制到 `testInfo.outputPath` 再打开。
   单独跑 perf spec 前必须先执行该生成命令。
 - `perf.spec.ts` 的内存门禁用 `app.getAppMetrics().memory.privateBytes`（不含 GPU）；
-  `workingSetSize` 会重复计算共享页，只作诊断。T5.5/M5 后 100k 图表切换实测 503MB/600MB，
-  余量约 16%。
+  `workingSetSize` 会重复计算共享页，只作诊断。T6.2 后 100k 图表切换实测 **505 / 516MB**（门禁
+  600MB）；T5.5/M5 时 503MB。紧接一次全量 E2E 之后单跑曾出现 602MB 离群值（随后复跑正常），
+  遇到时先确认 CPU/内存环境再重跑，不放宽门槛。
 - `pnpm bench` 的 `memoryPeakMB` 是 Node 管线 RSS 趋势（约 900MB），**不是**应用内存门禁；
   600MB 只由 E2E 判定。
 - `bench/baseline.json` 需由 CI Windows runner 的 `pnpm bench -- --write-baseline` 生成后提交；
@@ -1808,6 +1842,60 @@ interface PluginHost {
 - 禁用列表只在内存（`getDisabled()` + 日志）；UI、命令总线、手动禁用/持久化留 T6.3。
 - 详情：ADR-052、`docs/reports/t6.1/REPORT.md`；测试 `registry.test.ts` 10 条、
   `host.test.ts` 15 条。
+
+### 4.28 `@curve/plugin-sample`、渲染进程字段类型接线与插件导入（T6.2）
+
+```ts
+// plugins/plugin-sample/src/index.ts
+PACKAGE_NAME = '@curve/plugin-sample';
+SAMPLE_PLUGIN_ID = 'com.curvealmanac.sample';
+RATING_FIELD_TYPE_ID = 'com.curvealmanac.rating';   // storageType 'number'
+POINTS_IMPORTER_ID = 'com.curvealmanac.points';     // extensions ['.json']
+ratingFieldType: FieldTypeDef;
+pointsImporter: ImporterDef;
+samplePlugin: PluginDefinition;                     // apiVersion '1.0'
+sampleFieldTypes: readonly FieldTypeDef[];          // 主进程校验共用
+parseRatingText / formatRating / validateRating / compareRatings;
+parsePointsJson(text: string): ImportResult;
+registerSampleContributions(ctx): void;
+
+// apps/desktop/src/renderer/plugins/index.ts
+pluginHost: PluginHost;                             // 模块单例
+activateRendererPlugins(): Promise<readonly PluginState[]>;   // 幂等，main.tsx 首帧前
+listFieldTypes() / listImporters() / findFieldType / findImporter;
+fieldTypeLookup: FieldTypeLookup;                   // 交给 createAppCore
+formatFieldCell(value, column, locale): string | null;
+
+// apps/desktop/src/main/plugins.ts
+resolveFieldTypeStorage(fieldTypeId): ColumnType | undefined;  // 只读 sampleFieldTypes
+
+// apps/desktop/src/renderer/features/import/plugin-import.ts
+runPluginImport({ importer, bytes, fileName, locale, signal }):
+  | { ok: true; session: { importerId; importerLabel; dataset: ParsedImportData; preview } }
+  | { ok: false; error: AppError };
+```
+
+- **rating 语义**：`parseText` 接受整数文本（`0`/`6` 也解析为数字，空文本 → `null`）；
+  `validate` 收口 1–5 整数（越界/小数 → issue reason `range`），`required` 仍来自列定义；
+  `format` → `★` 重复，`null` → 空；`compare` 数值升序、`null` 最后。
+- **三态 `ColumnDraft.fieldTypeId`**：字符串=选择；`null`=显式清除（`draftFromColumn` 对无字段
+  类型的列写 `null`）；`undefined`=保留现有（仅存储类型未变）。换存储类型时对话框清空。
+- **app-core 端口**：`packages/app-core/src/validation/field-types.ts` 的
+  `FieldTypeRule`/`FieldTypeLookup`（结构兼容 `FieldTypeDef`，app-core 不 import plugin-sdk）；
+  `checkTableCellSet`/`validateCellBatch` 先 `coerceCell` 再 `parseText`/`validate`，
+  `createAppCore({ fieldTypes })` 注入，命令层与编辑器同规则。
+- **`@curve/ui`**：`StyledCellOptions.formatField?: (value, column) => string | null`，返回 `null`
+  回退存储格式化；网格、自动列宽、样式预览都传入 `formatFieldCell`。
+- **导入器**：插件导入器在渲染进程 `decodeImportBytes` + `ImporterDef.parse`，转
+  `ParsedImportData`（缺省 `columns` 用 `buildImportColumns`），再以与 Worker 相同的
+  `planImport` 载荷**内联规划**；`client.open` 以 transfer 交出字节，`use-import` 在 transfer
+  前保留 `bytes` 副本。`ImportPreview.importerLabel` 是渲染进程内部字段（非 IPC）。
+- **主进程**：`FileWorkspaceStore` 接收 `resolveFieldTypeStorage`，打开/写 manifest/恢复备份三处
+  严格校验；不再对含 `fieldTypeId` 的表格产生 “cannot verify field type” 警告。
+- **UI 契约**：列对话框 `data-testid="column-form-field-type"`（option value = 字段类型 id）、
+  导入向导 `data-testid="import-importer"`、列行 `data-field-type`。
+- 详情：ADR-053、`docs/reports/t6.2/REPORT.md`；测试 `plugins/plugin-sample` 3 files / 29 tests、
+  `e2e/plugin.spec.ts` 3 条。
 
 ---
 
@@ -3081,8 +3169,8 @@ T5.3、T5.4 已完成，下一步 T5.5。
 | 应用设置与 manifest 是两份快照（T5.5） | manifest 的 theme/locale/autosave 创建后不更新 | 读取方以 `settings.json` 为准；保留字段为 v1 格式；详见 ADR-050 |
 | 自动保存关闭时显式 action 仍 flush（T5.5） | 用户可能以为只有 Ctrl+S 写盘 | 粘贴/导入/样式/图表 action 需要保存结果；若要求完全手动保存，需加队列模式并改 action，ADR-050 复核条件 |
 | 设置写失败只在对话框提示（T5.5） | 主题/语言已生效但重启回退 | 下一次设置更新会重试；不新增全局 Toast |
-| 覆盖率 77.01%（T5.5 实测；T5.4 76.74%、T5.3 76.05%、T4.6 76.47%、T4.5 76.26%、T4.4 75.89%、T4.1 75.34%、M3 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`features/keymap` 90.27% 行/82.37% 分支、`chart-model` render-model.ts 96.88%、`chart-echarts/src` 96.75%、`app-core/history/edit-history.ts` 90.99%、`quit-guard.ts` 89.06%、`save-queue.ts` 89.56%、`translate.ts` 86.36%；设置/未保存对话框由单测 + E2E 覆盖 |
-| renderer bundle 3.365MB（T5.5；+ 42.82 kB 懒加载） | 启动/内存 | T6.4 打包阶段评估拆包/压缩；ECharts 首次进入主 chunk |
+| 覆盖率 77.25%（T6.2 实测；T5.5 77.01%、T5.4 76.74%、T5.3 76.05%、T4.6 76.47%、T4.5 76.26%、T4.4 75.89%、T4.1 75.34%、M3 74.89%） | 新增 UI 主要由 E2E 覆盖 | 阈值 70/60 满足；`plugins/plugin-sample/src` lines 97.64%、`features/keymap` 90.27% 行/82.37% 分支、`chart-model` render-model.ts 96.88%、`chart-echarts/src` 96.75%、`app-core/history/edit-history.ts` 90.99%、`quit-guard.ts` 89.06%、`save-queue.ts` 89.56%、`translate.ts` 86.36%；设置/未保存对话框与 T6.2 插件接线由单测 + E2E 覆盖 |
+| renderer bundle 3,394.50 kB（T6.2；+ 87.80 kB 懒加载 ImportSession） | 启动/内存 | T6.4 打包阶段评估拆包/压缩；ECharts 首次进入主 chunk；T6.2 的 +28.58 kB 来自插件 SDK/示例插件 |
 | 100k CSV 导出 1,716ms/5s（T3.6） | 去掉 Intl formatter 缓存会退到 10s 量级 | `formatCellValue` 的 locale/格式缓存是达标关键；不要改回每单元格 `new Intl.*` |
 | CSV 临时文件残留 | 进程崩溃时 `.curve-export-*.tmp` 留在目标目录 | cancel/`before-quit` 已清理；崩溃残留需手工删除，报告已记录 |
 | 显示格式 CSV 的千分位/本地化日期 | Excel 可能识别为文本 | 数值语义用“原始值”；对话框已说明两种格式 |
@@ -3136,10 +3224,16 @@ T5.3、T5.4 已完成，下一步 T5.5。
 | bench 子进程加载 ECharts | `pnpm bench` 启动略慢、`memoryPeakMB` 趋势上升 | `chart` suite 独立子进程；该数字本来不是应用内存门禁（ADR-033） |
 | userData 路径随 T6.0 更名变化 | 升级后主题/语言/最近列表/窗口尺寸重置一次 | ADR-051：v1 未发布，不做迁移；工作区目录/JSONL 不受影响；要保留偏好时加一次性迁移 ADR |
 | 插件禁用列表仅内存（T6.1） | 坏插件每次启动重试并再记日志；没有手动禁用 | 有意取舍；T6.3 决定持久化/手动禁用（写 settings 或独立文件，不进 manifest） |
-| 插件贡献未接 UI/命令总线（T6.1） | 列类型/导入器/图表类型/命令尚不可见 | T6.3 把内置列表改为“注册表 + 内置注册”，接导入向导/命令面板；T6.1 只交付契约 |
-| `ImportResult` 与 table-engine `ImportDataset` 仅结构兼容（T6.1） | 导入管线新增字段时插件输出可能缺字段 | T6.3 显式映射并补契约测试；不要假设两者是同一类型 |
-| `subscribe` 同步通知（T6.1） | 插件批量注册 N 条会触发 N 次回调 | T6.3 的监听器只读快照/合并刷新，不要订阅文档 store（chart-perf 内存门禁） |
+| 插件贡献未全部接 UI/命令总线（T6.1→T6.2） | T6.2 已接字段类型与导入器；图表类型、命令、来源标识、错误边界、手动禁用仍未接 | T6.3 把内置列表改为“注册表 + 内置注册”，接图表类型/命令/面板，并做来源徽标与错误 toast；见 §0.11 |
+| `ImportResult` 与 table-engine `ImportDataset` 仅结构兼容（T6.1→T6.2） | 导入管线新增字段时插件输出可能缺字段 | T6.2 已在 `features/import/plugin-import.ts` 显式映射（`ImportResult` → `ParsedImportData`，缺省列用 `buildImportColumns` 推断）；table-engine 新增字段时必须同步映射并补契约测试 |
+| `subscribe` 同步通知（T6.1） | 插件批量注册 N 条会触发 N 次回调 | T6.2 不订阅（启动时固定贡献集）；T6.3 打开面板时才订阅/合并刷新，不要订阅文档 store（chart-perf 内存门禁） |
 | `plugin-sdk` 增加 `lib: DOM`（T6.1） | 类型层多出 DOM 全局 | 仅用于 `AbortSignal`；不引入 Node 全局或运行时依赖，也不能因此 import Electron/table-engine |
+| 插件导入在主线程解析与规划（T6.2） | 大文件插件导入可能阻塞 UI；内置 CSV/JSON 不受影响 | ADR-053 复核条件：需要时把数据集送入 Worker 或拆独立 Worker；不要在未确认前用“降低行数上限”绕过 |
+| 每次导入多一份字节副本（T6.2） | 为支持导入器切换，`client.open` transfer 前保留副本；受现有限额约束 | 若需消除，改 Worker 协议（不 transfer 或按需回读 token）并写 ADR，不要删副本导致插件导入拿到 detached bytes |
+| 字段类型/导入器 label 不本地化（T6.2） | 插件提供的 label 直接显示（如 `Rating`、`Points JSON`） | 有意取舍；要本地化需给 `FieldTypeDef`/`ImporterDef` 加 `labelKey` 或语言 map（SPEC §14.2 + ADR） |
+| CSV 导出未接语义格式化（T6.2） | 导出 `rating` 仍是数字而非 `★` | 显示格式导出仍走 `formatCellValue`（存储格式化）；需要时把 `formatFieldCell` 接到 T3.6 导出管线并补 E2E |
+| 主进程与渲染进程字段类型集合可能不同（T6.2） | 主进程按“编译进包”的定义严格校验，渲染进程按“实际激活”的注册表解析；插件激活失败时两者不一致 | 方向保守：载入更严格、显示更宽松；若需要一致的可观测状态，T6.3 在插件面板显示启动自检结果 |
+| chart-perf 紧接全量 E2E 后单跑出现过 602MB（T6.2 实测离群值） | 门禁 600MB；随后两次单跑 505 / 516MB，全量套件通过 | 判为环境瞬时压力（T6.2 不触及图表路径，渲染包 +28.58 kB）；再出现先按 ADR-033 排查噪声，不放宽门槛 |
 
 ---
 
@@ -3219,13 +3313,27 @@ T5.3、T5.4 已完成，下一步 T5.5。
 - 不把插件注册表改回 `{ id, def }` 或无订阅：`source`/`subscribe` 是 T6.3 UI 刷新与来源标注的
   契约（ADR-052）；`register` 不得静默覆盖同 id。
 - 不让插件替换内置或其他插件的贡献；插件 `dispose`/`deactivate` 后不得残留贡献。
-- 不在 `plugin-sdk` 里 import table-engine/React/Electron/fs；`ImportResult` 只是结构兼容，映射
-  放 T6.3。
+- 不在 `plugin-sdk` 里 import table-engine/React/Electron/fs；`ImportResult` 只是结构兼容，
+  映射放在 `apps/desktop/src/renderer/features/import/plugin-import.ts`（T6.2），不要在插件包里
+  import table-engine。
 - 不把禁用列表写进 manifest 或 settings（T6.1 仅内存；T6.3 再决定持久化）。
 - 不把宿主激活错误改成一抛就中断整批插件；必须逐插件隔离、记录 `disabled` 状态与日志。
+- 不把 T6.2 的字段类型校验降级成“只校验存储类型”：`parseText` 只做类型解析、值域必须在
+  `validate`（0/6 必须落到 `range`），命令层与编辑器必须共用 app-core 的
+  `checkTableCellSet`/`FieldTypeLookup`，不要在组件里另写一套 parse/validate。
+- 不把 `ColumnDraft.fieldTypeId` 的三态改回两态（`undefined` 保留 / `null` 清除 / 字符串选择）；
+  换存储类型必须清空 `fieldTypeId`（ADR-015）。
+- 不让 `ui` 或 `app-core` import `@curve/plugin-sdk`：前者用 `formatField` 回调，后者用
+  `FieldTypeLookup` 结构端口（ADR-053）。
+- 不在主进程 `createPluginHost`/`activate` 插件，也不让主进程失去 `resolveFieldTypeStorage`：
+  否则含 `fieldTypeId` 的工作区会重新出现 “cannot verify field type” 警告。
+- 不删掉 `use-import` 在 `client.open` 前的字节副本，除非同时改 Worker transfer 协议；
+  删掉会让插件导入器读到 detached buffer。
+- 不把 `plugin.spec.ts` 依赖的 `column-form-field-type`、`import-importer`、`data-field-type`
+  改名；新增插件 UI 契约时同步 E2E 与 SPEC。
 - 不自动跨任务/跨里程碑；M3、M4 均已验收并关闭，M4 的 T4.1–T4.6 与验收演示已完成，
-  T5.1–T5.5 与 M5 验收演示已完成；**M5 已获接受并关闭**，**T6.0 品牌更名与 T6.1 插件
-  SDK/注册表已完成**，M6 的 `T6.2`–`T6.5` 未开始。
+  T5.1–T5.5 与 M5 验收演示已完成；**M5 已获接受并关闭**，**T6.0 品牌更名、T6.1 插件 SDK/注册表
+  与 T6.2 示例插件已完成**，M6 的 `T6.3`–`T6.5` 未开始。
 
 ---
 
@@ -3233,20 +3341,20 @@ T5.3、T5.4 已完成，下一步 T5.5。
 
 - [ ] `git status --short` 干净；`git log` 包含 T5.1 代码/报告 **`eb152b4`**、T5.2 **`a9dcf75`**、
       T5.3 **`02e30a8`**、T5.4 **`fb53d9b`**、T5.5（`git log -1 -- apps/desktop/src/renderer/features/settings`）、
-      T6.0 **`cc6dd5c`**、T6.1 **`2ea05cf`** 与本交接文档提交。
+      T6.0 **`cc6dd5c`**、T6.1 **`2ea05cf`**、T6.2 **`15e43ed`** 与本交接文档提交。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
 - [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t5.5/REPORT.md`、`docs/reports/t6.0/REPORT.md`、
-      `docs/reports/t6.1/REPORT.md`、`docs/TASKS.md` 的 M5/M6、`docs/SPEC.md`
-      §12/§13.3/§14/§16.3/§16.4、ADR-052/051/050/048/047。
-- [ ] 已确认 `pnpm verify` 基线（**182 files / 1710 tests**）、`pnpm e2e` **104 passed**
-      （T6.0 定向 smoke/shell 11 条，T6.1 无 UI 变更）、`pnpm bench` exit 0；M5 demo 1 条 20.2s；
-      settings 4 条 3.9s/5.0s/3.6s/1.7s；chart-perf 100k 切换 private **503MB**（≤600MB）。
+      `docs/reports/t6.1/REPORT.md`、`docs/reports/t6.2/REPORT.md`、`docs/TASKS.md` 的 M5/M6、
+      `docs/SPEC.md` §12/§13.3/§14/§16.3/§16.4、ADR-053/052/051/050/048/047。
+- [ ] 已确认 `pnpm verify` 基线（**188 files / 1761 tests**）、`pnpm e2e` **107 passed**（6.5m）、
+      `pnpm bench` exit 0；M5 demo 1 条 20.2s；T6.2 `plugin.spec.ts` 3 条 13.0s；
+      settings 4 条 3.9s/5.0s/3.6s/1.7s；chart-perf 100k 切换 private **505 / 516MB**（≤600MB）。
 - [ ] 已确认 `apps/desktop/node_modules/electron/dist/electron.exe` 存在。
 - [ ] 已清除 `ELECTRON_RUN_AS_NODE`；跑 E2E 前再设 `CURVE_E2E_NO_SANDBOX=1`。
 - [ ] 已确认 M1/M2/M3/M4/M5 均已获用户接受、T3.1–T3.6、T4.1–T4.6、M4 验收演示、T5.1–T5.5、
-      **M5 验收演示、T6.0 品牌更名与 T6.1 插件 SDK 已完成**；**M5 已关闭，M6 的 T6.2–T6.5
-      未开始**，不要自动领取 T6.2。
+      **M5 验收演示、T6.0 品牌更名、T6.1 插件 SDK 与 T6.2 示例插件已完成**；**M5 已关闭，
+      M6 的 T6.3–T6.5 未开始**，不要自动领取 T6.3。
 - [ ] 已确认 T5.1 契约：`LayoutView` 递归渲染、`ui.activePanePath` UI-only、分栏=原 pane+空
       pane、最多 4 pane、移动标签到下一分栏、关闭最后标签折叠 pane、空 pane 才可关分栏、
       500ms 布局去抖（`flushSaves`/关闭/Ctrl+S 冲掉）、`view.layout` 可选 `activePanePath`、
@@ -3274,11 +3382,17 @@ T5.3、T5.4 已完成，下一步 T5.5。
       `source`、插件只能 `replace` 自己的贡献、宿主 `dispose` 关闭/插件 `dispose` 只清自己；
       `createPluginHost` 的版本主版本校验、失败回滚 + `disabled`、`E_PLUGIN_*` code；禁用列表
       仅内存；`pnpm exec vitest run packages/plugin-sdk` 26 条。
+- [ ] 已确认 T6.2 契约：字段类型 id `com.curvealmanac.rating` / 导入器 `com.curvealmanac.points`；
+      `parseText` 只做类型、值域在 `validate`（0/6 → `range`）；`ColumnDraft.fieldTypeId` 三态；
+      app-core `FieldTypeLookup`（不 import plugin-sdk）、`@curve/ui` 的 `formatField` 回调；
+      主进程 `resolveFieldTypeStorage` 严格校验；`use-import` 的字节副本；
+      `pnpm exec vitest run plugins/plugin-sample` 29 条 + `e2e/plugin.spec.ts` 3 条。
 - [ ] 已确认 E2E 新增 `apps/desktop/e2e/settings.spec.ts`（4 条）、`autosave.spec.ts`（4 条）、
       `recovery.spec.ts`（4 条）、`undo.spec.ts`（3 条）、`layout.spec.ts`（3 条）、
-      `palette.spec.ts`（3 条）与 `m4-acceptance.spec.ts`（1 条）；截图在
-      `docs/reports/t5.5/`、`docs/reports/t5.4/`、`docs/reports/t5.3/`、`docs/reports/t5.2/`、
-      `docs/reports/t5.1/` 与 `docs/reports/m4/`；`m0` 截图已还原，`test-results/` 未提交。
+      `palette.spec.ts`（3 条）、`plugin.spec.ts`（3 条）与 `m4-acceptance.spec.ts`（1 条）；
+      截图在 `docs/reports/t5.5/`、`docs/reports/t5.4/`、`docs/reports/t5.3/`、
+      `docs/reports/t5.2/`、`docs/reports/t5.1/`、`docs/reports/t6.2/` 与 `docs/reports/m4/`；
+      `m0` 截图已还原，`test-results/` 未提交。
 - [ ] 已确认 T4.6：`resolveChartData`/`renderChartModel` 拆分与 `resolveSeries` 组合（输出/快照
       不变）；数据缓存键不含样式字段/`xLabel`、命中要求 `rows` 引用；>20k 行延迟解析 + loading；
       `data-chart-pending/resolve-ms/update-ms/update-count/instances` 诊断契约；rAF 合并交互
@@ -3302,10 +3416,12 @@ T5.3、T5.4 已完成，下一步 T5.5。
 - [ ] 已确认 T2.4–T2.7 的粘贴/导入/筛选/保存/撤销/性能门禁语义；不绕过命令总线或另起写盘路径。
 - [ ] 已确认 E2E 写盘断言使用 `expect.poll`；`m0` 截图提交前还原；`docs/reports/t4.5/*.png`
       （3 张）与 `docs/reports/t4.6/*.png`（2 张）已提交。
-- [ ] 已确认 renderer 主 chunk 为 **3,365.92 kB**（ECharts + 分栏 + 撤销 + 自动保存/恢复 +
-      快捷键/面板 + 设置）、CSS **77.89 kB**；T6.4 评估拆包，M4/T5.1–T5.5/T6.0 不改图表层架构或重建实例。
-- [ ] 跑全量 E2E 前已确认没有外部程序占满 CPU（§3.3/§7）；perf 内存门禁 600MB，T5.5 后
-      100k 图表切换实测 **503MB**，但仍需独占运行、不放宽断言。
+- [ ] 已确认 renderer 主 chunk 为 **3,394.50 kB**（ECharts + 分栏 + 撤销 + 自动保存/恢复 +
+      快捷键/面板 + 设置 + 插件 SDK/示例插件）、CSS **77.89 kB**、main **338.76 kB**；T6.4 评估
+      拆包，M4/T5.1–T5.5/T6.0/T6.2 不改图表层架构或重建实例。
+- [ ] 跑全量 E2E 前已确认没有外部程序占满 CPU（§3.3/§7）；perf 内存门禁 600MB，T6.2 后
+      100k 图表切换实测 **505 / 516MB**（全量套件通过；紧接全量后的单跑出现过 602MB 离群值），
+      仍需独占运行、不放宽断言。
 - [ ] M4 验收演示已按 TESTPLAN E6 执行（`e2e/m4-acceptance.spec.ts`，独占 CPU），报告
       `docs/reports/m4/REPORT.md` 与截图已提交；**M4 已于 2026-10-27 获用户接受并关闭**。
 - [ ] T5.1–T5.5 已完成（报告 `docs/reports/t5.1|t5.2|t5.3|t5.4|t5.5/REPORT.md`，
@@ -3314,5 +3430,6 @@ T5.3、T5.4 已完成，下一步 T5.5。
       （`e2e/m5-acceptance.spec.ts` 1 条、`docs/reports/m5/REPORT.md`、7 张截图），
       **M5 已获用户接受并关闭**；**T6.0 品牌更名已完成**（`docs/reports/t6.0/REPORT.md`、
       ADR-051、`e2e/smoke|shell` 断言已更新）；**T6.1 插件 SDK/注册表已完成**
-      （`docs/reports/t6.1/REPORT.md`、ADR-052、`packages/plugin-sdk` 26 条）；**M6 的
-      T6.2–T6.5 未开始**，等用户明确指示后再开始。
+      （`docs/reports/t6.1/REPORT.md`、ADR-052、`packages/plugin-sdk` 26 条）；**T6.2 示例插件
+      已完成**（`docs/reports/t6.2/REPORT.md`、ADR-053、`plugins/plugin-sample` 29 条、
+      `e2e/plugin.spec.ts` 3 条）；**M6 的 T6.3–T6.5 未开始**，等用户明确指示后再开始 T6.3。
