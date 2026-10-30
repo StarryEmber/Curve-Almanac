@@ -40,9 +40,10 @@
   默认样式/自动保存）、自动保存关闭的“保存/放弃/取消”、完整 en-US 与文案门禁。**M5 验收演示已于
   2026-10-29 执行并通过并获用户接受，M5 已关闭**（`docs/reports/m5/REPORT.md`、
   `e2e/m5-acceptance.spec.ts`）。**M6 已开始：`T6.0`（品牌更名 Curve Almanac，ADR-051）、
-  `T6.1`（插件 SDK 与注册表，ADR-052）、`T6.2`（示例插件，ADR-053）与 `T6.3`（插件接入 UI 与
-  隔离，ADR-054）已完成**（`docs/reports/t6.0/REPORT.md`、`t6.1`、`t6.2`、`t6.3`）；
-  `T6.4`–`T6.5` 尚未开始，等用户明确指示后再领取 `T6.4`，不要自动跨任务/里程碑。
+  `T6.1`（插件 SDK 与注册表，ADR-052）、`T6.2`（示例插件，ADR-053）、`T6.3`（插件接入 UI 与
+  隔离，ADR-054）与 `T6.4`（安装包与发布配置，ADR-055）已完成**（`docs/reports/t6.0/REPORT.md`、
+  `t6.1`、`t6.2`、`t6.3`、`t6.4`）；`T6.5`（全量验收与文档收尾）尚未开始，等用户明确指示后再
+  领取，不要自动跨任务/里程碑。
 - 仓库已有 pnpm workspace（9 个 `@curve/*` 包 + `@curve/desktop` + `plugins/plugin-sample`）、
   可运行的 Electron 壳、`domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的
   App Shell、插件 SDK/宿主与示例插件，以及 21 个已接线 IPC 通道（另含 1 个 main→renderer 退出
@@ -104,13 +105,15 @@ ui ← desktop
 
 ## 3. 命令（目标契约，随任务逐步落地）
 
-> M0 结束时除 `pnpm package` 外必须全部可用；`pnpm package` 在 T6.4 落地。
+> `pnpm package` 已在 T6.4 落地（ADR-055）；`package:smoke` 是真实安装/卸载冒烟，不属于
+> 每次提交的必跑项。
 
 ```bash
 pnpm install
 pnpm dev                 # 启动 Electron 开发模式
 pnpm build               # 构建 renderer + main + preload
 pnpm package             # electron-builder 打安装包
+pnpm package:smoke       # 真实安装/启动/卸载/数据保留冒烟（T6.4，会写系统安装）
 pnpm lint                # eslint，零 warning
 pnpm typecheck           # tsc -b
 pnpm test                # vitest run

@@ -1703,8 +1703,9 @@ T6.2 + T2.5 + T3.2 → T6.3
 ## M6 扩展与发布
 
 > 状态（2026-10-30）：`T6.0`（品牌更名 Curve Almanac）、`T6.1`（插件 SDK 与注册表）、`T6.2`
-> （示例插件）与 `T6.3`（插件接入 UI 与隔离）已完成（ADR-051、ADR-052、ADR-053、ADR-054；
-> 报告 `docs/reports/t6.0/REPORT.md`、`t6.1`、`t6.2`、`t6.3`）；`T6.4`–`T6.5` 尚未开始。
+> （示例插件）、`T6.3`（插件接入 UI 与隔离）与 `T6.4`（安装包与发布配置）已完成（ADR-051、
+> ADR-052、ADR-053、ADR-054、ADR-055；报告 `docs/reports/t6.0/REPORT.md`、`t6.1`、`t6.2`、
+> `t6.3`、`t6.4`）；`T6.5` 尚未开始。
 
 <a id="t60"></a>
 ### T6.0 品牌更名：Curve Almanac
@@ -1893,10 +1894,10 @@ T6.2 + T2.5 + T3.2 → T6.3
 
 <a id="t64"></a>
 ### T6.4 安装包与发布配置
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T0.2、T5.5
 - 覆盖：NFR-08
-- 参考：SPEC §16.6
+- 参考：SPEC §16.6、ADR-055
 - 产出：
   - electron-builder：`appId=com.curvealmanac.app`、productName、NSIS + portable
   - 图标、许可证、版本号注入、`userData` 路径
@@ -1906,11 +1907,44 @@ T6.2 + T2.5 + T3.2 → T6.3
   2. 安装包默认当前用户，不要求管理员。
   3. 首次启动创建 `userData`；卸载不删工作区。
 - 验收：
-  - [ ] 干净 Windows 用户安装/启动/卸载成功。
-  - [ ] 安装后工作区默认路径可写；卸载后用户工作区仍在。
-  - [ ] 版本号与 `package.json` 一致。
-- 验证：`pnpm package` + 手工安装冒烟
+  - [x] 干净 Windows 用户安装/启动/卸载成功。
+  - [x] 安装后工作区默认路径可写；卸载后用户工作区仍在。
+  - [x] 版本号与 `package.json` 一致。
+- 验证：`pnpm package` + `pnpm package:smoke`（真实安装/卸载，见 §4）
 - 注意事项：打包时注意分清开发过程中无需打包的文件
+
+  实现备注（2026-10-30，ADR-055）：
+  - 配置：`apps/desktop/electron-builder.yml`；根 `pnpm package` = `pnpm build` +
+    `--filter @curve/desktop package`（`package:dir` 只出 `win-unpacked`）。产物 `release/`
+    已 gitignore；`files` 白名单只含 `out/**/*` + `package.json`（排除 `*.map`），
+    `asar` + `npmRebuild:false` + `publish:null`。
+  - 身份：`appId=com.curvealmanac.app`、`productName=Curve Almanac`、版本来
+    `apps/desktop/package.json`（0.1.0）；`author`/`description`/`license` 写入 desktop
+    package（exe 的 `FileDescription`/`CompanyName` 是用户可读值）。图标 3 件套在
+    `apps/desktop/build/`（svg 源 + 1024 PNG + 7 档 ICO），许可证 `license.txt`（专有，
+    与 `UNLICENSED` 一致，NSIS 许可证页）。
+  - 安装：NSIS 辅助安装器，`oneClick:false`/`perMachine:false`/`allowElevation:false`/
+    `deleteAppDataOnUninstall:false`/`asInvoker`；默认装到
+    `%LOCALAPPDATA%\Programs\Curve Almanac`，创建开始菜单与桌面快捷方式；portable 同步产出。
+  - 依赖：main 仍外部 require `write-file-atomic`，electron-builder 的 pnpm 收集把
+    `write-file-atomic` + `signal-exit` 放进 asar（23 个文件，无 `src/e2e/test/docs/fixtures/
+    *.map/build`）。
+  - 冒烟：`scripts/package-smoke.ts`（`pnpm package:smoke`）在真实 Windows 上安装→启动→
+    在 `Documents/Curve Almanac` 默认路径新建工作区→卸载→断言工作区与 `%APPDATA%\Curve
+    Almanac` 保留；校验 `isPackaged`/版本/名称/窗口标题/生产 CSP/无 `window.require|process`/
+    E2E 钩子失效/DevTools 关闭。脚本会清理测试数据，已有安装时拒绝运行。本机 DSH 沙箱要求
+    先把安装器复制到 `%TEMP%` 再执行（见 ADR-055 §6）。
+  - 测试：`apps/desktop/test/packaging.test.ts` 5 条静态契约（身份/输出、NSIS 每用户、
+    文件白名单、ICO/PNG/许可证、脚本接线）。
+  - 实测：`pnpm verify` **196 files / 1816 tests**；depcruise 530 modules / 2300 deps /
+    0 violations；coverage statements 77.13% / branches 69.82% / functions 76.51% / lines
+    77.28%；`pnpm build` exit 0（renderer 3,469.35 kB、CSS 81.34 kB、main 338.76 kB）；
+    `pnpm package` exit 0（NSIS 112,400,939 B / portable 112,163,368 B / unpacked 391,112,000 B）；
+    `pnpm package:smoke` PASS（install 17.3s、launch 4.4s、uninstall 8.9s）；`pnpm format:check`
+    通过。证据 `docs/reports/t6.4/`（2 张截图 + metrics）。
+  - 残留：未签名（SmartScreen）；体积 391MB/112MB；打包需网络（本机用 npmmirror 镜像）；
+    冒烟会短暂写真实用户目录；portable 只验证产出；macOS/Linux 未配置。详见
+    `docs/reports/t6.4/REPORT.md` §6 与 ADR-055“复核条件”。
 
 <a id="t65"></a>
 ### T6.5 全量验收与文档收尾

@@ -1,0 +1,63 @@
+# electron-builder configuration for Curve Almanac (T6.4, ADR-055).
+#
+# `pnpm package` runs `electron-vite build` first and then packages
+# `apps/desktop/out`. Everything below is deliberately explicit: the release
+# checklist (TESTPLAN §7) and `apps/desktop/test/packaging.test.ts` assert these
+# values so a silent drift fails CI instead of shipping.
+
+appId: com.curvealmanac.app
+productName: Curve Almanac
+copyright: Copyright © 2026 Curve Almanac
+
+directories:
+  # Repository-level release/ (git-ignored) so both artifacts sit next to each
+  # other and never end up inside the source tree that `files` packs.
+  output: ../../release
+  buildResources: build
+
+# Only the electron-vite output is application data. `pnpm build` bundles the
+# workspace source packages into out/, so no development file (src/, e2e/,
+# test/, configs, fixtures, docs) may reach the asar. Production node_modules
+# that the main bundle keeps external (write-file-atomic + signal-exit) are
+# added by electron-builder's dependency collector.
+files:
+  - out/**/*
+  - package.json
+  - '!**/*.map'
+
+asar: true
+# No native modules: rebuilding is unnecessary and would require a C++ toolchain.
+npmRebuild: false
+# v1 has no auto-update / publish channel (ADR-016); never try to upload.
+publish: null
+
+win:
+  icon: build/icon.ico
+  # The app itself never needs administrator rights. Per-user NSIS install and
+  # portable runs both execute as the invoking user.
+  requestedExecutionLevel: asInvoker
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+
+nsis:
+  # Assisted installer: license page, install-mode choice and directory choice.
+  oneClick: false
+  # v1 installs for the current user only; no UAC prompt, no per-machine state.
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Curve Almanac
+  # Workspaces live in Documents/Curve Almanac; user preferences live in
+  # %APPDATA%/Curve Almanac. Uninstalling must not delete either.
+  deleteAppDataOnUninstall: false
+  artifactName: ${productName} Setup ${version}.${ext}
+
+portable:
+  artifactName: ${productName} ${version}.${ext}

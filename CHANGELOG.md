@@ -703,6 +703,23 @@
   报告 `docs/reports/m5/REPORT.md`（7 张截图 + `m5-metrics.json`）；全量 E2E **104 passed**
   （6.2m，M5 1 条 20.2s）。**2026-10-29 获用户接受，M5 已关闭；M6 未开始**，等用户明确指示后再
   领取 T6.1。
+- T6.4：安装包与发布配置（ADR-055）。新增 `apps/desktop/electron-builder.yml`：
+  `appId=com.curvealmanac.app`、`productName=Curve Almanac`、NSIS 每用户安装
+  （`oneClick:false`/`perMachine:false`/`allowElevation:false`/`asInvoker`/
+  `deleteAppDataOnUninstall:false`）与 portable，产物输出到 `release/`；`files` 白名单只含
+  `out/**/*` + `package.json`（排除 `*.map`），asar 内带 `write-file-atomic` + `signal-exit`。
+- T6.4：发布资源 `apps/desktop/build/{icon.svg,icon.png,icon.ico,license.txt}`（1024 主稿 + 7 档
+  ICO；专有许可证页）；`apps/desktop/package.json` 增加 `package`/`package:dir`、
+  `license`/`author`/用户可读 `description`；根新增 `pnpm package:smoke`。
+- T6.4：新增真实 Windows 冒烟 `scripts/package-smoke.ts`（asar 检查 → 静默安装 → 快捷方式/
+  注册表 → 启动已安装应用 → 默认 `Documents/Curve Almanac` 新建工作区 → 卸载 → 工作区/
+  `%APPDATA%\Curve Almanac` 保留）与 `apps/desktop/test/packaging.test.ts` 5 条静态契约。
+  `pnpm verify` **196 files / 1816 tests**；depcruise 530 modules / 2300 deps / 0 violations；
+  coverage statements 77.13% / branches 69.82% / functions 76.51% / lines 77.28%；
+  `pnpm package` exit 0（NSIS 112,400,939 B、portable 112,163,368 B、unpacked 391,112,000 B）；
+  `pnpm package:smoke` PASS（install 17.3s / launch 4.4s / uninstall 8.9s）。报告
+  `docs/reports/t6.4/REPORT.md`（2 张截图 + metrics）。不改 `formatVersion`/JSONL/manifest/
+  IPC/CSP/Electron 安全选项，不新增运行时依赖。
 - T6.3：插件接入 UI 与隔离（ADR-054）。新增 `apps/desktop/src/renderer/plugins/builtins.ts`，
   在插件激活前把 SPEC §14.4 的四类内置贡献注册进宿主：5 种字段类型（id = 存储类型
   `text/number/date/boolean/enum`）、`builtin.csv`/`builtin.json` 导入器（`parse` 复用

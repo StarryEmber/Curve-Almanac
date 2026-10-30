@@ -354,3 +354,10 @@
 - [ ] 日志路径/滚动/保留天数符合 SPEC §16.5。
 - [ ] 已知限制与 v2 路线写入 `docs/ROADMAP.md` 与发布说明。
 - [ ] 回滚方案：保留上一版安装包与工作区迁移备份说明。
+
+**T6.4 自动化（ADR-055，2026-10-30）**：`pnpm package` 产出 NSIS（每用户、无管理员）与
+portable；`pnpm package:smoke` 在真实 Windows 上静默安装 → 启动已安装应用 → 在默认
+`Documents/Curve Almanac` 新建工作区 → 静默卸载，并断言程序文件/快捷方式/卸载注册表被清理、
+工作区与 `%APPDATA%\Curve Almanac` 保留；`apps/desktop/test/packaging.test.ts` 锁定
+`appId`/`productName`/NSIS 每用户参数/文件白名单/图标与许可证。上述清单的“干净机器复验”
+仍留给 T6.5：本机冒烟是“无既存安装/无既存用户数据”的干净应用态，不是全新 Windows 镜像。

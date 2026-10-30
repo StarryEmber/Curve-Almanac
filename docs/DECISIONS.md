@@ -12,9 +12,9 @@
 - 代价：安装包约 100MB+，内存高于 Tauri；需要自己处理 IPC 安全。
 - 复核条件：安装包体积/内存成为用户主要投诉，且 Tauri 的 WebView 兼容性验证通过。
 - 实现备注（T0.2，2026-10-20）：实际版本 Electron **44.9.0**、electron-vite **6.0.0**、
-  electron-builder **26.15.3**（T6.4 才打包）、React / React DOM **19.3.1**、Vite **8.3.4**
-  （Vite 8 = rolldown 内核，构建配置使用 `build.rolldownOptions`）、`@vitejs/plugin-react` **6.1.2**、
-  Playwright **1.64.1**、jsdom **30.1.3**。以 `pnpm-lock.yaml` 为准。
+  electron-builder **26.15.3**（T6.4 落地，见 ADR-055：NSIS 每用户 + portable）、React / React DOM
+  **19.3.1**、Vite **8.3.4**（Vite 8 = rolldown 内核，构建配置使用 `build.rolldownOptions`）、
+  `@vitejs/plugin-react` **6.1.2**、Playwright **1.64.1**、jsdom **30.1.3**。以 `pnpm-lock.yaml` 为准。
   main 与 preload 均输出 CJS（`out/main/index.cjs`、`out/preload/index.cjs`）；开发模式 CSP 的
   放宽项见 ADR-018。
 

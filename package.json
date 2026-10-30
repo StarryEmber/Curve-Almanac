@@ -13,6 +13,7 @@
     "dev": "pnpm --filter @curve/desktop dev",
     "build": "pnpm --filter @curve/desktop build",
     "package": "pnpm build && pnpm --filter @curve/desktop package",
+    "package:smoke": "tsx scripts/package-smoke.ts",
     "postinstall": "node scripts/install-electron.mjs",
     "lint": "eslint . --max-warnings=0 && pnpm lint:boundaries",
     "lint:boundaries": "depcruise apps packages plugins --config .dependency-cruiser.cjs",

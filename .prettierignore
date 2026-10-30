@@ -13,3 +13,7 @@ docs
 # Intentionally malformed fixtures (SPEC §7.6: a truncated manifest must fail
 # to parse, so prettier must not "fix" it).
 fixtures/workspaces/corrupt-manifest/manifest.json
+
+# electron-builder resources (T6.4): icon.svg is a design source, icon.ico/png
+# are generated binaries and license.txt is shown verbatim by the installer.
+apps/desktop/build

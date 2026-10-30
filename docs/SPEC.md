@@ -184,6 +184,7 @@ Curve Almanac 是一个**本地优先、单机离线**的桌面数据可视化�
     "dev": "pnpm --filter @curve/desktop dev",
     "build": "pnpm --filter @curve/desktop build",
     "package": "pnpm build && pnpm --filter @curve/desktop package",
+    "package:smoke": "tsx scripts/package-smoke.ts",
     "lint": "eslint . --max-warnings=0 && pnpm lint:boundaries",
     "lint:boundaries": "depcruise apps packages --config .dependency-cruiser.cjs",
     "typecheck": "tsc -b --pretty false",
@@ -197,6 +198,8 @@ Curve Almanac 是一个**本地优先、单机离线**的桌面数据可视化�
 ```
 
 > `lint` 同时执行 ESLint 与 dependency-cruiser（ADR-017）；`plugins/*` 目录在 T6.2 创建后加入扫描路径。
+> `package` 在 T6.4 落地（ADR-055）：先 `build`，再由 `apps/desktop` 的 electron-builder 产出
+> `release/`；`package:smoke` 是真实安装/启动/卸载冒烟，不进 `verify`（会写系统安装）。
 
 ### 5.3 内部包是源码包
 
@@ -2210,6 +2213,9 @@ P95 **2ms**（50ms）、`chart.option.2k` P95 **1ms**（50ms，option 构造）�
 - 主目标：Windows 10/11 x64（NSIS 安装 + portable zip）。
 - 次要：macOS 12+（dmg，未签名，文档说明）；Linux 尽力而为。
 - 不追求 32 位、ARM Windows、移动端。
+- T6.4 已落地（ADR-055）：Windows x64 的 NSIS 每用户安装（不要求管理员、许可证页、开始菜单
+  与桌面快捷方式）与 portable 单文件；`appId=com.curvealmanac.app`、`productName=Curve
+  Almanac`、产物在 `release/`（gitignore）；未签名。macOS/Linux 目标仍未配置，v1 不承诺。
 
 ---
 

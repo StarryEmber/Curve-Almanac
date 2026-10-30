@@ -2,19 +2,23 @@
 
 > 本文件面向**下一个实现会话**。**M5 已于 2026-10-29 获用户接受并关闭**（T5.1–T5.5、
 > `docs/reports/m5/REPORT.md`、ADR-046–050）。**M6 进行中：`T6.0`（品牌更名 Curve Studio →
-> Curve Almanac）、`T6.1`（插件 SDK 与注册表）、`T6.2`（示例插件）与 `T6.3`（插件接入 UI 与隔离）
-> 已完成**（`docs/reports/t6.0/REPORT.md`、`t6.1`、`t6.2`、`t6.3`；ADR-051、052、053、054）；
-> `T6.4`（安装包与发布配置）–`T6.5` 尚未开始，**不要自动领取**：等用户明确指示后再开始 `T6.4`。
+> Curve Almanac）、`T6.1`（插件 SDK 与注册表）、`T6.2`（示例插件）、`T6.3`（插件接入 UI 与隔离）
+> 与 `T6.4`（安装包与发布配置）已完成**（`docs/reports/t6.0/REPORT.md`、`t6.1`、`t6.2`、`t6.3`、
+> `t6.4`；ADR-051、052、053、054、055）；`T6.5`（全量验收与文档收尾）尚未开始，**不要自动领取**：
+> 等用户明确指示后再开始。
 > 最后更新：2026-10-30 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
 > T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
 > T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告 **`50f7ea9`**、
 > T6.0 代码/报告 **`cc6dd5c`**、T6.1 代码/报告 **`2ea05cf`**、T6.2 代码/报告 **`15e43ed`**、
-> T6.3 代码/报告 **`a78a5ca`**（本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
-> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.12）→ `docs/reports/t6.3/REPORT.md` →
-> `docs/reports/t6.2/REPORT.md` → `docs/reports/t6.1/REPORT.md` → `docs/reports/t6.0/REPORT.md` →
-> `docs/TASKS.md` 的 M6 → `docs/SPEC.md` §14 → ADR-054/053/052/051/050/048。
+> T6.3 代码/报告 **`a78a5ca`**、T6.4 代码/报告 **提交见
+> `git log -1 -- docs/reports/t6.4/REPORT.md`**（本交接文档的提交见
+> `git log -1 -- docs/HANDOFF.md`）。
+> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.13）→ `docs/reports/t6.4/REPORT.md` →
+> `docs/reports/t6.3/REPORT.md` → `docs/reports/t6.2/REPORT.md` → `docs/reports/t6.1/REPORT.md` →
+> `docs/reports/t6.0/REPORT.md` → `docs/TASKS.md` 的 M6 → `docs/SPEC.md` §14/§16.6 →
+> ADR-055/054/053/052/051/050/048。
 
 ---
 
@@ -22,24 +26,25 @@
 
 - **当前状态**：M1–M5 均已获用户接受；`T3.1`–`T3.6`、`T4.1`–`T4.6`、`T5.1`–`T5.5`、M5 验收
   演示、**`T6.0`（品牌更名 Curve Almanac）**、**`T6.1`（插件 SDK 与注册表）**、
-  **`T6.2`（示例插件）**与 **`T6.3`（插件接入 UI 与隔离）**均已完成；**M5 已于 2026-10-29
-  关闭**；M6 的 `T6.4`–`T6.5` 尚未开始。
-- **本次交接范围**：T6.3 插件接入 UI 与隔离——内置贡献注册（5 种字段类型、`builtin.csv`/
-  `builtin.json`、line/scatter/bar 图表类型）、四类选择器只读注册表、来源标识、错误边界 + 带插件名
-  的 toast + 插件日志跳转、插件管理器（会话级禁用/启用）、插件命令进入命令面板、
-  ADR-054 与 `docs/reports/t6.3/REPORT.md`。不改 IPC/数据格式/CSP/`plugin-sdk` 公开 API，不新增
-  运行时依赖。
-- **基线**：`pnpm verify` **195 files / 1811 tests**（ESLint 0；depcruise 529 modules / 2297 deps /
+  **`T6.2`（示例插件）**、**`T6.3`（插件接入 UI 与隔离）**与 **`T6.4`（安装包与发布配置）**
+  均已完成；**M5 已于 2026-10-29 关闭**；M6 的 `T6.5` 尚未开始。
+- **本次交接范围**：T6.4 安装包与发布配置——electron-builder（NSIS 当前用户安装 + portable）、
+  `appId`/`productName`/版本、图标与许可证、`release/` 产物、`pnpm package`/`pnpm package:smoke`、
+  真实安装/启动/卸载/数据保留冒烟、ADR-055 与 `docs/reports/t6.4/REPORT.md`。不改 IPC/数据
+  格式/CSP/Electron 安全选项，不新增运行时依赖。
+- **基线**：`pnpm verify` **196 files / 1816 tests**（ESLint 0；depcruise 530 modules / 2300 deps /
   0 violations）；coverage 全局 lines **77.28%**（statements 77.13% / branches 69.82% /
   functions 76.51%）；`pnpm build` exit 0（renderer **3,469.35 kB**、CSS 81.34 kB、main 338.76 kB）；
-  `pnpm e2e` **110 passed**（≈7.0m，含 `plugin-ui` 3 条）；`pnpm bench` exit 0。
+  `pnpm e2e` **110 passed**（T6.3 基线；T6.4 未改运行时代码故未重跑）；`pnpm bench` exit 0
+  （T6.3 基线）；`pnpm package` exit 0（NSIS 112,400,939 B、portable 112,163,368 B、win-unpacked
+  391,112,000 B）；`pnpm package:smoke` PASS（install 17.3s / launch 4.4s / uninstall 8.9s）。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑；强杀后不得静默丢数据。
-- **停点**：T6.3 已完成；**M6 其余任务（T6.4–T6.5）未开始**。不要自动领取 `T6.4`；等用户
-  明确指示后再开始（T6.4 是安装包/发布配置，含 `electron-builder`）。
+- **停点**：T6.4 已完成；**M6 仅剩 `T6.5`（全量验收与文档收尾）未开始**。不要自动领取；等用户
+  明确指示后再开始（T6.5 是全量 E2E/性能/可访问性、九步演示与发布清单）。
 - **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`）；读
-  `docs/reports/t6.3/REPORT.md`、ADR-054/053/052/051/050/048、TASKS 的 M6；收到“开始 M6 下一
-  任务”后按 §0.3 领取 `T6.4`。
+  `docs/reports/t6.4/REPORT.md`、ADR-055/054/053/052/051/050/048、TASKS 的 M6；收到“开始 M6
+  下一任务”后按 §0.11 领取 `T6.5`。
 - **M5 完成结果**：2 表 3 视图 → 复制视图/水平分栏/移动标签 → 5 次编辑 + 撤销/重做 5 步 →
   提交 200 后强杀（999 丢弃、200 保留）→ 尝试恢复 → 关闭后从最近列表重开 → 英文 + 深色 →
   重启后 2 pane / 3 标签 / Readings 活动 / 值 200 全部还原。截图在 `docs/reports/m5/`。
@@ -63,6 +68,11 @@
   带插件名的 toast（“查看插件日志”打开插件管理器）；插件管理器可会话级禁用/启用（不落盘）；
   插件命令进入命令面板并经 `execute` 派发；`plugin-ui.spec.ts` 3 条 + 单测 50 条；ADR-054、
   报告 `docs/reports/t6.3/REPORT.md`（3 张截图）。
+- **T6.4 完成结果**：`apps/desktop/electron-builder.yml`（`appId=com.curvealmanac.app`、
+  `productName=Curve Almanac`、NSIS 每用户安装 + portable、`release/`、`files` 白名单、asar、
+  `publish:null`）；`build/{icon.svg,png,ico,license.txt}`；`pnpm package`/`package:smoke`；
+  `scripts/package-smoke.ts` 真实安装/启动/默认路径建工作区/卸载/数据保留；`packaging.test.ts`
+  5 条；ADR-055、报告 `docs/reports/t6.4/REPORT.md`（2 张截图 + metrics）。
 - **T5.1 完成结果**：2 表 3 视图 → 水平分栏 → 移动标签 → 比例 0.35 → 垂直/4 pane → 关闭空
   pane → 重启恢复；非法 layout（缺失引用/ratio 0.1）回退单 pane 且视图不丢；标签 Arrow/
   Ctrl+W 与 200% 缩放通过；截图在 `docs/reports/t5.1/`。
@@ -95,7 +105,10 @@
   来源后缀 `plugins.optionSource`/`data-command-source`、插件管理器 testid（`open-plugins`、
   `plugin-manager`、`plugin-row-<id>`、`data-plugin-status`、`plugin-toggle-<id>`、`plugin-log`、
   `plugin-log-entry`）、会话级禁用（不写 `settings.json`）、导入向导在插件失败后仍显示导入器下拉
-  （ADR-054）。
+  （ADR-054）；T6.4 的 `appId`/`productName`/`files` 白名单（只 `out/**` + `package.json`）/
+  NSIS 每用户参数（`oneClick:false`/`perMachine:false`/`allowElevation:false`/`asInvoker`/
+  `deleteAppDataOnUninstall:false`）、`build/{icon.svg,png,ico,license.txt}`、`pnpm package`/
+  `package:smoke` 与 `scripts/package-smoke.ts`（ADR-055）。
 
 ### 0.1 T5.1 结果（2026-10-27 完成）
 
@@ -133,31 +146,33 @@
    redo 留孤儿文件；`table.meta.update` 菜单文案不区分重命名/换主键；原生 Electron Edit 菜单
    仍未与历史同步。详见报告 §8 与 ADR-047“复核条件”。
 
-### 0.3 下一会话行动清单（M6 剩余任务启动前；T6.0–T6.3 已完成）
+### 0.3 下一会话行动清单（T6.4 已完成；T6.5 待领取）
 
-> 前提：T5.1–T5.5、M5 验收演示、**T6.0 品牌更名**、**T6.1 插件 SDK/注册表**、**T6.2 示例插件**与
-> **T6.3 插件接入 UI 与隔离**均已完成，**M5 已于 2026-10-29 获用户接受并关闭**。**M6 的
-> `T6.4`–`T6.5` 尚未开始；不要自动领取任何 M6 任务。**
+> 前提：T5.1–T5.5、M5 验收演示与 **T6.0–T6.4** 均已完成；**M5 已于 2026-10-29 获用户接受并
+> 关闭**。**M6 只剩 `T6.5`（全量验收与文档收尾）；不要自动领取任何 M6 任务。**
 
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
-   195 files / 1811 tests、`pnpm e2e` **110 passed**、`pnpm bench` exit 0；读 TASKS 的 M6 记录、
-   报告 `docs/reports/t6.3/REPORT.md`（以及 `t6.2`/`t6.1`/`t6.0`）与 §0.10–§0.12。
-2. 只有收到用户明确的“开始 M6 下一任务”指令后，才领取 TASKS 的 `T6.4`（安装包与发布配置）；
-   先读 SPEC §16.6、ADR-051（`appId = com.curvealmanac.app` 计划）、T6.4 的验收项与 TASKS 的
-   M6 顺序。`pnpm package` 尚未实现，T6.4 才落地 `electron-builder`。
-3. 若用户要求重跑 M5 演示：独占 CPU 执行
+   196 files / 1816 tests、`pnpm e2e` **110 passed**、`pnpm bench` exit 0；读 TASKS 的 M6 记录、
+   报告 `docs/reports/t6.4/REPORT.md`（以及 `t6.3`/`t6.2`/`t6.1`/`t6.0`）与 §0.10–§0.13。
+2. 只有收到用户明确的“开始 M6 下一任务”指令后，才领取 TASKS 的 `T6.5`（全量验收与文档收尾）；
+   先读 TESTPLAN §3–§7、README §6 的九步演示、SPEC §17 与 TASKS 的 M6 顺序。
+3. 若要复跑 T6.4 打包冒烟：`pnpm package && pnpm package:smoke`（会真实安装/卸载，需独占机器；
+   本机先设 `ELECTRON_MIRROR`/`ELECTRON_BUILDER_BINARIES_MIRROR` 与
+   `CURVE_E2E_NO_SANDBOX=1`，见 §3.6）。
+4. 若用户要求重跑 M5 演示：独占 CPU 执行
    `pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/m5-acceptance.spec.ts`，
    截图/指标会重写到 `test-results/`，复制回 `docs/reports/m5/`，`m0` 截图提交前还原。
-4. 不要回退：T5.3 的 SaveQueue 窗口/flush、T5.4 的快捷键表、T5.5 的 `settings.json`/
+5. 不要回退：T5.3 的 SaveQueue 窗口/flush、T5.4 的快捷键表、T5.5 的 `settings.json`/
    `app:settings`/`SettingsProvider`、T3.1 内置模板、M4 图表契约、T5.1 的 layout 契约、
    T6.0 的 `APP_NAME` 单一来源与品牌一致性测试、T6.1 的注册表/宿主语义（`subscribe`、`source`、
    owner 化 `replace`、错误隔离与 `E_PLUGIN_*`）、T6.2 的字段类型 id 与
    `parseText`/`validate` 分工、`ColumnDraft.fieldTypeId` 三态、`FieldTypeLookup` 端口、
    `formatField` 回调与 `plugin.spec.ts` 的 data 契约、T6.3 的内置贡献注册（
    `plugins/builtins.ts` 是唯一内置列表）、来源后缀、`reportPluginError` 去重/环形日志、
-   会话级禁用语义与 `plugin-ui.spec.ts` 的 testid 契约。
-5. 演示说明：M5 demo 的 999 丢失是 SPEC §13.3 允许的最后 1.5s 窗口；恢复对话框提示已断言。
-6. M5 报告里的 7 张截图是证据，不做像素基线；`m5-metrics.json` 是结构化指标。
+   会话级禁用语义与 `plugin-ui.spec.ts` 的 testid 契约、T6.4 的 `appId`/`productName`/NSIS
+   每用户参数/`files` 白名单/图标与许可证/`package:smoke`（ADR-055）。
+6. 演示说明：M5 demo 的 999 丢失是 SPEC §13.3 允许的最后 1.5s 窗口；恢复对话框提示已断言。
+7. M5 报告里的 7 张截图是证据，不做像素基线；`m5-metrics.json` 是结构化指标。
 
 ### 0.4 T5.3 结果（2026-10-28 完成）
 
@@ -332,21 +347,22 @@
    解析与规划（大文件需迁移 Worker）；每次导入多一份字节副本；字段类型 label 不本地化；
    CSV 导出未接语义格式化。详见报告 §6 与 ADR-053“复核条件”。
 
-### 0.11 T6.4 接手要点（未领取，等用户明确指示）
+### 0.11 T6.5 接手要点（未领取，等用户明确指示）
 
-> 本节只记录 **T6.4（安装包与发布配置）的起点与约束**，不代表任务已开始。T6.4 依赖 T0.2、T5.5、
-> T6.0（`APP_NAME`/`productName`）与 T6.3（无直接依赖，但同属发布面）均已满足。
+> 本节只记录 **T6.5（全量验收与文档收尾）的起点与约束**，不代表任务已开始。T6.5 依赖
+> M0–M6 全部任务（T6.5 除外）：T6.4 安装包已产出、T6.0–T6.3 已完成。
 
-1. **范围（TASKS T6.4，覆盖 NFR-08；参考 SPEC §16.6）**：
-   - electron-builder：`appId = com.curvealmanac.app`、`productName = APP_NAME`、NSIS + portable；
-   - 图标/许可证/版本号注入/`userData` 路径；产物到 `release/`（gitignore）；
-   - 安装/卸载/数据保留冒烟：默认当前用户、不要求管理员、卸载不删工作区、首次启动创建 userData。
-2. **不要回退**：`shared/brand.ts` 的 `APP_NAME` 单一来源与 `brand.test.ts` 一致性断言；
-   `%APPDATA%/Curve Almanac` 的 userData 路径（T6.0 起）；`pnpm package` 之外的命令契约不变。
-3. **已知注意点**：本机没有符号链接权限（§3.4）；`electron-builder` 首次下载二进制可能需要网络/
-   缓存，失败时记录为阻塞而不是删依赖；打包时区分开发期无需打包的文件（TASKS 的注意事项）。
-4. **验证形态（预期）**：`pnpm package` + 手工安装冒烟（干净 Windows 用户），并把产物大小/
-   安装路径/卸载后工作区保留写入报告；不要为了“能打包”放宽 Electron 安全选项。
+1. **范围（TASKS T6.5，覆盖全部 FR/NFR；参考 TESTPLAN §3–§7）**：
+   - 全量 `pnpm verify && pnpm e2e && pnpm bench` 并归档报告；可访问性/性能证据；
+   - README 改为产品说明、用户手册、开发者指南、ADR 索引、发布检查清单与已知限制；
+   - 按 README §6 九步验收演示一次通过（录屏/截图）；对照 SPEC §17 逐条勾选；
+   - 安装包在干净机器复验（T6.4 的 `pnpm package:smoke` 只是干净应用态）。
+2. **不要回退**：T6.4 的 `appId`/`productName`/NSIS 每用户参数/`files` 白名单/图标与
+   许可证/`package:smoke`；`docs/reports/*` 的既有证据不被新截图覆盖；`m0` 截图提交前还原。
+3. **已知注意点**：全量 E2E 必须独占 CPU（§3.6）；`chart-perf` 内存门禁本机波动 509–608MB；
+   `file-workspace-store` 的 5s 超时是既有 flake；打包需要网络/镜像（§3.6）。
+4. **验证形态（预期）**：`pnpm verify && pnpm e2e && pnpm bench` 全绿 + 九步演示报告 + 发布
+   检查清单；不要把“已实现”写成“已验收”，未达标项要显式列出。
 
 ### 0.12 T6.3 结果（2026-10-30 完成）
 
@@ -370,6 +386,28 @@
 5. 残留：禁用不持久化；插件图表预设不能在检查器回显（`ChartSpec` 无预设字段）；插件文案/命令
    label 不本地化；插件导入大文件仍在渲染进程规划；错误 toast 2s 去重窗口；chart-perf 内存
    场景本机波动 509–608MB（A/B 复核见报告 §4，未放宽门槛）。详见报告 §6 与 ADR-054“复核条件”。
+
+### 0.13 T6.4 结果（2026-10-30 完成）
+
+1. 交付：`apps/desktop/electron-builder.yml`（`appId=com.curvealmanac.app`、`productName=Curve
+   Almanac`、`release/`、`files: out/** + package.json`、asar、`npmRebuild:false`、
+   `publish:null`、NSIS `oneClick:false`/`perMachine:false`/`allowElevation:false`/
+   `deleteAppDataOnUninstall:false`/`asInvoker`、portable）；`apps/desktop/build/{icon.svg,
+   icon.png,icon.ico,license.txt}`；`package`/`package:dir` 脚本与根 `package:smoke`；
+   `scripts/package-smoke.ts`；`apps/desktop/test/packaging.test.ts` 5 条。
+2. 实测：`pnpm verify` **196 files / 1816 tests**；depcruise 530 modules / 2300 deps / 0
+   violations；coverage statements 77.13% / branches 69.82% / functions 76.51% / lines 77.28%；
+   `pnpm build` exit 0（renderer 3,469.35 kB、CSS 81.34 kB、main 338.76 kB）；`pnpm package`
+   exit 0（NSIS 112,400,939 B、portable 112,163,368 B、win-unpacked 391,112,000 B）；
+   `pnpm package:smoke` PASS（install 17.3s / launch 4.4s / uninstall 8.9s；工作区与
+   `%APPDATA%\Curve Almanac` 卸载后保留；asar 23 个文件、无开发文件）。
+3. **不要回退**：`appId`/`productName`/`files` 白名单/NSIS 每用户参数/`deleteAppDataOnUninstall:
+   false`；`build/icon*` 与 `build/license.txt`（NSIS 许可证页默认文件名）；`package` 必须先
+   build；冒烟脚本的“已有安装时拒绝运行 + finally 清理 + 安装器复制到 `%TEMP%`”三件事。
+4. 提交：见 `git log -1 -- docs/reports/t6.4/REPORT.md`。
+5. 残留：未签名（SmartScreen）；体积 391MB/112MB；打包需网络（本机用 npmmirror 镜像）；
+   冒烟会短暂写真实用户目录；portable 只验证产出；macOS/Linux 未配置。详见报告 §6 与
+   ADR-055“复核条件”。
 
 ---
 
@@ -413,14 +451,17 @@
 | `T6.1` 插件 SDK 与注册表 | **已完成**（2026-10-29）；`docs/reports/t6.1/REPORT.md`；ADR-052；`packages/plugin-sdk` 26 条单测 |
 | `T6.2` 示例插件 | **已完成**（2026-10-30）；`docs/reports/t6.2/REPORT.md`；ADR-053；`plugins/plugin-sample` 29 条单测 + 3 条 E2E |
 | `T6.3` 插件接入 UI 与隔离 | **已完成**（2026-10-30）；`docs/reports/t6.3/REPORT.md`；ADR-054；内置注册 + 来源标识 + 错误隔离 + 插件管理器；`plugin-ui.spec.ts` 3 条 |
-| 当前里程碑 | **M6 扩展与发布**：`T6.0`/`T6.1`/`T6.2`/`T6.3` 已完成；`T6.4`–`T6.5` 尚未开始 |
-| 下一步 | 等用户明确指示后领取 **`T6.4`**（安装包与发布配置）；**不要自动开始** |
-| `pnpm verify` 基线 | **195 files / 1811 tests**；ESLint 0；depcruise 529 modules / 2297 deps / 0 violations |
-| `pnpm test:coverage` 基线 | 全局 statements **77.13%** / branches **69.82%** / functions **76.51%** / lines **77.28%**；`renderer/plugins` lines **94.44%**、`features/plugins` lines **86.84%**、`plugins/plugin-sample/src` lines 97.64%；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **110 passed**（6.7m；含 T6.3 `plugin-ui` 3 条 11.1s、T6.2 3 条 12.9s、M5 1 条 20.2s）；chart-perf 100k 切换本次全量 privatePeak **591MB**（门禁 600MB；该场景在本机波动 509–608MB，T6.3 的 A/B 复核见报告 §4） |
-| `pnpm bench` 基线 | **exit 0**；table.encode 360ms/1500、table.decode 650ms/3000、table.open 582ms/3000、table.save 401ms/500、edit 0ms/50、query 217ms/400、text-sort 364ms/400、cjk-sort 587ms/800、condition 1ms/16、import 925ms/8s；chart.resolve-sample P95 **60ms**/300、chart.sample 2ms/50、chart.option.2k 1ms/50、chart.restyle.100k 0ms/20；memoryPeakMB 944（Node 趋势，非应用门禁） |
-| `pnpm format:check` | 通过（提交前对新增文件跑过 Prettier） |
-| 构建 | `pnpm build` exit 0；renderer **3,469.35 kB**；CSS **81.34 kB**；main 338.76 kB；`ImportSession` 懒加载；table/query/import worker 220.68/236.16/270.54 kB（T6.4 评估拆包） |
+| `T6.4` 安装包与发布配置 | **已完成**（2026-10-30）；`docs/reports/t6.4/REPORT.md`；ADR-055；NSIS 每用户 + portable；`pnpm package:smoke` 真实安装/卸载 |
+| 当前里程碑 | **M6 扩展与发布**：`T6.0`/`T6.1`/`T6.2`/`T6.3`/`T6.4` 已完成；`T6.5` 尚未开始 |
+| 下一步 | 等用户明确指示后领取 **`T6.5`**（全量验收与文档收尾）；**不要自动开始** |
+| `pnpm verify` 基线 | **196 files / 1816 tests**；ESLint 0；depcruise 530 modules / 2300 deps / 0 violations |
+| `pnpm test:coverage` 基线 | 全局 statements **77.13%** / branches **69.82%** / functions **76.51%** / lines **77.28%**；`renderer/plugins` lines **94.44%**、`features/plugins` lines **86.84%**、`plugins/plugin-sample/src` lines 97.64%；阈值 70/60 未下调（新增 `scripts/package-smoke.ts` 不进覆盖率） |
+| `pnpm e2e` 基线 | **110 passed**（T6.3 基线；T6.4 未改运行时代码故未重跑；含 `plugin-ui` 3 条、`plugin.spec` 3 条、M5 1 条 20.2s）；chart-perf 100k 切换 privatePeak 591MB（门禁 600MB，本机波动 509–608MB） |
+| `pnpm bench` 基线 | **exit 0**（T6.3 基线，T6.4 未重跑）；table.encode 360ms/1500、table.decode 650ms/3000、table.open 582ms/3000、table.save 401ms/500、edit 0ms/50、query 217ms/400、text-sort 364ms/400、cjk-sort 587ms/800、condition 1ms/16、import 925ms/8s；chart.resolve-sample P95 **60ms**/300、chart.sample 2ms/50、chart.option.2k 1ms/50、chart.restyle.100k 0ms/20；memoryPeakMB 944（Node 趋势，非应用门禁） |
+| `pnpm package` 基线 | **exit 0**；NSIS `Curve Almanac Setup 0.1.0.exe` **112,400,939 B**、portable `Curve Almanac 0.1.0.exe` **112,163,368 B**、`win-unpacked` **391,112,000 B**；Electron 44.9.0；未签名 |
+| `pnpm package:smoke` 基线 | **PASS**；install **17.3s**、launch **4.4s**、uninstall **8.9s**；工作区与 `%APPDATA%\Curve Almanac` 卸载后保留；asar 23 文件、无开发文件；metrics `docs/reports/t6.4/t6.4-package-metrics.json` |
+| `pnpm format:check` | 通过（`apps/desktop/build` 已加入 `.prettierignore`） |
+| 构建 | `pnpm build` exit 0；renderer **3,469.35 kB**；CSS **81.34 kB**；main 338.76 kB；`ImportSession` 懒加载；table/query/import worker 220.68/236.16/270.54 kB |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
 
 **用户明确要求**：
@@ -428,9 +469,9 @@
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
 - **M1/M2/M3/M4/M5 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6、M4 验收演示、
-  T5.1–T5.5、M5 验收演示、T6.0 品牌更名、T6.1 插件 SDK/注册表、T6.2 示例插件与 T6.3 插件接入
-  UI 与隔离已完成**；M5 已关闭，M6 的 `T6.4`–`T6.5` 未开始。
-- 不得跨任务/里程碑；**`T6.4` 必须等用户明确指示后再开始**，不要自动领取 M6 任务。
+  T5.1–T5.5、M5 验收演示、T6.0 品牌更名、T6.1 插件 SDK/注册表、T6.2 示例插件、T6.3 插件接入
+  UI 与隔离与 T6.4 安装包与发布配置已完成**；M5 已关闭，M6 只剩 `T6.5`。
+- 不得跨任务/里程碑；**`T6.5` 必须等用户明确指示后再开始**，不要自动领取 M6 任务。
 
 ---
 
@@ -439,15 +480,17 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md（尤其 §0.3/§0.12）、docs/TASKS.md 的 M6、
-docs/reports/t6.3/REPORT.md、docs/reports/t6.2/REPORT.md、docs/reports/t6.1/REPORT.md、
-docs/reports/t6.0/REPORT.md、docs/SPEC.md §14、ADR-054/053/052/051/050/048。
+先读 AGENTS.md、docs/HANDOFF.md（尤其 §0.3/§0.13）、docs/TASKS.md 的 M6、
+docs/reports/t6.4/REPORT.md、docs/reports/t6.3/REPORT.md、docs/reports/t6.2/REPORT.md、
+docs/reports/t6.1/REPORT.md、docs/reports/t6.0/REPORT.md、docs/SPEC.md §14/§16.6、
+ADR-055/054/053/052/051/050/048。
 
 现状：M0–M5（均已验收）、T1.1–T4.6、T5.1–T5.5、M5 验收演示、T6.0 品牌更名（Curve Almanac）、
-T6.1 插件 SDK/注册表、T6.2 示例插件与 T6.3 插件接入 UI 与隔离已完成；M5 已于 2026-10-29 关闭；
-M6 的 T6.4–T6.5 未开始。pnpm verify 195 files / 1811 tests、pnpm e2e 110 passed、pnpm bench exit 0。
+T6.1 插件 SDK/注册表、T6.2 示例插件、T6.3 插件接入 UI 与隔离、T6.4 安装包与发布配置已完成；
+M5 已于 2026-10-29 关闭；M6 只剩 T6.5 未开始。pnpm verify 196 files / 1816 tests、pnpm e2e
+110 passed、pnpm bench exit 0、pnpm package exit 0、pnpm package:smoke PASS。
 
-下一步：等待用户明确指示后再开始 M6 剩余任务（下一个是 T6.4，安装包与发布配置）。
+下一步：等待用户明确指示后再开始 M6 最后一个任务 T6.5（全量验收与文档收尾）。
 不要自动领取 M6 任务，一次只推进一个任务。
 ```
 
@@ -869,6 +912,28 @@ T4.6 又在根 `package.json` 的 devDependencies 增加了 `@curve/chart-echart
   禁用状态。
 - T6.3 的 toast 动作是 `@curve/ui` 的 `ToastMessage.action`；`push(tone, text, action?)` 的第三个
   参数可选，其余调用不受影响。
+- T6.4 的打包：`pnpm package` = `pnpm build` + `electron-builder --config electron-builder.yml
+  --win`（`package:dir` 只出 `release/win-unpacked`）。`release/` 已 gitignore，且 ESLint/Prettier
+  均已忽略；`apps/desktop/build/` 也在 `.prettierignore`（icon.svg 无 parser）。
+- T6.4 的 asar 依赖：main 产物仍 `require('write-file-atomic')`，electron-builder 会把
+  `write-file-atomic` + `signal-exit` 收进 `app.asar/node_modules`。不要把 `files` 改成只
+  `out/**` 后断言“没有 node_modules”；也不要 `npmRebuild: true`（无原生模块，会拖慢/要工具链）。
+- T6.4 的打包网络：electron-builder 首次会下载 Electron、`winCodeSign`、`nsis`、
+  `nsis-resources`；本机 GitHub 不可达，用
+  `ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/` 与
+  `ELECTRON_BUILDER_BINARIES_MIRROR=https://registry.npmmirror.com/-/binary/electron-builder-binaries/`
+  成功。下载失败记为阻塞，不要删依赖或改配置绕过。
+- T6.4 的冒烟 `pnpm package:smoke`：真实静默安装 → 启动已安装应用 → 默认路径新建工作区 →
+  静默卸载 → 断言数据保留。它会短暂写 `%LOCALAPPDATA%`/`%APPDATA%`/`Documents`；脚本在
+  `finally` 清理，运行前发现已有安装会拒绝（避免误卸载真实数据）。
+- T6.4 的本机沙箱：DSH 会拒绝“工作区内的可执行文件”写工作区外路径（安装器从 `release/`
+  直接运行会静默失败；Electron 也会 EPERM 写 `%TEMP%`），所以冒烟先把安装器复制到 `%TEMP%`
+  再执行；安装后的应用在 `%LOCALAPPDATA%`，不受限。启动已安装应用仍需
+  `CURVE_E2E_NO_SANDBOX=1`（Chromium OS 沙箱），这与 E2E 夹具一致。
+- T6.4 的验收证据：`docs/reports/t6.4/t6.4-package-metrics.json` 是重跑对照值；
+  两张 PNG 由冒烟直接写入 `docs/reports/t6.4/`，不是 E2E 截图，不会改写 `m0`。
+- T6.4 的 `packaging.test.ts` 读取 `apps/desktop/package.json` 的 `version` 与根 `version`
+  必须相等；发版时若只改一处会失败。
 
 ---
 
@@ -1998,6 +2063,43 @@ ToastMessage.action?: ToastAction;   ToastController.push(tone, text, action?);
   三条路径都 `reportPluginError`（2s 去重 + 200 条环形日志 + 事件 → toast）。
 - **禁用语义**：宿主 `deactivate`/`activate`，会话级；`activate` 也可用于重试 `disabled` 插件。
 - **详情**：ADR-054、`docs/reports/t6.3/REPORT.md`；测试 `plugin-ui.spec.ts` 3 条、单测见报告 §3。
+
+### 4.30 打包与发布（T6.4）
+
+```ts
+// apps/desktop/package.json（scripts）
+"package": "electron-builder --config electron-builder.yml --win"
+"package:dir": "electron-builder --config electron-builder.yml --win --dir"
+
+// 根 package.json（scripts）
+"package": "pnpm build && pnpm --filter @curve/desktop package"
+"package:smoke": "tsx scripts/package-smoke.ts"
+
+// apps/desktop/electron-builder.yml（契约关键项）
+appId: com.curvealmanac.app
+productName: Curve Almanac
+directories: { output: ../../release, buildResources: build }
+files: [out/**/*, package.json, '!**/*.map']
+asar: true; npmRebuild: false; publish: null
+win: { icon: build/icon.ico, requestedExecutionLevel: asInvoker, target: [nsis(x64), portable(x64)] }
+nsis: { oneClick: false, perMachine: false, allowElevation: false,
+        allowToChangeInstallationDirectory: true, createDesktopShortcut: true,
+        createStartMenuShortcut: true, deleteAppDataOnUninstall: false }
+```
+
+- 产物：`release/Curve Almanac Setup 0.1.0.exe`（NSIS，112,400,939 B）、
+  `release/Curve Almanac 0.1.0.exe`（portable，112,163,368 B）、`release/win-unpacked/`。
+- asar：23 个文件（`out/main`、`out/preload`、`out/renderer`、`package.json`、
+  `node_modules/write-file-atomic`、`node_modules/signal-exit`）；无 `src/e2e/test/docs/fixtures/
+  *.map/build`。
+- 安装：默认 `%LOCALAPPDATA%\Programs\Curve Almanac`，开始菜单 + 桌面快捷方式，HKCU 卸载项；
+  卸载用 `/currentuser /S`（`QuietUninstallString`），保留 `%APPDATA%\Curve Almanac` 与
+  `Documents/Curve Almanac`。
+- 冒烟：`scripts/package-smoke.ts`（ADR-055 §6）；报告 `docs/reports/t6.4/REPORT.md` 与
+  `t6.4-package-metrics.json`；静态契约 `apps/desktop/test/packaging.test.ts` 5 条。
+- **不要回退**：`appId`/`productName`、`files` 白名单（只 `out/**` + `package.json`）、NSIS
+  每用户参数、`deleteAppDataOnUninstall: false`、`build/icon*` 与 `build/license.txt`、冒烟的
+  “已有安装时拒绝 + finally 清理 + 安装器复制到 `%TEMP%`”。
 
 ---
 

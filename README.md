@@ -1,7 +1,8 @@
 # Curve Almanac
 
 > 表格驱动的 PC 曲线可视化工具。**实施进行中：M5 已验收关闭；M6（扩展与发布）进行中，
-> 已完成 T6.0 品牌更名（Curve Studio → Curve Almanac，ADR-051）。**
+> 已完成 T6.0 品牌更名（ADR-051）、T6.1 插件 SDK、T6.2 示例插件、T6.3 插件 UI 与 T6.4
+> 安装包与发布配置（ADR-055）；T6.5 待开始。**
 > 方案版本：`1.0`（已锁定）· 当前进度与续作说明：[docs/HANDOFF.md](docs/HANDOFF.md)
 
 ## 1. 一句话定义
@@ -50,6 +51,8 @@
    ```bash
    pnpm verify          # lint + typecheck + unit
    pnpm e2e -- --grep "<相关场景>"   # UI/集成任务
+   pnpm package         # 构建 + electron-builder（NSIS + portable，产物在 release/）
+   pnpm package:smoke   # 真实安装/启动/卸载/数据保留冒烟（T6.4）
    ```
 
 4. 每个里程碑结束运行 `docs/TASKS.md` 中的"里程碑验收演示"，输出验收报告后再进入下一阶段。
@@ -61,14 +64,16 @@
 
 ```
 curve-studio/
-├─ package.json                 # 根脚本：verify / test / e2e / bench
+├─ package.json                 # 根脚本：verify / test / e2e / bench / package / package:smoke
 ├─ pnpm-workspace.yaml
 ├─ tsconfig.base.json
 ├─ apps/
 │  └─ desktop/                  # Electron main / preload / renderer
 │     ├─ src/main/              # 窗口、菜单、文件系统、IPC handler
 │     ├─ src/preload/           # contextBridge 类型化 API
-│     └─ src/renderer/          # React UI
+│     ├─ src/renderer/          # React UI
+│     ├─ build/                 # electron-builder 资源：图标（svg/png/ico）与许可证
+│     └─ electron-builder.yml   # 打包/发布配置（T6.4，ADR-055）
 ├─ packages/
 │  ├─ domain/                   # 模型、Zod、迁移（零 UI/IO 依赖）
 │  ├─ table-engine/             # 行集、查询、导入、粘贴
@@ -81,7 +86,8 @@ curve-studio/
 ├─ plugins/
 │  └─ plugin-sample/            # 内置示例插件（自定义字段类型 + 导入器）
 ├─ fixtures/                    # CSV/JSONL/工作区/旧版本夹具
-├─ scripts/                     # 生成 10 万行数据、基准测试
+├─ scripts/                     # 生成 10 万行数据、基准测试、打包冒烟
+├─ release/                     # 安装包/portable/win-unpacked（gitignore）
 ├─ docs/                        # 本方案文档 + adr/
 └─ AGENTS.md
 ```

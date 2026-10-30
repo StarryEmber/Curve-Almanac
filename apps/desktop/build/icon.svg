@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Curve Almanac">
+  <!-- Design source for build/icon.png and build/icon.ico (T6.4). -->
+  <rect width="1024" height="1024" rx="224" fill="#17202e" />
+  <g stroke="#263140" stroke-width="20" stroke-linecap="round">
+    <line x1="176" y1="400" x2="848" y2="400" />
+    <line x1="176" y1="560" x2="848" y2="560" />
+    <line x1="176" y1="720" x2="848" y2="720" />
+  </g>
+  <polyline
+    points="208,688 400,496 592,592 816,304"
+    fill="none"
+    stroke="#6fa4ff"
+    stroke-width="72"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <g fill="#e5edff">
+    <circle cx="208" cy="688" r="46" />
+    <circle cx="400" cy="496" r="46" />
+    <circle cx="592" cy="592" r="46" />
+    <circle cx="816" cy="304" r="54" />
+  </g>
+</svg>

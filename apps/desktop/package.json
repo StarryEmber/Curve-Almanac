@@ -4,11 +4,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Electron main, preload and renderer shell.",
+  "description": "Local-first desktop tool for table-driven curve visualization.",
+  "license": "UNLICENSED",
+  "author": "Curve Almanac",
   "main": "./out/main/index.cjs",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "package": "electron-builder --config electron-builder.yml --win",
+    "package:dir": "electron-builder --config electron-builder.yml --win --dir",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
