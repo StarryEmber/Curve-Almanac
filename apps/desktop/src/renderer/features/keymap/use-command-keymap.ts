@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useRendererCore } from '../../app-core/use-app-core';
+import { useI18n } from '../../i18n';
+import {
+  findPluginCommand,
+  getPluginStates,
+  listPluginCommands,
+  runPluginCommand,
+} from '../../plugins';
 import { useTheme } from '../../theme/ThemeProvider';
 
 import { createCommandContext } from './command-context';
@@ -15,7 +22,7 @@ import {
 
 import type { ShellCommandState } from './command-context';
 import type { CommandHandlers } from './commands';
-import type { PaletteCommandItem } from './palette-model';
+import type { PaletteCommandItem, PalettePluginCommand } from './palette-model';
 
 export interface CommandKeymapOptions {
   sidebarOpen: boolean;
@@ -24,6 +31,8 @@ export interface CommandKeymapOptions {
   onToggleInspector(): void;
   onOpenHelp(): void;
   onOpenSettings(): void;
+  /** T6.3: opens the plugin manager from the palette. */
+  onOpenPlugins(): void;
 }
 
 export interface CommandKeymapController {
@@ -58,6 +67,7 @@ function browserStorage(): Storage | undefined {
 export function useCommandKeymap(options: CommandKeymapOptions): CommandKeymapController {
   const { core } = useRendererCore();
   const { mode: themeMode, setMode } = useTheme();
+  const { t } = useI18n();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteItems, setPaletteItems] = useState<readonly PaletteCommandItem[]>([]);
 
@@ -123,6 +133,9 @@ export function useCommandKeymap(options: CommandKeymapOptions): CommandKeymapCo
       openSettings: () => {
         optionsRef.current.onOpenSettings();
       },
+      openPlugins: () => {
+        optionsRef.current.onOpenPlugins();
+      },
       setTheme: (mode) => {
         setMode(mode);
       },
@@ -133,13 +146,30 @@ export function useCommandKeymap(options: CommandKeymapOptions): CommandKeymapCo
   const commands = useMemo(() => createAppCommands(handlers), [handlers]);
   const keymap = useMemo(() => createKeymap(commands), [commands]);
 
+  /** Plugin commands are read when the palette opens (never kept subscribed). */
+  const pluginPaletteCommands = useCallback((): PalettePluginCommand[] => {
+    const plugins = getPluginStates();
+    return listPluginCommands().map((entry) => {
+      const source = entry.source;
+      const pluginName =
+        source.kind === 'plugin'
+          ? (plugins.find((plugin) => plugin.id === source.pluginId)?.name ?? source.pluginId)
+          : t('plugins.sourceBuiltin');
+      return {
+        id: entry.id,
+        label: entry.def.label,
+        sourceLabel: t('plugins.sourceBadge', { plugin: pluginName }),
+      };
+    });
+  }, [t]);
+
   const openPalette = useCallback(() => {
     const recentIds = readRecentCommandIds(browserStorage());
     recentIdsRef.current = recentIds;
     const context = createCommandContext(core.store.getState(), shellStateRef.current);
-    setPaletteItems(buildPaletteItems(commands, context, recentIds));
+    setPaletteItems(buildPaletteItems(commands, context, recentIds, pluginPaletteCommands()));
     setPaletteOpen(true);
-  }, [commands, core]);
+  }, [commands, core, pluginPaletteCommands]);
 
   useEffect(() => {
     openPaletteRef.current = openPalette;
@@ -164,6 +194,23 @@ export function useCommandKeymap(options: CommandKeymapOptions): CommandKeymapCo
     (commandId: string) => {
       const command = commands.find((candidate) => candidate.id === commandId);
       if (command === undefined) {
+        // T6.3: plugin commands live in the host registry, not in APP_COMMANDS.
+        // The palette closes first; a throwing command only raises a plugin
+        // error toast (naming the plugin) and changes nothing else.
+        const pluginEntry = findPluginCommand(commandId);
+        if (pluginEntry === undefined) {
+          return;
+        }
+        setPaletteOpen(false);
+        void runPluginCommand(pluginEntry, async (name, payload) => {
+          const dispatched = core.commands.dispatch(name, payload);
+          if (!dispatched.ok) {
+            throw dispatched.error;
+          }
+        });
+        const next = updateRecentCommandIds(recentIdsRef.current, commandId);
+        recentIdsRef.current = next;
+        writeRecentCommandIds(browserStorage(), next);
         return;
       }
       const context = createCommandContext(core.store.getState(), shellStateRef.current);

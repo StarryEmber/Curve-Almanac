@@ -19,6 +19,8 @@ export interface TitleBarProps {
   onToggleInspector: () => void;
   onOpenHelp: () => void;
   onOpenSettings: () => void;
+  /** T6.3: opens the plugin manager. */
+  onOpenPlugins: () => void;
 }
 
 export function TitleBar({
@@ -28,6 +30,7 @@ export function TitleBar({
   onToggleInspector,
   onOpenHelp,
   onOpenSettings,
+  onOpenPlugins,
 }: TitleBarProps): ReactElement {
   const { t } = useI18n();
   const { mode, setMode } = useTheme();
@@ -75,6 +78,9 @@ export function TitleBar({
             {t('workspace.close')}
           </Button>
         )}
+        <Button variant="ghost" size="sm" data-testid="open-plugins" onClick={onOpenPlugins}>
+          {t('plugins.open')}
+        </Button>
         <Button variant="ghost" size="sm" data-testid="open-settings" onClick={onOpenSettings}>
           {t('settings.open')}
         </Button>

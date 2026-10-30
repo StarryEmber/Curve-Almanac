@@ -137,4 +137,15 @@ describe('ToastHost', () => {
 
     expect(onDismiss).toHaveBeenCalledWith('toast-1');
   });
+
+  it('runs the optional follow-up action without dismissing (T6.3)', () => {
+    const onSelect = vi.fn();
+    const onDismiss = vi.fn();
+    host([toast({ action: { label: 'Open log', onSelect } })], onDismiss);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open log' }));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
 });

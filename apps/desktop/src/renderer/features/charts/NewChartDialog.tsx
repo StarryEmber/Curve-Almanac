@@ -18,10 +18,11 @@ import { Button, Dialog, Input, Select } from '@curve/ui';
 import { useAppState, useRendererCore } from '../../app-core/use-app-core';
 import { describeAppError } from '../../error-text';
 import { useI18n } from '../../i18n';
+import { chartKindOptionLabel } from '../../plugins/labels';
+import { usePluginSnapshot } from '../../plugins/use-plugin-snapshot';
 import { useTheme } from '../../theme/ThemeProvider';
 
 import { createChartDataCache } from './chart-data-cache';
-import { chartKindLabel } from './chart-text';
 import { buildChartMapping, chartRenderStatus, createPreviewChart } from './chart-view-model';
 import { ChartCanvas } from './ChartCanvas';
 import { ChartMappingFields } from './ChartMappingFields';
@@ -38,7 +39,8 @@ export interface NewChartDialogViewProps {
   onCreate: (request: ChartCreateRequest) => Promise<NewChartOutcome>;
 }
 
-const KINDS: readonly ChartKind[] = ['line', 'scatter', 'bar'];
+/** Registry id of the v1 default chart kind; the select falls back to it. */
+const DEFAULT_CHART_KIND_ID = 'line';
 
 function initialTable(
   tables: readonly TableData[],
@@ -58,7 +60,15 @@ export function NewChartDialogView({
   const first = initialTable(tables, initialTableId);
   const [tableId, setTableId] = useState(first?.table.id ?? '');
   const [title, setTitle] = useState(first?.table.name ?? '');
-  const [kind, setKind] = useState<ChartKind>('line');
+  // T6.3: the chart kind list is the plugin host registry. A plugin kind is a
+  // preset over one v1 series type: `ChartSpec.kind` stays line/scatter/bar and
+  // the preset's `defaults` are persisted as chart options (ADR-054).
+  const snapshot = usePluginSnapshot();
+  const [kindId, setKindId] = useState<string>(DEFAULT_CHART_KIND_ID);
+  const kindEntry =
+    snapshot.chartKinds.find((entry) => entry.id === kindId) ?? snapshot.chartKinds[0];
+  const kind: ChartKind = kindEntry?.def.seriesType ?? 'line';
+  const presetOptions = kindEntry?.def.defaults;
   const [mapping, setMapping] = useState<ChartMapping | null>(
     first === undefined ? null : buildChartMapping(first.table, 'wide'),
   );
@@ -101,6 +111,7 @@ export function NewChartDialogView({
           title,
           kind,
           mapping,
+          ...(presetOptions === undefined ? {} : { options: presetOptions }),
         }),
         table: tableData.table,
         rows: tableData.rows,
@@ -109,7 +120,7 @@ export function NewChartDialogView({
       },
       { cache: dataCache },
     );
-  }, [dataCache, kind, locale, mapping, resolved, tableData, title]);
+  }, [dataCache, kind, locale, mapping, presetOptions, resolved, tableData, title]);
 
   const canCreate =
     !busy &&
@@ -129,6 +140,7 @@ export function NewChartDialogView({
       title: title.trim(),
       kind,
       mapping,
+      ...(presetOptions === undefined ? {} : { options: presetOptions }),
     });
     setBusy(false);
     if (outcome.ok) {
@@ -142,7 +154,10 @@ export function NewChartDialogView({
     value: entry.table.id,
     label: entry.table.name,
   }));
-  const kindOptions = KINDS.map((entry) => ({ value: entry, label: chartKindLabel(entry, t) }));
+  const kindOptions = snapshot.chartKinds.map((entry) => ({
+    value: entry.id,
+    label: chartKindOptionLabel(entry, snapshot.plugins, t),
+  }));
 
   return (
     <Dialog
@@ -201,10 +216,10 @@ export function NewChartDialogView({
           <Select
             label={t('chart.new.kind')}
             options={kindOptions}
-            value={kind}
+            value={kindEntry?.id ?? DEFAULT_CHART_KIND_ID}
             data-testid="chart-new-kind"
             onChange={(event) => {
-              setKind(event.target.value as ChartKind);
+              setKindId(event.target.value);
             }}
           />
 

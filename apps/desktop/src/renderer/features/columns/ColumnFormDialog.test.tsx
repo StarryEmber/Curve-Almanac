@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { ColumnDef, TableMeta } from '@curve/domain';
 import { RATING_FIELD_TYPE_ID } from '@curve/plugin-sample';
@@ -63,6 +63,12 @@ function renderForm(props: Partial<ComponentProps<typeof ColumnFormDialog>> = {}
 
 afterEach(() => {
   cleanup();
+});
+
+beforeAll(async () => {
+  // T6.3: the storage-type list is the builtin field-type registration, so the
+  // host must be activated before the dialog offers any type.
+  await activateRendererPlugins();
 });
 
 describe('ColumnFormDialog', () => {
@@ -205,6 +211,27 @@ describe('ColumnFormDialog', () => {
       type: 'number',
       fieldTypeId: RATING_FIELD_TYPE_ID,
     });
+  });
+
+  it('marks plugin semantic types with their source (T6.3)', async () => {
+    const { onSubmit } = renderForm();
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('存储类型'), { target: { value: 'number' } });
+    const fieldType = screen.getByTestId('column-form-field-type') as HTMLSelectElement;
+    const option = fieldType.querySelector(`option[value="${RATING_FIELD_TYPE_ID}"]`);
+    expect(option?.textContent).toContain('Rating');
+    expect(option?.textContent).toContain('Sample');
+
+    // The storage-type list itself only holds the five builtin field types.
+    const typeSelect = screen.getByLabelText('存储类型') as HTMLSelectElement;
+    expect(Array.from(typeSelect.options).map((entry) => entry.value)).toEqual([
+      'text',
+      'number',
+      'date',
+      'boolean',
+      'enum',
+    ]);
   });
 
   it('clears the semantic type when the storage type changes', async () => {

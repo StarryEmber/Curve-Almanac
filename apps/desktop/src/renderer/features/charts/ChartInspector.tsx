@@ -23,6 +23,7 @@ import { Button, Select, Tabs } from '@curve/ui';
 import type { SelectOption } from '@curve/ui';
 
 import { useI18n } from '../../i18n';
+import { listChartKinds } from '../../plugins';
 import { FilterDialog } from '../filter/FilterDialog';
 
 import { ChartCheckbox, ChartNumberField, ChartTextField } from './chart-fields';
@@ -43,8 +44,6 @@ export interface ChartInspectorProps {
   /** Physical rows shown by the data group (authoritative, unlike `rowCount`). */
   rowCount: number;
 }
-
-const KINDS: readonly ChartKind[] = ['line', 'scatter', 'bar'];
 
 function optionsOf(chart: ChartSpec, patch: Partial<ChartOptions>): ChartSpec {
   return { ...chart, options: { ...chart.options, ...patch } };
@@ -71,10 +70,15 @@ export function ChartInspector({ chart, table, rowCount }: ChartInspectorProps):
     return (columnId: string): string => labels.get(columnId) ?? columnId;
   }, [table.columns]);
 
-  const kindOptions: SelectOption[] = KINDS.map((kind) => ({
-    value: kind,
-    label: chartKindLabel(kind, t),
-  }));
+  // T6.3: the kind list is the registry's builtin chart kinds. `ChartSpec.kind`
+  // only stores the v1 series type, so plugin presets belong to the creation
+  // wizard (a persisted chart cannot name a preset — ADR-054).
+  const kindOptions: SelectOption[] = listChartKinds()
+    .filter((entry) => entry.source.kind === 'builtin')
+    .map((entry) => ({
+      value: entry.def.seriesType,
+      label: chartKindLabel(entry.def.seriesType, t),
+    }));
   const paletteOptions: SelectOption[] = (['default', 'muted', 'vivid', 'colorblind'] as const).map(
     (id) => ({ value: id, label: t(CHART_PALETTE_KEYS[id]) }),
   );

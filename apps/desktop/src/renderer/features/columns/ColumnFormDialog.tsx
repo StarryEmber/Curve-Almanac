@@ -4,18 +4,14 @@ import { checkColumnDraft } from '@curve/app-core';
 import type { ColumnDraft, ColumnDraftIssue } from '@curve/app-core';
 import type { ColumnDef, ColumnRole, ColumnType, TableMeta } from '@curve/domain';
 import { Button, Dialog, Input, Select } from '@curve/ui';
+import type { SelectOption } from '@curve/ui';
 
 import { useI18n } from '../../i18n';
-import { listFieldTypes } from '../../plugins';
+import { builtinFieldTypeKey, fieldTypeOptionLabel } from '../../plugins/labels';
+import { usePluginSnapshot } from '../../plugins/use-plugin-snapshot';
 
 import { columnIssueText } from './column-error-text';
-import {
-  COLUMN_ROLES,
-  COLUMN_TYPES,
-  draftFromColumn,
-  keyFromLabel,
-  newColumnDraft,
-} from './column-form';
+import { COLUMN_ROLES, draftFromColumn, keyFromLabel, newColumnDraft } from './column-form';
 
 import type { ReactElement } from 'react';
 
@@ -155,19 +151,31 @@ export function ColumnFormDialog({
   const enumError = issueFor('enumOptions');
   const isPrimaryKey = column !== undefined && column.id === table.primaryKey;
 
-  // T6.2: semantic field types come from the plugin host registry; only those
-  // storing the selected storage type can be applied (ADR-015).
+  // T6.3: storage types and semantic types both come from the plugin host
+  // registry — the five builtin field types provide the storage types, plugins
+  // add semantic types whose `storageType` must match the selected one
+  // (ADR-015). The subscription only exists while the dialog is open.
+  const snapshot = usePluginSnapshot(open);
+  const storageOptions: SelectOption[] = snapshot.fields
+    .filter((entry) => entry.source.kind === 'builtin')
+    .map((entry) => ({
+      value: entry.def.storageType,
+      label: t(builtinFieldTypeKey(entry.def.storageType)),
+    }));
   const selectedFieldTypeId = form.fieldTypeId ?? '';
-  const compatibleFieldTypes = listFieldTypes().filter(
-    (entry) => entry.def.storageType === form.type,
+  const semanticFieldTypes = snapshot.fields.filter(
+    (entry) => entry.source.kind === 'plugin' && entry.def.storageType === form.type,
   );
   const unknownFieldType =
     selectedFieldTypeId !== '' &&
-    !compatibleFieldTypes.some((entry) => entry.id === selectedFieldTypeId);
-  const showFieldType = compatibleFieldTypes.length > 0 || unknownFieldType;
-  const fieldTypeOptions = [
+    !semanticFieldTypes.some((entry) => entry.id === selectedFieldTypeId);
+  const showFieldType = semanticFieldTypes.length > 0 || unknownFieldType;
+  const fieldTypeOptions: SelectOption[] = [
     { value: '', label: t('columns.form.fieldTypeNone') },
-    ...compatibleFieldTypes.map((entry) => ({ value: entry.id, label: entry.def.label })),
+    ...semanticFieldTypes.map((entry) => ({
+      value: entry.id,
+      label: fieldTypeOptionLabel(entry, snapshot.plugins, t),
+    })),
     ...(unknownFieldType ? [{ value: selectedFieldTypeId, label: selectedFieldTypeId }] : []),
   ];
 
@@ -247,10 +255,7 @@ export function ColumnFormDialog({
           <Select
             label={t('columns.form.type')}
             value={form.type}
-            options={COLUMN_TYPES.map((type) => ({
-              value: type,
-              label: t(`columns.type.${type}`),
-            }))}
+            options={storageOptions}
             disabled={isPrimaryKey}
             error={typeIssue === undefined ? undefined : columnIssueText(typeIssue, t)}
             onChange={(event) => {

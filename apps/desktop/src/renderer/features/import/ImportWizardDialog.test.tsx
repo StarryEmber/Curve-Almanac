@@ -164,4 +164,35 @@ describe('ImportWizardDialog', () => {
     expect(screen.getByTestId('import-large-confirm')).toBeDefined();
     expect((screen.getByTestId('import-commit') as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it('lists registry importers and only locks the encoding for plugin importers (T6.3)', () => {
+    const props = renderDialog({
+      importers: [
+        { id: 'builtin.csv', label: 'CSV / TSV', source: 'builtin' },
+        { id: 'com.curvealmanac.points', label: 'Points JSON', source: 'plugin' },
+      ],
+    });
+
+    const select = screen.getByTestId('import-importer') as HTMLSelectElement;
+    expect(Array.from(select.options).map((option) => option.value)).toEqual([
+      '',
+      'builtin.csv',
+      'com.curvealmanac.points',
+    ]);
+
+    fireEvent.change(select, { target: { value: 'builtin.csv' } });
+    expect(props.onImporterChange).toHaveBeenCalledWith('builtin.csv');
+    // Builtin parsers still let the user override the encoding.
+    expect((screen.getByTestId('import-encoding') as HTMLSelectElement).disabled).toBe(false);
+
+    cleanup();
+    renderDialog({
+      importers: [
+        { id: 'builtin.csv', label: 'CSV / TSV', source: 'builtin' },
+        { id: 'com.curvealmanac.points', label: 'Points JSON', source: 'plugin' },
+      ],
+      importerId: 'com.curvealmanac.points',
+    });
+    expect((screen.getByTestId('import-encoding') as HTMLSelectElement).disabled).toBe(true);
+  });
 });

@@ -46,7 +46,11 @@ export function CommandPalette({ open, items, onClose, onRun }: CommandPalettePr
   }, [open]);
 
   const localized = useMemo<LocalizedItem[]>(
-    () => items.map((item) => ({ ...item, label: t(item.labelKey) })),
+    () =>
+      items.map((item) => ({
+        ...item,
+        label: item.label ?? (item.labelKey === undefined ? item.id : t(item.labelKey)),
+      })),
     [items, t],
   );
   const visible = useMemo(() => searchCommandItems(localized, query), [localized, query]);
@@ -161,6 +165,7 @@ export function CommandPalette({ open, items, onClose, onRun }: CommandPalettePr
                 aria-disabled={item.reason !== null}
                 data-command-id={item.id}
                 data-command-recent={isRecent && item.recentRank !== null ? 'true' : 'false'}
+                data-command-source={item.fromPlugin ? 'plugin' : 'builtin'}
                 className="cs-command-palette__option"
                 onMouseDown={(event) => {
                   event.preventDefault();
@@ -175,6 +180,9 @@ export function CommandPalette({ open, items, onClose, onRun }: CommandPalettePr
                 }}
               >
                 <span className="cs-command-palette__label">{item.label}</span>
+                {item.sourceLabel === undefined ? null : (
+                  <span className="cs-command-palette__source">{item.sourceLabel}</span>
+                )}
                 {isRecent && item.recentRank !== null ? (
                   <span className="cs-command-palette__recent">{t('commandPalette.recent')}</span>
                 ) : null}

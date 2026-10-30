@@ -28,9 +28,9 @@ export interface ImportWizardDialogProps {
   existingRowCount: number;
   step: 1 | 2 | 3 | 4 | 5;
   preview: ImportPreview | null;
-  /** T6.2: plugin importers offered next to the builtin CSV/JSON detection. */
-  importers: readonly { id: string; label: string }[];
-  /** The selected plugin importer, or null for the builtin path. */
+  /** T6.3: the registry importers (builtin parsers and plugin parsers). */
+  importers: readonly { id: string; label: string; source: 'builtin' | 'plugin' }[];
+  /** The selected importer, or null for the automatic builtin detection. */
   importerId: string | null;
   existingColumns: readonly ColumnDef[];
   encoding: ImportEncodingChoice;
@@ -157,6 +157,11 @@ export function ImportWizardDialog(props: ImportWizardDialogProps): ReactElement
   const columns = previewColumns;
   const issues: readonly ImportIssue[] = plan?.issues ?? [];
   const stats: ImportStats | null = plan?.stats ?? null;
+  /** Plugin importers parse in the renderer and own the encoding (T6.3). */
+  const selectedImporterSource =
+    importerId === null
+      ? 'auto'
+      : (importers.find((importer) => importer.id === importerId)?.source ?? 'builtin');
   const mappingFor = (sourceIndex: number): ImportColumnMapping | undefined =>
     mappings.find((mapping) => mapping.sourceIndex === sourceIndex);
 
@@ -281,11 +286,39 @@ export function ImportWizardDialog(props: ImportWizardDialogProps): ReactElement
     }
   };
 
+  /**
+   * Importer selector (T6.3). Also rendered in the step-1 error state: when a
+   * plugin importer throws, the user can switch back to a builtin parser without
+   * losing the selected file.
+   */
+  const importerSelect = (): ReactElement | null =>
+    importers.length === 0 ? null : (
+      <Select
+        label={t('import.file.importer')}
+        data-testid="import-importer"
+        value={importerId ?? ''}
+        options={[
+          { value: '', label: t('import.file.importerAuto') },
+          ...importers.map((importer) => ({
+            value: importer.id,
+            label: importer.label,
+          })),
+        ]}
+        onChange={(event) => {
+          const value = event.currentTarget.value;
+          props.onImporterChange(value === '' ? null : value);
+        }}
+      />
+    );
+
   const body = (): ReactElement => {
     if (error !== null) {
       return (
         <div className="cs-import-error" role="alert" data-testid="import-error">
           <p>{error}</p>
+          {/* A failed plugin importer must not trap the user: keep the registry
+              list available while the file itself is still open. */}
+          {step === 1 && preview !== null ? importerSelect() : null}
         </div>
       );
     }
@@ -304,29 +337,12 @@ export function ImportWizardDialog(props: ImportWizardDialogProps): ReactElement
             <dt>{t('import.file.format')}</dt>
             <dd>{preview.importerLabel ?? preview.format.toUpperCase()}</dd>
           </dl>
-          {importers.length === 0 ? null : (
-            <Select
-              label={t('import.file.importer')}
-              data-testid="import-importer"
-              value={importerId ?? ''}
-              options={[
-                { value: '', label: t('import.file.importerAuto') },
-                ...importers.map((importer) => ({
-                  value: importer.id,
-                  label: importer.label,
-                })),
-              ]}
-              onChange={(event) => {
-                const value = event.currentTarget.value;
-                props.onImporterChange(value === '' ? null : value);
-              }}
-            />
-          )}
+          {importerSelect()}
           <Select
             label={t('import.file.encoding')}
             data-testid="import-encoding"
             value={encoding}
-            disabled={importerId !== null}
+            disabled={selectedImporterSource === 'plugin'}
             options={[
               { value: 'auto', label: t('import.file.encodingAuto') },
               { value: 'utf-8', label: t('import.file.encodingUtf8') },

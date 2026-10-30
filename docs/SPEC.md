@@ -1561,6 +1561,7 @@ export interface RenderModel {
   | 打开命令面板 | Ctrl/Cmd+K | global |
   | 键盘快捷键（帮助） | F1 | global |
   | 设置 | —（仅面板） | global |
+  | 插件 | —（仅面板） | global |
   | 立即保存 | Ctrl/Cmd+S | workspace |
   | 切换侧栏 | Ctrl/Cmd+B | global |
   | 切换检查器 | Ctrl/Cmd+Alt+I | global |
@@ -1591,6 +1592,10 @@ export interface RenderModel {
   禁用命令仍列出并显示原因，Enter 不执行。↑/↓/Home/End/Enter/Esc 与鼠标悬停/点击可用。
 - **最近使用**：最多 8 条，存 `localStorage['curve-studio.recent-commands']`，属于 UI 偏好，
   **不写工作区 manifest**；缺失/损坏/存储不可用时回退空列表，且只在打开面板时读取。
+- **插件命令（T6.3，ADR-054）**：面板同时列出 `commands` 注册表的插件命令（插件提供的 `label`
+  + 来源徽标，`data-command-source="plugin"`），内置 id 优先、插件不能遮蔽内置命令。插件命令
+  没有快捷键与作用域；执行时提供 `PluginCommandContext`（`log` 写环形日志，`execute` 派发应用
+  命令），抛错只产生带插件名的错误 toast，不改文档。
 - **渲染稳定性**：`AppShell` 不订阅文档 store；keymap 在按键时读取最新 state，面板打开时快照
   命令可用性并只在此期间挂载，执行前再复查。该约束保证 T4.6 的 100k 图表切换 private ≤600MB
   门禁不被常驻面板/整壳重渲染拖累。
@@ -1616,6 +1621,12 @@ export interface RenderModel {
   其余贡献点与来源标识/错误边界在 T6.3）。
 - T6.2：主进程也需要解析 `fieldTypeId`（§14.3），因此只读取插件包导出的字段类型定义建立
   “字段类型 → storageType”映射；主进程**不激活**插件、不执行插件代码。两个进程共用同一份定义。
+- T6.3：`apps/desktop/src/renderer/plugins/builtins.ts` 把 §14.4 的四类内置贡献（5 种字段类型、
+  CSV/TSV 与 JSON 导入器、line/scatter/bar 图表类型）通过宿主注册表注册；存储类型选择器、语义
+  类型、导入器与图表类型列表**只读注册表**，不再有 UI 内的硬编码列表。插件贡献在选项/命令上带
+  来源标识；贡献调用抛错被隔离为带插件名的 toast（可跳转插件日志），不修改文档；插件管理器可
+  **会话级**禁用/启用插件（不写 `settings.json`/manifest），注册表订阅只在相关表面打开时存在。
+  命令注册表只承载插件命令，内置命令目录仍是 §13.4 的 `APP_COMMANDS`（ADR-054）。
 
 ### 14.2 契约
 
@@ -1748,15 +1759,48 @@ export interface PluginCommandContext {
   列对话框中显式清除语义类型（`ColumnDraft.fieldTypeId = null`）。
 - 列表面板显示字段类型的 label（插件提供、不本地化）；网格、自动列宽与样式预览都使用该类型
   的 `format`，CSV 导出仍用存储格式化（导出接语义类型另议）。
+- **内置贡献与存储类型列表（T6.3，ADR-054）**：内置字段类型的 id **就是**存储类型名
+  （`text`/`number`/`date`/`boolean`/`enum`），由宿主以 `builtin` owner 注册；列对话框的
+  “存储类型”只列内置字段类型，“语义类型”只列 `source.kind === 'plugin'` 且 `storageType`
+  匹配的条目。`ColumnDef.fieldTypeId` 因此**从不**指向内置 id（主进程 resolver 只认识插件
+  字段类型，写入内置 id 会被 §14.3 的严格校验拒绝）。
+- **来源标识（T6.3）**：UI 从 `RegistryEntry.source` 取贡献者；插件标签追加
+  `{label}（插件：{plugin}）`，命令面板条目另带来源徽标与 `data-command-source`。内置标签按
+  id 走消息表（`columns.type.*`、`chart.kind.*`），插件文案不本地化。
+- **错误隔离与日志（T6.3）**：`format`（网格/自动列宽/样式预览）、插件导入器 `parse` 与插件
+  命令 `run` 的抛错必须被调用方捕获：归一化为 `AppError`、按 `pluginId+code+message` 在 2 秒内
+  去重、写入内存环形日志（最多 200 条，不落盘），并发布事件让 Shell 弹一条**带插件名**的错误
+  toast，其“查看插件日志”动作打开插件管理器并聚焦日志。格式化失败回退存储格式化；导入失败保留
+  文件并继续显示导入器下拉（可切回内置解析器）；命令失败不产生任何文档变更。其它插件与内置
+  功能不受影响。
+- **手动禁用（T6.3）**：插件管理器对每个插件提供“禁用/启用”，分别调用宿主 `deactivate`/
+  `activate`（先运行 hook，再移除/重建贡献）。禁用是**会话级**的：不写 `settings.json`、
+  不写 manifest；重启后重新尝试激活。UI 用 `subscribe` 刷新，且订阅只在对应表面打开时存在
+  （关闭的对话框不常驻监听）。
+- **插件命令（T6.3）**：`commands` 注册表只承载插件命令，内置命令目录仍是 §13.4 的
+  `APP_COMMANDS`（快捷键/作用域/可用性/文案的唯一来源）。命令面板合并两者，内置 id 优先；
+  运行插件命令时提供 `PluginCommandContext`：`log` 写入同一环形日志（`[plugin:<id>]` 前缀），
+  `execute(commandId, payload)` 派发应用命令并在失败时抛出 `AppError`。插件命令没有快捷键与
+  作用域（v1 `CommandDef` 不定义）。
+- **内置导入器的解析位置（T6.3）**：内置导入器登记为 `builtin.csv`/`builtin.json`；向导选中
+  内置条目时通过 `ImportOpenPayload.format`（渲染进程 ↔ import Worker 的内部协议，非 §15 通道）
+  强制 Worker 的解析器（`auto` 保持扩展名嗅探），内置文件仍不在渲染进程解析。
 
 ### 14.4 内置贡献点
 
-| 类型 | 内置 |
-|---|---|
-| 字段类型 | number、text、date、boolean、enum |
-| 导入器 | CSV/TSV、JSON |
-| 图表类型 | line、scatter、bar |
-| 命令 | 见 §13.1 |
+内置贡献与插件贡献走**同一个注册表**（T6.3，ADR-054）：`registerBuiltinContributions` 在插件
+激活前用宿主视图注册，`list()` 里内置在前。
+
+| 类型 | 内置 | 注册 id |
+|---|---|---|
+| 字段类型 | number、text、date、boolean、enum | 存储类型名本身 |
+| 导入器 | CSV/TSV、JSON | `builtin.csv`、`builtin.json` |
+| 图表类型 | line、scatter、bar | `ChartSpec.kind` 值 |
+| 命令 | 见 §13.1 | 不进入注册表：内置命令目录是 §13.4 的 `APP_COMMANDS`；`commands` 注册表只
+承载插件命令 |
+
+- 插件图表类型是**预设**：`ChartKindDef.seriesType` 映射到 v1 的三种 `ChartSpec.kind`，
+  `defaults` 在建图时合并进 `ChartOptions`；`ChartSpec` 不持久化预设 id（ADR-054 复核条件）。
 
 ### 14.5 v2 预留（不在 v1 实现）
 

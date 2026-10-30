@@ -4,6 +4,9 @@
  * One handler instance corresponds to one wizard session. It keeps the decoded
  * text and parsed dataset in the Worker; only the 20-row preview and, at commit
  * time, the accepted rows cross back to the renderer.
+ *
+ * T6.3: the renderer may force the builtin parser (choosing the "CSV/TSV" or
+ * "JSON" registry contribution); `auto` keeps the T2.5 extension sniffing.
  */
 
 import { createAppError, toAppError } from '@curve/domain';
@@ -15,6 +18,7 @@ import { decodeImportBytes } from './encoding';
 import type { ImportEncodingChoice } from './encoding';
 import type {
   ImportConfigurePayload,
+  ImportFormatHint,
   ImportOpenPayload,
   ImportPlanPayload,
   ImportPreview,
@@ -25,6 +29,8 @@ interface Session {
   bytes: Uint8Array;
   fileName: string;
   choice: ImportEncodingChoice;
+  /** Parser forced by the selected builtin importer, or `auto` (T6.3). */
+  format: ImportFormatHint;
   parsed: ParsedImportData;
   encoding: ImportPreview['encoding'];
   encodingMismatch: boolean;
@@ -52,7 +58,10 @@ function requestType(value: unknown): 'open' | 'configure' | 'plan' {
   return 'plan';
 }
 
-function formatForFile(fileName: string): 'csv' | 'json' {
+function formatForFile(fileName: string, hint: ImportFormatHint): 'csv' | 'json' {
+  if (hint === 'csv' || hint === 'json') {
+    return hint;
+  }
   return fileName.toLowerCase().endsWith('.json') ? 'json' : 'csv';
 }
 
@@ -77,8 +86,9 @@ function parseText(
   fileName: string,
   delimiter: ParsedImportData['delimiter'],
   hasHeader: boolean | undefined,
+  format: ImportFormatHint,
 ): ParsedImportData {
-  if (formatForFile(fileName) === 'json') {
+  if (formatForFile(fileName, format) === 'json') {
     return parseJson(text);
   }
   return parseCsv(text, {
@@ -90,13 +100,15 @@ function parseText(
 export function createImportWorkerHandler(): ImportWorkerHandler {
   let session: Session | null = null;
 
-  const open = (payload: { bytes: Uint8Array; fileName: string }): ImportPreview => {
+  const open = (payload: ImportOpenPayload): ImportPreview => {
     const decoded = decodeImportBytes(payload.bytes, 'auto');
-    const parsed = parseText(decoded.text, payload.fileName, undefined, undefined);
+    const format = payload.format ?? 'auto';
+    const parsed = parseText(decoded.text, payload.fileName, undefined, undefined, format);
     session = {
       bytes: payload.bytes,
       fileName: payload.fileName,
       choice: 'auto',
+      format,
       parsed,
       encoding: decoded.encoding,
       encodingMismatch: decoded.mismatch,
@@ -118,6 +130,7 @@ export function createImportWorkerHandler(): ImportWorkerHandler {
       session.fileName,
       payload.delimiter ?? session.parsed.delimiter,
       payload.hasHeader ?? session.parsed.hasHeader,
+      session.format,
     );
     session = {
       ...session,
@@ -155,7 +168,11 @@ export function createImportWorkerHandler(): ImportWorkerHandler {
             id,
             ok: true,
             type: 'open',
-            result: open({ bytes: payload.bytes, fileName: payload.fileName }),
+            result: open({
+              bytes: payload.bytes,
+              fileName: payload.fileName,
+              ...(payload.format === undefined ? {} : { format: payload.format }),
+            }),
           };
         }
         if (message['type'] === 'configure') {

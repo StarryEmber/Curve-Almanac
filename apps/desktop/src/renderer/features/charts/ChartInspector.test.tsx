@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { AppCore } from '@curve/app-core';
 import type { ChartSpec, ColumnDef, TableMeta } from '@curve/domain';
 
 import { AppCoreProvider } from '../../app-core/use-app-core';
 import { I18nProvider } from '../../i18n';
+import { activateRendererPlugins } from '../../plugins';
 
 import { ChartInspector } from './ChartInspector';
 
@@ -99,6 +100,11 @@ function lastCommitted(updateChart: ReturnType<typeof vi.fn>): ChartSpec {
 
 afterEach(() => {
   cleanup();
+});
+
+beforeAll(async () => {
+  // T6.3: the kind selector reads the registry's builtin chart kinds.
+  await activateRendererPlugins();
 });
 
 describe('ChartInspector', () => {

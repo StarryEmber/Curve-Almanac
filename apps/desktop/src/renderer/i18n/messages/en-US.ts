@@ -991,6 +991,31 @@ export const enUS: Record<MessageKey, string> = {
   'chart.toolbox.zoom': 'Box zoom',
   'chart.toolbox.zoomBack': 'Reset zoom',
 
+  'plugins.title': 'Plugins',
+  'plugins.description':
+    'Plugins compiled into the app. Disabling one removes its contributions from every selector immediately.',
+  'plugins.open': 'Plugins',
+  'plugins.listTitle': 'Installed plugins',
+  'plugins.empty': 'No plugins are available.',
+  'plugins.meta': 'ID {id} · version {version} · API {apiVersion}',
+  'plugins.contributions':
+    'Fields {fields} · importers {importers} · chart kinds {chartKinds} · commands {commands}',
+  'plugins.status.pending': 'Pending',
+  'plugins.status.active': 'Enabled',
+  'plugins.status.inactive': 'Disabled by user',
+  'plugins.status.disabled': 'Unavailable',
+  'plugins.disable': 'Disable',
+  'plugins.enable': 'Enable',
+  'plugins.sessionOnly': 'Disabling applies to this session only; nothing is written to settings.',
+  'plugins.sourceBuiltin': 'Built-in',
+  'plugins.sourceBadge': 'plugin: {plugin}',
+  'plugins.optionSource': '{label} (plugin: {plugin})',
+  'plugins.errorToast': 'Plugin "{plugin}" failed: {message}',
+  'plugins.errorToast.action': 'Open plugin log',
+  'plugins.logTitle': 'Plugin log',
+  'plugins.logHint': 'The last 200 plugin and host events, kept in memory only.',
+  'plugins.logEmpty': 'No plugin events yet.',
+
   'toast.region': 'Notifications',
   'toast.dismiss': 'Dismiss notification',
 

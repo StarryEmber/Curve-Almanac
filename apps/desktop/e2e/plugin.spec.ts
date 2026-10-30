@@ -200,7 +200,13 @@ test.describe('T6.2 rating field type', () => {
     await form.getByLabel('存储类型').selectOption('number');
     const fieldType = form.getByTestId('column-form-field-type');
     await expect(fieldType).toBeVisible();
-    await expect(fieldType.locator(`option[value="${RATING_FIELD_TYPE_ID}"]`)).toHaveText('Rating');
+    // T6.3: the option label also carries the source suffix.
+    await expect(fieldType.locator(`option[value="${RATING_FIELD_TYPE_ID}"]`)).toContainText(
+      'Rating',
+    );
+    await expect(fieldType.locator(`option[value="${RATING_FIELD_TYPE_ID}"]`)).toContainText(
+      'Sample',
+    );
     await fieldType.selectOption(RATING_FIELD_TYPE_ID);
     await form.getByRole('button', { name: '添加列' }).click();
 

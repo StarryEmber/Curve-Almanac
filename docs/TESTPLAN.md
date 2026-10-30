@@ -203,6 +203,14 @@
 > 200% 缩放 + 键盘选择语义类型覆盖 UI 冒烟。第 1 步由“rating/Points JSON 选项出现”间接断言，
 > 宿主激活状态另由 `packages/plugin-sdk` 的 host 单测覆盖；第 4 步的错误隔离由 T6.1
 > `host.test.ts`（激活抛错回滚/禁用）覆盖，UI 侧的错误边界与“禁用插件”入口属 T6.3。
+>
+> T6.3 覆盖（ADR-054）：`apps/desktop/e2e/plugin-ui.spec.ts` 3 条——插件管理器禁用示例插件后
+> 列对话框“语义类型”为空、导入向导只剩 `builtin.csv`/`builtin.json`，重新启用后选项恢复（运行期
+> 刷新）；勾选 `points-invalid.json` 时选示例导入器抛错 → 内联错误 + 带插件名的 toast → “查看插件
+> 日志”打开插件管理器日志 → 切回内置解析器恢复、网格继续可编辑、写入合法文件后同一插件导入成功
+> （抛错只影响自身，第 4 步的 UI 面）；200% 缩放下纯键盘打开/禁用/启用/关闭插件管理器且不越界。
+> 四类贡献点“只读注册表”由 `apps/desktop/test/plugin-contributions.test.ts` 的源码扫描锁定
+> （无硬编码列表、四个消费点都 import 注册表访问器、贡献 id 只有一个定义处）。
 
 ### E10 CSV 导出（T3.6）
 

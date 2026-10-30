@@ -3068,6 +3068,15 @@ body {
   font-size: var(--cs-font-size-xs);
 }
 
+.cs-command-palette__source {
+  flex: none;
+  padding: 0 var(--cs-space-1);
+  border: 1px solid var(--cs-color-border-subtle);
+  border-radius: var(--cs-radius-pill);
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-xs);
+}
+
 .cs-command-palette__shortcut {
   flex: none;
   margin-left: auto;
@@ -3121,4 +3130,130 @@ body {
   margin: 0;
   color: var(--cs-color-fg-muted);
   font-size: var(--cs-font-size-sm);
+}
+
+/* ---------------------------------------------------------------- Plugins */
+
+.cs-dialog.cs-plugin-manager {
+  width: min(720px, 100%);
+}
+
+.cs-plugin-manager__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-4);
+}
+
+.cs-plugin-manager__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-2);
+  min-width: 0;
+}
+
+.cs-plugin-manager__section:focus-visible {
+  outline: 2px solid var(--cs-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.cs-plugin-manager__heading {
+  margin: 0;
+  color: var(--cs-color-fg-default);
+  font-size: var(--cs-font-size-md);
+}
+
+.cs-plugin-manager__hint {
+  margin: 0;
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-plugin-manager__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cs-plugin-manager__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cs-space-3);
+  padding: var(--cs-space-3);
+  border: 1px solid var(--cs-color-border-subtle);
+  border-radius: var(--cs-radius-md);
+  background: var(--cs-color-bg-surface);
+}
+
+.cs-plugin-manager__identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-1);
+  min-width: 0;
+}
+
+.cs-plugin-manager__name {
+  color: var(--cs-color-fg-default);
+  font-weight: var(--cs-font-weight-semibold);
+}
+
+.cs-plugin-manager__meta,
+.cs-plugin-manager__contributions {
+  color: var(--cs-color-fg-muted);
+  font-size: var(--cs-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.cs-plugin-manager__status {
+  color: var(--cs-color-accent-default);
+  font-size: var(--cs-font-size-sm);
+}
+
+.cs-plugin-manager__error {
+  color: var(--cs-color-danger-default);
+  font-size: var(--cs-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.cs-plugin-manager__log {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-1);
+  max-height: 220px;
+  margin: 0;
+  padding: var(--cs-space-2);
+  overflow: auto;
+  border: 1px solid var(--cs-color-border-subtle);
+  border-radius: var(--cs-radius-md);
+  background: var(--cs-color-bg-muted);
+  font-family: var(--cs-font-mono);
+  font-size: var(--cs-font-size-xs);
+  list-style: none;
+}
+
+.cs-plugin-manager__log-entry {
+  display: flex;
+  gap: var(--cs-space-2);
+  color: var(--cs-color-fg-default);
+}
+
+.cs-plugin-manager__log-entry[data-log-level='warn'] {
+  color: var(--cs-color-warning-default);
+}
+
+.cs-plugin-manager__log-entry[data-log-level='error'] {
+  color: var(--cs-color-danger-default);
+}
+
+.cs-plugin-manager__log-time {
+  flex: none;
+  color: var(--cs-color-fg-subtle);
+}
+
+.cs-plugin-manager__log-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

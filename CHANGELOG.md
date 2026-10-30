@@ -703,6 +703,29 @@
   报告 `docs/reports/m5/REPORT.md`（7 张截图 + `m5-metrics.json`）；全量 E2E **104 passed**
   （6.2m，M5 1 条 20.2s）。**2026-10-29 获用户接受，M5 已关闭；M6 未开始**，等用户明确指示后再
   领取 T6.1。
+- T6.3：插件接入 UI 与隔离（ADR-054）。新增 `apps/desktop/src/renderer/plugins/builtins.ts`，
+  在插件激活前把 SPEC §14.4 的四类内置贡献注册进宿主：5 种字段类型（id = 存储类型
+  `text/number/date/boolean/enum`）、`builtin.csv`/`builtin.json` 导入器（`parse` 复用
+  table-engine）与 line/scatter/bar 图表类型。列对话框的存储类型/语义类型、导入向导的导入器、
+  图表向导与检查器的类型列表全部改为只读注册表并删除 `COLUMN_TYPES`/`KINDS` 硬编码；语义类型
+  只列插件类型（`fieldTypeId` 永不写内置 id）。内置导入器可在向导中选择并经
+  `ImportOpenPayload.format`（`auto|csv|json`，渲染进程 ↔ Worker 内部协议）强制 Worker 解析器，
+  插件导入器仍在渲染进程执行（ADR-053），失败后保留文件与导入器下拉。
+- T6.3：插件贡献的来源标识（`{label}（插件：<name>）`、命令面板来源徽标与 `data-command-source`）、
+  错误边界与隔离（`formatFieldCell`/插件命令/插件导入器抛错 → `reportPluginError`：`AppError`
+  归一化、2 秒去重、200 条内存环形日志、带插件名的 toast + “查看插件日志”动作）、插件管理器
+  （状态/版本/API/贡献数量/错误 + 会话级禁用/启用，不写 `settings.json`/manifest，使用宿主
+  `deactivate`/`activate`）与贡献点变更后的 UI 刷新（`Registry.subscribe`，只在表面打开时订阅）。
+  插件命令进入命令面板（`PluginCommandContext.execute` 派发应用命令）；新增 `app.plugins` 面板
+  命令（无快捷键）。`@curve/ui` 的 `ToastMessage` 增加可选 `action`。
+- T6.3：新增 `apps/desktop/e2e/plugin-ui.spec.ts` 3 条（禁用/启用后选项刷新 3.9s、插件抛错隔离 +
+  日志跳转 + 恢复 3.6s、200% 缩放键盘 2.6s）与 `apps/desktop/test/plugin-contributions.test.ts`
+  源码扫描（无硬编码贡献列表、四个消费点读注册表、贡献 id 唯一来源）；`plugin.spec.ts` 断言随
+  来源后缀更新。`pnpm verify` **195 files / 1811 tests**；depcruise 529 modules / 2297 deps /
+  0 violations；coverage statements 77.13% / branches 69.82% / functions 76.51% / lines 77.28%；
+  `pnpm build` exit 0（renderer **3,469.35 kB**、CSS 81.34 kB）；全量 `pnpm e2e` **110 passed**
+  （6.7m；chart-perf 100k 切换 privatePeak 591MB / 600MB 门禁）；`pnpm bench` exit 0（全部预算内）。
+  报告 `docs/reports/t6.3/REPORT.md`（3 张截图）。
 - T6.2：示例插件落地（ADR-053）。新增 `plugins/plugin-sample`（`@curve/plugin-sample`，只依赖
   `@curve/plugin-sdk` 与 `@curve/domain`）：`rating` 语义字段类型（id `com.curvealmanac.rating`，
   storageType `number`，`★` 格式化，1–5 校验，nulls-last 比较）与 points JSON 导入器

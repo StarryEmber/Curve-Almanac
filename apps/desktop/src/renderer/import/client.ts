@@ -15,6 +15,7 @@ import { isImportWorkerResponse } from './worker-protocol';
 
 import type {
   ImportConfigurePayload,
+  ImportFormatHint,
   ImportPlanPayload,
   ImportPreview,
   ImportWorkerCallResult,
@@ -34,7 +35,11 @@ export interface ImportWorkerClientOptions {
 }
 
 export interface ImportWorkerClient {
-  open(bytes: Uint8Array, fileName: string): Promise<ImportWorkerCallResult<ImportPreview>>;
+  open(
+    bytes: Uint8Array,
+    fileName: string,
+    format?: ImportFormatHint,
+  ): Promise<ImportWorkerCallResult<ImportPreview>>;
   configure(payload: ImportConfigurePayload): Promise<ImportWorkerCallResult<ImportPreview>>;
   plan(payload: ImportPlanPayload): Promise<ImportWorkerCallResult<ImportPlan>>;
   terminate(): void;
@@ -161,9 +166,13 @@ export function createImportWorkerClient(
   }
 
   return {
-    open: (bytes: Uint8Array, fileName: string) =>
+    open: (bytes: Uint8Array, fileName: string, format?: ImportFormatHint) =>
       request<ImportPreview>((id) => ({
-        message: { id, type: 'open', payload: { bytes, fileName } },
+        message: {
+          id,
+          type: 'open',
+          payload: { bytes, fileName, ...(format === undefined ? {} : { format }) },
+        },
         transfer: [bytes.buffer],
       })),
     configure: (payload: ImportConfigurePayload) =>

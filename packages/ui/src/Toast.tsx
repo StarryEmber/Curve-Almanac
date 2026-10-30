@@ -6,15 +6,26 @@ import type { ReactElement } from 'react';
 
 export type ToastTone = 'info' | 'success' | 'error';
 
+/**
+ * One optional follow-up action on a toast (T6.3: "plugin error → jump to the
+ * plugin log"). The label is supplied by the app's message table, so this
+ * component stays free of copy.
+ */
+export interface ToastAction {
+  label: string;
+  onSelect(): void;
+}
+
 export interface ToastMessage {
   id: string;
   tone: ToastTone;
   text: string;
+  action?: ToastAction;
 }
 
 export interface ToastController {
   toasts: readonly ToastMessage[];
-  push(tone: ToastTone, text: string): void;
+  push(tone: ToastTone, text: string, action?: ToastAction): void;
   dismiss(id: string): void;
 }
 
@@ -50,10 +61,13 @@ export function useToasts(options: UseToastsOptions = {}): ToastController {
   }, []);
 
   const push = useCallback(
-    (tone: ToastTone, text: string): void => {
+    (tone: ToastTone, text: string, action?: ToastAction): void => {
       nextId.current += 1;
       const id = `toast-${String(nextId.current)}`;
-      setToasts((current) => [...current, { id, tone, text }]);
+      setToasts((current) => [
+        ...current,
+        action === undefined ? { id, tone, text } : { id, tone, text, action },
+      ]);
 
       if (autoDismissMs > 0) {
         const timer = setTimeout(() => {
@@ -102,6 +116,17 @@ export function ToastHost({
           role={toast.tone === 'error' ? 'alert' : 'status'}
         >
           <span className="cs-toast__text">{toast.text}</span>
+          {toast.action === undefined ? null : (
+            <button
+              type="button"
+              className="cs-toast__action"
+              onClick={() => {
+                toast.action?.onSelect();
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
           <button
             type="button"
             className="cs-toast__close"

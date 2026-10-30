@@ -58,8 +58,35 @@ describe('buildPaletteItems', () => {
       shortcuts: ['Ctrl/Cmd+K'],
       reason: null,
       recentRank: null,
+      fromPlugin: false,
     });
     expect(items[1]?.reason).toBe('no-workspace');
+  });
+
+  it('appends plugin commands with a source badge and never shadows builtins (T6.3)', () => {
+    const items = buildPaletteItems(
+      [command({ id: 'a' }), command({ id: 'app.plugins' })],
+      context(),
+      ['plugin.com.test.run'],
+      [
+        { id: 'plugin.com.test.run', label: 'Run report', sourceLabel: 'plugin: Sample' },
+        { id: 'a', label: 'Shadow', sourceLabel: 'plugin: Evil' },
+      ],
+    );
+
+    expect(items.map((item) => item.id)).toEqual(['a', 'app.plugins', 'plugin.com.test.run']);
+    const pluginItem = items.find((item) => item.id === 'plugin.com.test.run');
+    expect(pluginItem).toEqual({
+      id: 'plugin.com.test.run',
+      label: 'Run report',
+      sourceLabel: 'plugin: Sample',
+      shortcuts: [],
+      reason: null,
+      recentRank: 0,
+      fromPlugin: true,
+    });
+    // A plugin contribution cannot replace a builtin palette entry.
+    expect(items.find((item) => item.id === 'a')?.label).toBeUndefined();
   });
 
   it('assigns recent ranks from the stored id order', () => {

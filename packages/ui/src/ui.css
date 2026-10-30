@@ -412,6 +412,25 @@
   cursor: pointer;
 }
 
+.cs-toast__action {
+  flex: none;
+  align-self: center;
+  padding: 2px var(--cs-space-2);
+  border: 1px solid var(--cs-color-border-default);
+  border-radius: var(--cs-radius-sm);
+  background: var(--cs-color-bg-muted);
+  color: var(--cs-color-fg-default);
+  font-family: inherit;
+  font-size: var(--cs-font-size-sm);
+  line-height: var(--cs-line-height-normal);
+  cursor: pointer;
+}
+
+.cs-toast__action:hover {
+  border-color: var(--cs-color-accent-default);
+  color: var(--cs-color-accent-default);
+}
+
 .cs-toast__close:hover {
   color: var(--cs-color-fg-default);
 }
@@ -436,7 +455,8 @@
 .cs-tab:focus-visible,
 .cs-menu__item:focus-visible,
 .cs-menu__trigger:focus-visible,
-.cs-toast__close:focus-visible {
+.cs-toast__close:focus-visible,
+.cs-toast__action:focus-visible {
   outline: 2px solid var(--cs-color-focus-ring);
   outline-offset: 2px;
 }

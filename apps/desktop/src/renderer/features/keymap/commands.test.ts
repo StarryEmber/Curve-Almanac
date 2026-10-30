@@ -44,6 +44,7 @@ function handlers(): CommandHandlers {
     toggleInspector: vi.fn(),
     openHelp: vi.fn(),
     openSettings: vi.fn(),
+    openPlugins: vi.fn(),
     setTheme: vi.fn(),
   };
 }
@@ -96,6 +97,7 @@ describe('APP_COMMANDS', () => {
       'palette.open': ['Ctrl/Cmd+K'],
       'app.help': ['F1'],
       'app.settings': [],
+      'app.plugins': [],
       'app.save': ['Ctrl/Cmd+S'],
       'app.toggleSidebar': ['Ctrl/Cmd+B'],
       'app.toggleInspector': ['Ctrl/Cmd+Alt+I'],

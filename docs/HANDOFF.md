@@ -1,44 +1,45 @@
 # HANDOFF — Curve Almanac 实施交接
 
 > 本文件面向**下一个实现会话**。**M5 已于 2026-10-29 获用户接受并关闭**（T5.1–T5.5、
-> `docs/reports/m5/REPORT.md`、ADR-046–050）。**M6 已开始：`T6.0`（品牌更名
-> Curve Studio → Curve Almanac）、`T6.1`（插件 SDK 与注册表）与 `T6.2`（示例插件）已完成**
-> （`docs/reports/t6.0/REPORT.md`、`docs/reports/t6.1/REPORT.md`、`docs/reports/t6.2/REPORT.md`；
-> ADR-051、ADR-052、ADR-053）；`T6.3`（插件接入 UI 与隔离）–`T6.5` 尚未开始，**不要自动领取**：
-> 等用户明确指示后再开始 `T6.3`。
+> `docs/reports/m5/REPORT.md`、ADR-046–050）。**M6 进行中：`T6.0`（品牌更名 Curve Studio →
+> Curve Almanac）、`T6.1`（插件 SDK 与注册表）、`T6.2`（示例插件）与 `T6.3`（插件接入 UI 与隔离）
+> 已完成**（`docs/reports/t6.0/REPORT.md`、`t6.1`、`t6.2`、`t6.3`；ADR-051、052、053、054）；
+> `T6.4`（安装包与发布配置）–`T6.5` 尚未开始，**不要自动领取**：等用户明确指示后再开始 `T6.4`。
 > 最后更新：2026-10-30 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
 > T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
 > T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告 **`50f7ea9`**、
-> T6.0 代码/报告 **`cc6dd5c`**、T6.1 代码/报告 **`2ea05cf`**、T6.2 代码/报告 **`15e43ed`**
-> （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
-> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.11）→ `docs/reports/m5/REPORT.md` →
-> `docs/reports/t6.0/REPORT.md` → `docs/reports/t6.1/REPORT.md` → `docs/reports/t6.2/REPORT.md` →
-> `docs/TASKS.md` 的 M6 → `docs/SPEC.md` → ADR-053/052/051/050/048。
+> T6.0 代码/报告 **`cc6dd5c`**、T6.1 代码/报告 **`2ea05cf`**、T6.2 代码/报告 **`15e43ed`**、
+> T6.3 代码/报告（提交 hash 见 `git log -1 -- docs/HANDOFF.md`）。
+> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.12）→ `docs/reports/t6.3/REPORT.md` →
+> `docs/reports/t6.2/REPORT.md` → `docs/reports/t6.1/REPORT.md` → `docs/reports/t6.0/REPORT.md` →
+> `docs/TASKS.md` 的 M6 → `docs/SPEC.md` §14 → ADR-054/053/052/051/050/048。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
 - **当前状态**：M1–M5 均已获用户接受；`T3.1`–`T3.6`、`T4.1`–`T4.6`、`T5.1`–`T5.5`、M5 验收
-  演示、**`T6.0`（品牌更名 Curve Almanac）**、**`T6.1`（插件 SDK 与注册表）**与
-  **`T6.2`（示例插件）**均已完成；**M5 已于 2026-10-29 关闭**；M6 的 `T6.3`–`T6.5` 尚未开始。
-- **本次交接范围**：T6.1 之后的 `T6.2` 示例插件——`plugins/plugin-sample`（`rating` 语义字段类型 +
-  points JSON 导入器）、渲染进程组装点与首帧前激活、列对话框“语义类型”、导入向导“导入器”、
-  网格/样式预览的字段类型格式化、app-core 的结构化字段类型端口、主进程 `fieldTypeId` 严格解析、
-  ADR-053 与 `docs/reports/t6.2/REPORT.md`。不改 IPC/数据格式/CSP，不新增运行时依赖。
-- **基线**：`pnpm verify` **188 files / 1761 tests**（ESLint 0；depcruise 514 modules / 2209 deps /
-  0 violations）；coverage 全局 lines **77.25%**（statements 77.11% / branches 69.95% /
-  functions 76.23%）；`pnpm build` exit 0（renderer **3,394.50 kB**、CSS 77.89 kB、main 338.76 kB）；
-  `pnpm e2e` **107 passed**（6.5m）；`pnpm bench` exit 0。
+  演示、**`T6.0`（品牌更名 Curve Almanac）**、**`T6.1`（插件 SDK 与注册表）**、
+  **`T6.2`（示例插件）**与 **`T6.3`（插件接入 UI 与隔离）**均已完成；**M5 已于 2026-10-29
+  关闭**；M6 的 `T6.4`–`T6.5` 尚未开始。
+- **本次交接范围**：T6.3 插件接入 UI 与隔离——内置贡献注册（5 种字段类型、`builtin.csv`/
+  `builtin.json`、line/scatter/bar 图表类型）、四类选择器只读注册表、来源标识、错误边界 + 带插件名
+  的 toast + 插件日志跳转、插件管理器（会话级禁用/启用）、插件命令进入命令面板、
+  ADR-054 与 `docs/reports/t6.3/REPORT.md`。不改 IPC/数据格式/CSP/`plugin-sdk` 公开 API，不新增
+  运行时依赖。
+- **基线**：`pnpm verify` **195 files / 1811 tests**（ESLint 0；depcruise 529 modules / 2297 deps /
+  0 violations）；coverage 全局 lines **77.28%**（statements 77.13% / branches 69.82% /
+  functions 76.51%）；`pnpm build` exit 0（renderer **3,469.35 kB**、CSS 81.34 kB、main 338.76 kB）；
+  `pnpm e2e` **110 passed**（≈7.0m，含 `plugin-ui` 3 条）；`pnpm bench` exit 0。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑；强杀后不得静默丢数据。
-- **停点**：T6.2 已完成；**M6 其余任务（T6.3–T6.5）未开始**。不要自动领取 `T6.3`；等用户
-  明确指示后再开始。
+- **停点**：T6.3 已完成；**M6 其余任务（T6.4–T6.5）未开始**。不要自动领取 `T6.4`；等用户
+  明确指示后再开始（T6.4 是安装包/发布配置，含 `electron-builder`）。
 - **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`）；读
-  `docs/reports/t6.2/REPORT.md`、`docs/reports/t6.1/REPORT.md`、ADR-053/052/051/050/048、TASKS 的 M6；
-  收到“开始 M6 下一任务”后按 §0.3 领取 `T6.3`。
+  `docs/reports/t6.3/REPORT.md`、ADR-054/053/052/051/050/048、TASKS 的 M6；收到“开始 M6 下一
+  任务”后按 §0.3 领取 `T6.4`。
 - **M5 完成结果**：2 表 3 视图 → 复制视图/水平分栏/移动标签 → 5 次编辑 + 撤销/重做 5 步 →
   提交 200 后强杀（999 丢弃、200 保留）→ 尝试恢复 → 关闭后从最近列表重开 → 英文 + 深色 →
   重启后 2 pane / 3 标签 / Readings 活动 / 值 200 全部还原。截图在 `docs/reports/m5/`。
@@ -56,6 +57,12 @@
   格式化；导入向导“导入器”下拉（渲染进程解析 + 内联规划）；app-core 结构化 `FieldTypeLookup`
   （命令层与编辑器同规则）；主进程只读 `sampleFieldTypes` 严格解析 `fieldTypeId`（载入不再警告）；
   29 条插件单测 + 3 条 E2E；ADR-053、报告 `docs/reports/t6.2/REPORT.md`（2 张截图）。
+- **T6.3 完成结果**：内置贡献（5 种字段类型、`builtin.csv`/`builtin.json`、line/scatter/bar）由
+  `renderer/plugins/builtins.ts` 注册进宿主，四类选择器只读注册表（删除 `COLUMN_TYPES`/`KINDS`）；
+  插件选项/命令带来源标识；`formatFieldCell`/插件命令/插件导入器抛错 → 去重 + 200 条内存日志 +
+  带插件名的 toast（“查看插件日志”打开插件管理器）；插件管理器可会话级禁用/启用（不落盘）；
+  插件命令进入命令面板并经 `execute` 派发；`plugin-ui.spec.ts` 3 条 + 单测 50 条；ADR-054、
+  报告 `docs/reports/t6.3/REPORT.md`（3 张截图）。
 - **T5.1 完成结果**：2 表 3 视图 → 水平分栏 → 移动标签 → 比例 0.35 → 垂直/4 pane → 关闭空
   pane → 重启恢复；非法 layout（缺失引用/ratio 0.1）回退单 pane 且视图不丢；标签 Arrow/
   Ctrl+W 与 200% 缩放通过；截图在 `docs/reports/t5.1/`。
@@ -82,7 +89,13 @@
   `com.curvealmanac.rating` / `com.curvealmanac.points` id、`parseText` 只做类型/`validate` 管值域
   的分工、`ColumnDraft.fieldTypeId` 三态、`FieldTypeLookup` 结构化端口（app-core 不 import
   plugin-sdk）、`StyledCellOptions.formatField` 回调、`plugin.spec.ts` 的
-  `column-form-field-type`/`import-importer`/`data-field-type` 契约（ADR-053）。
+  `column-form-field-type`/`import-importer`/`data-field-type` 契约（ADR-053）；T6.3 的内置贡献
+  注册（`plugins/builtins.ts` 是唯一内置列表；内置字段类型 id = 存储类型；`builtin.csv`/
+  `builtin.json`；`fieldTypeId` 永不写内置 id）、`reportPluginError` 的 2s 去重 + 200 条环形日志、
+  来源后缀 `plugins.optionSource`/`data-command-source`、插件管理器 testid（`open-plugins`、
+  `plugin-manager`、`plugin-row-<id>`、`data-plugin-status`、`plugin-toggle-<id>`、`plugin-log`、
+  `plugin-log-entry`）、会话级禁用（不写 `settings.json`）、导入向导在插件失败后仍显示导入器下拉
+  （ADR-054）。
 
 ### 0.1 T5.1 结果（2026-10-27 完成）
 
@@ -120,19 +133,18 @@
    redo 留孤儿文件；`table.meta.update` 菜单文案不区分重命名/换主键；原生 Electron Edit 菜单
    仍未与历史同步。详见报告 §8 与 ADR-047“复核条件”。
 
-### 0.3 下一会话行动清单（M6 剩余任务启动前；T6.0/T6.1/T6.2 已完成）
+### 0.3 下一会话行动清单（M6 剩余任务启动前；T6.0–T6.3 已完成）
 
-> 前提：T5.1–T5.5、M5 验收演示、**T6.0 品牌更名**、**T6.1 插件 SDK/注册表**与 **T6.2 示例插件**
-> 均已完成，**M5 已于 2026-10-29 获用户接受并关闭**。**M6 的 `T6.3`–`T6.5` 尚未开始；不要自动
-> 领取任何 M6 任务。**
+> 前提：T5.1–T5.5、M5 验收演示、**T6.0 品牌更名**、**T6.1 插件 SDK/注册表**、**T6.2 示例插件**与
+> **T6.3 插件接入 UI 与隔离**均已完成，**M5 已于 2026-10-29 获用户接受并关闭**。**M6 的
+> `T6.4`–`T6.5` 尚未开始；不要自动领取任何 M6 任务。**
 
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
-   188 files / 1761 tests、`pnpm e2e` 全量结果见 §0.10、`pnpm bench` exit 0；读 TASKS 的 M5 验收
-   记录、报告 `docs/reports/m5/REPORT.md`、`docs/reports/t6.0/REPORT.md`、
-   `docs/reports/t6.1/REPORT.md`、`docs/reports/t6.2/REPORT.md` 与 §0.7–§0.11。
-2. 只有收到用户明确的“开始 M6 下一任务”指令后，才领取 TASKS 的 `T6.3`（插件接入 UI 与隔离）；
-   先读 SPEC §14.3、ADR-010（插件静态加载）、ADR-015（存储类型）、ADR-052（注册表/宿主语义）、
-   ADR-053（T6.2 接线）与 TASKS 的 M6 顺序。
+   195 files / 1811 tests、`pnpm e2e` **110 passed**、`pnpm bench` exit 0；读 TASKS 的 M6 记录、
+   报告 `docs/reports/t6.3/REPORT.md`（以及 `t6.2`/`t6.1`/`t6.0`）与 §0.10–§0.12。
+2. 只有收到用户明确的“开始 M6 下一任务”指令后，才领取 TASKS 的 `T6.4`（安装包与发布配置）；
+   先读 SPEC §16.6、ADR-051（`appId = com.curvealmanac.app` 计划）、T6.4 的验收项与 TASKS 的
+   M6 顺序。`pnpm package` 尚未实现，T6.4 才落地 `electron-builder`。
 3. 若用户要求重跑 M5 演示：独占 CPU 执行
    `pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/m5-acceptance.spec.ts`，
    截图/指标会重写到 `test-results/`，复制回 `docs/reports/m5/`，`m0` 截图提交前还原。
@@ -141,7 +153,9 @@
    T6.0 的 `APP_NAME` 单一来源与品牌一致性测试、T6.1 的注册表/宿主语义（`subscribe`、`source`、
    owner 化 `replace`、错误隔离与 `E_PLUGIN_*`）、T6.2 的字段类型 id 与
    `parseText`/`validate` 分工、`ColumnDraft.fieldTypeId` 三态、`FieldTypeLookup` 端口、
-   `formatField` 回调与 `plugin.spec.ts` 的 data 契约。
+   `formatField` 回调与 `plugin.spec.ts` 的 data 契约、T6.3 的内置贡献注册（
+   `plugins/builtins.ts` 是唯一内置列表）、来源后缀、`reportPluginError` 去重/环形日志、
+   会话级禁用语义与 `plugin-ui.spec.ts` 的 testid 契约。
 5. 演示说明：M5 demo 的 999 丢失是 SPEC §13.3 允许的最后 1.5s 窗口；恢复对话框提示已断言。
 6. M5 报告里的 7 张截图是证据，不做像素基线；`m5-metrics.json` 是结构化指标。
 
@@ -317,38 +331,45 @@
    label 不本地化；CSV 导出未接语义格式化；UI 只在启动时读共享注册表快照，运行时启用/禁用、
    来源徽标、错误 toast 与手动禁用仍属 T6.3。详见报告 §6 与 ADR-053“复核条件”。
 
-### 0.11 T6.3 接手要点（未领取，等用户明确指示）
+### 0.11 T6.4 接手要点（未领取，等用户明确指示）
 
-> 本节只记录 **T6.3 的起点与约束**，不代表任务已开始。T6.3 依赖 T6.2、T2.5、T3.2 已满足。
+> 本节只记录 **T6.4（安装包与发布配置）的起点与约束**，不代表任务已开始。T6.4 依赖 T0.2、T5.5、
+> T6.0（`APP_NAME`/`productName`）与 T6.3（无直接依赖，但同属发布面）均已满足。
 
-1. **范围（TASKS T6.3，覆盖 FR-EXT-01/02）**：
-   - 列类型选择器/导入器列表/图表类型列表**全部**改为读取插件宿主注册表；
-   - 移除剩余硬编码内置列表，改为“注册表 + 内置注册”（内置字段类型 5 种、CSV/TSV + JSON 导入器、
-     line/scatter/bar 图表类型、§13.1 的命令）；
-   - 插件贡献的菜单项/选项加**来源标识**（`source` 已由 T6.1 提供）；错误 toast 带插件名、可跳日志；
-   - **错误边界**与“禁用插件”入口（手动禁用/持久化在此决定，ADR-052 复核条件）；
-   - 贡献点变更后的 **UI 刷新**（使用 `Registry.subscribe`）。
-2. **T6.2 留下的确切状态**：
-   - 字段类型：列对话框只读 `listFieldTypes()`（插件贡献）；**内置 5 种存储类型仍是硬编码**
-     `COLUMN_TYPES`（`features/columns/column-form.ts`）。
-   - 导入：向导的插件分支已读 `listImporters()`；内置 CSV/JSON 仍由 Worker 的自动检测驱动，
-     **没有内置 ImporterDef 注册**。
-   - 图表类型/命令：**尚未**读 `chartKinds`/`commands`（T6.2 未接）。
-   - 激活：只在 `main.tsx` 首帧前 `activateAll()` 一次；没有运行时启用/禁用、没有订阅刷新、
-     没有来源徽标/错误 toast/插件管理面板。
-3. **不要破坏的 T6.2 契约**：`com.curvealmanac.rating`/`com.curvealmanac.points` id、
-   `parseText` 只做类型而 `validate` 管值域（0/6 → “超出允许范围”）、`ColumnDraft.fieldTypeId`
-   三态、app-core 的 `FieldTypeLookup` 结构化端口、`@curve/ui` 的 `formatField` 回调、
-   `plugin.spec.ts` 的 `column-form-field-type`/`import-importer`/`data-field-type`。
-4. **性能与架构约束**：`subscribe` 是同步快照，UI 监听器必须合并刷新且只在面板打开时快照
-   （T5.4 的 AppShell 不订阅 store、chart-perf 600MB 门禁）；不要常驻订阅文档 store。
-5. **已知可回收的点（T6.3 决定）**：插件导入在主线程规划 + 字节副本（ADR-053 复核条件：
-   需要大文件时把数据集送入 Worker 或拆 Worker）；主进程/渲染进程字段类型集合分离（主进程按
-   编译进包定义严格校验、渲染进程按实际激活解析）；`ImportResult` ↔ `ImportDataset` 的映射已在
-   `features/import/plugin-import.ts`，内置注册时复用同一映射。
-6. **验证形态（预期）**：`pnpm e2e -- --grep "plugin-ui"`（TASKS 指定）新增 `plugin-ui` spec，覆盖
-   “移除示例插件后 UI 不残留选项”“插件抛错只影响自身”“贡献点全部来自注册表（grep 无硬编码）”；
-   同时保持 `plugin.spec.ts` 3 条与全量套件为绿（T6.2 基线 107 passed，新增 spec 后计数会变）。
+1. **范围（TASKS T6.4，覆盖 NFR-08；参考 SPEC §16.6）**：
+   - electron-builder：`appId = com.curvealmanac.app`、`productName = APP_NAME`、NSIS + portable；
+   - 图标/许可证/版本号注入/`userData` 路径；产物到 `release/`（gitignore）；
+   - 安装/卸载/数据保留冒烟：默认当前用户、不要求管理员、卸载不删工作区、首次启动创建 userData。
+2. **不要回退**：`shared/brand.ts` 的 `APP_NAME` 单一来源与 `brand.test.ts` 一致性断言；
+   `%APPDATA%/Curve Almanac` 的 userData 路径（T6.0 起）；`pnpm package` 之外的命令契约不变。
+3. **已知注意点**：本机没有符号链接权限（§3.4）；`electron-builder` 首次下载二进制可能需要网络/
+   缓存，失败时记录为阻塞而不是删依赖；打包时区分开发期无需打包的文件（TASKS 的注意事项）。
+4. **验证形态（预期）**：`pnpm package` + 手工安装冒烟（干净 Windows 用户），并把产物大小/
+   安装路径/卸载后工作区保留写入报告；不要为了“能打包”放宽 Electron 安全选项。
+
+### 0.12 T6.3 结果（2026-10-30 完成）
+
+1. 交付：`renderer/plugins/builtins.ts`（内置贡献注册：5 种字段类型 id = 存储类型、
+   `builtin.csv`/`builtin.json`、line/scatter/bar）、`log.ts`（200 条环形日志）、`errors.ts`
+   （2s 去重 + 事件）、`labels.ts`（来源后缀）、`use-plugin-snapshot.ts`（只在表面打开时订阅）、
+   `features/plugins/PluginManagerDialog.tsx`（状态/贡献数/错误/日志 + 禁用启用）、
+   `formatFieldCell`/插件命令/插件导入器的错误边界、`ImportOpenPayload.format`（内置导入器强制
+   Worker 解析器）、命令面板合并插件命令 + `app.plugins` 命令、`@curve/ui` toast 跟进动作。
+2. 实测：`pnpm verify` **195 files / 1811 tests**；depcruise 529 modules / 2297 deps / 0 violations；
+   coverage statements 77.13% / branches 69.82% / functions 76.51% / lines 77.28%；
+   `pnpm build` exit 0（renderer **3,469.35 kB**、CSS 81.34 kB、main 338.76 kB）；
+   定向 e2e `plugin-ui.spec.ts` **3 passed**（11.1s）；全量 e2e **110 passed**（≈7.0m）；
+   `pnpm bench` exit 0。
+3. **不要回退**：内置 id（= 存储类型）与 `builtin.csv`/`builtin.json`；语义下拉只列插件类型
+   （`fieldTypeId` 永不写内置 id）；来源后缀 `plugins.optionSource`；`reportPluginError` 的去重/
+   环形日志/事件；插件管理器 testid（`open-plugins`、`plugin-manager`、`plugin-row-<id>`、
+   `data-plugin-status`、`plugin-toggle-<id>`、`plugin-log`、`plugin-log-entry`）；会话级禁用
+   （不写 `settings.json`）；导入向导在插件失败后仍显示导入器下拉。
+4. 提交：`feat(plugin): wire plugin UI and isolate failures (T6.3)`（hash 见
+   `git log -1 -- docs/HANDOFF.md`）。
+5. 残留：禁用不持久化；插件图表预设不能在检查器回显（`ChartSpec` 无预设字段）；插件文案/命令
+   label 不本地化；插件导入大文件仍在渲染进程规划；错误 toast 2s 去重窗口。详见报告 §6 与
+   ADR-054“复核条件”。
 
 ---
 
@@ -391,14 +412,15 @@
 | `T6.0` 品牌更名 | **已完成**（2026-10-29）；`docs/reports/t6.0/REPORT.md`；ADR-051；默认目录 `Documents/Curve Almanac` |
 | `T6.1` 插件 SDK 与注册表 | **已完成**（2026-10-29）；`docs/reports/t6.1/REPORT.md`；ADR-052；`packages/plugin-sdk` 26 条单测 |
 | `T6.2` 示例插件 | **已完成**（2026-10-30）；`docs/reports/t6.2/REPORT.md`；ADR-053；`plugins/plugin-sample` 29 条单测 + 3 条 E2E |
-| 当前里程碑 | **M6 扩展与发布**：`T6.0`/`T6.1`/`T6.2` 已完成；`T6.3`–`T6.5` 尚未开始 |
-| 下一步 | 等用户明确指示后领取 **`T6.3`**（插件接入 UI 与隔离）；**不要自动开始** |
-| `pnpm verify` 基线 | **188 files / 1761 tests**；ESLint 0；depcruise 514 modules / 2209 deps / 0 violations |
-| `pnpm test:coverage` 基线 | 全局 statements **77.11%** / branches **69.95%** / functions **76.23%** / lines **77.25%**；`plugins/plugin-sample/src` lines **97.64%**；阈值 70/60 未下调 |
-| `pnpm e2e` 基线 | **107 passed**（6.5m；含 T6.2 3 条 13.0s、M5 1 条 20.2s）；chart-perf 100k 切换单独复跑 privatePeak **505 / 516MB**（≤600MB；全量通过） |
-| `pnpm bench` 基线 | **exit 0**；table.open 486ms/3s、table.save 365ms/500ms、edit 0ms/50ms、query 183ms/400ms、text-sort 315ms/400ms、cjk-sort 575ms/800ms、import 890ms/8s、condition 1ms/16ms；chart.resolve-sample P95 **58ms**/300ms、chart.sample 2ms/50ms、chart.option.2k 0ms/50ms、chart.restyle.100k 0ms/20ms；memoryPeakMB 923（Node 趋势，非应用门禁） |
+| `T6.3` 插件接入 UI 与隔离 | **已完成**（2026-10-30）；`docs/reports/t6.3/REPORT.md`；ADR-054；内置注册 + 来源标识 + 错误隔离 + 插件管理器；`plugin-ui.spec.ts` 3 条 |
+| 当前里程碑 | **M6 扩展与发布**：`T6.0`/`T6.1`/`T6.2`/`T6.3` 已完成；`T6.4`–`T6.5` 尚未开始 |
+| 下一步 | 等用户明确指示后领取 **`T6.4`**（安装包与发布配置）；**不要自动开始** |
+| `pnpm verify` 基线 | **195 files / 1811 tests**；ESLint 0；depcruise 529 modules / 2297 deps / 0 violations |
+| `pnpm test:coverage` 基线 | 全局 statements **77.13%** / branches **69.82%** / functions **76.51%** / lines **77.28%**；`renderer/plugins` lines **94.44%**、`features/plugins` lines **86.84%**、`plugins/plugin-sample/src` lines 97.64%；阈值 70/60 未下调 |
+| `pnpm e2e` 基线 | **110 passed**（6.7m；含 T6.3 `plugin-ui` 3 条 11.1s、T6.2 3 条 12.9s、M5 1 条 20.2s）；chart-perf 100k 切换本次全量 privatePeak **591MB**（门禁 600MB；该场景在本机波动 509–608MB，T6.3 的 A/B 复核见报告 §4） |
+| `pnpm bench` 基线 | **exit 0**；table.encode 360ms/1500、table.decode 650ms/3000、table.open 582ms/3000、table.save 401ms/500、edit 0ms/50、query 217ms/400、text-sort 364ms/400、cjk-sort 587ms/800、condition 1ms/16、import 925ms/8s；chart.resolve-sample P95 **60ms**/300、chart.sample 2ms/50、chart.option.2k 1ms/50、chart.restyle.100k 0ms/20；memoryPeakMB 944（Node 趋势，非应用门禁） |
 | `pnpm format:check` | 通过（提交前对新增文件跑过 Prettier） |
-| 构建 | `pnpm build` exit 0；renderer **3,394.50 kB** + 懒加载 ImportSession 87.80 kB；CSS **77.89 kB**；main 338.76 kB；table/query/import worker 220.68/236.16/270.16 kB（T6.4 评估拆包） |
+| 构建 | `pnpm build` exit 0；renderer **3,469.35 kB**；CSS **81.34 kB**；main 338.76 kB；`ImportSession` 懒加载；table/query/import worker 220.68/236.16/270.54 kB（T6.4 评估拆包） |
 | 夹具 | `fixtures/workspaces/{v1-min,corrupt-manifest,future-version,stale-lock}/`；`fixtures/csv/{small,quoted,types,bad-rows}.csv`；`fixtures/json/points.json`；`fixtures/csv/gbk-100k.csv` 与 `bench/.fixtures/100k-workspace/` 由脚本生成、gitignore |
 
 **用户明确要求**：
@@ -406,9 +428,9 @@
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
 - **M1/M2/M3/M4/M5 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6、M4 验收演示、
-  T5.1–T5.5、M5 验收演示、T6.0 品牌更名、T6.1 插件 SDK/注册表与 T6.2 示例插件已完成**；M5 已
-  关闭，M6 的 `T6.3`–`T6.5` 未开始。
-- 不得跨任务/里程碑；**`T6.3` 必须等用户明确指示后再开始**，不要自动领取 M6 任务。
+  T5.1–T5.5、M5 验收演示、T6.0 品牌更名、T6.1 插件 SDK/注册表、T6.2 示例插件与 T6.3 插件接入
+  UI 与隔离已完成**；M5 已关闭，M6 的 `T6.4`–`T6.5` 未开始。
+- 不得跨任务/里程碑；**`T6.4` 必须等用户明确指示后再开始**，不要自动领取 M6 任务。
 
 ---
 
@@ -417,15 +439,15 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md（尤其 §0.3/§0.10）、docs/TASKS.md 的 M5/M6、
-docs/reports/m5/REPORT.md、docs/reports/t6.0/REPORT.md、docs/reports/t6.1/REPORT.md、
-docs/reports/t6.2/REPORT.md、docs/SPEC.md §14、ADR-053/052/051/050/048。
+先读 AGENTS.md、docs/HANDOFF.md（尤其 §0.3/§0.12）、docs/TASKS.md 的 M6、
+docs/reports/t6.3/REPORT.md、docs/reports/t6.2/REPORT.md、docs/reports/t6.1/REPORT.md、
+docs/reports/t6.0/REPORT.md、docs/SPEC.md §14、ADR-054/053/052/051/050/048。
 
 现状：M0–M5（均已验收）、T1.1–T4.6、T5.1–T5.5、M5 验收演示、T6.0 品牌更名（Curve Almanac）、
-T6.1 插件 SDK/注册表与 T6.2 示例插件已完成；M5 已于 2026-10-29 关闭；M6 的 T6.3–T6.5 未开始。
-pnpm verify 188 files / 1761 tests、pnpm e2e 全量见 HANDOFF §0.10、pnpm bench exit 0。
+T6.1 插件 SDK/注册表、T6.2 示例插件与 T6.3 插件接入 UI 与隔离已完成；M5 已于 2026-10-29 关闭；
+M6 的 T6.4–T6.5 未开始。pnpm verify 195 files / 1811 tests、pnpm e2e 110 passed、pnpm bench exit 0。
 
-下一步：等待用户明确指示后再开始 M6 剩余任务（下一个是 T6.3，插件接入 UI 与隔离）。
+下一步：等待用户明确指示后再开始 M6 剩余任务（下一个是 T6.4，安装包与发布配置）。
 不要自动领取 M6 任务，一次只推进一个任务。
 ```
 
@@ -826,6 +848,26 @@ T4.6 又在根 `package.json` 的 devDependencies 增加了 `@curve/chart-echart
   改回单 pane 的 `editCell` helper。
 - M5 证据在 `docs/reports/m5/`（7 张 PNG + `m5-metrics.json`）；`m5-metrics.json` 的
   `baseDepth=3`（复制视图+分栏+移动）、`editDepth=8`、`recoveredValue=200` 是重跑时的对照值。
+- T6.3 的 E2E 契约：`data-testid="open-plugins"`（标题栏）、`plugin-manager`、`plugin-row-<id>`
+  （`data-plugin-status` = `pending|active|inactive|disabled`）、`plugin-toggle-<id>`、
+  `plugin-log`/`plugin-log-entry`/`plugin-log-empty`、错误 toast 的 `.cs-toast` 与
+  “查看插件日志”按钮；`data-command-source`（命令面板 `plugin|builtin`）。
+- T6.3 的插件管理器关闭按钮与标题栏“关闭工作区”都能匹配 `getByRole('button', { name: '关闭' })`
+  （子串匹配）：请用 `manager.getByRole('button', { name: '关闭', exact: true }).last()`。
+- T6.3 的导入向导在插件导入器失败后**仍显示导入器下拉**（可切回内置解析器）；只有“首次内置打开
+  失败、尚无会话”时才不显示。`points-invalid.json` 是“合法 JSON 行数组 + 非法点坐标”的夹具，
+  auto 解析成功、示例导入器抛 `E_IMPORT_FORMAT`；同一路径可用 `writeImportFixtureFile` 改写内容
+  再做第二次导入。
+- T6.3 的 `plugin.spec.ts` 断言随来源后缀改为 `toContainText('Rating')` + `toContainText('Sample')`；
+  不要改回 `toHaveText('Rating')`。
+- T6.3 的 `apps/desktop/test/plugin-contributions.test.ts` 会扫描 `apps/desktop/src/renderer`：
+  除 `plugins/builtins.ts` 外不得出现 `COLUMN_TYPES`、`['line','scatter','bar']` 或
+  `readonly ChartKind[] = [`；内置/插件贡献 id 只允许出现在 `plugins/builtins.ts` 与插件包。
+- T6.3 的组件测试要先 `await activateRendererPlugins()`（`beforeAll`），否则存储类型/图表类型
+  下拉为空；`PluginManagerDialog.test.tsx` 会真实禁用/重新启用示例插件，不要在同一文件里留下
+  禁用状态。
+- T6.3 的 toast 动作是 `@curve/ui` 的 `ToastMessage.action`；`push(tone, text, action?)` 的第三个
+  参数可选，其余调用不受影响。
 
 ---
 
@@ -1896,6 +1938,64 @@ runPluginImport({ importer, bytes, fileName, locale, signal }):
   导入向导 `data-testid="import-importer"`、列行 `data-field-type`。
 - 详情：ADR-053、`docs/reports/t6.2/REPORT.md`；测试 `plugins/plugin-sample` 3 files / 29 tests、
   `e2e/plugin.spec.ts` 3 条。
+
+### 4.29 内置贡献注册、插件快照与错误隔离（T6.3）
+
+```ts
+// apps/desktop/src/renderer/plugins/builtins.ts
+BUILTIN_COLUMN_TYPES = ['text','number','date','boolean','enum'];
+BUILTIN_FIELD_TYPES: readonly FieldTypeDef[];          // id = storageType
+BUILTIN_CSV_IMPORTER_ID = 'builtin.csv';
+BUILTIN_JSON_IMPORTER_ID = 'builtin.json';
+builtinCsvImporter / builtinJsonImporter: ImporterDef; // parse 复用 table-engine
+BUILTIN_CHART_KINDS: readonly ChartKindDef[];          // line/scatter/bar
+builtinImporterFormat(importerId): 'csv' | 'json' | undefined;
+registerBuiltinContributions(host): void;              // 宿主视图 = builtin owner
+
+// apps/desktop/src/renderer/plugins/index.ts（新增/扩展）
+listChartKinds(): readonly RegistryEntry<ChartKindDef>[];
+listPluginCommands(): readonly RegistryEntry<CommandDef>[];
+findChartKind(id) / findPluginCommand(id) / findFieldTypeEntry(id) / findImporterEntry(id);
+getPluginStates(): readonly PluginState[];
+pluginNameFor(pluginId: string): string;
+reportContributionError(source, error): void;          // 统一归属 + 日志 + 事件
+setPluginEnabled(pluginId, enabled): Promise<PluginState>;   // 会话级
+readPluginSnapshot(): PluginSnapshot;                  // 四个注册表 + plugins
+subscribePluginChanges(listener): () => void;          // 四注册表 + 状态总线
+runPluginCommand(entry, execute): Promise<void>;       // PluginCommandContext + 错误隔离
+
+// apps/desktop/src/renderer/plugins/{log,errors,labels,use-plugin-snapshot}.ts
+MAX_PLUGIN_LOG_ENTRIES = 200;
+appendPluginLog / listPluginLog / subscribePluginLog / clearPluginLog;
+createRingPluginLogger(write?) / createPrefixedPluginLogger(prefix);
+PLUGIN_ERROR_DEDUPE_MS = 2_000;
+reportPluginError({ pluginId, pluginName, error }) / subscribePluginErrors(listener);
+contributionLabel / fieldTypeOptionLabel / importerOptionLabel / chartKindOptionLabel /
+pluginNameOfSource / pluginDisplayName;
+usePluginSnapshot(enabled) / usePluginLog(enabled);
+
+// apps/desktop/src/renderer/features/plugins/PluginManagerDialog.tsx
+PluginManagerDialog({ open, focus: { section: 'plugins' | 'log' }, onClose });
+
+// apps/desktop/src/renderer/import/worker-protocol.ts（内部协议，非 IPC）
+ImportFormatHint = 'auto' | 'csv' | 'json';
+ImportOpenPayload { bytes; fileName; format?: ImportFormatHint }
+
+// packages/ui/src/Toast.tsx
+ToastAction { label: string; onSelect(): void };
+ToastMessage.action?: ToastAction;   ToastController.push(tone, text, action?);
+```
+
+- **内置注册先于插件**：`activateRendererPlugins()` 先注册内置再 `activateAll()`；`list()` 内置在前
+  （SPEC §14.3 顺序）。内置字段类型 id 就是存储类型，插件不能占用；`fieldTypeId` 只写插件类型。
+- **四类选择器只读注册表**：列对话框（存储类型/语义类型，删除 `COLUMN_TYPES`）、导入向导
+  （删除“自动即内置”的隐式分支）、图表向导/检查器（删除 `KINDS`）、命令面板（`listPluginCommands`）。
+- **快照订阅**：`usePluginSnapshot(enabled)` 只在表面打开时订阅；`ChartInspector` 每次渲染读
+  `listChartKinds()`（只列内置）。不要改成 AppShell/全局常驻订阅（T5.4/T4.6 性能约束）。
+- **错误隔离**：格式化失败回退存储格式化；插件导入失败保留文件与下拉；插件命令失败不改文档；
+  三条路径都 `reportPluginError`（2s 去重 + 200 条环形日志 + 事件 → toast）。
+- **禁用语义**：宿主 `deactivate`/`activate`，会话级；`activate` 也可用于重试 `disabled` 插件。
+- **详情**：ADR-054、`docs/reports/t6.3/REPORT.md`；测试 `plugin-ui.spec.ts` 3 条、单测见报告 §3。
 
 ---
 

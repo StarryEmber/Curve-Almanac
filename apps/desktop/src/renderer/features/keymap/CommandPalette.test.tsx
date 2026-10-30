@@ -23,6 +23,7 @@ function item(overrides: Partial<PaletteCommandItem> = {}): PaletteCommandItem {
     shortcuts: ['Ctrl/Cmd+Z'],
     reason: null,
     recentRank: null,
+    fromPlugin: false,
     ...overrides,
   };
 }

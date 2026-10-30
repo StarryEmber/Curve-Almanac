@@ -16,7 +16,12 @@ export const IMPORT_FIXTURE_DIR = join(
 );
 
 export type ImportFixtureName =
-  'gbk-100k.csv' | 'gbk-small.csv' | 'rows-150k.csv' | 'rows-200001.csv' | 'points.json';
+  | 'gbk-100k.csv'
+  | 'gbk-small.csv'
+  | 'rows-150k.csv'
+  | 'rows-200001.csv'
+  | 'points.json'
+  | 'points-invalid.json';
 
 function csvLine(values: readonly (string | number | boolean)[]): string {
   return values
@@ -65,6 +70,18 @@ function utf8Csv(rows: number): string {
 }
 
 /**
+ * Writes arbitrary content to a named fixture path (T6.3). The launch fixture
+ * pins one import path, so a test can change what the next import reads without
+ * relaunching the app.
+ */
+export function writeImportFixtureFile(name: ImportFixtureName, content: string): string {
+  mkdirSync(IMPORT_FIXTURE_DIR, { recursive: true });
+  const path = join(IMPORT_FIXTURE_DIR, name);
+  writeFileSync(path, content, 'utf8');
+  return path;
+}
+
+/**
  * Creates one large import fixture on demand, inside the import test that needs
  * it. It deliberately does **not** run in the worker fixture: generating a
  * 100k file in that process left memory/GC pressure that pushed the independent
@@ -91,6 +108,14 @@ export function prepareImportFile(name: ImportFixtureName): string {
       ]),
       'utf8',
     );
+    return path;
+  }
+  if (name === 'points-invalid.json') {
+    // Valid JSON and a valid row-array for the builtin parser, but the `x`
+    // coordinate is not a finite number, so the plugin importer rejects it. That
+    // is the T6.3 isolation case: the builtin preview succeeds, selecting the
+    // plugin importer fails, and nothing else breaks.
+    writeFileSync(path, JSON.stringify([{ x: 'nope', y: 2 }]), 'utf8');
     return path;
   }
   if (!existsSync(path)) {

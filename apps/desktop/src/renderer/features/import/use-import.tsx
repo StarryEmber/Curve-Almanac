@@ -16,7 +16,10 @@ import { useRendererCore } from '../../app-core/use-app-core';
 import { describeAppError } from '../../error-text';
 import { useI18n } from '../../i18n';
 import { createImportWorkerClient } from '../../import/client';
-import { findImporter, listImporters } from '../../plugins';
+import { findImporter, findImporterEntry, reportContributionError } from '../../plugins';
+import { builtinImporterFormat } from '../../plugins/builtins';
+import { importerOptionLabel } from '../../plugins/labels';
+import { usePluginSnapshot } from '../../plugins/use-plugin-snapshot';
 
 import { buildImportErrorCsv, importErrorFileName } from './import-error-csv';
 import { ImportWizardDialog } from './ImportWizardDialog';
@@ -26,6 +29,7 @@ import type { ImportPlanView } from './import-plan-view';
 import type { ImportWorkerClient } from '../../import/client';
 import type { ImportEncodingChoice } from '../../import/encoding';
 import type {
+  ImportFormatHint,
   ImportPlanPayload,
   ImportPreview,
   ImportWorkerCallResult,
@@ -66,6 +70,13 @@ function planInRenderer(
   }
 }
 
+interface SessionImporter {
+  id: string;
+  label: string;
+  /** T6.3: builtin parsers run in the Worker, plugin parsers in the renderer. */
+  source: 'builtin' | 'plugin';
+}
+
 interface Session {
   tableId: string;
   token: string;
@@ -78,8 +89,8 @@ interface Session {
   preview: ImportPreview;
   /** Last Worker preview; restored when a plugin importer is cleared again. */
   builtinPreview: ImportPreview;
-  /** Selected plugin importer (T6.2), or null for the builtin Worker path. */
-  importer: { id: string; label: string } | null;
+  /** Selected importer (T6.3: builtin or plugin), or null for auto-detection. */
+  importer: SessionImporter | null;
   /** Dataset produced by the plugin importer; planned in the renderer. */
   dataset: ParsedImportData | null;
   encoding: ImportEncodingChoice;
@@ -147,6 +158,9 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
   const [error, setError] = useState<string | null>(null);
   const [replaceConfirmed, setReplaceConfirmed] = useState(false);
   const [largeConfirmed, setLargeConfirmed] = useState(false);
+  // T6.3: the importer list is the plugin host registry; the subscription only
+  // exists while the wizard is open (T5.4 performance rule).
+  const pluginSnapshot = usePluginSnapshot(open);
   const clientRef = useRef<ImportWorkerClient | null>(null);
   const pluginAbortRef = useRef<AbortController | null>(null);
   const planRef = useRef<ImportPlan | null>(null);
@@ -316,7 +330,7 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
           return;
         }
         setSession((previous) =>
-          previous === null || previous.importer !== null
+          previous === null || previous.dataset !== null
             ? previous
             : {
                 ...previous,
@@ -338,11 +352,75 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
   );
 
   /**
-   * Switches between the builtin Worker parser and a plugin importer (T6.2).
+   * Re-opens the file in the Worker with a forced builtin parser (T6.3).
    *
-   * Plugin importers are renderer modules, so they get the decoded text and the
-   * resulting dataset is planned in the renderer; the builtin path keeps using
-   * the Worker. `null` restores the Worker preview of the same file.
+   * `auto` restores the T2.5 sniffing; `csv`/`json` come from the builtin
+   * importer registry entry the user selected. The Worker takes the bytes by
+   * transfer, so each call sends a fresh copy of the bytes kept on the session.
+   */
+  const reopenBuiltin = useCallback(
+    (importerId: string | null): void => {
+      const current = session;
+      const client = clientRef.current;
+      if (current === null || client === null || busy) {
+        return;
+      }
+      const format: ImportFormatHint =
+        importerId === null ? 'auto' : (builtinImporterFormat(importerId) ?? 'auto');
+      const entry = importerId === null ? undefined : findImporterEntry(importerId);
+      const generation = generationRef.current;
+      setBusy(true);
+      setBusyLabel(t('import.busy.parsing'));
+      setError(null);
+      void (async () => {
+        const opened = await client.open(new Uint8Array(current.bytes), current.name, format);
+        if (generation !== generationRef.current) {
+          return;
+        }
+        setBusy(false);
+        setBusyLabel(null);
+        if (!opened.ok) {
+          setError(describeAppError(opened.error, t));
+          return;
+        }
+        const preview = opened.result;
+        setSession((previous) =>
+          previous === null
+            ? previous
+            : {
+                ...previous,
+                importer:
+                  importerId === null
+                    ? null
+                    : {
+                        id: importerId,
+                        label: entry?.def.label ?? importerId,
+                        source: 'builtin',
+                      },
+                dataset: null,
+                preview,
+                builtinPreview: preview,
+                encoding: 'auto',
+                ...(preview.delimiter === undefined
+                  ? { delimiter: undefined }
+                  : { delimiter: preview.delimiter }),
+                hasHeader: preview.hasHeader,
+              },
+        );
+        invalidatePlan();
+      })();
+    },
+    [busy, invalidatePlan, session, t],
+  );
+
+  /**
+   * Switches between the builtin Worker parsers and a plugin importer (T6.3).
+   *
+   * Builtin registry entries force the Worker's parser; plugin entries decode
+   * and run in the renderer, so their dataset is planned inline. A failing plugin
+   * importer only loses that import attempt: the wizard shows the localised
+   * error and the plugin is named in a toast (with the log jump), while switching
+   * back to the builtin importer keeps working.
    */
   const selectImporter = useCallback(
     (importerId: string | null): void => {
@@ -354,18 +432,23 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
       pluginAbortRef.current = null;
 
       if (importerId === null) {
-        setError(null);
-        setSession({
-          ...current,
-          importer: null,
-          dataset: null,
-          preview: current.builtinPreview,
-          hasHeader: current.builtinPreview.hasHeader,
-          ...(current.builtinPreview.delimiter === undefined
-            ? { delimiter: undefined }
-            : { delimiter: current.builtinPreview.delimiter }),
-        });
-        invalidatePlan();
+        reopenBuiltin(null);
+        return;
+      }
+
+      const entry = findImporterEntry(importerId);
+      if (entry === undefined) {
+        setError(
+          describeAppError(
+            createAppError('E_PLUGIN_INVALID', `Unknown importer "${importerId}".`),
+            t,
+          ),
+        );
+        return;
+      }
+
+      if (entry.source.kind === 'builtin') {
+        reopenBuiltin(importerId);
         return;
       }
 
@@ -402,6 +485,12 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
         setBusyLabel(null);
         if (!outcome.ok) {
           setError(describeAppError(outcome.error, t));
+          if (
+            outcome.error.code !== 'E_IMPORT_ENCODING' &&
+            outcome.error.code !== 'E_IMPORT_ABORTED'
+          ) {
+            reportContributionError(entry.source, outcome.error);
+          }
           return;
         }
         setSession((previous) =>
@@ -412,6 +501,7 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
                 importer: {
                   id: outcome.session.importerId,
                   label: outcome.session.importerLabel,
+                  source: 'plugin',
                 },
                 dataset: outcome.session.dataset,
                 preview: outcome.session.preview,
@@ -423,7 +513,7 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
         invalidatePlan();
       })();
     },
-    [busy, invalidatePlan, locale, session, t],
+    [busy, invalidatePlan, locale, reopenBuiltin, session, t],
   );
 
   const initializeMapping = useCallback((): void => {
@@ -741,7 +831,11 @@ export function useImport(options: UseImportOptions = {}): UseImportResult {
   // The plugin registry is only read while the wizard is open (T5.4 performance
   // rule: closed panels must not subscribe to registries/stores).
   const importers = open
-    ? listImporters().map((entry) => ({ id: entry.id, label: entry.def.label }))
+    ? pluginSnapshot.importers.map((entry) => ({
+        id: entry.id,
+        label: importerOptionLabel(entry, pluginSnapshot.plugins, t),
+        source: entry.source.kind,
+      }))
     : [];
 
   return {

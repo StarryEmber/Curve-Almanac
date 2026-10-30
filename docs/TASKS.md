@@ -1702,9 +1702,9 @@ T6.2 + T2.5 + T3.2 → T6.3
 <a id="m6"></a>
 ## M6 扩展与发布
 
-> 状态（2026-10-30）：`T6.0`（品牌更名 Curve Almanac）、`T6.1`（插件 SDK 与注册表）与 `T6.2`
-> （示例插件）已完成（ADR-051、ADR-052、ADR-053；报告 `docs/reports/t6.0/REPORT.md`、
-> `docs/reports/t6.1/REPORT.md`、`docs/reports/t6.2/REPORT.md`）；`T6.3`–`T6.5` 尚未开始。
+> 状态（2026-10-30）：`T6.0`（品牌更名 Curve Almanac）、`T6.1`（插件 SDK 与注册表）、`T6.2`
+> （示例插件）与 `T6.3`（插件接入 UI 与隔离）已完成（ADR-051、ADR-052、ADR-053、ADR-054；
+> 报告 `docs/reports/t6.0/REPORT.md`、`t6.1`、`t6.2`、`t6.3`）；`T6.4`–`T6.5` 尚未开始。
 
 <a id="t60"></a>
 ### T6.0 品牌更名：Curve Almanac
@@ -1844,7 +1844,7 @@ T6.2 + T2.5 + T3.2 → T6.3
 
 <a id="t63"></a>
 ### T6.3 插件接入 UI 与隔离
-- 状态：`[ ]`
+- 状态：`[x]`
 - 依赖：T6.2、T2.5、T3.2
 - 覆盖：FR-EXT-01、FR-EXT-02
 - 参考：SPEC §14.3
@@ -1857,10 +1857,39 @@ T6.2 + T2.5 + T3.2 → T6.3
   2. 插件贡献的菜单项加来源标识。
   3. 错误 toast 带插件名，可跳日志。
 - 验收：
-  - [ ] 移除示例插件后 UI 不残留其选项。
-  - [ ] 插件抛错只影响自身，其他功能正常。
-  - [ ] 所有贡献点从注册表读取（grep 无硬编码）。
+  - [x] 移除示例插件后 UI 不残留其选项。
+  - [x] 插件抛错只影响自身，其他功能正常。
+  - [x] 所有贡献点从注册表读取（grep 无硬编码）。
 - 验证：`pnpm e2e -- --grep "plugin-ui"`
+
+  实现备注（2026-10-30，ADR-054）：
+  - 内置贡献：`apps/desktop/src/renderer/plugins/builtins.ts` 在插件激活前把 5 种字段类型
+    （id = 存储类型名）、`builtin.csv`/`builtin.json` 导入器、line/scatter/bar 图表类型注册进宿主；
+    列对话框的存储类型/语义类型、导入向导的导入器、图表向导与检查器的类型列表都只读注册表。
+    `COLUMN_TYPES` 与 `KINDS` 硬编码数组已删除；命令注册表只承载插件命令，内置命令目录仍是
+    `APP_COMMANDS`（T5.4 契约）。
+  - 内置导入器可选：`ImportOpenPayload.format`（`auto|csv|json`，渲染进程 ↔ Worker 内部协议）
+    强制 Worker 解析器；插件导入器仍在渲染进程执行（ADR-053），失败后保留文件并继续显示导入器
+    下拉，可切回内置解析器。
+  - 来源标识：插件选项追加 `（插件：<name>）`、命令面板条目带来源徽标与 `data-command-source`。
+  - 错误隔离：`formatFieldCell`/插件命令/插件导入器三处捕获抛错 → `reportPluginError`（2s 去重、
+    200 条内存环形日志）→ Shell 弹带插件名的 toast，动作为“查看插件日志”（打开插件管理器并聚焦
+    日志区）。`@curve/ui` 的 `ToastMessage` 增加可选 `action`。
+  - 禁用入口：标题栏“插件”按钮与命令面板 `app.plugins` 打开插件管理器；每行显示状态/版本/API/
+    贡献数量/错误，可禁用/启用。禁用调用宿主 `deactivate`（会话级，不写 `settings.json`/manifest）。
+  - 刷新：`usePluginSnapshot(enabled)` 订阅四个注册表的 `subscribe` + 插件状态变化，只在表面打开时
+    订阅；`ChartInspector` 每次渲染读 `listChartKinds()`（只列内置）。
+  - 插件命令：面板打开时合并 `listPluginCommands()`，执行时构造 `PluginCommandContext`
+    （`log` 写环形日志、`execute` 派发 `core.commands.dispatch`），抛错只弹 toast。
+  - 测试：`plugins/{builtins,log,errors,labels,use-plugin-snapshot,index}.test` 新增/扩展，
+    `features/plugins/PluginManagerDialog.test.tsx`、`features/columns|charts|import|keymap` 的
+    定向补充，`apps/desktop/test/plugin-contributions.test.ts`（源码扫描：无硬编码贡献列表 +
+    四个贡献点都读注册表 + 贡献 id 唯一来源）；`apps/desktop/e2e/plugin-ui.spec.ts` 3 条
+    （禁用/启用刷新 3.9s、插件抛错隔离与日志跳转 3.6s、200% 缩放键盘 2.6s，合计 11.1s）。
+  - 实测（见报告 §4）：`pnpm verify` **195 files / 1811 tests**；depcruise 528 modules / 2290 deps /
+    0 violations；`pnpm build` exit 0（renderer 3,469.35 kB、CSS 81.34 kB）；定向 e2e **3 passed**。
+  - 残留：禁用不持久化；插件图表预设不能在检查器回显（`ChartSpec` 无预设字段）；插件文案/命令
+    标签不本地化；插件导入仍在大文件时走主线程规划（ADR-053 复核条件）。
 
 <a id="t64"></a>
 ### T6.4 安装包与发布配置

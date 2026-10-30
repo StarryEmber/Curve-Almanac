@@ -7,10 +7,12 @@ import { useQuitGuard } from '../app-core/use-quit-guard';
 import { describeAppError } from '../error-text';
 import { CommandPalette } from '../features/keymap/CommandPalette';
 import { useCommandKeymap } from '../features/keymap/use-command-keymap';
+import { PluginManagerDialog } from '../features/plugins/PluginManagerDialog';
 import { SettingsDialog } from '../features/settings/SettingsDialog';
 import { WelcomePage } from '../features/workspace/WelcomePage';
 import { WorkspaceView } from '../features/workspace/WorkspaceView';
 import { useI18n } from '../i18n';
+import { subscribePluginErrors } from '../plugins';
 
 import { HelpDialog } from './HelpDialog';
 import { Inspector } from './Inspector';
@@ -20,6 +22,7 @@ import { TitleBar } from './TitleBar';
 import { useRuntimeInfo } from './use-runtime-info';
 
 import type { AppError } from '../../shared/contracts/ipc';
+import type { PluginManagerFocus } from '../features/plugins/PluginManagerDialog';
 import type { ReactElement } from 'react';
 
 /**
@@ -38,6 +41,10 @@ export function AppShell(): ReactElement {
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pluginManager, setPluginManager] = useState<{
+    open: boolean;
+    focus: PluginManagerFocus;
+  }>({ open: false, focus: { section: 'plugins' } });
   const reportedRuntimeError = useRef<AppError | null>(null);
   const reportedAppError = useRef<AppError | null>(null);
   const commandKeymap = useCommandKeymap({
@@ -54,6 +61,9 @@ export function AppShell(): ReactElement {
     },
     onOpenSettings: () => {
       setSettingsOpen(true);
+    },
+    onOpenPlugins: () => {
+      setPluginManager({ open: true, focus: { section: 'plugins' } });
     },
   });
 
@@ -76,6 +86,31 @@ export function AppShell(): ReactElement {
     reportedAppError.current = appError;
     push('error', describeAppError(appError, t));
   }, [appError, push, t]);
+
+  // T6.3: a failing contribution names its plugin and offers the log. The
+  // subscription is a plain module listener (no document-store subscription),
+  // so the T5.4/T4.6 performance rules stay intact.
+  useEffect(
+    () =>
+      subscribePluginErrors((event) => {
+        const pluginName =
+          event.pluginName.length > 0 ? event.pluginName : t('plugins.sourceBuiltin');
+        push(
+          'error',
+          t('plugins.errorToast', {
+            plugin: pluginName,
+            message: describeAppError(event.error, t),
+          }),
+          {
+            label: t('plugins.errorToast.action'),
+            onSelect: () => {
+              setPluginManager({ open: true, focus: { section: 'log' } });
+            },
+          },
+        );
+      }),
+    [push, t],
+  );
 
   return (
     <div
@@ -102,6 +137,9 @@ export function AppShell(): ReactElement {
         }}
         onOpenSettings={() => {
           setSettingsOpen(true);
+        }}
+        onOpenPlugins={() => {
+          setPluginManager({ open: true, focus: { section: 'plugins' } });
         }}
       />
 
@@ -142,6 +180,16 @@ export function AppShell(): ReactElement {
           open
           onClose={() => {
             setSettingsOpen(false);
+          }}
+        />
+      ) : null}
+
+      {pluginManager.open ? (
+        <PluginManagerDialog
+          open
+          focus={pluginManager.focus}
+          onClose={() => {
+            setPluginManager((current) => ({ ...current, open: false }));
           }}
         />
       ) : null}

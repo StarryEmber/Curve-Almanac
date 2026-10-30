@@ -36,9 +36,14 @@ export interface ImportPreview {
   importerLabel?: string;
 }
 
+/** Explicit builtin parser selection; `auto` sniffs by file extension (T6.3). */
+export type ImportFormatHint = 'auto' | 'csv' | 'json';
+
 export interface ImportOpenPayload {
   bytes: Uint8Array;
   fileName: string;
+  /** T6.3: choosing the builtin CSV/TSV or JSON importer forces its parser. */
+  format?: ImportFormatHint;
 }
 
 export interface ImportConfigurePayload {
@@ -91,7 +96,11 @@ export function isImportWorkerRequest(value: unknown): value is ImportWorkerRequ
       return (
         payload['bytes'] instanceof Uint8Array &&
         typeof payload['fileName'] === 'string' &&
-        payload['fileName'].length > 0
+        payload['fileName'].length > 0 &&
+        (payload['format'] === undefined ||
+          payload['format'] === 'auto' ||
+          payload['format'] === 'csv' ||
+          payload['format'] === 'json')
       );
     case 'configure':
       return (

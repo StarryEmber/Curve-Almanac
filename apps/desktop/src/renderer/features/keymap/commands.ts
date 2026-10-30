@@ -35,6 +35,8 @@ export interface CommandHandlers {
   toggleInspector(): void;
   openHelp(): void;
   openSettings(): void;
+  /** T6.3: opens the plugin manager (plugin list + plugin log). */
+  openPlugins(): void;
   setTheme(mode: ThemeMode): void;
 }
 
@@ -65,6 +67,7 @@ export const PALETTE_ONLY_COMMAND_IDS = [
   'theme.dark',
   'theme.system',
   'app.settings',
+  'app.plugins',
 ] as const;
 
 function requireWorkspace(context: CommandContext): CommandAvailability | null {
@@ -107,6 +110,17 @@ export const APP_COMMANDS: readonly AppCommandDefinition[] = [
     isEnabled: (): CommandAvailability => ENABLED,
     run: (_context: CommandContext, handlers: CommandHandlers): void => {
       handlers.openSettings();
+    },
+  },
+  {
+    id: 'app.plugins',
+    labelKey: 'plugins.open',
+    shortcuts: [],
+    scopes: ['global'],
+    visibleInPalette: true,
+    isEnabled: (): CommandAvailability => ENABLED,
+    run: (_context: CommandContext, handlers: CommandHandlers): void => {
+      handlers.openPlugins();
     },
   },
   {

@@ -1,9 +1,12 @@
 import type { ColumnDraft } from '@curve/app-core';
-import type { ColumnDef, ColumnRole, ColumnType } from '@curve/domain';
+import type { ColumnDef, ColumnRole } from '@curve/domain';
 
-/** Storage types in the order the dialog lists them (SPEC §6.1). */
-export const COLUMN_TYPES: readonly ColumnType[] = ['text', 'number', 'date', 'boolean', 'enum'];
-
+/**
+ * T6.3: the storage types are the five builtin field types of the plugin host
+ * registry (SPEC §14.4); the dialog reads them from `listFieldTypes()` instead
+ * of a local list. This module keeps only the role list, which is not a plugin
+ * contribution point.
+ */
 export const COLUMN_ROLES: readonly ColumnRole[] = ['none', 'x', 'y', 'series', 'label'];
 
 /** Builds the editable form state from an existing column. */
