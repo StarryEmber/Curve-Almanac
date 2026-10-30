@@ -101,6 +101,14 @@ export function createLogger(sink: LogSink, options: LoggerOptions = {}): Logger
 }
 
 export function createConsoleLogger(options: LoggerOptions = {}): Logger {
+  return createLogger(createConsoleSink(), options);
+}
+
+/**
+ * Console sink shared by the console-only logger and the T6.6 composite logger
+ * (console + electron-log file). Keeps the existing `[main]` prefix contract.
+ */
+export function createConsoleSink(prefix = '[main]'): LogSink {
   const writers: Record<LogLevel, (line: string) => void> = {
     debug: (line) => {
       console.debug(line);
@@ -116,7 +124,7 @@ export function createConsoleLogger(options: LoggerOptions = {}): Logger {
     },
   };
 
-  return createLogger((level, line) => {
-    writers[level](`[main] ${line}`);
-  }, options);
+  return (level, line) => {
+    writers[level](`${prefix} ${line}`);
+  };
 }

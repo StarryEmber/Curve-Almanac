@@ -31,6 +31,7 @@ import { createImportTokenStore } from './import/import-token-store';
 import { registerIpcHandlers } from './ipc/handlers';
 import { createIpcRegistrar } from './ipc/register';
 import { createConsoleLogger } from './logger';
+import { createMainLogger } from './logging/main-log';
 import { buildMenuTemplate } from './menu';
 import { isNavigationAllowed } from './navigation';
 import { resolveFieldTypeStorage } from './plugins';
@@ -57,7 +58,7 @@ import type { MessageBoxOptions, OpenDialogOptions, SaveDialogOptions } from 'el
  */
 const isDev = !app.isPackaged && Boolean(process.env['ELECTRON_RENDERER_URL']);
 
-const logger = createConsoleLogger({ minLevel: isDev ? 'debug' : 'info' });
+let logger = createConsoleLogger({ minLevel: isDev ? 'debug' : 'info' });
 
 let mainWindow: BrowserWindow | null = null;
 /** Quit handshake state; created in `start()` before the window is shown. */
@@ -410,6 +411,10 @@ function createMainWindow(): BrowserWindow {
 
 async function start(): Promise<void> {
   await app.whenReady();
+
+  // T6.6 (SPEC §16.5): attach console + `userData/logs/main.log` after the E2E
+  // userData override has settled, but before settings/window/IPC can log.
+  logger = createMainLogger({ userDataDir: app.getPath('userData'), isDev });
 
   installNavigationGuards();
   installPermissionHandlers();

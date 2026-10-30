@@ -17,8 +17,8 @@
 | 插件图表 | 预设不能在检查器回显（`ChartSpec` 无预设 id） | 升级 schema + `formatVersion` 迁移 |
 | 导出 | CSV 用存储格式化，不套用语义字段显示格式 | 导出接 `formatFieldCell` 并补 E2E |
 | 界面 | main 原生对话框（关于/退出/恢复）仍英文 | main 侧 i18n，复用 `settings.json` 语言 |
-| 日志 | 主进程只写 console；无 `userData/logs/main.log`、无按天轮转/7 天保留；renderer 无全局 error 转发（NFR-06 未达标，ADR-056） | 引入 `electron-log`（推荐）或内置 fs 轮转器，并补 renderer 限流转发 |
-| 性能 | 100k 图表切换 private 峰值 509–608 MB（门禁 600 MB） | ADR-045 复核条件；先定位外部负载/GC |
+| 日志 | 按天归档但**跨天后首次写入**才轮转；单日无大小上限；无日志查看器/导出（T6.6，ADR-056） | 00:00 定时器或大小上限需补测试；日志查看器需新 UI/IPC |
+| 性能 | 100k 图表切换 private 峰值 509–639 MB（门禁 1GB，ADR-057；600MB 历史门禁余量仅 1.5–2.5%） | 环境受控后连续 3 次 <600MB 可降回（新 ADR）；持续 >1GB 时按 ADR-045 复核缓存/实例 |
 | 体积 | NSIS 112 MB / 解压 391 MB | 裁剪 locales/组件；保留 Chromium 许可证 |
 
 ## 2. v2 设想（按主题）

@@ -154,7 +154,7 @@
 > T4.6 覆盖性能部分（ADR-045）：`apps/desktop/e2e/chart-perf.spec.ts` 2 条——100k 采样图上
 > `data-chart-resolve-ms ≤ 300`、`data-chart-update-ms ≤ 200`、样式提交（调色板）不重新解析、
 > 10 次连点缩放无 >200ms 长任务；5 次映射切换 + 6 次标签切换后 `data-chart-instances = 1`、
-> 切换期间出现 loading（`data-chart-pending="true"`）、100k 图表工作区 private ≤600MB。
+> 切换期间出现 loading（`data-chart-pending="true"`）、100k 图表工作区 private ≤1GB（ADR-057）。
 > 纯管线四段耗时由 `pnpm bench -- --chart` 记录（解析+采样/纯采样/option/样式复用）。
 > M4 验收演示在 T4.6 完成后执行。
 
@@ -239,7 +239,7 @@
 > `apps/desktop/e2e/palette.spec.ts` 3 条覆盖上述步骤（实测 3.1s/3.4s/3.1s）。单测覆盖
 > `shortcut/keymap/command-search/recent-commands/commands/palette-model` 与
 > `CommandPalette.tsx`（75 条 keymap/App 用例）；全量 E2E 该任务后为 **99 passed**，
-> chart-perf 100k 切换 private **506MB**（≤600MB）。命令面板只在打开时挂载，AppShell 不订阅
+> chart-perf 100k 切换 private **506MB**（≤1GB，ADR-057）。命令面板只在打开时挂载，AppShell 不订阅
 > 文档 store，避免破坏 T4.6 的内存门禁（ADR-049 §5）。
 
 ### E12 最终九步验收（T6.5）
@@ -260,6 +260,21 @@
 > `apps/desktop/e2e/t6.5-acceptance.spec.ts` 1 条覆盖上述九步；两次启动 + 一次
 > `taskkill /F /T`，除只读 manifest/JSONL 断言外全部走真实 UI。截图与 `t6.5-metrics.json`
 > 归档在 `docs/reports/t6.5/`，结果见报告 §3/§4。九步演示与 M6 演示合并为同一次运行。
+
+### E13 日志落盘与渲染进程错误转发（T6.6）
+
+1. 启动真实打包前构建：`userData/logs/main.log` 出现，包含 main 的 `window ready` 行，
+   格式为 `[YYYY-MM-DD HH:mm:ss.SSS] [level] …`。
+2. renderer 抛出未捕获错误与未处理 rejection：文件出现 `[renderer]` 行，含错误 message；
+   不产生第二个文件/不写 workspace 内容。
+3. 启动前放置昨天的 `main.log`、2 天前与 8 天前的 `main-YYYY-MM-DD.log`：启动后昨天文件归档为
+   `main-YYYY-MM-DD.log` 且内容保留、2 天前保留、8 天前删除、新的 `main.log` 继续写入。
+4. 单测覆盖：跨本地午夜后的首次写入轮转、同日归档追加、7 天保留、非日志文件不删；
+   renderer 令牌桶 10 条/60 秒与桥故障。
+
+> `apps/desktop/e2e/logging.spec.ts` 2 条（1.5s/1.4s）+ `src/main/logging/log-files.test.ts`
+> 7 条 + `src/renderer/logging/error-reporting.test.ts` 7 条。报告 `docs/reports/t6.6/REPORT.md`；
+> SPEC §16.5、ADR-056（选项 B）。
 
 ---
 
@@ -305,7 +320,7 @@
 | 导入 100k CSV | ≤ 8s | E2E 计时 |
 | CSV 导出 100k | ≤ 5s，可取消 | E2E 计时（`export-csv.spec.ts`，实测 1,716ms） |
 | 粘贴 10k 单元格 | ≤ 1s（P95，软预算） | 单元基准/任务报告；T2.7 硬化 |
-| 内存峰值 | ≤ 600MB | `process.memoryUsage().heapUsed` + 手工核对 |
+| 内存峰值 | ≤ 1024MB（1GB，ADR-057） | `app.getAppMetrics()` 汇总 main + renderer + utility/worker 的 `privateBytes`（不含 GPU） |
 
 ### 5.2 基准脚本输出
 
@@ -365,7 +380,9 @@
 ## 7. 发布检查清单（T6.5）
 
 - [x] `pnpm verify`、`pnpm e2e`、`pnpm bench` 全绿，报告归档。
-  → 196 files / 1816 tests；111 passed（7.0m）；bench exit 0；见 `docs/reports/t6.5/REPORT.md` §2。
+  → T6.6：198 files / 1831 tests；全量 E2E 功能测试 111 passed（含 T6.5 九步 25.6s、
+  logging 2 条）；两条内存门禁 618–639MB 按 ADR-057 的 1GB 门禁记通过（用户指示未重跑）；
+  bench exit 0；见 `docs/reports/t6.5/REPORT.md` §2 与 `t6.6/REPORT.md` §4。
 - [x] README §6 九步演示一次通过（录屏/截图）。
   → `e2e/t6.5-acceptance.spec.ts` 1 条 26.2s；13 张 UI 截图 + 导出 PNG + metrics。
 - [x] SPEC §17 全部 FR 有证据链接。
@@ -377,9 +394,10 @@
   → `packaging.test.ts` 5 条；`appId=com.curvealmanac.app`、`0.1.0`、ICO 7 档、`license.txt`。
 - [x] 生产包无 DevTools、无测试钩子、无 source map（或仅内部）。
   → T6.4 smoke：asar 23 文件、无 `*.map`/dev 文件、`CURVE_E2E_*` 失效、DevTools 关闭。
-- [ ] 日志路径/滚动/保留天数符合 SPEC §16.5。
-  → **未达标**：仅 console；无 `userData/logs/main.log`、无按天轮转/7 天保留、无 renderer
-  全局 error 转发。见 `docs/adr/056-t65-log-file-deviation.md`（提议，待用户裁决）。
+- [x] 日志路径/滚动/保留天数符合 SPEC §16.5。
+  → T6.6 已实现：`userData/logs/main.log`、按天归档 `main-YYYY-MM-DD.log`、含今天保留 7 天、
+  renderer 全局 error/rejection 经 `log:write`（10 条/分钟）。`e2e/logging.spec.ts` 2 条 +
+  单测 14 条；见 `docs/reports/t6.6/REPORT.md` 与 ADR-056（已接受，选项 B）。
 - [x] 已知限制与 v2 路线写入 `docs/ROADMAP.md` 与发布说明。
   → `docs/ROADMAP.md`、README/MANUAL §已知限制。
 - [x] 回滚方案：保留上一版安装包与工作区迁移备份说明。
@@ -391,5 +409,7 @@ portable；`pnpm package:smoke` 在真实 Windows 上静默安装 → 启动已�
 工作区与 `%APPDATA%\Curve Almanac` 保留；`apps/desktop/test/packaging.test.ts` 锁定
 `appId`/`productName`/NSIS 每用户参数/文件白名单/图标与许可证。
 
-**T6.5 签字（2026-10-30）**：9 项中 7 项通过、1 项用户豁免、1 项未达标（日志落盘）。
-发布签字未完成，等用户对 ADR-056 选项裁决；M6 不自动关闭。详见 T6.5 报告 §6。
+**T6.5 签字（2026-10-30）**：9 项中 8 项通过、1 项用户豁免（干净机器复验）。T6.5 首轮发现的
+日志落盘缺口已由 **T6.6**（`electron-log`，ADR-056 选项 B）闭环，`e2e/logging.spec.ts` 与单测
+14 条通过；发布清单第 7 项已签字。内存门禁按用户决定提高到 **1GB**（ADR-057）；按用户指示未
+重跑全量/安装冒烟。M6 是否关闭仍等用户最终确认；详见 T6.5 报告 §6 与 T6.6 报告。

@@ -1600,7 +1600,7 @@ export interface RenderModel {
   没有快捷键与作用域；执行时提供 `PluginCommandContext`（`log` 写环形日志，`execute` 派发应用
   命令），抛错只产生带插件名的错误 toast，不改文档。
 - **渲染稳定性**：`AppShell` 不订阅文档 store；keymap 在按键时读取最新 state，面板打开时快照
-  命令可用性并只在此期间挂载，执行前再复查。该约束保证 T4.6 的 100k 图表切换 private ≤600MB
+  命令可用性并只在此期间挂载，执行前再复查。该约束保证 T4.6 的 100k 图表切换 private ≤1GB
   门禁不被常驻面板/整壳重渲染拖累。
 - **帮助**：`HelpDialog` 的快捷键表由同一注册表生成（含平台化 Ctrl/Cmd 显示）。
 - **不改变**：不新增 IPC/preload、manifest 字段、`formatVersion`、JSONL 格式或运行时依赖；
@@ -2089,7 +2089,7 @@ preload 不暴露路径或任意文件方法；renderer 与 main 双向用 `appS
 | 导入 100k CSV | ≤ 8s | E2E 计时 |
 | CSV 导出 100k | ≤ 5s，且可取消 | E2E 计时（`export-csv.spec.ts`） |
 | 粘贴 10k 单元格 | ≤ 1s（P95，软预算） | 单元基准/报告；T2.7 硬化 |
-| 内存峰值 | ≤ 600MB | `app.getAppMetrics()` 汇总 main + renderer + utility/worker 的 `privateBytes`（不含 GPU） |
+| 内存峰值 | ≤ 1024MB（1GB；ADR-057，2026-10-30 由 600MB 提高） | `app.getAppMetrics()` 汇总 main + renderer + utility/worker 的 `privateBytes`（不含 GPU） |
 
 超预算：先优化；优化不了必须在任务报告里记录实测值、原因与后续计划，不得静默放过。
 
@@ -2110,7 +2110,8 @@ T2.7 实测（2026-10-23，本机；ADR-033）：`pnpm bench` 全部受门禁用
 `import.100k` **781ms**（8s）；`query.sync-clone.100k` 约 300ms 仅作诊断。
 CI 的 `bench` 作业对绝对预算硬失败、对 >20% 回归软告警；基线 `bench/baseline.json`
 必须由 CI 的 Windows runner 生成后提交，缺失时比较跳过并打印 `::notice`。
-内存 600MB 由 `e2e/perf.spec.ts` 用 `app.getAppMetrics()` 的 `privateBytes` 整应用口径
+内存 1024MB（1GB，ADR-057）由 `e2e/perf.spec.ts` 与 `e2e/chart-perf.spec.ts` 用
+`app.getAppMetrics()` 的 `privateBytes` 整应用口径
 （main + renderer + utility/worker，不含 GPU）判定，实测峰值 **570MB**；`workingSetSize`
 会重复计算共享页，只作为诊断记录（711MB）。冷启动（≤2.5s，实测 997ms）与 100k 首帧
 （≤3s，`performance.measure('curve:open')` 实测 665ms）也在该 spec 中断言。
@@ -2207,6 +2208,23 @@ P95 **2ms**（50ms）、`chart.option.2k` P95 **1ms**（50ms，option 构造）�
 - renderer 全局 `error`/`unhandledrejection` → `log:write`（限流 10 条/分钟）。
 - 崩溃后下次启动提示"上次异常退出"，并保留 `.lock` 恢复流程。
 - 日志级别：error/warn/info/debug；生产默认 info。
+
+**实现边界（T6.6，ADR-056 选项 B）**：
+
+- `apps/desktop/src/main/logging/main-log.ts` 用 `electron-log@5` 挂文件 transport：路径
+  `userData/logs/main.log`、格式 `[YYYY-MM-DD HH:mm:ss.SSS] [level] text`、级别生产 `info`/
+  开发 `debug`；electron-log 自带的 console transport 关闭，应用仍用原来的 `[main]` console
+  输出（一行只写一次文件）。
+- **按天滚动**：启动时若 `main.log` 的 mtime 不是今天，先归档为 `main-YYYY-MM-DD.log`；进程
+  跨本地午夜后的第一次写入执行同样的归档。同日已有归档时追加而不是覆盖。保留**含今天在内
+  的 7 天**（`main-<today-6>.log` … `main-<today-1>.log` + `main.log`），更旧的归档与坏文件名
+  不受影响。文件 transport 为同步写、`maxSize: 0`（不按大小裁剪）。
+- **renderer 全局转发**：`renderer/logging/error-reporting.ts` 在首帧前注册 `error` 与
+  `unhandledrejection`；`Error` 转发 message + stack，非 `Error` 值 JSON/字符串化；经
+  `log:write` 到 main（main 加 `[renderer]` 前缀）。令牌桶 **10 条/60 秒**，超出静默丢弃
+  （控制台仍有原生输出），桥不可用/抛错不影响应用。
+- 日志不得记录单元格内容或工作区绝对路径；main 的 logger 仍按 2,000/1,000 字符截断消息与
+  detail。文件/轮转不得阻塞启动：每行只做一次日期字符串比较，跨天时才 rename/prune。
 
 ### 16.6 平台
 

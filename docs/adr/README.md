@@ -85,4 +85,5 @@
 | ADR-053 | T6.2 的示例插件、语义字段类型接线与插件导入器执行位置 | 已接受 | [053-t62-sample-plugin-and-field-types.md](053-t62-sample-plugin-and-field-types.md) |
 | ADR-054 | T6.3 的注册表驱动 UI、来源标识、错误隔离与会话级插件禁用 | 已接受 | [054-t63-registry-driven-ui-and-isolation.md](054-t63-registry-driven-ui-and-isolation.md) |
 | ADR-055 | T6.4 的 Windows 打包、发布身份与安装冒烟 | 已接受 | [055-t64-packaging-and-release.md](055-t64-packaging-and-release.md) |
-| ADR-056 | T6.5 发现的日志落盘偏差：v1 仅 console，文件日志与渲染进程全局转发未实现 | 提议（待用户裁决） | [056-t65-log-file-deviation.md](056-t65-log-file-deviation.md) |
+| ADR-056 | T6.5 发现的日志落盘偏差：v1 仅 console，文件日志与渲染进程全局转发未实现（T6.6 按选项 B 闭环） | 已接受 | [056-t65-log-file-deviation.md](056-t65-log-file-deviation.md) |
+| ADR-057 | 整应用内存门禁由 600MB 提高到 1024MB（1GB） | 已接受 | [057-memory-gate-1gb.md](057-memory-gate-1gb.md) |

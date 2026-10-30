@@ -16,6 +16,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "electron-log": "^5.4.4",
     "write-file-atomic": "^8.0.0"
   },
   "devDependencies": {

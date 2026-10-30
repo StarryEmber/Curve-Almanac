@@ -253,6 +253,8 @@
 | `%APPDATA%\Curve Almanac\settings.json` | 主题/语言/自动保存/默认样式 |
 | `%APPDATA%\Curve Almanac\recent.json` | 最近工作区 |
 | `%APPDATA%\Curve Almanac\window-state.json` | 窗口尺寸/位置 |
+| `%APPDATA%\Curve Almanac\logs\main.log` | 主进程 + renderer 错误日志（当天） |
+| `%APPDATA%\Curve Almanac\logs\main-YYYY-MM-DD.log` | 历史日志（按天归档，含今天保留 7 天） |
 | `<workspace>.cstudio\manifest.json` | 表/视图/图表/样式/布局 |
 | `<workspace>.cstudio\tables\*.jsonl` | 行数据 |
 | `<workspace>.cstudio\backups\` | 表与 manifest 的上一版备份 |
@@ -281,7 +283,7 @@
 - 插件静态编译、不可运行时安装；禁用不跨启动；插件文案不本地化；插件导入大文件可能阻塞 UI。
 - 插件图表预设不会在检查器回显；CSV 导出不套用语义字段格式。
 - 主进程原生对话框（关于/退出确认/恢复）为英文。
-- **日志**：v1 的主进程日志只写控制台，不会生成 `userData/logs/main.log`（SPEC §16.5 的
-  文件日志/轮转未实现，见 [ADR-056](adr/056-t65-log-file-deviation.md)）；插件错误日志是本次
-  会话的 200 条内存缓冲，可在插件管理器查看，重启清空。崩溃恢复不依赖日志。
+- **日志**：按天归档，保留含今天 7 天；跨天后的第一次写入才归档（没有 00:00 定时器），单日文件
+  无硬大小上限；renderer 错误转发限 10 条/分钟，超限静默丢弃（控制台仍有原生输出）；插件错误
+  日志是本次会话的 200 条内存缓冲，可在插件管理器查看，重启清空。崩溃恢复不依赖日志。
 - 100k 行是目标规模；超过 200,000 行拒绝导入/新增，工作区软上限 300,000 行。

@@ -101,7 +101,7 @@ ui ← desktop
 - 200% 缩放与纯键盘是每个 UI 任务的冒烟项；图表断言用 `data-chart-*` 渲染契约，不做像素基线。
 - 已知 flake：`file-workspace-store`/`recent-list`/`m1-acceptance` 的 “caps the list” 在
   196 个 Vitest worker 高负载时偶发 5 s 超时（单文件 <1 s 通过）。先复跑单文件，不得放宽超时。
-  `chart-perf` 的 100k 内存门禁在外部程序占 CPU 时波动 509–608 MB（门禁 600 MB），先确认负载。
+  `chart-perf` 的 100k 内存门禁在外部程序占 CPU 时波动 509–639 MB（门禁 1GB，ADR-057），先确认负载。
 - 新增 E2E 后跑一次全量，确认 worker=1 下不抢占其它用例的内存/时序。
 
 ### 验收演示

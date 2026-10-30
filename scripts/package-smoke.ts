@@ -271,12 +271,16 @@ async function main(): Promise<void> {
       'package.json',
       'node_modules/write-file-atomic/lib/index.js',
       'node_modules/signal-exit/dist/cjs/index.js',
+      'node_modules/electron-log/src/index.js',
     ]) {
       check(asarPaths.has(required), `app.asar is missing ${required}`);
     }
+    // Production dependencies may legitimately ship `src/` (electron-log does);
+    // only the app's own development folders are forbidden.
     const forbidden = asarFiles.filter(
       (file) =>
-        /(^|\/)(src|e2e|test|tests|docs|fixtures)\//.test(file.path) ||
+        (!file.path.startsWith('node_modules/') &&
+          /(^|\/)(src|e2e|test|tests|docs|fixtures)\//.test(file.path)) ||
         file.path.endsWith('.map') ||
         file.path.startsWith('build/'),
     );
@@ -447,6 +451,7 @@ async function main(): Promise<void> {
         'package.json',
         'node_modules/write-file-atomic/lib/index.js',
         'node_modules/signal-exit/dist/cjs/index.js',
+        'node_modules/electron-log/src/index.js',
       ],
       forbidden: forbidden.length,
     };

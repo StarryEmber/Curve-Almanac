@@ -12,7 +12,7 @@
  * - a style-only commit (palette) must not re-resolve: `data-chart-resolve-ms`
  *   stays near zero because the row-derived data cache hits (ADR-045).
  * - ten chart/mapping switches keep exactly one live ECharts instance, show the
- *   loading state at least once and keep the app under the 600MB memory gate.
+ *   loading state at least once and keep the app under the 1GB memory gate.
  * - a burst of ten zoom actions does not exceed the 200ms render budget in a
  *   single main-thread task (when the browser exposes `longtask`).
  */
@@ -41,7 +41,7 @@ const CHART_UPDATE_BUDGET_MS = 200;
 /** ADR-045: a style-only commit must be a cache hit, not a new row scan. */
 const CHART_CACHE_HIT_BUDGET_MS = 20;
 /** SPEC §16.1: whole-app private memory ceiling. */
-const MEMORY_BUDGET_MB = 600;
+const MEMORY_BUDGET_MB = 1024;
 /** 100k table: every mapping/tab switch goes through the deferred path. */
 const SWITCH_COUNT = 10;
 

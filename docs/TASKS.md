@@ -1703,10 +1703,10 @@ T6.2 + T2.5 + T3.2 → T6.3
 ## M6 扩展与发布
 
 > 状态（2026-10-30）：`T6.0`（品牌更名 Curve Almanac）、`T6.1`（插件 SDK 与注册表）、`T6.2`
-> （示例插件）、`T6.3`（插件接入 UI 与隔离）、`T6.4`（安装包与发布配置）与 `T6.5`（全量验收与
-> 文档收尾）已完成（ADR-051–055；ADR-056 为 T6.5 发现的日志偏差，状态“提议”）；报告
-> `docs/reports/t6.0/REPORT.md`–`t6.5/REPORT.md`。M6 验收演示已执行，**等用户对 ADR-056 裁决并
-> 确认后关闭**。
+> （示例插件）、`T6.3`（插件接入 UI 与隔离）、`T6.4`（安装包与发布配置）、`T6.5`（全量验收与
+> 文档收尾）与 `T6.6`（日志文件落盘与 renderer 错误转发）已完成（ADR-051–056；ADR-056 已接受，
+> 选项 B；ADR-057 把内存门禁提高到 1GB）；报告 `docs/reports/t6.0/REPORT.md`–`t6.6/REPORT.md`。
+> M6 验收演示已执行，**等用户最终确认后关闭**。
 
 <a id="t60"></a>
 ### T6.0 品牌更名：Curve Almanac
@@ -1949,7 +1949,7 @@ T6.2 + T2.5 + T3.2 → T6.3
 
 <a id="t65"></a>
 ### T6.5 全量验收与文档收尾
-- 状态：`[x]`（已完成，待用户验收；NFR-06 日志落盘未达标，见 ADR-056）
+- 状态：`[x]`（已完成，待用户验收；首轮 NFR-06 日志偏差已由 T6.6 闭环）
 - 依赖：M0–M6 全部任务（T6.5 除外）
 - 覆盖：全部 FR/NFR
 - 参考：TESTPLAN §3–§6
@@ -1984,15 +1984,65 @@ T6.2 + T2.5 + T3.2 → T6.3
     撤销 5/重做 3、强杀后恢复 77、2 pane、模板导入重分配 id。
   - E2E 重跑记录：第 1 次 110/111（新 spec 的 JSONL 子串断言缺陷，已修）；第 2 次 110/111
     （chart-perf 602MB 离群，已知 509–608MB 波动，未放宽门槛）；第 3 次 **111/111**。
-  - **未达标项**：SPEC §16.5 的 main 文件日志（electron-log、`userData/logs/main.log`、按天轮转/
-    7 天保留）与 renderer 全局 error 转发未实现；崩溃恢复本身通过。ADR-056 记录三个处理选项，
-    建议对外发布前实现。发布清单第 7 项未签字，M6 不自动关闭。
-  - 停点：M6 验收演示证据已归档，**停下等用户对 ADR-056 裁决并确认 M6**。
+  - **首轮未达标项（已闭环）**：SPEC §16.5 的 main 文件日志与 renderer 全局错误转发最初未实现；
+    用户选择 ADR-056 选项 B，由 **T6.6** 实现（`electron-log`、按天轮转/7 天、10/60s 限流），
+    `e2e/logging.spec.ts` 2 条 + 单测 14 条通过。发布清单第 7 项已签字。
+  - 内存门禁：T6.5 期间 chart-perf 曾 602MB（旧 600MB 门禁）；T6.6 时同机基线 618–639MB，用户
+    决定提高到 **1GB**（ADR-057），未重跑，按新门禁记通过。
+  - 停点：M6 验收演示证据已归档，**停下等用户确认 M6**。
+
+<a id="t66"></a>
+### T6.6 日志文件落盘与渲染进程错误转发
+- 状态：`[x]`
+- 依赖：T6.5、T0.3
+- 覆盖：NFR-06（SPEC §16.5）
+- 参考：ADR-056（选项 B）、SPEC §5.1/§16.5、TESTPLAN §7
+- 产出：
+  - main 用 `electron-log@5` 写 `userData/logs/main.log`（按天滚动、含今天保留 7 天、生产 info）
+  - renderer `error`/`unhandledrejection` → `log:write`（10 条/分钟限流）
+  - 打包 asar/冒烟与文档同步
+- 步骤：
+  1. 加 `electron-log` 依赖；实现按天轮转/保留（`log-files.ts`）与组合 logger（console + file）。
+  2. 在 main `whenReady` 后接线（E2E userData 重定向之后）；renderer 首帧前注册全局转发。
+  3. 单测轮转/限流；E2E 断言真实文件、renderer 行与启动归档/保留。
+- 验收：
+  - [x] `userData/logs/main.log` 含 main 启动行与 renderer 未捕获错误/未处理 rejection 行。
+  - [x] 跨天轮转为 `main-YYYY-MM-DD.log`，保留含今天 7 天，旧归档删除（单测 + E2E）。
+  - [x] renderer 转发限流 10 条/60 秒，桥故障不影响应用（单测）。
+  - [x] `pnpm package` asar 含 electron-log、`pnpm package:smoke` PASS（按用户 2026-10-30 指示**未重跑**；
+    代码/冒烟断言与 `packaging.test.ts` 已更新，发布前应补跑一次）。
+- 验证：`pnpm verify && pnpm e2e && pnpm package && pnpm package:smoke`
+
+  实现备注（2026-10-30，ADR-056 选项 B）：
+  - 新增 `main/logging/{log-files,main-log}.ts`、`renderer/logging/error-reporting.ts`、
+    `e2e/logging.spec.ts`；`logger.ts` 抽出 `createConsoleSink`；`main.tsx` 复用单个
+    `api` client 并在首帧前安装转发；`index.ts` 在 `app.whenReady()` 后创建组合 logger。
+  - 轮转：启动按 `main.log` mtime 日期归档；跨午夜后首次写入归档；同日归档追加；保留
+    `main-<today-6>`…`main-<today-1>` + `main.log`；`maxSize:0`、同步写、格式
+    `[YYYY-MM-DD HH:mm:ss.SSS] [level] text`。
+  - 转发：`error`/`unhandledrejection`，Error 带 stack、非 Error JSON/字符串化；令牌桶
+    10/60s；main 加 `[renderer]` 前缀。
+  - 打包：`electron-log@5.4.4` 进 asar；`package-smoke.ts` required 增加
+    `node_modules/electron-log/src/index.js`，开发文件扫描排除 `node_modules/`（生产依赖只发布
+    `src/`）；`packaging.test.ts` 增加 1 条。
+  - 测试：`vitest` 日志单测 **2 files / 14 tests**（轮转 7 + 限流 7）；`e2e/logging.spec.ts`
+    **2 passed**（main/renderer 行 1.5s、启动归档/保留 1.4s）。
+  - 实测（2026-10-30）：`pnpm verify` **198 files / 1831 tests**（depcruise 538 modules / 2331 deps /
+    0 violations）；`pnpm build` renderer **3,471.75 kB**（+2.4 kB）、CSS 81.34 kB、main 338.76 kB；
+    全量 `pnpm e2e` 功能测试 **111 passed**，T6.6 的 2 条 logging E2E 在全量中通过；两条内存门禁
+    实测 **chart-perf 618–639MB / perf 612–625MB**，超过旧 600MB 门禁。按用户 2026-10-30 决定，
+    内存门禁提高到 **1GB**（ADR-057），上述数值在新门禁内记为通过；**按用户指示未重跑全量**，
+    `pnpm package`/`package:smoke` 也未重跑（发布前补跑）。
+  - 残留：轮转发生在跨天后的第一次写入（无 00:00 定时器）；单日日志无大小上限；renderer
+    超限静默丢弃（console 仍有原生输出）；无日志查看器。内存门禁放宽到 1GB 的代价见 ADR-057。
+    详见 ADR-056 与 T6.6 报告。
 
 **M6 验收演示**：示例插件可用 → 安装包安装/卸载 → 全量 E2E/性能/可访问性报告 → 九步演示 → 发布清单签字。输出报告后停下。
 
   验收记录（2026-10-30 执行，待用户确认）：`apps/desktop/e2e/t6.5-acceptance.spec.ts` 1 条、
   26.2s，报告 `docs/reports/t6.5/REPORT.md` + 14 张 PNG + `t6.5-metrics.json`。全量
-  `pnpm e2e` **111 passed**、`pnpm verify` 196/1816、`pnpm bench` exit 0、`pnpm package` exit 0；
-  九步全部通过（见报告 §3）。发布清单 9 项中 7 项通过、1 项用户豁免（干净机器）、1 项未达标
-  （SPEC §16.5 日志落盘，ADR-056）。**M6 未关闭**，等用户裁决。
+  `pnpm e2e` 功能测试 **111 passed**、`pnpm verify` 196→198 files / 1816→1831 tests、
+  `pnpm bench` exit 0、`pnpm package` exit 0（T6.4 包）。九步全部通过（见报告 §3）。
+  T6.5 首轮未达标的日志项已由 **T6.6**（ADR-056 选项 B）闭环；内存门禁按用户决定提高到
+  **1GB**（ADR-057）。发布清单 9 项中 8 项通过、1 项用户豁免（干净机器）。**M6 未关闭**，
+  等用户最终确认。

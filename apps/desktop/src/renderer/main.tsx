@@ -5,6 +5,7 @@ import { DEFAULT_APP_SETTINGS } from '../shared/contracts/settings';
 
 import { createApiClient } from './api-client';
 import { App } from './App';
+import { installGlobalErrorReporting } from './logging/error-reporting';
 import { activateRendererPlugins } from './plugins';
 import './styles.css';
 
@@ -17,6 +18,14 @@ if (!container) {
   throw new Error('Renderer root element is missing');
 }
 
+const api = createApiClient(
+  typeof window === 'undefined' ? undefined : (window as Window & { api?: CurveApi }).api,
+);
+
+// T6.6 (SPEC §16.5): forward uncaught errors/rejections through `log:write`
+// (main prefixes `[renderer]` and appends to the shared file log).
+installGlobalErrorReporting({ write: (report) => api.log.write(report) });
+
 /**
  * T5.5: read `userData/settings.json` before the first paint. This keeps the
  * stored theme/language visible from the first frame (no light-then-dark flash)
@@ -26,13 +35,10 @@ if (!container) {
  */
 const SETTINGS_BOOTSTRAP_TIMEOUT_MS = 1_500;
 
-async function readInitialSettings(): Promise<AppSettings> {
-  const api = createApiClient(
-    typeof window === 'undefined' ? undefined : (window as Window & { api?: CurveApi }).api,
-  );
+async function readInitialSettings(client: CurveApi): Promise<AppSettings> {
   try {
     const result = await Promise.race([
-      api.app.settings(),
+      client.app.settings(),
       new Promise<null>((resolve) => {
         setTimeout(() => {
           resolve(null);
@@ -53,7 +59,7 @@ void bootstrap(container);
  * log), so a broken plugin cannot block the window from rendering.
  */
 async function bootstrap(root: HTMLElement): Promise<void> {
-  const initialSettings = await readInitialSettings();
+  const initialSettings = await readInitialSettings(api);
   await activateRendererPlugins();
 
   createRoot(root).render(

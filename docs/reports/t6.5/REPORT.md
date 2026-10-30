@@ -2,7 +2,7 @@
 
 - 任务：T6.5 全量验收与文档收尾（依赖 M0–M6 全部任务；覆盖全部 FR/NFR）
 - 日期：2026-10-30
-- 决策：无新增架构决策；发现 1 项 NFR-06 偏差，见 [ADR-056](../adr/056-t65-log-file-deviation.md)（提议，待用户裁决）
+- 决策：无新增架构决策；发现的 NFR-06 日志偏差已由后续任务 T6.6（ADR-056 选项 B，`electron-log`）闭环，见 [ADR-056](../adr/056-t65-log-file-deviation.md) 与 [T6.6 报告](../t6.6/REPORT.md)
 - 范围：全量 `pnpm verify && pnpm e2e && pnpm bench`、README §6 九步端到端演示、SPEC §17 证据矩阵、
   发布检查清单、README/用户手册/开发者指南/ADR 索引/ROADMAP 收尾；**不改**运行时代码、IPC、
   数据格式、CSP、打包配置与 `formatVersion`
@@ -55,9 +55,10 @@ pnpm package
 
 **E2E 重跑记录（如实）**：第 1 次全量 110 passed / 1 failed，失败是本任务新 spec 的断言缺陷
 （JSONL 用子串断言 `999`，命中了随机 UUID 的十六进制），已改为逐行解析；第 2 次全量
-110 passed / 1 failed，`chart-perf` privatePeak **602MB** 超过 600MB 门禁（T6.2/T6.3 已记录的
+110 passed / 1 failed，`chart-perf` privatePeak **602MB** 超过当时 600MB 门禁（T6.2/T6.3 已记录的
 509–608MB 波动，未放宽门槛）；第 3 次全量 **111 passed**，chart-perf **520MB**。九步演示在
-第 3 次运行中一次通过。
+第 3 次运行中一次通过。**后续**：T6.6 时同机基线升到 618–639MB，用户决定把门禁提高到 1GB
+（[ADR-057](../adr/057-memory-gate-1gb.md)）；本报告中的 600MB 是当时门禁，保留为历史事实。
 
 ## 3. README §6 九步演示
 
@@ -193,14 +194,15 @@ pnpm package
 | NFR-03 可访问性 | `chart-interaction` 的 axe（wcag2a/aa critical 0）；各 spec 的 200% + 纯键盘；`ui` 组件测试 | ✅ |
 | NFR-04 国际化 | `i18n.test.ts`（key 集/无 CJK）、`settings.spec.ts`（+30% 伪本地化）、`ui-conventions.test.ts` | ✅ |
 | NFR-05 离线隐私 | ADR-016；无网络客户端依赖/遥测代码；CSP 无外部源 | ✅（设计+静态） |
-| NFR-06 日志与崩溃 | 崩溃恢复：`recovery.spec.ts`/`m5`/T6.5 步骤 7–8 ✅；**日志落盘：未实现**（无 electron-log、无 `userData/logs/main.log`、无按天轮转/7 天保留、无 renderer 全局 error 转发） | ⚠️ |
+| NFR-06 日志与崩溃 | 崩溃恢复：`recovery.spec.ts`/`m5`/T6.5 步骤 7–8 ✅；日志落盘/转发由 **T6.6** 闭环：`e2e/logging.spec.ts` 2 条 + 单测 14 条（`userData/logs/main.log`、按天归档/7 天、renderer `[renderer]` 行、10 条/分钟限流） | ✅ |
 | NFR-07 测试与 CI | `pnpm verify` 196/1816、`pnpm e2e` 111、覆盖率 77.28%、CI 工作流 | ✅ |
 | NFR-08 打包 | `pnpm package` exit 0；T6.4 `package:smoke` PASS；`packaging.test.ts` 5 条 | ✅ |
 
-**NFR-06 偏差说明**：`apps/desktop/src/main/logger.ts` 自 T0.3 起只做分级/截断并写 console
-（注释写明“T1.x 换文件日志”，但没有任务落地）；SPEC §5.1/§16.5 要求的 `electron-log` 不在
-依赖中；`renderer/main.tsx` 未注册全局 `error`/`unhandledrejection` → `log:write`。崩溃恢复
-（锁/备份/提示）本身完整通过。处理选项与建议见 [ADR-056](../adr/056-t65-log-file-deviation.md)。
+**NFR-06 偏差与闭环**：T6.5 检查发现 `logger.ts` 自 T0.3 起只写 console，SPEC §5.1/§16.5 的
+`electron-log` 不在依赖中，renderer 也没有全局 error 转发；崩溃恢复本身完整通过。用户选择
+**选项 B**，由 **T6.6**（2026-10-30）新增 `electron-log`、按天轮转/7 天保留与 renderer 限流转发，
+`e2e/logging.spec.ts` 2 条 + 单测 14 条通过；详见 [ADR-056](../adr/056-t65-log-file-deviation.md)
+（已接受）与 [T6.6 报告](../t6.6/REPORT.md)。
 
 ## 6. 发布检查清单（TESTPLAN §7 签字）
 
@@ -212,22 +214,25 @@ pnpm package
 | 4 | Windows 干净用户安装 → 启动 → 建工作区 → 卸载 → 数据仍在 | 🧍 **豁免** | 用户 2026-10-30 明确“不做干净机器复验”；以 T6.4 `package:smoke`（无既存安装/无 userData/非管理员）PASS 作为替代证据 |
 | 5 | 版本号、`appId`、图标、许可证正确 | ✅ | `packaging.test.ts` 5 条；`appId=com.curvealmanac.app`、`0.1.0`、ICO 7 档、`license.txt` |
 | 6 | 生产包无 DevTools、无测试钩子、无 source map | ✅ | T6.4 smoke：asar 23 文件、无 `*.map`/dev 文件、`CURVE_E2E_*` 失效、DevTools 关闭 |
-| 7 | 日志路径/滚动/保留天数符合 SPEC §16.5 | ❌ | **未达标**：仅 console；无 `logs/main.log`、无轮转/7 天、无 renderer 全局转发（ADR-056） |
+| 7 | 日志路径/滚动/保留天数符合 SPEC §16.5 | ✅ | T6.6：`userData/logs/main.log`、按天归档、含今天保留 7 天、renderer 10/60s 限流；`logging.spec.ts` 2 条 + 单测 14 条 |
 | 8 | 已知限制与 v2 路线写入 `docs/ROADMAP.md` 与发布说明 | ✅ | `docs/ROADMAP.md` + README/MANUAL §已知限制 |
 | 9 | 回滚方案：保留上一版安装包与工作区迁移备份说明 | ✅ | 保留 `release/` 上一版安装包；工作区格式 v1，`backups/` + `.lock` 恢复；降级不支持跨 `formatVersion` |
 
-**签字结论**：9 项中 7 项通过、1 项用户豁免、1 项未达标（日志落盘）。发布签字**未完成**，
-需用户对 ADR-056 的选项作出裁决；M6 不自动关闭。
+**签字结论**：9 项中 8 项通过、1 项用户豁免（干净机器复验）。T6.5 首轮发现并记为未达标的
+日志落盘项已由 **T6.6** 闭环，发布清单第 7 项已签字；M6 是否关闭等用户最终确认。
 
 ## 7. 已知限制与例外
 
-- **NFR-06 日志落盘**（本次发现，唯一未达标项）：仅 console；`log:write` 可被调用但没有文件
-  sink；插件错误日志是 200 条内存环形缓冲（设计如此，见 ADR-054）；崩溃恢复提示不受影响。
+- **NFR-06 日志（已闭环）**：T6.5 首轮只有 console；T6.6 已实现 `electron-log` 文件日志、按天
+  归档/7 天保留与 renderer 10 条/分钟限流。残留：跨天后第一次写入才归档（无 00:00 定时器）、
+  单日无大小上限、无日志查看器。
 - **干净机器复验**：用户书面豁免；本机证据是“无既存安装/无 userData/非管理员”，不是全新系统镜像。
 - **安装包未签名**：SmartScreen 提示；无自动更新（ADR-016/055）。
 - **体积**：NSIS 112 MB / 解压 391 MB；可评估裁剪 locales。
-- **chart-perf 内存**：本机波动 509–608 MB（门禁 600 MB）；本次通过为 520 MB，第二次全量曾 602 MB。
-  未放宽门槛；复跑前先确认外部负载（本机游戏客户端会占 CPU/内存）。
+- **chart-perf 内存**：当时门禁 600 MB，本机波动 509–608 MB；本次通过为 520 MB，第二次全量曾 602 MB。
+  未放宽门槛；复跑前先确认外部负载（本机游戏客户端会占 CPU/内存）。**2026-10-30 后续**：T6.6
+  验收时同机基线升到 618–639 MB，用户决定把门禁提高到 1GB（[ADR-057](../adr/057-memory-gate-1gb.md)）；
+  本报告的历史 600MB 记录保留为当时事实。
 - **插件**：禁用不持久化、文案不本地化、图表预设不回显、大文件导入在主线程（ADR-053/054）。
 - **CSV 导出**使用存储格式化，不套用语义字段格式。
 - **主进程原生对话框**仍为英文。
@@ -250,11 +255,8 @@ pnpm package
 T6.5 的自动化与文档交付已完成：全量 verify/e2e/bench 绿、九步演示一次通过、FR 证据矩阵齐全、
 安装包可重复构建、README/手册/开发者指南/ROADMAP/ADR 索引收尾。
 
-**M6 验收演示**（示例插件 → 安装包 → 全量报告 → 九步演示 → 发布清单）已具备证据，但发布清单
-第 7 项（SPEC §16.5 日志落盘）未达标。按任务协议，**在此停下等用户确认**：
+**M6 验收演示**（示例插件 → 安装包 → 全量报告 → 九步演示 → 发布清单）证据齐备，发布清单 9 项
+中 8 项通过、1 项用户豁免；首轮未达标的日志项已由 T6.6 闭环（`e2e/logging.spec.ts` 2 条 +
+单测 14 条）。**M6 仍未关闭**：按任务协议在此停下，等用户确认后关闭 M6。
 
-1. 接受为 v1 已知限制（更新 SPEC §16.5 例外 + ROADMAP，随后签字关闭 M6）；或
-2. 新开任务实现日志落盘（推荐选项：内置 fs 轮转或引入 `electron-log`），完成后重跑
-   verify/e2e/package:smoke 再签字。
-
-M6 **未关闭**，`docs/TASKS.md` 中 T6.5 保持“已完成、待验收”状态。
+T6.5 本身保持“已完成、待验收”状态；T6.6 的实现与证据见 [T6.6 报告](../t6.6/REPORT.md)。

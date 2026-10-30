@@ -41,10 +41,12 @@
   2026-10-29 执行并通过并获用户接受，M5 已关闭**（`docs/reports/m5/REPORT.md`、
   `e2e/m5-acceptance.spec.ts`）。**M6 的 `T6.0`（品牌更名 Curve Almanac，ADR-051）、
   `T6.1`（插件 SDK 与注册表，ADR-052）、`T6.2`（示例插件，ADR-053）、`T6.3`（插件接入 UI 与
-  隔离，ADR-054）、`T6.4`（安装包与发布配置，ADR-055）与 `T6.5`（全量验收与文档收尾）均已完成**
-  （`docs/reports/t6.0/REPORT.md`–`t6.5/REPORT.md`）。**M6 验收演示已执行但 M6 未关闭**：T6.5
-  发布检查发现 SPEC §16.5 的日志文件落盘未实现，ADR-056 为“提议（待用户裁决）”；在用户裁决前
-  不要关闭 M6、不要自动领取新任务。**不要跨任务/里程碑。**
+  隔离，ADR-054）、`T6.4`（安装包与发布配置，ADR-055）、`T6.5`（全量验收与文档收尾）与
+  `T6.6`（日志文件落盘与 renderer 错误转发，ADR-056 选项 B）均已完成**
+  （`docs/reports/t6.0/REPORT.md`–`t6.6/REPORT.md`）。**M6 验收演示已执行但 M6 未关闭**：整应用
+  内存门禁按用户决定提高到 1GB（ADR-057）；发布前仍需补跑 `pnpm package && pnpm package:smoke`
+  （确认 asar 含 electron-log）。在用户最终确认前不要关闭 M6、不要自动领取新任务。
+  **不要跨任务/里程碑。**
 - 仓库已有 pnpm workspace（9 个 `@curve/*` 包 + `@curve/desktop` + `plugins/plugin-sample`）、
   可运行的 Electron 壳、`domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的
   App Shell、插件 SDK/宿主与示例插件，以及 21 个已接线 IPC 通道（另含 1 个 main→renderer 退出

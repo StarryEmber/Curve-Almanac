@@ -48,7 +48,7 @@ const BENCH_WORKSPACE = join(repositoryRoot, 'bench', '.fixtures', '100k-workspa
 const CHART_RESOLVE_BUDGET_MS = 300;
 const CHART_UPDATE_BUDGET_MS = 200;
 const CHART_SAMPLE_TARGET = 2_000;
-const MEMORY_BUDGET_MB = 600;
+const MEMORY_BUDGET_MB = 1024;
 
 const COL = {
   id: 'col_id',

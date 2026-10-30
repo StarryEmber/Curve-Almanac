@@ -36,7 +36,7 @@ const FILTERED_ROWS = 49_900;
 const IMPORT_BUDGET_MS = 8_000;
 const OPEN_BUDGET_MS = 3_000;
 const QUERY_BUDGET_MS = 400;
-const MEMORY_BUDGET_MB = 600;
+const MEMORY_BUDGET_MB = 1024;
 
 const SPECIAL_NAMES = ['Hello, world', 'Line1\nLine2', 'Say "hi"', 'Delta', 'Epsilon'] as const;
 

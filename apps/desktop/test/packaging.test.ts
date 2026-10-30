@@ -29,6 +29,7 @@ const desktopPackage = JSON.parse(readFileSync(join(desktopDirectory, 'package.j
   main: string;
   scripts: Record<string, string>;
   license?: string;
+  dependencies?: Record<string, string>;
 };
 const rootPackage = JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8')) as {
   version: string;
@@ -137,5 +138,14 @@ describe('T6.4 packaging configuration', () => {
     expect(rootPackage.scripts['package']).toContain('pnpm build');
     expect(rootPackage.scripts['package']).toContain('--filter @curve/desktop package');
     expect(rootPackage.scripts['package:smoke']).toContain('scripts/package-smoke.ts');
+  });
+
+  it('ships electron-log for the T6.6 file log and lets its src/ into the asar', () => {
+    expect(desktopPackage.dependencies?.['electron-log']).toMatch(/^\^5\./u);
+    const smoke = readFileSync(join(repositoryRoot, 'scripts', 'package-smoke.ts'), 'utf8');
+    expect(smoke).toContain('node_modules/electron-log/src/index.js');
+    // electron-log publishes source files only; the dev-file scan must exempt
+    // production node_modules while still rejecting the app's own src/e2e/test.
+    expect(smoke).toContain("!file.path.startsWith('node_modules/')");
   });
 });

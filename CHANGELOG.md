@@ -703,6 +703,20 @@
   报告 `docs/reports/m5/REPORT.md`（7 张截图 + `m5-metrics.json`）；全量 E2E **104 passed**
   （6.2m，M5 1 条 20.2s）。**2026-10-29 获用户接受，M5 已关闭；M6 未开始**，等用户明确指示后再
   领取 T6.1。
+- T6.6：日志文件落盘与 renderer 全局错误转发（ADR-056 选项 B）。新增 `electron-log@5.4.4`
+  （MIT，约 95 KB）与 `main/logging/{log-files,main-log}.ts`：写
+  `userData/logs/main.log`（格式 `[YYYY-MM-DD HH:mm:ss.SSS] [level] text`，生产 info/开发
+  debug），启动按 mtime、跨午夜后首次写入归档为 `main-YYYY-MM-DD.log`（同日追加），保留含今天
+  7 天；`maxSize:0`、同步写。新增 `renderer/logging/error-reporting.ts`：`error`/
+  `unhandledrejection` 经 `log:write` 转发（10 条/60 秒令牌桶，桥故障不影响应用）。
+  `logger.ts` 抽出 console sink，`main.tsx` 复用单个 api client 并在首帧前安装转发。
+- T6.6：测试与打包：日志单测 **2 files / 14 tests**、`e2e/logging.spec.ts` **2 passed**；
+  `pnpm verify` **198 files / 1831 tests**；`pnpm build` renderer **3,471.75 kB**（+2.4 kB）；
+  `package-smoke.ts` required 增加 electron-log、开发文件扫描排除 `node_modules/`，
+  `packaging.test.ts` +1 条。全量 E2E 功能测试 111 passed；chart-perf/perf 内存 618–639MB
+  超旧 600MB 门禁——用户决定把门禁提高到 **1024MB**（ADR-057），按新门禁记通过，**未重跑**
+  （用户 2026-10-30 明确）；`package/package:smoke` 也未重跑（发布前补跑）。报告
+  `docs/reports/t6.6/REPORT.md`。
 - T6.5：最终九步验收与文档收尾。新增 `apps/desktop/e2e/t6.5-acceptance.spec.ts`（README §6：
   新建 Demo 工作区 → 建温度记录表/4 列 → 200 行粘贴（整批拒绝 + 单格校验）→ 样式/密度/条件格式/
   另存我的报表 → 宽/长表图表 + PNG → 100k GBK 导入 + 采样 → 撤销 5/重做 3 + 强杀恢复 →
