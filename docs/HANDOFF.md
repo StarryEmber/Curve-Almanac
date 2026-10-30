@@ -11,8 +11,7 @@
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
 > T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
 > T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告 **`50f7ea9`**、
-> T6.0 代码/报告 **`cc6dd5c`**、T6.1 代码/报告 **`2ea05cf`**、T6.2 代码/报告见
-> `git log -1 -- docs/HANDOFF.md` 之前的 `feat(plugin): add sample plugin … (T6.2)` 提交
+> T6.0 代码/报告 **`cc6dd5c`**、T6.1 代码/报告 **`2ea05cf`**、T6.2 代码/报告 **`15e43ed`**
 > （本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.10）→ `docs/reports/m5/REPORT.md` →
 > `docs/reports/t6.0/REPORT.md` → `docs/reports/t6.1/REPORT.md` → `docs/reports/t6.2/REPORT.md` →
@@ -313,8 +312,7 @@
    `FieldTypeLookup` 结构化端口（app-core 不 import plugin-sdk）；`formatField` 回调（ui 不 import
    plugin-sdk）；`plugin.spec.ts` 依赖的 `column-form-field-type`、`import-importer`、
    `data-field-type` 属性名；导入器切换前的字节副本（Worker transfer 会 detach）。
-4. 提交：`feat(plugin): add sample plugin and semantic field types (T6.2)`（hash 见
-   `git log -1 -- docs/HANDOFF.md`）。
+4. 提交：**`15e43ed`**（`feat(plugin): add sample plugin and semantic field types (T6.2)`）。
 5. 残留：插件导入在主线程解析与规划（大文件需迁移 Worker）；每次导入多一份字节副本；字段类型
    label 不本地化；CSV 导出未接语义格式化；UI 只在启动时读共享注册表快照，运行时启用/禁用、
    来源徽标、错误 toast 与手动禁用仍属 T6.3。详见报告 §6 与 ADR-053“复核条件”。
