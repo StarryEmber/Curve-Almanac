@@ -106,4 +106,5 @@ T6.6 已按 ADR-056 选项 B 交付并闭环 T6.5 的 NFR-06 日志缺口：main
 按天归档/7 天保留、renderer 全局错误限流转发；单测 14 条 + E2E 2 条通过。全量 E2E 的功能测试
 111 passed；两条内存门禁按用户决定提高到 1GB（ADR-057）后记为通过，未重跑、未重打安装包。
 
-**M6 仍等用户最终确认**；发布前建议补跑 `pnpm package && pnpm package:smoke`。
+**M6 已于 2026-10-30 获用户接受并关闭**（汇总 `docs/reports/m6/REPORT.md`）；发布前建议补跑
+`pnpm package && pnpm package:smoke`。

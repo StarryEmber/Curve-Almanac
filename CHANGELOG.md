@@ -821,3 +821,7 @@
   `pnpm build` exit 0（renderer **3,365.92 kB**、CSS 77.89 kB）；定向 e2e **11 passed**
   （smoke 5 + shell 6，26.2s）。报告 `docs/reports/t6.0/REPORT.md`（1 张截图，`m0` 截图已还原）。
   不新增运行时依赖，不改 IPC/preload/数据格式/CSP。
+- M6：验收演示（示例插件 → 安装包 → 全量报告 → 九步演示 → 发布清单）执行完毕；
+  用户于 **2026-10-30 接受并关闭 M6**，v1 实施阶段（M0–M6）结束。汇总
+  `docs/reports/m6/REPORT.md`；发布前仍建议补跑 `pnpm package && pnpm package:smoke`
+  （T6.6 新增 electron-log 后尚未重打包）。

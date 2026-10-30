@@ -3,8 +3,10 @@
 > 表格驱动的本地曲线可视化工具：自定义表结构与表格外观，录入或导入数据，实时看到多系列曲线。
 > 单机离线、工作区即目录、**10 万行以内**流畅。
 >
-> 版本 `0.1.0`（Windows x64）· 规格 [docs/SPEC.md](docs/SPEC.md) ·
+> 版本 `0.1.0`（Windows x64）· **v1 实施已完成，M6 于 2026-10-30 关闭** ·
+> 规格 [docs/SPEC.md](docs/SPEC.md) ·
 > 验收记录 [docs/reports/t6.5/REPORT.md](docs/reports/t6.5/REPORT.md) ·
+> M6 汇总 [docs/reports/m6/REPORT.md](docs/reports/m6/REPORT.md) ·
 > 续作说明 [docs/HANDOFF.md](docs/HANDOFF.md)
 
 ## 1. 这是什么
