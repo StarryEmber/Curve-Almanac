@@ -703,6 +703,24 @@
   报告 `docs/reports/m5/REPORT.md`（7 张截图 + `m5-metrics.json`）；全量 E2E **104 passed**
   （6.2m，M5 1 条 20.2s）。**2026-10-29 获用户接受，M5 已关闭；M6 未开始**，等用户明确指示后再
   领取 T6.1。
+- T6.5：最终九步验收与文档收尾。新增 `apps/desktop/e2e/t6.5-acceptance.spec.ts`（README §6：
+  新建 Demo 工作区 → 建温度记录表/4 列 → 200 行粘贴（整批拒绝 + 单格校验）→ 样式/密度/条件格式/
+  另存我的报表 → 宽/长表图表 + PNG → 100k GBK 导入 + 采样 → 撤销 5/重做 3 + 强杀恢复 →
+  重启还原 → 模板导出/新工作区导入）；README 改为产品说明，新增 `docs/MANUAL.md`（用户手册）、
+  `docs/DEVELOPER.md`（开发者指南）、`docs/ROADMAP.md`（v1 限制/v2 设想）、TESTPLAN E12 与 §7
+  发布清单、`docs/reports/t6.5/REPORT.md`（14 张 PNG + `t6.5-metrics.json`）。不改运行时代码/
+  IPC/数据格式/CSP/打包配置，不新增依赖。
+- T6.5：全量验收实测：`pnpm verify` **196 files / 1816 tests**（depcruise 531 modules / 2309 deps /
+  0 violations）；coverage statements 77.13% / branches 69.82% / functions 76.51% / lines 77.28%；
+  `pnpm build` exit 0（renderer 3,469.35 kB、CSS 81.34 kB、main 338.76 kB）；`pnpm e2e`
+  **111 passed**（7.0m；九步演示 26.2s，chart-perf 520MB、perf 590MB）；`pnpm bench` exit 0
+  （text-sort 370ms/400、cjk-sort 661ms/800）；`pnpm package` exit 0（NSIS 112,400,989 B /
+  portable 112,163,369 B）。E2E 第 1 次因新 spec 的 JSONL 子串断言缺陷失败、第 2 次 chart-perf
+  602MB 离群（已知 509–608MB 波动），第 3 次 111/111。
+- T6.5：发布检查发现 **NFR-06 日志落盘未实现**（main 仅 console，无 `electron-log`/
+  `userData/logs/main.log`/轮转，renderer 无全局 error 转发）；新增 ADR-056（提议）与
+  README/MANUAL/ROADMAP 已知限制；发布清单第 7 项未签字。干净机器复验由用户 2026-10-30 书面
+  豁免。**M6 演示已执行，未关闭**，等用户裁决。
 - T6.4：安装包与发布配置（ADR-055）。新增 `apps/desktop/electron-builder.yml`：
   `appId=com.curvealmanac.app`、`productName=Curve Almanac`、NSIS 每用户安装
   （`oneClick:false`/`perMachine:false`/`allowElevation:false`/`asInvoker`/

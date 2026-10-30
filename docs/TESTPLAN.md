@@ -242,6 +242,25 @@
 > chart-perf 100k 切换 private **506MB**（≤600MB）。命令面板只在打开时挂载，AppShell 不订阅
 > 文档 store，避免破坏 T4.6 的内存门禁（ADR-049 §5）。
 
+### E12 最终九步验收（T6.5）
+
+1. 新建 `Demo.cstudio` 工作区（真实欢迎页对话框）。
+2. 用列对话框建 `温度记录`（id 主键 + time/date/x、sensor_a/number/y、sensor_b/number/y、site/text/series）。
+3. 粘贴 200 行：先提交一行类型错误的矩阵（整批拒绝、定位第 58 行、文件不变），修正后再次粘贴；
+   再做一次单格非法值→修正的校验。
+4. 应用 `builtin.report-light`、密度 compact、`sensor_a > 30` 条件规则（红底/警告图标），
+   另存为 `我的报表`。
+5. 新建折线图（宽表 2 系列）→ 切长表（`site` 3 系列）→ 缩放 → 关图例 → 导出 2× PNG。
+6. 新建第二张表，用导入向导导入 100,000 行 GBK 分号 CSV（3 行坏数据跳过）；滚动 100k 网格，
+   出图断言采样徽标、99997 源点、≤2000 渲染点与 resolve/update 预算。
+7. 5 次编辑（间隔 >800ms）→ 撤销 5 → 重做 3；提交 77 后强杀进程，恢复后 77 保留、999 丢弃。
+8. 重启 → 最近工作区 → 恢复对话框 → 2 pane/样式/图表/数据全部还原。
+9. 导出 `我的报表` 模板，在新工作区导入并应用成功（id 重分配）。
+
+> `apps/desktop/e2e/t6.5-acceptance.spec.ts` 1 条覆盖上述九步；两次启动 + 一次
+> `taskkill /F /T`，除只读 manifest/JSONL 断言外全部走真实 UI。截图与 `t6.5-metrics.json`
+> 归档在 `docs/reports/t6.5/`，结果见报告 §3/§4。九步演示与 M6 演示合并为同一次运行。
+
 ---
 
 ## 4. 夹具
@@ -345,19 +364,32 @@
 
 ## 7. 发布检查清单（T6.5）
 
-- [ ] `pnpm verify`、`pnpm e2e`、`pnpm bench` 全绿，报告归档。
-- [ ] README §6 九步演示一次通过（录屏/截图）。
-- [ ] SPEC §17 全部 FR 有证据链接。
+- [x] `pnpm verify`、`pnpm e2e`、`pnpm bench` 全绿，报告归档。
+  → 196 files / 1816 tests；111 passed（7.0m）；bench exit 0；见 `docs/reports/t6.5/REPORT.md` §2。
+- [x] README §6 九步演示一次通过（录屏/截图）。
+  → `e2e/t6.5-acceptance.spec.ts` 1 条 26.2s；13 张 UI 截图 + 导出 PNG + metrics。
+- [x] SPEC §17 全部 FR 有证据链接。
+  → 报告 §5 的 29 条 FR/扩展矩阵（全部 ✅）。
 - [ ] Windows 干净用户安装 → 启动 → 建工作区 → 卸载 → 数据仍在。
-- [ ] 版本号、`appId`、图标、许可证正确。
-- [ ] 生产包无 DevTools、无测试钩子、无 source map（或仅内部）。
+  → **用户豁免**（2026-10-30 明确“不做干净机器复验”）；替代证据为 T6.4 `pnpm package:smoke`
+  PASS（无既存安装/无 userData/非管理员）。本机冒烟不是全新 Windows 镜像。
+- [x] 版本号、`appId`、图标、许可证正确。
+  → `packaging.test.ts` 5 条；`appId=com.curvealmanac.app`、`0.1.0`、ICO 7 档、`license.txt`。
+- [x] 生产包无 DevTools、无测试钩子、无 source map（或仅内部）。
+  → T6.4 smoke：asar 23 文件、无 `*.map`/dev 文件、`CURVE_E2E_*` 失效、DevTools 关闭。
 - [ ] 日志路径/滚动/保留天数符合 SPEC §16.5。
-- [ ] 已知限制与 v2 路线写入 `docs/ROADMAP.md` 与发布说明。
-- [ ] 回滚方案：保留上一版安装包与工作区迁移备份说明。
+  → **未达标**：仅 console；无 `userData/logs/main.log`、无按天轮转/7 天保留、无 renderer
+  全局 error 转发。见 `docs/adr/056-t65-log-file-deviation.md`（提议，待用户裁决）。
+- [x] 已知限制与 v2 路线写入 `docs/ROADMAP.md` 与发布说明。
+  → `docs/ROADMAP.md`、README/MANUAL §已知限制。
+- [x] 回滚方案：保留上一版安装包与工作区迁移备份说明。
+  → 保留 `release/` 上一版安装包；工作区 `backups/` + `.lock` 恢复；v1 只支持 `formatVersion: 1`。
 
 **T6.4 自动化（ADR-055，2026-10-30）**：`pnpm package` 产出 NSIS（每用户、无管理员）与
 portable；`pnpm package:smoke` 在真实 Windows 上静默安装 → 启动已安装应用 → 在默认
 `Documents/Curve Almanac` 新建工作区 → 静默卸载，并断言程序文件/快捷方式/卸载注册表被清理、
 工作区与 `%APPDATA%\Curve Almanac` 保留；`apps/desktop/test/packaging.test.ts` 锁定
-`appId`/`productName`/NSIS 每用户参数/文件白名单/图标与许可证。上述清单的“干净机器复验”
-仍留给 T6.5：本机冒烟是“无既存安装/无既存用户数据”的干净应用态，不是全新 Windows 镜像。
+`appId`/`productName`/NSIS 每用户参数/文件白名单/图标与许可证。
+
+**T6.5 签字（2026-10-30）**：9 项中 7 项通过、1 项用户豁免、1 项未达标（日志落盘）。
+发布签字未完成，等用户对 ADR-056 选项裁决；M6 不自动关闭。详见 T6.5 报告 §6。

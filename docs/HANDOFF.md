@@ -1,51 +1,52 @@
 # HANDOFF — Curve Almanac 实施交接
 
 > 本文件面向**下一个实现会话**。**M5 已于 2026-10-29 获用户接受并关闭**（T5.1–T5.5、
-> `docs/reports/m5/REPORT.md`、ADR-046–050）。**M6 进行中：`T6.0`（品牌更名 Curve Studio →
-> Curve Almanac）、`T6.1`（插件 SDK 与注册表）、`T6.2`（示例插件）、`T6.3`（插件接入 UI 与隔离）
-> 与 `T6.4`（安装包与发布配置）已完成**（`docs/reports/t6.0/REPORT.md`、`t6.1`、`t6.2`、`t6.3`、
-> `t6.4`；ADR-051、052、053、054、055）；`T6.5`（全量验收与文档收尾）尚未开始，**不要自动领取**：
-> 等用户明确指示后再开始。
+> `docs/reports/m5/REPORT.md`、ADR-046–050）。**M6 的 `T6.0`–`T6.5` 均已完成**：
+> T6.0 品牌更名、T6.1 插件 SDK、T6.2 示例插件、T6.3 插件 UI 与隔离、T6.4 安装包与发布配置、
+> T6.5 全量验收与文档收尾（`docs/reports/t6.5/REPORT.md`；ADR-051–055，ADR-056 为 T6.5 发现的
+> 日志落盘偏差，状态“提议”）。**M6 验收演示已执行但 M6 尚未关闭**：等用户对 ADR-056 作出
+> 裁决（接受 v1 例外或新开任务修复）并确认。
 > 最后更新：2026-10-30 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
 > T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
 > T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
 > T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
 > T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告 **`50f7ea9`**、
 > T6.0 代码/报告 **`cc6dd5c`**、T6.1 代码/报告 **`2ea05cf`**、T6.2 代码/报告 **`15e43ed`**、
-> T6.3 代码/报告 **`a78a5ca`**、T6.4 代码/报告 **`666f3ba`**（本交接文档的提交见
+> T6.3 代码/报告 **`a78a5ca`**、T6.4 代码/报告 **`666f3ba`**、T6.5 代码/报告见
+> `git log -1 -- docs/reports/t6.5/REPORT.md`（本交接文档的提交见
 > `git log -1 -- docs/HANDOFF.md`）。
-> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.13）→ `docs/reports/t6.4/REPORT.md` →
-> `docs/reports/t6.3/REPORT.md` → `docs/reports/t6.2/REPORT.md` → `docs/reports/t6.1/REPORT.md` →
-> `docs/reports/t6.0/REPORT.md` → `docs/TASKS.md` 的 M6 → `docs/SPEC.md` §14/§16.6 →
-> ADR-055/054/053/052/051/050/048。
+> 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.14）→ `docs/reports/t6.5/REPORT.md` →
+> `docs/reports/t6.4/REPORT.md` → `t6.3` → `t6.2` → `t6.1` → `t6.0` → `docs/TASKS.md` 的 M6 →
+> `docs/SPEC.md` §14/§16.5/§16.6/§17 → ADR-056/055/054/053/052/051/050/048。
 
 ---
 
 ## 0. 一页摘要（给下一个会话）
 
 - **当前状态**：M1–M5 均已获用户接受；`T3.1`–`T3.6`、`T4.1`–`T4.6`、`T5.1`–`T5.5`、M5 验收
-  演示、**`T6.0`（品牌更名 Curve Almanac）**、**`T6.1`（插件 SDK 与注册表）**、
-  **`T6.2`（示例插件）**、**`T6.3`（插件接入 UI 与隔离）**与 **`T6.4`（安装包与发布配置）**
-  均已完成；**M5 已于 2026-10-29 关闭**；M6 的 `T6.5` 尚未开始。
-- **本次交接范围**：T6.4 安装包与发布配置——electron-builder（NSIS 当前用户安装 + portable）、
-  `appId`/`productName`/版本、图标与许可证、`release/` 产物、`pnpm package`/`pnpm package:smoke`、
-  真实安装/启动/卸载/数据保留冒烟、ADR-055 与 `docs/reports/t6.4/REPORT.md`；并记录本机受限
-  shell 的手工启动/安装步骤（§3.7）。不改 IPC/数据格式/CSP/Electron 安全选项，不新增运行时
-  依赖。
-- **基线**：`pnpm verify` **196 files / 1816 tests**（ESLint 0；depcruise 530 modules / 2300 deps /
-  0 violations）；coverage 全局 lines **77.28%**（statements 77.13% / branches 69.82% /
+  演示、**`T6.0`–`T6.5`** 均已完成；**M5 已于 2026-10-29 关闭**；M6 验收演示已执行，
+  **M6 尚未关闭**（等用户对 ADR-056 裁决）。
+- **本次交接范围**：T6.5 全量验收与文档收尾——九步端到端演示（`t6.5-acceptance.spec.ts`）、
+  全量 verify/e2e/bench/package 归档、SPEC §17 证据矩阵、README 产品化 + 用户手册/开发者指南/
+  ROADMAP/ADR 索引、发布检查清单（8/9：1 项用户豁免、1 项日志未达标）。不改运行时代码/IPC/
+  数据格式/CSP/打包配置，不新增依赖。
+- **基线**：`pnpm verify` **196 files / 1816 tests**（ESLint 0；depcruise **531 modules / 2309 deps /
+  0 violations**）；coverage 全局 lines **77.28%**（statements 77.13% / branches 69.82% /
   functions 76.51%）；`pnpm build` exit 0（renderer **3,469.35 kB**、CSS 81.34 kB、main 338.76 kB）；
-  `pnpm e2e` **110 passed**（T6.3 基线；T6.4 未改运行时代码故未重跑）；`pnpm bench` exit 0
-  （T6.3 基线）；`pnpm package` exit 0（NSIS 112,400,939 B、portable 112,163,368 B、win-unpacked
-  391,112,000 B）；`pnpm package:smoke` PASS（install 17.3s / launch 4.4s / uninstall 8.9s）。
+  `pnpm e2e` **111 passed**（7.0m；T6.5 九步 26.2s；chart-perf 520MB、perf 590MB）；`pnpm bench`
+  exit 0（text-sort 370ms/400、cjk-sort 661ms/800、import 1,009ms/8s 等）；
+  `pnpm package` exit 0（NSIS 112,400,989 B、portable 112,163,369 B、win-unpacked 391,112,000 B）；
+  `pnpm package:smoke` 沿用 T6.4 PASS（install 17.3s / launch 4.4s / uninstall 8.9s）。
 - **硬约束**：不绕过命令总线；不新增未写 ADR 的运行时依赖；不改 `formatVersion`/IPC/公共 API
   而不更新 SPEC/ADR；不跳过验收项；不自动跨任务/里程碑；强杀后不得静默丢数据。
-- **停点**：T6.4 已完成；**M6 仅剩 `T6.5`（全量验收与文档收尾）未开始**。不要自动领取；等用户
-  明确指示后再开始（T6.5 是全量 E2E/性能/可访问性、九步演示与发布清单）。
-- **接手动作**：确认工作树干净、`node_modules` 已安装（含 `echarts@6.1.0`）；`release/` 是
-  gitignore 的本地产物，不存在时先 `pnpm package`（手工启动见 §3.7）；读
-  `docs/reports/t6.4/REPORT.md`、ADR-055/054/053/052/051/050/048、TASKS 的 M6；收到“开始 M6
-  下一任务”后按 §0.11 领取 `T6.5`。
+- **停点**：T6.5 已交付；**M6 验收演示已执行但 M6 未关闭**。发布清单第 7 项（SPEC §16.5 日志
+  落盘）未达标，ADR-056 给出 A/B/C 三个选项（建议对外发布选 B）。等用户：接受 v1 例外并关闭
+  M6，或新开任务实现日志后重签字。**不要自动关闭 M6。**
+- **接手动作**：确认工作树干净；读 `docs/reports/t6.5/REPORT.md`（尤其 §5/§6/§9）、ADR-056、
+  TASKS 的 M6；若用户选择修复日志，新开任务（不要塞进 T6.5）并重跑 verify/e2e/package:smoke；
+  若接受例外，更新 ADR-056 状态、SPEC §16.5 例外、TESTPLAN §7 第 7 项，再关闭 M6。
+- **T6.5 完成结果**：九步一次通过（26.2s，14 张 PNG + metrics）；README/ MANUAL/DEVELOPER/
+  ROADMAP/ADR 索引完成；111 passed、bench exit 0、package exit 0。
 - **M5 完成结果**：2 表 3 视图 → 复制视图/水平分栏/移动标签 → 5 次编辑 + 撤销/重做 5 步 →
   提交 200 后强杀（999 丢弃、200 保留）→ 尝试恢复 → 关闭后从最近列表重开 → 英文 + 深色 →
   重启后 2 pane / 3 标签 / Readings 活动 / 值 200 全部还原。截图在 `docs/reports/m5/`。
@@ -147,23 +148,27 @@
    redo 留孤儿文件；`table.meta.update` 菜单文案不区分重命名/换主键；原生 Electron Edit 菜单
    仍未与历史同步。详见报告 §8 与 ADR-047“复核条件”。
 
-### 0.3 下一会话行动清单（T6.4 已完成；T6.5 待领取）
+### 0.3 下一会话行动清单（M6 全部任务完成；M6 待用户确认关闭）
 
-> 前提：T5.1–T5.5、M5 验收演示与 **T6.0–T6.4** 均已完成；**M5 已于 2026-10-29 获用户接受并
-> 关闭**。**M6 只剩 `T6.5`（全量验收与文档收尾）；不要自动领取任何 M6 任务。**
+> 前提：T5.1–T5.5、M5 验收演示与 **T6.0–T6.5** 均已完成；**M5 已于 2026-10-29 获用户接受并
+> 关闭**。**M6 验收演示已执行，但 M6 未关闭**：发布清单第 7 项（SPEC §16.5 日志落盘）未达标，
+> ADR-056 为“提议”，等用户裁决。**不要自动关闭 M6，也不要自动领取新任务。**
 
 1. 开场先确认：`git status --short` 干净、`pnpm --version` 11.28.5、`pnpm verify`
-   196 files / 1816 tests、`pnpm e2e` **110 passed**、`pnpm bench` exit 0；读 TASKS 的 M6 记录、
-   报告 `docs/reports/t6.4/REPORT.md`（以及 `t6.3`/`t6.2`/`t6.1`/`t6.0`）与 §0.10–§0.13。
-2. 只有收到用户明确的“开始 M6 下一任务”指令后，才领取 TASKS 的 `T6.5`（全量验收与文档收尾）；
-   先读 TESTPLAN §3–§7、README §6 的九步演示、SPEC §17 与 TASKS 的 M6 顺序。
-3. 若要复跑 T6.4 打包冒烟：`pnpm package && pnpm package:smoke`（会真实安装/卸载，需独占机器；
+   196 files / 1816 tests、`pnpm e2e` **111 passed**、`pnpm bench` exit 0；读 TASKS 的 M6、
+   `docs/reports/t6.5/REPORT.md`（尤其 §5/§6/§9）、ADR-056 与 §0.10–§0.14。
+2. 若用户接受 v1 例外：把 ADR-056 状态改为“已接受”，在 SPEC §16.5 标注 v1 例外、更新
+   TESTPLAN §7 第 7 项与 ROADMAP，然后关闭 M6（不要改运行时代码）。
+3. 若用户要求修复日志：**新开任务**（不要塞进 T6.5），按 ADR-056 选项 B/C 实现文件日志 +
+   renderer 全局转发；完成后重跑 `pnpm verify && pnpm e2e && pnpm package:smoke` 并重新签字。
+4. 若要复跑九步演示：独占 CPU 执行
+   `pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/t6.5-acceptance.spec.ts`；
+   截图/指标写到 `test-results/`，复制到 `docs/reports/t6.5/`，`m0` 截图提交前还原。
+5. 若要复跑 T6.4 打包冒烟：`pnpm package && pnpm package:smoke`（会真实安装/卸载，需独占机器；
    本机先设 `ELECTRON_MIRROR`/`ELECTRON_BUILDER_BINARIES_MIRROR` 与
-   `CURVE_E2E_NO_SANDBOX=1`，见 §3.6）。
-4. 若用户要求重跑 M5 演示：独占 CPU 执行
-   `pnpm exec playwright test --config apps/desktop/playwright.config.ts apps/desktop/e2e/m5-acceptance.spec.ts`，
-   截图/指标会重写到 `test-results/`，复制回 `docs/reports/m5/`，`m0` 截图提交前还原。
-5. 不要回退：T5.3 的 SaveQueue 窗口/flush、T5.4 的快捷键表、T5.5 的 `settings.json`/
+   `CURVE_E2E_NO_SANDBOX=1`，见 §3.6）；注意它会重写 `docs/reports/t6.4/` 的 metrics，
+   不要覆盖历史证据。
+6. 不要回退：T5.3 的 SaveQueue 窗口/flush、T5.4 的快捷键表、T5.5 的 `settings.json`/
    `app:settings`/`SettingsProvider`、T3.1 内置模板、M4 图表契约、T5.1 的 layout 契约、
    T6.0 的 `APP_NAME` 单一来源与品牌一致性测试、T6.1 的注册表/宿主语义（`subscribe`、`source`、
    owner 化 `replace`、错误隔离与 `E_PLUGIN_*`）、T6.2 的字段类型 id 与
@@ -172,8 +177,11 @@
    `plugins/builtins.ts` 是唯一内置列表）、来源后缀、`reportPluginError` 去重/环形日志、
    会话级禁用语义与 `plugin-ui.spec.ts` 的 testid 契约、T6.4 的 `appId`/`productName`/NSIS
    每用户参数/`files` 白名单/图标与许可证/`package:smoke`（ADR-055）。
-6. 演示说明：M5 demo 的 999 丢失是 SPEC §13.3 允许的最后 1.5s 窗口；恢复对话框提示已断言。
-7. M5 报告里的 7 张截图是证据，不做像素基线；`m5-metrics.json` 是结构化指标。
+7. 演示说明：九步演示的 `999` 丢弃是 SPEC §13.3 允许的最后 1.5s 窗口；恢复对话框提示已断言。
+8. T6.5 的 13 张 UI 截图是证据，不做像素基线；`t6.5-metrics.json` 是结构化指标。
+9. 日志缺口不影响九步演示与崩溃恢复；不要把“console 日志”写成“已实现文件日志”。
+
+### 0.4 T5.3 结果（2026-10-28 完成）
 
 ### 0.4 T5.3 结果（2026-10-28 完成）
 
@@ -431,6 +439,32 @@
    冒烟会短暂写真实用户目录；portable 只验证产出；macOS/Linux 未配置。详见报告 §6 与
    ADR-055“复核条件”。
 
+### 0.14 T6.5 结果（2026-10-30 完成，待用户验收；M6 未关闭）
+
+1. 交付：`apps/desktop/e2e/t6.5-acceptance.spec.ts`（README §6 九步：建工作区/建表列/200 行粘贴
+   + 整批拒绝 + 单格校验/模板+密度+条件格式+另存/宽长图+PNG/100k 导入+采样/撤销 5+重做 3+强杀/
+   重启恢复/模板导出+新工作区导入；两次启动 + 一次 `taskkill /F /T`）；README 产品化；
+   `docs/MANUAL.md`、`docs/DEVELOPER.md`、`docs/ROADMAP.md`、TESTPLAN E12 + §7、ADR 索引；
+   `docs/reports/t6.5/REPORT.md`（13 张 UI 截图 + 导出 PNG + `t6.5-metrics.json`）。
+2. 实测：`pnpm verify` **196 files / 1816 tests**；depcruise **531 modules / 2309 deps / 0
+   violations**；coverage statements 77.13% / branches 69.82% / functions 76.51% / lines 77.28%；
+   `pnpm build` exit 0（renderer 3,469.35 kB、CSS 81.34 kB、main 338.76 kB）；`pnpm e2e`
+   **111 passed**（7.0m；九步 26.2s；chart-perf 520MB、perf 590MB）；`pnpm bench` exit 0
+   （text-sort 370ms/400、cjk-sort 661ms/800、import 1,009ms/8s）；`pnpm package` exit 0
+   （NSIS 112,400,989 B / portable 112,163,369 B / unpacked 391,112,000 B）。
+3. 九步指标：5 列、200 行、样式规则 1 条、宽 2/长 3 系列、PNG 1702×856、导入 99,997 行
+   （3 坏行）、采样 2,000/99,997、resolve 32ms / update 19ms、撤销 5/重做 3、恢复 77、2 pane、
+   模板导入重分配 id。
+4. **不要回退**：T6.5 的九步 spec 断言（逐行解析 JSONL，不能用子串匹配 UUID）；发布清单的
+   用户豁免记录；`docs/reports/t6.5/` 的 13 张截图 + metrics；历史 `m0` 截图不得被覆盖。
+5. E2E 重跑记录：第 1 次 110/111（新 spec 断言缺陷，已修）；第 2 次 110/111（chart-perf
+   602MB 离群，已知 509–608MB 波动，未放宽门槛）；第 3 次 **111/111**。
+6. **未达标项**：SPEC §16.5 的 main 文件日志（`electron-log`、`userData/logs/main.log`、按天
+   轮转/7 天保留）与 renderer 全局 error 转发未实现；崩溃恢复不受影响。ADR-056 记录 A/B/C
+   三个选项（建议对外发布选 B/electron-log；内部预览可接受 A 并补 renderer 转发）。
+7. 停点：**M6 验收演示已执行，M6 未关闭**；发布清单 9 项中 7 通过、1 用户豁免（干净机器）、
+   1 未达标（日志）。等用户裁决 ADR-056 后再关闭 M6。
+
 ---
 
 ## 1. 当前进度快照
@@ -474,13 +508,14 @@
 | `T6.2` 示例插件 | **已完成**（2026-10-30）；`docs/reports/t6.2/REPORT.md`；ADR-053；`plugins/plugin-sample` 29 条单测 + 3 条 E2E |
 | `T6.3` 插件接入 UI 与隔离 | **已完成**（2026-10-30）；`docs/reports/t6.3/REPORT.md`；ADR-054；内置注册 + 来源标识 + 错误隔离 + 插件管理器；`plugin-ui.spec.ts` 3 条 |
 | `T6.4` 安装包与发布配置 | **已完成**（2026-10-30）；`docs/reports/t6.4/REPORT.md`；ADR-055；NSIS 每用户 + portable；`pnpm package:smoke` 真实安装/卸载 |
-| 当前里程碑 | **M6 扩展与发布**：`T6.0`/`T6.1`/`T6.2`/`T6.3`/`T6.4` 已完成；`T6.5` 尚未开始 |
-| 下一步 | 等用户明确指示后领取 **`T6.5`**（全量验收与文档收尾）；**不要自动开始** |
-| `pnpm verify` 基线 | **196 files / 1816 tests**；ESLint 0；depcruise 530 modules / 2300 deps / 0 violations |
-| `pnpm test:coverage` 基线 | 全局 statements **77.13%** / branches **69.82%** / functions **76.51%** / lines **77.28%**；`renderer/plugins` lines **94.44%**、`features/plugins` lines **86.84%**、`plugins/plugin-sample/src` lines 97.64%；阈值 70/60 未下调（新增 `scripts/package-smoke.ts` 不进覆盖率） |
-| `pnpm e2e` 基线 | **110 passed**（T6.3 基线；T6.4 未改运行时代码故未重跑；含 `plugin-ui` 3 条、`plugin.spec` 3 条、M5 1 条 20.2s）；chart-perf 100k 切换 privatePeak 591MB（门禁 600MB，本机波动 509–608MB） |
-| `pnpm bench` 基线 | **exit 0**（T6.3 基线，T6.4 未重跑）；table.encode 360ms/1500、table.decode 650ms/3000、table.open 582ms/3000、table.save 401ms/500、edit 0ms/50、query 217ms/400、text-sort 364ms/400、cjk-sort 587ms/800、condition 1ms/16、import 925ms/8s；chart.resolve-sample P95 **60ms**/300、chart.sample 2ms/50、chart.option.2k 1ms/50、chart.restyle.100k 0ms/20；memoryPeakMB 944（Node 趋势，非应用门禁） |
-| `pnpm package` 基线 | **exit 0**；NSIS `Curve Almanac Setup 0.1.0.exe` **112,400,939 B**、portable `Curve Almanac 0.1.0.exe` **112,163,368 B**、`win-unpacked` **391,112,000 B**；Electron 44.9.0；未签名 |
+| `T6.5` 全量验收与文档收尾 | **已完成，待用户验收**（2026-10-30）；`docs/reports/t6.5/REPORT.md`；九步演示 26.2s；ADR-056（日志落盘，提议） |
+| 当前里程碑 | **M6 扩展与发布**：`T6.0`–`T6.5` 全部完成；**M6 演示已执行，未关闭**（等 ADR-056 裁决） |
+| 下一步 | 等用户：接受 ADR-056 的 v1 例外并关闭 M6，或新开任务实现日志；**不要自动关闭 M6** |
+| `pnpm verify` 基线 | **196 files / 1816 tests**；ESLint 0；depcruise **531 modules / 2309 deps / 0 violations** |
+| `pnpm test:coverage` 基线 | 全局 statements **77.13%** / branches **69.82%** / functions **76.51%** / lines **77.28%**；`renderer/plugins` lines **94.44%**、`features/plugins` lines **86.84%**、`plugins/plugin-sample/src` lines 97.64%；阈值 70/60 未下调（`scripts/package-smoke.ts` 不进覆盖率） |
+| `pnpm e2e` 基线 | **111 passed**（7.0m；含 T6.5 九步 26.2s、`plugin-ui` 3 条、M5 1 条）；chart-perf 100k 切换 privatePeak **520MB**、perf 590MB（门禁 600MB，本机波动 509–608MB） |
+| `pnpm bench` 基线 | **exit 0**；table.encode 322ms/1500、table.decode 431ms/3000、table.open 510ms/3000、table.save 408ms/500、edit 0ms/50、query 209ms/400、text-sort 370ms/400、cjk-sort 661ms/800、condition 1ms/16、import 1,009ms/8s；chart.resolve-sample P95 **80ms**/300、chart.sample 3ms/50、chart.option.2k 1ms/50、chart.restyle.100k 0ms/20；memoryPeakMB 912（Node 趋势，非应用门禁） |
+| `pnpm package` 基线 | **exit 0**；NSIS `Curve Almanac Setup 0.1.0.exe` **112,400,989 B**、portable `Curve Almanac 0.1.0.exe` **112,163,369 B**、`win-unpacked` **391,112,000 B**；Electron 44.9.0；未签名（与 T6.4 体积差为时间戳字节） |
 | `pnpm package:smoke` 基线 | **PASS**；install **17.3s**、launch **4.4s**、uninstall **8.9s**；工作区与 `%APPDATA%\Curve Almanac` 卸载后保留；asar 23 文件、无开发文件；metrics `docs/reports/t6.4/t6.4-package-metrics.json` |
 | 本地产物 | `release/`（gitignore）：`Curve Almanac Setup 0.1.0.exe`、`Curve Almanac 0.1.0.exe`、`win-unpacked/`；由 `pnpm package` 生成；手工启动见 §3.7 |
 | `pnpm format:check` | 通过（`apps/desktop/build` 已加入 `.prettierignore`） |
@@ -492,9 +527,9 @@
 - 一次只做一个任务；每个任务先复述目标/产出/验收，再写测试、实现、跑 `pnpm verify` 与任务指定
   e2e/bench，最后勾选 TASKS、更新 CHANGELOG、必要时 ADR、Conventional Commit。
 - **M1/M2/M3/M4/M5 均已获用户接受；T3.1–T3.6、M3 验收演示、T4.1–T4.6、M4 验收演示、
-  T5.1–T5.5、M5 验收演示、T6.0 品牌更名、T6.1 插件 SDK/注册表、T6.2 示例插件、T6.3 插件接入
-  UI 与隔离与 T6.4 安装包与发布配置已完成**；M5 已关闭，M6 只剩 `T6.5`。
-- 不得跨任务/里程碑；**`T6.5` 必须等用户明确指示后再开始**，不要自动领取 M6 任务。
+  T5.1–T5.5、M5 验收演示、T6.0–T6.5 均已完成**；M5 已关闭，**M6 演示已执行但未关闭**。
+- 不得跨任务/里程碑；**M6 未关闭前不要自动领取新任务**；T6.5 的日志例外等用户裁决。
+- 用户 2026-10-30 明确：**不做干净机器复验**；其余按 T6.5 报告执行。
 
 ---
 
@@ -503,18 +538,17 @@
 ```text
 工作目录：D:\DSH_Work_Space\curve-studio（仓库根）。
 
-先读 AGENTS.md、docs/HANDOFF.md（尤其 §0.3/§0.13）、docs/TASKS.md 的 M6、
-docs/reports/t6.4/REPORT.md、docs/reports/t6.3/REPORT.md、docs/reports/t6.2/REPORT.md、
-docs/reports/t6.1/REPORT.md、docs/reports/t6.0/REPORT.md、docs/SPEC.md §14/§16.6、
-ADR-055/054/053/052/051/050/048。
+先读 AGENTS.md、docs/HANDOFF.md（尤其 §0.3/§0.14）、docs/reports/t6.5/REPORT.md、
+docs/TASKS.md 的 M6、docs/SPEC.md §14/§16.5/§16.6/§17、ADR-056/055/054/053/052/051/050/048。
 
 现状：M0–M5（均已验收）、T1.1–T4.6、T5.1–T5.5、M5 验收演示、T6.0 品牌更名（Curve Almanac）、
-T6.1 插件 SDK/注册表、T6.2 示例插件、T6.3 插件接入 UI 与隔离、T6.4 安装包与发布配置已完成；
-M5 已于 2026-10-29 关闭；M6 只剩 T6.5 未开始。pnpm verify 196 files / 1816 tests、pnpm e2e
-110 passed、pnpm bench exit 0、pnpm package exit 0、pnpm package:smoke PASS。
+T6.1 插件 SDK/注册表、T6.2 示例插件、T6.3 插件接入 UI 与隔离、T6.4 安装包与发布配置、
+T6.5 全量验收与文档收尾已完成；M5 已于 2026-10-29 关闭；M6 演示已执行但未关闭。
+pnpm verify 196 files / 1816 tests、pnpm e2e 111 passed、pnpm bench exit 0、
+pnpm package exit 0、pnpm package:smoke PASS（T6.4）。
 
-下一步：等待用户明确指示后再开始 M6 最后一个任务 T6.5（全量验收与文档收尾）。
-不要自动领取 M6 任务，一次只推进一个任务。
+下一步：等用户对 ADR-056（日志落盘偏差）裁决——接受 v1 例外并关闭 M6，或新开任务实现日志。
+不要自动关闭 M6，不要自动领取任务，一次只推进一个任务。
 ```
 
 ---
@@ -3506,6 +3540,12 @@ T5.3、T5.4 已完成，下一步 T5.5。
 | 内置导入器 `parse` 与 Worker 双路径（T6.3） | 内置 CSV/JSON 的注册表 `parse` 与 Worker 内解析共用 table-engine，但向导仍走 Worker | 有意：编码嗅探/分隔符/表头覆盖/10 万行规划必须在 Worker（T2.5 边界）。若改用渲染进程解析，会失去大文件与非 UTF-8 能力，必须整体评估并写 ADR |
 | 导入错误态额外显示导入器下拉（T6.3） | 首次内置解析失败且尚无会话时不显示；插件导入器失败后显示，可切回内置解析器 | 有意 UX（ADR-054 §4）：避免插件抛错把用户锁死在错误页。`data-testid="import-importer"` 在错误态仍存在，改断言时注意作用域 |
 | 内置字段类型的语义函数基本不可达（T6.3） | 内置 id = 存储类型，`fieldTypeId` 永不写内置 id，所以它们的 `parseText`/`format` 只在注册表契约与单测中使用 | 有意：换取“存储类型列表也是注册表数据”与无迁移的格式稳定；不要为了“用起来”让 `fieldTypeId` 指向内置 id（主进程 resolver 会拒绝） |
+| 日志文件落盘未实现（T6.5 发现，NFR-06） | main 只写 console；无 `userData/logs/main.log`、无按天轮转/7 天保留；renderer 无全局 error 转发；排障只能看控制台 | 既有偏差（T0.3 注释承诺 T1.x 换文件日志但未落地）。ADR-056 记录 A/B/C 三选项；对外发布前建议选 B（`electron-log`）。不要在文档里写成“已实现文件日志” |
+| 干净机器复验被用户豁免（T6.5） | NFR-08 的“全新 Windows 镜像”未执行；本机只是“无既存安装/无 userData/非管理员” | 用户 2026-10-30 明确豁免；以 T6.4 `package:smoke` PASS 作替代证据。若将来对外发布/企业分发，仍需干净镜像复验 |
+| E2E 新 spec 用子串断言 JSONL（T6.5） | 第 1 次全量失败：`not.toContain('999')` 命中随机 UUID | 已改为逐行 `JSON.parse` 后比较 `v[2]`；新增 E2E 断言 JSONL 时不要用子串匹配整个文件 |
+| chart-perf 602MB 离群（T6.5 第 2 次全量） | 全量非零；门禁 600MB | 已知波动 509–608MB；先确认外部负载后独占重跑（第 3 次 520MB 通过）。不放宽门槛，不改预算 |
+| 九步演示依赖外部负载 | 100k 导入/图表/内存断言在游戏/聊天工具占 CPU 时变慢或离群 | 全量 E2E 独占 CPU；复跑前先看 `Get-Counter`/进程 CPU（§3.6），不要先调断言 |
+| T6.5 截图是证据不是像素基线 | 跨 DPI/字体可能视觉漂移；`m0` 截图会被 E2E 重写 | 用 `data-*` 契约 + metrics；提交前 `git checkout -- docs/reports/m0`；不要对 `docs/reports/t6.5/*.png` 做像素比较 |
 
 ---
 

@@ -1703,9 +1703,10 @@ T6.2 + T2.5 + T3.2 → T6.3
 ## M6 扩展与发布
 
 > 状态（2026-10-30）：`T6.0`（品牌更名 Curve Almanac）、`T6.1`（插件 SDK 与注册表）、`T6.2`
-> （示例插件）、`T6.3`（插件接入 UI 与隔离）与 `T6.4`（安装包与发布配置）已完成（ADR-051、
-> ADR-052、ADR-053、ADR-054、ADR-055；报告 `docs/reports/t6.0/REPORT.md`、`t6.1`、`t6.2`、
-> `t6.3`、`t6.4`）；`T6.5` 尚未开始。
+> （示例插件）、`T6.3`（插件接入 UI 与隔离）、`T6.4`（安装包与发布配置）与 `T6.5`（全量验收与
+> 文档收尾）已完成（ADR-051–055；ADR-056 为 T6.5 发现的日志偏差，状态“提议”）；报告
+> `docs/reports/t6.0/REPORT.md`–`t6.5/REPORT.md`。M6 验收演示已执行，**等用户对 ADR-056 裁决并
+> 确认后关闭**。
 
 <a id="t60"></a>
 ### T6.0 品牌更名：Curve Almanac
@@ -1948,7 +1949,7 @@ T6.2 + T2.5 + T3.2 → T6.3
 
 <a id="t65"></a>
 ### T6.5 全量验收与文档收尾
-- 状态：`[ ]`
+- 状态：`[x]`（已完成，待用户验收；NFR-06 日志落盘未达标，见 ADR-056）
 - 依赖：M0–M6 全部任务（T6.5 除外）
 - 覆盖：全部 FR/NFR
 - 参考：TESTPLAN §3–§6
@@ -1961,10 +1962,37 @@ T6.2 + T2.5 + T3.2 → T6.3
   2. 执行 README §6 九步验收演示并录屏/截图。
   3. 对照 SPEC §17 逐条勾选；未达标项列明确认。
 - 验收：
-  - [ ] 九步演示一次通过。
-  - [ ] 全部 FR 有证据（测试名/截图/报告）。
-  - [ ] 已知限制写入文档，不隐藏在代码里。
-  - [ ] 安装包在干净机器复验通过。
+  - [x] 九步演示一次通过（`t6.5-acceptance.spec.ts`，26.2s，13 张截图 + metrics）。
+  - [x] 全部 FR 有证据（测试名/截图/报告；报告 §5 的 29 条矩阵）。
+  - [x] 已知限制写入文档，不隐藏在代码里（README/MANUAL/ROADMAP + 报告 §7）。
+  - [x] 安装包在干净机器复验——**用户 2026-10-30 明确豁免**；以 T6.4 `package:smoke` PASS 作替代证据。
 - 验证：`pnpm verify && pnpm e2e && pnpm bench`
 
+  实现备注（2026-10-30）：
+  - 交付：`apps/desktop/e2e/t6.5-acceptance.spec.ts`（九步、两次启动 + `taskkill /F /T`）；
+    `README.md` 产品说明；`docs/MANUAL.md`、`docs/DEVELOPER.md`、`docs/ROADMAP.md`、ADR 索引；
+    `docs/reports/t6.5/REPORT.md`（14 张 PNG + `t6.5-metrics.json`）；TESTPLAN E12 + §7 签字。
+  - 实测：`pnpm verify` **196 files / 1816 tests**（depcruise 531 modules / 2309 deps / 0 violations）；
+    coverage statements 77.13% / branches 69.82% / functions 76.51% / lines 77.28%；
+    `pnpm build` exit 0（renderer 3,469.35 kB、CSS 81.34 kB、main 338.76 kB）；
+    `pnpm e2e` **111 passed**（7.0m；T6.5 26.2s；chart-perf 520MB、perf 590MB）；
+    `pnpm bench` exit 0（text-sort 370ms/400、cjk-sort 661ms/800 等）；
+    `pnpm package` exit 0（NSIS 112,400,989 B / portable 112,163,369 B / unpacked 391,112,000 B）；
+    `pnpm package:smoke` 沿用 T6.4 PASS（本次未重跑，无运行时代码变化）。
+  - 九步实测指标：5 列、200 行、粘贴整批拒绝 + 单格非法值拒绝、样式规则 1 条、宽 2/长 3 系列、
+    PNG 1702×856、导入 99997 行（3 行跳过）、采样 2000 点/99997、resolve 32ms / update 19ms、
+    撤销 5/重做 3、强杀后恢复 77、2 pane、模板导入重分配 id。
+  - E2E 重跑记录：第 1 次 110/111（新 spec 的 JSONL 子串断言缺陷，已修）；第 2 次 110/111
+    （chart-perf 602MB 离群，已知 509–608MB 波动，未放宽门槛）；第 3 次 **111/111**。
+  - **未达标项**：SPEC §16.5 的 main 文件日志（electron-log、`userData/logs/main.log`、按天轮转/
+    7 天保留）与 renderer 全局 error 转发未实现；崩溃恢复本身通过。ADR-056 记录三个处理选项，
+    建议对外发布前实现。发布清单第 7 项未签字，M6 不自动关闭。
+  - 停点：M6 验收演示证据已归档，**停下等用户对 ADR-056 裁决并确认 M6**。
+
 **M6 验收演示**：示例插件可用 → 安装包安装/卸载 → 全量 E2E/性能/可访问性报告 → 九步演示 → 发布清单签字。输出报告后停下。
+
+  验收记录（2026-10-30 执行，待用户确认）：`apps/desktop/e2e/t6.5-acceptance.spec.ts` 1 条、
+  26.2s，报告 `docs/reports/t6.5/REPORT.md` + 14 张 PNG + `t6.5-metrics.json`。全量
+  `pnpm e2e` **111 passed**、`pnpm verify` 196/1816、`pnpm bench` exit 0、`pnpm package` exit 0；
+  九步全部通过（见报告 §3）。发布清单 9 项中 7 项通过、1 项用户豁免（干净机器）、1 项未达标
+  （SPEC §16.5 日志落盘，ADR-056）。**M6 未关闭**，等用户裁决。
