@@ -11,7 +11,7 @@
 [MIT 许可证](LICENSE) ·
 [English](README.md)
 
-![Curve Almanac：带条件格式的表格与样式编辑器](docs/reports/t6.5/t6.5-04-style.png)
+![Curve Almanac：双栏工作区中的温度折线图与区域营收柱状图](docs/images/readme-charts.png)
 
 ## 特性
 
@@ -24,6 +24,13 @@
 - **数据安全**：1.5 秒自动保存、崩溃恢复、撤销/重做、原子写与 manifest 备份。
 - **离线设计**：无网络请求、无遥测、无自动更新；插件为编译期静态模块，不下载运行时代码。
 - **Windows 安装包与便携版**：每用户安装，不需要管理员权限。
+
+## 表格与图表并排
+
+![Curve Almanac：并排的两张表与右侧列检查器](docs/images/readme-tables.png)
+
+在同一工作区打开多张表与图表，用可拖拽的分栏并排查看，列检查器紧贴数据。布局、筛选、排序与
+图表映射会在下次启动时还原。
 
 ## 安装
 

@@ -11,7 +11,7 @@ folder-based workspace on your machine. No account, no cloud, no telemetry.
 [MIT License](LICENSE) ·
 [中文](README.zh-CN.md)
 
-![Curve Almanac — table with conditional formatting and style editor](docs/reports/t6.5/t6.5-04-style.png)
+![Curve Almanac — temperature line chart and revenue bar chart in a two-pane workspace](docs/images/readme-charts.png)
 
 ## Highlights
 
@@ -27,6 +27,14 @@ folder-based workspace on your machine. No account, no cloud, no telemetry.
 - **Offline by design** — no network requests, no telemetry, no automatic updates; plugins are
   statically compiled, never downloaded at runtime.
 - **Windows installer and portable build** — per-user install, no administrator required.
+
+## Tables and charts, side by side
+
+![Curve Almanac — two tables side by side with the column inspector](docs/images/readme-tables.png)
+
+Open multiple tables and charts in the same workspace, arrange them in resizable panes, and keep the
+column inspector next to the data. Layouts, filters, sorts, and chart mappings are restored on the
+next launch.
 
 ## Install
 
