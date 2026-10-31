@@ -384,7 +384,7 @@
   logging 2 条）；两条内存门禁 618–639MB 按 ADR-057 的 1GB 门禁记通过（用户指示未重跑）；
   T6.6 后安装包已重打并通过 `package:smoke`（20.6s/9.4s/9.2s）。
   bench exit 0；见 `docs/reports/t6.5/REPORT.md` §2 与 `t6.6/REPORT.md` §4。
-- [x] README §6 九步演示一次通过（录屏/截图）。
+- [x] `docs/reports/t6.5/REPORT.md` §3 九步演示一次通过（录屏/截图）。
   → `e2e/t6.5-acceptance.spec.ts` 1 条 26.2s；13 张 UI 截图 + 导出 PNG + metrics。
 - [x] SPEC §17 全部 FR 有证据链接。
   → 报告 §5 的 29 条 FR/扩展矩阵（全部 ✅）。

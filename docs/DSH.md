@@ -191,7 +191,7 @@ node -e "const a=require(process.argv[1]); console.log(a.listPackage(process.arg
 3. **截图命名**：`manual-<章节>-<描述>.png`，放 `docs/manual/`（或继续引用 reports；不要覆盖历史证据）。
 4. **内容检查**：逐项对照应用菜单/按钮，确保手册没有承诺未实现功能；快捷键与 F1 表一致；
    中英双语 UI 名称写清（如“设置（Settings）”）。
-5. **验证**：按 README §6 九步演示走一遍手册步骤；200% 缩放/纯键盘抽查；截图不出现真实用户名。
+5. **验证**：按 `docs/reports/t6.5/REPORT.md` §3 的九步演示走一遍手册步骤；200% 缩放/纯键盘抽查；截图不出现真实用户名。
 6. **发布格式**：Markdown 源在 `docs/MANUAL.md`；如需 PDF/HTML，用 Pandoc/Word 导出，图片用相对
    路径；发布前检查目录锚点与链接。
 7. **版本**：手册首行写适用版本与日期；每次发布更新。

@@ -736,7 +736,7 @@ v1 插件编译期静态导入，不能运行时下载；禁用仅本次会话�
 
 | 文档 | 内容 |
 |---|---|
-| [README](../README.md) | 产品简介、安装、命令、九步验收 |
+| [README](../README.md) | 产品简介、安装、快速上手、文档索引（另有 [中文版](../README.zh-CN.md)） |
 | [SPEC](SPEC.md) | 模型、文件格式、IPC、验收标准（契约） |
 | [DEVELOPER](DEVELOPER.md) | 开发/测试/打包 |
 | [ROADMAP](ROADMAP.md) | v1 已知限制与维护范围（不规划 v2） |

@@ -107,7 +107,7 @@ ui ← desktop
 ### 验收演示
 
 - 里程碑演示：`e2e/m2..m5-acceptance.spec.ts`；最终九步演示：
-  `e2e/t6.5-acceptance.spec.ts`（README §6），截图 + metrics 输出到 `test-results`。
+  `e2e/t6.5-acceptance.spec.ts`（见 `docs/reports/t6.5/REPORT.md` §3），截图 + metrics 输出到 `test-results`。
 - 演示会重写 `docs/reports/m0/*.png`；提交前用 `git checkout -- docs/reports/m0` 还原。
 
 ## 7. 构建、打包与发布

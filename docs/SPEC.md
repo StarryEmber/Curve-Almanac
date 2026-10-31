@@ -2370,6 +2370,6 @@ v1 完成 = 同时满足：
 1. §17 全部 FR 通过，且测试可在干净机器复现。
 2. `docs/TASKS.md` 所有任务勾选，里程碑验收报告齐备。
 3. `pnpm verify`、`pnpm e2e`、`pnpm bench` 全绿且在预算内。
-4. README §6 的 9 步验收演示一次通过。
+4. T6.5 报告 §3 的 9 步验收演示一次通过。
 5. Windows 安装包在干净用户目录安装/卸载，数据路径正确。
 6. 文档更新：SPEC、TASKS、TESTPLAN、DECISIONS、CHANGELOG 与实现一致。

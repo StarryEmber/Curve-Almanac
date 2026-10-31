@@ -839,3 +839,6 @@
   （https://github.com/StarryEmber/Curve-Almanac）；Release 附件待上传。
 - Scope：v1 范围冻结，**不规划 v2**（ADR-060）。`docs/ROADMAP.md` 改为已知限制与维护范围，
   删除 v2 功能设想；README/MANUAL/HANDOFF/DSH/TESTPLAN/PROMPTS/发布说明同步。
+- Docs：README 重写为英文主文档（首屏截图/下载/快速上手/精简文档索引），新增中文
+  `README.zh-CN.md`；M6 状态、验收 baseline、九步演示等内部信息移出 README，改由
+  `docs/DEVELOPER.md`/`docs/reports/t6.5/REPORT.md` 承载。
