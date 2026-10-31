@@ -12,7 +12,7 @@
 | 仓库根 | `D:\DSH_Work_Space\curve-studio`（GitHub 仓库名：**curve-almanac**；本地目录可继续用旧名） |
 | 产品/版本 | **Curve Almanac 0.1.0**（Windows x64） |
 | 阶段 | **v1 实施完成；M0–M6 全部关闭（M6 于 2026-10-30 关闭）** |
-| 最近提交 | `a5a9748`（作者重写/文档同步）；安装包重打见 `26e76a9` |
+| 最近提交 | 见 `git log -1 --oneline`（作者重写/文档同步）；安装包重打见 `26e76a9` |
 | 主验证 | `pnpm verify` = 198 files / 1831 tests；`pnpm e2e` 功能测试 111 passed；`pnpm bench` exit 0 |
 | 内存门禁 | 整应用 private ≤ **1024MB**（ADR-057；600MB 为历史门禁） |
 | 安装包 | `release/Curve Almanac Setup 0.1.0.exe`（NSIS 每用户）、`release/Curve Almanac 0.1.0.exe`（portable） |
