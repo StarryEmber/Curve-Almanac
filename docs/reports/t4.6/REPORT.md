@@ -188,5 +188,5 @@ suite 与 2 条 `chart-perf` E2E。M4 的 T4.1–T4.6 已全部完成，下一�
 （TESTPLAN E6，宽表折线 + 长表多系列 → 缩放/图例/tooltip → 100k 采样徽标 → PNG → 重启还原），
 完成后停下等用户确认。
 
-提交：**`0fc37aa`**（`feat(chart): harden chart performance with cached data and deferred
+提交：**`9e10fa7`**（`feat(chart): harden chart performance with cached data and deferred
 resolve (T4.6)`）；本报告的交接提交见 `git log -1 -- docs/HANDOFF.md`。

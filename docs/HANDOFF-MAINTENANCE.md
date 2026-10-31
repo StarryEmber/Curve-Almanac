@@ -11,8 +11,8 @@
 |---|---|
 | 产品/版本 | Curve Almanac **0.1.0**（Windows 10/11 x64） |
 | 阶段 | v1 实施完成；**M0–M6 已关闭**；进入维护/发布阶段 |
-| 最新提交 | `git log -1 --oneline`（本维护交接提交；上一版为 `ad36d19`） |
-| 工作树 | 干净；**无 GitHub remote、无 tag** |
+| 最新提交 | `git log -1 --oneline`（历史 commit hash 已随 2026-10-31 作者重写全部更新） |
+| 工作树 | 干净；**无 GitHub remote**；本地 tag `v0.1.0` 未推送 |
 | 安装包 | `release/Curve Almanac Setup 0.1.0.exe`（112,421,015 B）· `release/Curve Almanac 0.1.0.exe`（112,183,688 B） |
 | SHA-256 | Setup `3F8685C7BE60CA2AC5CA8DD63098F7F1A38A98657E979D9841A0A169B20BF33E`；portable `D95E61436FC2DE5E60DD7F3EF791AD4A4495E24E10EDC2EAA904BFFEB6F52F28` |
 | 验证基线 | `pnpm verify` 198 files / 1831 tests；`pnpm e2e` 功能 111 passed + 2 内存门禁；`pnpm bench` exit 0 |

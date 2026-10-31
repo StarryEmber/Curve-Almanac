@@ -1,6 +1,6 @@
 # M0 验收报告 — 基建
 
-> 日期：2026-10-20 · 分支：`main` · 提交：`1aefcdb`（T0.5）· 工作树：干净
+> 日期：2026-10-20 · 分支：`main` · 提交：`5cb985a`（T0.5）· 工作树：干净
 > 环境：Windows 10 x64 · Node 24.21.0 · pnpm 11.28.5 · Electron 44.9.0 · Playwright 1.64.1
 > 退出标准（`docs/TASKS.md` M0 行）：**窗口能开、门禁能跑、违规依赖被拦**。
 
@@ -89,11 +89,11 @@ Running 15 tests using 1 worker
 
 ### 2.6 干净克隆（T0.5 验收项）
 
-从提交 `1aefcdb` 克隆到 `D:\DSH_Work_Space\curve-studio-clean`：
+从提交 `5cb985a` 克隆到 `D:\DSH_Work_Space\curve-studio-clean`：
 
 | 步骤 | 结果 |
 |---|---|
-| `git clone` | exit 0，HEAD=`1aefcdb` |
+| `git clone` | exit 0，HEAD=`5cb985a` |
 | `pnpm install --frozen-lockfile` | exit 0，13.1s；根 `postinstall` 输出 `[install-electron] done.` |
 | `pnpm verify` | exit 0，17.4s；38 files / 228 tests；depcruise 115 modules 0 violations |
 | `pnpm e2e`（`CURVE_E2E_NO_SANDBOX=1`） | exit 0，32.8s；**15 passed** |
@@ -130,11 +130,11 @@ CI 在 E2E 失败时上传 `apps/desktop/test-results` 与 `apps/desktop/playwri
 
 | 任务 | 提交 | 结果 |
 |---|---|---|
-| T0.1 monorepo 与质量工具链 | `702293c` | `pnpm install` / `pnpm verify` 通过，边界规则生效 |
-| T0.2 Electron 三进程与安全窗口 | `6520c65` | 安全窗口、CSP、E1 5/5 |
-| T0.3 类型化 IPC 与错误信封 | `21f7bbe` | 契约三件、错误映射、IPC E2E 4/4 |
-| T0.4 设计令牌与 App Shell | `7b42a04` | 58 令牌、组件库、i18n、主题、shell E2E 6/6 |
-| T0.5 CI、E2E 与提交门禁 | `1aefcdb` | CI 矩阵、失败留证、覆盖率门禁、干净克隆通过 |
+| T0.1 monorepo 与质量工具链 | `dad2a33` | `pnpm install` / `pnpm verify` 通过，边界规则生效 |
+| T0.2 Electron 三进程与安全窗口 | `91b1ade` | 安全窗口、CSP、E1 5/5 |
+| T0.3 类型化 IPC 与错误信封 | `130395c` | 契约三件、错误映射、IPC E2E 4/4 |
+| T0.4 设计令牌与 App Shell | `1231c09` | 58 令牌、组件库、i18n、主题、shell E2E 6/6 |
+| T0.5 CI、E2E 与提交门禁 | `5cb985a` | CI 矩阵、失败留证、覆盖率门禁、干净克隆通过 |
 | M0 验收报告 | 本次文档提交 | 本文件 |
 
 ## 5. 遗留问题与已知风险

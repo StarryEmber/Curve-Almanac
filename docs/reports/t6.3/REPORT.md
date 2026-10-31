@@ -117,7 +117,7 @@ pnpm bench
 600MB 门禁）而失败；随后单跑连续得到 601/592/546MB，与 T6.2 记录的“偶发 602MB、复跑
 505/516MB”一致。为排除 T6.3 回归，做了 A/B 对比（同一机器、同一夹具、同一测试）：
 
-- 把 T6.3 改动 stash 回 T6.2 提交（`8123755`）后 `pnpm build`：privatePeak **509 / 526MB**；
+- 把 T6.3 改动 stash 回 T6.2 提交（`1321879`）后 `pnpm build`：privatePeak **509 / 526MB**；
 - 恢复 T6.3 改动后 `pnpm build`：privatePeak **533 / 523MB**（`performance.memory` 探针：
   usedJSHeap 93–117MB、DOM 275 节点、canvas 1 个）；
 - 最终全量 E2E：privatePeak **591MB**（通过）。

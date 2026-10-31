@@ -6,14 +6,14 @@
 > 隔离、T6.4 安装包与发布配置、T6.5 全量验收与文档收尾、T6.6 日志文件落盘（`docs/reports/t6.5/`、
 > `t6.6/`、M6 汇总 `docs/reports/m6/REPORT.md`；ADR-051–057，ADR-056 选项 B、ADR-057 内存门禁 1GB）。
 > **v1 实施阶段（M0–M6）结束**；仓库进入发布/维护阶段。
-> 最后更新：2026-10-30 · 分支 `main`；M3 验收记录 **`4ec9653`**、T4.1 代码 **`06858d4`**、
-> T4.2 代码 **`247093d`**、T4.3 代码 **`7a9b665`**、T4.4 代码 **`862063f`**、
-> T4.5 代码 **`fd68789`**、T4.6 代码 **`0fc37aa`**、M4 演示/报告 **`657f8c3`**、
-> T5.1 代码/报告 **`eb152b4`**、T5.2 代码/报告 **`a9dcf75`**、T5.3 代码/报告 **`02e30a8`**、
-> T5.4 代码/报告 **`fb53d9b`**、T5.5 代码/报告 **`f80acaa`**、M5 演示/报告 **`50f7ea9`**、
-> T6.0 代码/报告 **`cc6dd5c`**、T6.1 代码/报告 **`2ea05cf`**、T6.2 代码/报告 **`15e43ed`**、
-> T6.3 代码/报告 **`a78a5ca`**、T6.4 代码/报告 **`666f3ba`**、T6.5 代码/报告 **`25dcd92`**、
-> T6.6 代码/报告 **`7be939a`**（M6 关闭文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
+> 最后更新：2026-10-30 · 分支 `main`；M3 验收记录 **`20542d3`**、T4.1 代码 **`8494858`**、
+> T4.2 代码 **`9ebe5a1`**、T4.3 代码 **`cbe60cd`**、T4.4 代码 **`5ea074e`**、
+> T4.5 代码 **`9e904ac`**、T4.6 代码 **`9e10fa7`**、M4 演示/报告 **`93e6291`**、
+> T5.1 代码/报告 **`e3bb35d`**、T5.2 代码/报告 **`838b443`**、T5.3 代码/报告 **`a53e064`**、
+> T5.4 代码/报告 **`3e28fdf`**、T5.5 代码/报告 **`68c4098`**、M5 演示/报告 **`6b12df1`**、
+> T6.0 代码/报告 **`7fd48ce`**、T6.1 代码/报告 **`527fce0`**、T6.2 代码/报告 **`75b0a2b`**、
+> T6.3 代码/报告 **`462ae6a`**、T6.4 代码/报告 **`6112162`**、T6.5 代码/报告 **`db20b6e`**、
+> T6.6 代码/报告 **`95fce79`**（M6 关闭文档的提交见 `git log -1 -- docs/HANDOFF.md`）。
 > 阅读顺序：`AGENTS.md` → 本文件（§0.3–§0.15）→ `docs/HANDOFF-MAINTENANCE.md` →
 > `docs/DSH.md` → `docs/PROMPTS.md` → `docs/reports/m6/REPORT.md` →
 > `t6.6` → `t6.5` → `t6.4` → `t6.3` → `t6.2` → `t6.1` → `t6.0` → `docs/SPEC.md`
@@ -122,7 +122,7 @@
    立即写。`view.layout` 的可选 `activePanePath` 不写 manifest。
 4. 证据：报告 + **4 张截图**（split / four-panes / fallback / restored）；
    `pnpm e2e` 重写 `docs/reports/m0/*.png`，提交前已还原。
-5. 提交：**`eb152b4`**（`feat(layout): add recursive split panes and tabs (T5.1)`）。
+5. 提交：**`e3bb35d`**（`feat(layout): add recursive split panes and tabs (T5.1)`）。
 6. 残留：最后聚焦 pane 不持久化（重启焦点为第一个有活动标签的 pane）；分栏创建空 pane；
    无跨 pane 拖拽；强退可能丢最后 500ms 布局变化（已由 T5.3 退出 flush 处理）；详见报告 §8 与
    ADR-046。
@@ -142,7 +142,7 @@
 5. UI：TitleBar 新增“编辑”Menu，显示“撤销 编辑单元格（Ctrl+Z）”/“重做 …”与空栈禁用态；
    `ui.history` 快照含 depth/action；`data-undo-depth`/`data-undo-action` 是 E2E 契约。
 6. 证据：报告 + **2 张截图**（`t5.2-history-menu.png`、`t5.2-history-undone.png`）。
-7. 提交：**`a9dcf75`**（`feat(undo): add full command history and Edit menu (T5.2)`）。
+7. 提交：**`838b443`**（`feat(undo): add full command history and Edit menu (T5.2)`）。
 8. 残留：256MB 是估算（共享行数组低估、独特行高估）；单条超大导入会失去撤销；`table.delete`
    redo 留孤儿文件；`table.meta.update` 菜单文案不区分重命名/换主键；原生 Electron Edit 菜单
    仍未与历史同步。详见报告 §8 与 ADR-047“复核条件”。
@@ -200,7 +200,7 @@
 6. 证据：报告 + **5 张截图**（`t5.3-autosave-status.png`、`t5.3-save-failure.png`、
    `t5.3-recovery-stale-lock.png`、`t5.3-recovery-lock-choices.png`、
    `t5.3-recovery-manifest.png`）。
-7. 提交：**`02e30a8`**（`feat(ws): add autosave, quit flush and crash recovery (T5.3)`）。
+7. 提交：**`a53e064`**（`feat(ws): add autosave, quit flush and crash recovery (T5.3)`）。
 8. 残留：强杀仍可能丢最后 1.5s；flush 失败后确认退出留 stale lock；原生退出确认/恢复提示为
    英文（main 无 i18n）；`inspect` 多读一次 manifest；自动重建只尝试最新备份；自动保存关闭后的
    “保存/放弃/取消”三选一留 T5.5。详见报告 §8 与 ADR-048“复核条件”。
@@ -234,7 +234,7 @@
    `pnpm bench` exit 0。
 7. 证据：报告 + **3 张截图**（`t5.4-palette-search.png`、`t5.4-palette-disabled.png`、
    `t5.4-palette-empty-200.png`）；E2E 仍会重写 `docs/reports/m0/*.png`，提交前已还原。
-8. 提交：**`fb53d9b`**（`feat(keymap): add shortcuts and command palette (T5.4)`）；工作树干净。
+8. 提交：**`3e28fdf`**（`feat(keymap): add shortcuts and command palette (T5.4)`）；工作树干净。
 9. 残留：快捷键不可自定义；Ctrl/Cmd+Alt 在部分 AltGr/输入法布局可能被占用；面板可用性是
    打开时快照（模态期间文档不变，执行前复查）；新建表/导入/筛选/导出/图表向导等局部对话框
    未进入面板（ADR-049 复核条件）。详见报告 §8 与 ADR-049“复核条件”。
@@ -347,7 +347,7 @@
    `FieldTypeLookup` 结构化端口（app-core 不 import plugin-sdk）；`formatField` 回调（ui 不 import
    plugin-sdk）；`plugin.spec.ts` 依赖的 `column-form-field-type`、`import-importer`、
    `data-field-type` 属性名；导入器切换前的字节副本（Worker transfer 会 detach）。
-4. 提交：**`15e43ed`**（`feat(plugin): add sample plugin and semantic field types (T6.2)`）。
+4. 提交：**`75b0a2b`**（`feat(plugin): add sample plugin and semantic field types (T6.2)`）。
 5. 残留（**运行时启用/禁用、来源徽标、错误 toast 已在 T6.3 完成**，见 §0.12）：插件导入在主线程
    解析与规划（大文件需迁移 Worker）；每次导入多一份字节副本；字段类型 label 不本地化；
    CSV 导出未接语义格式化。详见报告 §6 与 ADR-053“复核条件”。
@@ -408,7 +408,7 @@
    环形日志/事件；插件管理器 testid（`open-plugins`、`plugin-manager`、`plugin-row-<id>`、
    `data-plugin-status`、`plugin-toggle-<id>`、`plugin-log`、`plugin-log-entry`）；会话级禁用
    （不写 `settings.json`）；导入向导在插件失败后仍显示导入器下拉。
-4. 提交：**`a78a5ca`**（`feat(plugin): wire plugin UI and isolate failures (T6.3)`）。
+4. 提交：**`462ae6a`**（`feat(plugin): wire plugin UI and isolate failures (T6.3)`）。
 5. 残留：禁用不持久化；插件图表预设不能在检查器回显（`ChartSpec` 无预设字段）；插件文案/命令
    label 不本地化；插件导入大文件仍在渲染进程规划；错误 toast 2s 去重窗口；chart-perf 内存
    场景本机波动 509–608MB（A/B 复核见报告 §4，未放宽门槛）。详见报告 §6 与 ADR-054“复核条件”。
@@ -430,7 +430,7 @@
 3. **不要回退**：`appId`/`productName`/`files` 白名单/NSIS 每用户参数/`deleteAppDataOnUninstall:
    false`；`build/icon*` 与 `build/license.txt`（NSIS 许可证页默认文件名）；`package` 必须先
    build；冒烟脚本的“已有安装时拒绝运行 + finally 清理 + 安装器复制到 `%TEMP%`”三件事。
-4. 提交：**`666f3ba`**（`feat(package): add Windows installer and release config (T6.4)`）。
+4. 提交：**`6112162`**（`feat(package): add Windows installer and release config (T6.4)`）。
 5. 残留：未签名（SmartScreen）；体积 391MB/112MB；打包需网络（本机用 npmmirror 镜像）；
    冒烟会短暂写真实用户目录；portable 只验证产出；macOS/Linux 未配置。详见报告 §6 与
    ADR-055“复核条件”。
@@ -489,34 +489,34 @@
 | 方案文档 | v1.0 已锁定（SPEC / TASKS / TESTPLAN / DECISIONS） |
 | M0 基建（T0.1–T0.5） | **已完成**；验收报告 `docs/reports/m0/REPORT.md` |
 | M1 领域与持久化（T1.1–T1.5） | **已完成并经用户验收**（2026-10-21）；报告 `docs/reports/m1/REPORT.md` |
-| `T1.5` app-core 状态与命令总线 | **已完成**（`c077cf2`）；T2.1–T5.3 扩展了命令、actions、历史与保存 |
-| `T2.1` 工作区入口、表管理与网格 | **已完成**（`07c4763`）；报告 `docs/reports/t2.1/REPORT.md`；ADR-027 |
-| `T2.2` 单元格编辑与校验 | **已完成**（`641cd86`）；报告 `docs/reports/t2.2/REPORT.md`；ADR-028 |
-| `T2.3` 列管理、结构变更与迁移 | **已完成**（`213fab4`）；报告 `docs/reports/t2.3/REPORT.md`；ADR-029 |
-| `T2.4` 区域粘贴 | **已完成**（`14c4816`）；报告 `docs/reports/t2.4/REPORT.md`；ADR-030 |
-| `T2.5` CSV/JSON 导入向导 | **已完成**（`16ba035`）；报告 `docs/reports/t2.5/REPORT.md`；ADR-031 |
-| `T2.6` 筛选、排序与视图状态 | **已完成**（`1149100`）；报告 `docs/reports/t2.6/REPORT.md`；ADR-032 |
-| `T2.7` 10 万行性能硬化 | **已完成**（`553f71b`）；报告 `docs/reports/t2.7/REPORT.md`；ADR-033 |
+| `T1.5` app-core 状态与命令总线 | **已完成**（`7615d1f`）；T2.1–T5.3 扩展了命令、actions、历史与保存 |
+| `T2.1` 工作区入口、表管理与网格 | **已完成**（`8fe699b`）；报告 `docs/reports/t2.1/REPORT.md`；ADR-027 |
+| `T2.2` 单元格编辑与校验 | **已完成**（`baa1667`）；报告 `docs/reports/t2.2/REPORT.md`；ADR-028 |
+| `T2.3` 列管理、结构变更与迁移 | **已完成**（`342c4eb`）；报告 `docs/reports/t2.3/REPORT.md`；ADR-029 |
+| `T2.4` 区域粘贴 | **已完成**（`5ec2540`）；报告 `docs/reports/t2.4/REPORT.md`；ADR-030 |
+| `T2.5` CSV/JSON 导入向导 | **已完成**（`508a734`）；报告 `docs/reports/t2.5/REPORT.md`；ADR-031 |
+| `T2.6` 筛选、排序与视图状态 | **已完成**（`08a0ac6`）；报告 `docs/reports/t2.6/REPORT.md`；ADR-032 |
+| `T2.7` 10 万行性能硬化 | **已完成**（`1915f76`）；报告 `docs/reports/t2.7/REPORT.md`；ADR-033 |
 | M2 验收演示 | **已获用户接受**（2026-10-23）；`e2e/m2-acceptance.spec.ts` + `docs/reports/m2/REPORT.md` |
-| `T3.1` 表格样式模型与内置模板 | **已完成**（2026-10-23，`b75fff1`）；报告 `docs/reports/t3.1/REPORT.md`；ADR-034 |
-| `T3.2` 样式渲染管线 | **已完成**（2026-10-23，`cd415d6`）；报告 `docs/reports/t3.2/REPORT.md`；ADR-035 |
-| `T3.3` 条件格式引擎 | **已完成**（2026-10-24，`0a6bedf`）；报告 `docs/reports/t3.3/REPORT.md`；ADR-036 |
-| `T3.4` 样式编辑器与实时预览 | **已完成**（2026-10-24，`7e695bb`）；报告 `docs/reports/t3.4/REPORT.md`；ADR-037 |
+| `T3.1` 表格样式模型与内置模板 | **已完成**（2026-10-23，`c5d3712`）；报告 `docs/reports/t3.1/REPORT.md`；ADR-034 |
+| `T3.2` 样式渲染管线 | **已完成**（2026-10-23，`e028ca6`）；报告 `docs/reports/t3.2/REPORT.md`；ADR-035 |
+| `T3.3` 条件格式引擎 | **已完成**（2026-10-24，`a54bc78`）；报告 `docs/reports/t3.3/REPORT.md`；ADR-036 |
+| `T3.4` 样式编辑器与实时预览 | **已完成**（2026-10-24，`57f1bb2`）；报告 `docs/reports/t3.4/REPORT.md`；ADR-037 |
 | `T3.5` 模板管理与导入导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.5/REPORT.md`；ADR-038 |
 | `T3.6` CSV 导出 | **已完成**（2026-10-24）；报告 `docs/reports/t3.6/REPORT.md`；ADR-039 |
 | M3 验收演示 | **已获用户接受**（2026-10-24）；`e2e/m3-acceptance.spec.ts` + `docs/reports/m3/REPORT.md`（10 张截图） |
-| `T4.1` RenderModel 与宽/长表映射 | **已完成**（2026-10-24，`06858d4`）；报告 `docs/reports/t4.1/REPORT.md`；ADR-040 |
-| `T4.2` LTTB 采样与缺失值语义 | **已完成**（2026-10-25，`247093d`）；报告 `docs/reports/t4.2/REPORT.md`；ADR-041 |
-| `T4.3` ECharts 适配器 | **已完成**（2026-10-25，`7a9b665`）；报告 `docs/reports/t4.3/REPORT.md`；ADR-042 |
-| `T4.4` 图表创建与检查器 | **已完成**（2026-10-25，`862063f`）；报告 `docs/reports/t4.4/REPORT.md`；ADR-043 |
-| `T4.5` 图表交互、空态与 PNG 导出 | **已完成**（2026-10-26，`fd68789`）；报告 `docs/reports/t4.5/REPORT.md`；ADR-044 |
-| `T4.6` 图表性能硬化 | **已完成**（2026-10-26，`0fc37aa`）；报告 `docs/reports/t4.6/REPORT.md`；ADR-045 |
+| `T4.1` RenderModel 与宽/长表映射 | **已完成**（2026-10-24，`8494858`）；报告 `docs/reports/t4.1/REPORT.md`；ADR-040 |
+| `T4.2` LTTB 采样与缺失值语义 | **已完成**（2026-10-25，`9ebe5a1`）；报告 `docs/reports/t4.2/REPORT.md`；ADR-041 |
+| `T4.3` ECharts 适配器 | **已完成**（2026-10-25，`cbe60cd`）；报告 `docs/reports/t4.3/REPORT.md`；ADR-042 |
+| `T4.4` 图表创建与检查器 | **已完成**（2026-10-25，`5ea074e`）；报告 `docs/reports/t4.4/REPORT.md`；ADR-043 |
+| `T4.5` 图表交互、空态与 PNG 导出 | **已完成**（2026-10-26，`9e904ac`）；报告 `docs/reports/t4.5/REPORT.md`；ADR-044 |
+| `T4.6` 图表性能硬化 | **已完成**（2026-10-26，`9e10fa7`）；报告 `docs/reports/t4.6/REPORT.md`；ADR-045 |
 | M4 验收演示 | **已获用户接受**（2026-10-27）；`e2e/m4-acceptance.spec.ts` + `docs/reports/m4/REPORT.md`（7 张截图）；全量 E2E 82 passed |
-| `T5.1` 分栏布局与标签页 | **已完成**（2026-10-27，`eb152b4`）；报告 `docs/reports/t5.1/REPORT.md`；ADR-046；4 张截图 |
-| `T5.2` 撤销/重做 | **已完成**（2026-10-28，`a9dcf75`）；报告 `docs/reports/t5.2/REPORT.md`；ADR-047；2 张截图 |
-| `T5.3` 自动保存、恢复与最近打开 | **已完成**（2026-10-28，`02e30a8`）；报告 `docs/reports/t5.3/REPORT.md`；ADR-048；5 张截图 |
-| `T5.4` 快捷键与命令面板 | **已完成**（2026-10-28，`fb53d9b`）；报告 `docs/reports/t5.4/REPORT.md`；ADR-049；3 张截图 |
-| `T5.5` 设置与国际化 | **已完成**（2026-10-29，`f80acaa`）；报告 `docs/reports/t5.5/REPORT.md`；ADR-050；4 张截图 |
+| `T5.1` 分栏布局与标签页 | **已完成**（2026-10-27，`e3bb35d`）；报告 `docs/reports/t5.1/REPORT.md`；ADR-046；4 张截图 |
+| `T5.2` 撤销/重做 | **已完成**（2026-10-28，`838b443`）；报告 `docs/reports/t5.2/REPORT.md`；ADR-047；2 张截图 |
+| `T5.3` 自动保存、恢复与最近打开 | **已完成**（2026-10-28，`a53e064`）；报告 `docs/reports/t5.3/REPORT.md`；ADR-048；5 张截图 |
+| `T5.4` 快捷键与命令面板 | **已完成**（2026-10-28，`3e28fdf`）；报告 `docs/reports/t5.4/REPORT.md`；ADR-049；3 张截图 |
+| `T5.5` 设置与国际化 | **已完成**（2026-10-29，`68c4098`）；报告 `docs/reports/t5.5/REPORT.md`；ADR-050；4 张截图 |
 | M5 验收演示 | **已获用户接受并关闭**（2026-10-29）；`e2e/m5-acceptance.spec.ts` + `docs/reports/m5/REPORT.md`（7 张截图 + metrics） |
 | `T6.0` 品牌更名 | **已完成**（2026-10-29）；`docs/reports/t6.0/REPORT.md`；ADR-051；默认目录 `Documents/Curve Almanac` |
 | `T6.1` 插件 SDK 与注册表 | **已完成**（2026-10-29）；`docs/reports/t6.1/REPORT.md`；ADR-052；`packages/plugin-sdk` 26 条单测 |
@@ -2726,7 +2726,7 @@ pnpm bench          exit 0；open 352ms、save 254ms、edit 0ms、query 209ms、
                     text-sort 248ms、cjk-sort 434ms、import 623ms、condition P95 0ms；clone 236ms
 ```
 
-提交：**`ac02ba8`**（`feat(tbl): add template management and style import/export (T3.5)`）；
+提交：**`95f37f5`**（`feat(tbl): add template management and style import/export (T3.5)`）；
 本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`；工作树干净。
 
 残留：
@@ -2796,7 +2796,7 @@ pnpm bench          exit 0；open 663ms、save 342ms、edit 0ms、query 213ms、
                     text-sort 260ms、cjk-sort 667ms、import 893ms、condition P95 1ms；clone 333ms
 ```
 
-提交：**`45e5891`**（`feat(tbl): add CSV export with streaming IPC (T3.6)`）；
+提交：**`2defa20`**（`feat(tbl): add CSV export with streaming IPC (T3.6)`）；
 本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`；工作树干净。
 
 残留：
@@ -2855,7 +2855,7 @@ docs/reports/m3/REPORT.md (+10 PNG)
 docs/TASKS.md（M3 验收演示注记）、CHANGELOG、AGENTS §0
 ```
 
-提交：**`9cac391`**（`test(m3): add milestone acceptance demo and report`）；本交接文档的
+提交：**`5e0951b`**（`test(m3): add milestone acceptance demo and report`）；本交接文档的
 提交见 `git log -1 -- docs/HANDOFF.md`。
 
 **不要做**：不要重跑/重写 M3 演示脚本（已验收）；不要改 `formatVersion`/manifest 字段/JSONL/IPC；
@@ -2910,8 +2910,8 @@ docs/SPEC.md §11.3（实现边界）、docs/TASKS.md（T4.1）、CHANGELOG、HA
 不要改 `formatVersion`/manifest/JSONL/IPC；不要把 LTTB（T4.2）或 ECharts option（T4.3）
 顺手塞进本任务；不要让 warning 变成静默丢弃。
 
-提交：**`06858d4`**（`feat(chart): add RenderModel with wide/long mapping (T4.1)`）；
-M3 验收记录为 **`4ec9653`**。
+提交：**`8494858`**（`feat(chart): add RenderModel with wide/long mapping (T4.1)`）；
+M3 验收记录为 **`20542d3`**。
 
 **T4.2 交接提示（LTTB 采样与缺失值语义）**：
 
@@ -2989,7 +2989,7 @@ pnpm bench          exit 0；open 542ms、save 314ms、edit 0ms、query 223ms、
 - category 轴按下标采样；未采样系列贡献全部非空点，极端多小系列时采样收益下降。
 - 重复 X 面积为 0 时按"每桶首个"确定性选中（已有重复 X warning）。
 
-提交：**`247093d`**（`feat(chart): add LTTB sampling with shared-x alignment (T4.2)`）；
+提交：**`9ebe5a1`**（`feat(chart): add LTTB sampling with shared-x alignment (T4.2)`）；
 本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`。
 
 ## 5M. T4.3 ECharts 适配器（已完成）
@@ -3056,7 +3056,7 @@ esbuild 体积        echarts 子集 606.0 kB min / 206 kB gzip；
 - toolbox 标题为 ECharts 英文默认值；动画关闭；dataZoom 滑块常驻。
 - 按需注册仍带 toolbox 全部 feature 实现；T4.4 接线后 renderer chunk 增大，T6.4 评估拆包。
 
-提交：**`7a9b665`**（`feat(chart): add the ECharts adapter with option golden snapshots (T4.3)`）；
+提交：**`cbe60cd`**（`feat(chart): add the ECharts adapter with option golden snapshots (T4.3)`）；
 本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`。
 
 ---
@@ -3124,7 +3124,7 @@ pnpm bench          exit 0；open 361ms、save 306ms、edit 0ms、query 190ms、
                     chart.resolve-sample P95 75ms/300ms、chart.sample P95 5ms/50ms
 ```
 
-提交：**`862063f`**（`feat(chart): add the chart list, wizard and inspector (T4.4)`）；
+提交：**`5ea074e`**（`feat(chart): add the chart list, wizard and inspector (T4.4)`）；
 本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`。
 
 残留：
@@ -3203,7 +3203,7 @@ pnpm bench          exit 0；open 361ms、save 237ms、edit 0ms、query 196ms、
                     chart.resolve-sample P95 66ms/300ms、chart.sample P95 2ms/50ms
 ```
 
-提交：**`fd68789`**（`feat(chart): add chart interaction, empty states and PNG export (T4.5)`）；
+提交：**`9e904ac`**（`feat(chart): add chart interaction, empty states and PNG export (T4.5)`）；
 本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`。
 
 残留：
@@ -3305,7 +3305,7 @@ chart-perf 实测     resolve 47ms / update 89ms；样式提交 resolve 0ms / up
 - `longtask` 门禁在不支持该 API 的浏览器上跳过断言。
 - bench suite 更名会让旧的 `sample` 名称从报告消失（`--sample` 仍可用）；基线仍未生成。
 
-提交：**`0fc37aa`**（`feat(chart): harden chart performance with cached data and deferred
+提交：**`9e10fa7`**（`feat(chart): harden chart performance with cached data and deferred
 resolve (T4.6)`）；本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`。
 
 ---
@@ -3324,7 +3324,7 @@ resolve (T4.6)`）；本交接文档的提交见 `git log -1 -- docs/HANDOFF.md`
 7. 输出 `docs/reports/m2/REPORT.md` 与 4 张截图；`e2e/fixtures.ts` 新增
    `launchCurveApp()`（同一 `userData` 重启，仅测试代码）。
 
-- 提交：**`8ed6c2b`**（`test(m2): add milestone acceptance demo and report`）；工作树干净。
+- 提交：**`278c001`**（`test(m2): add milestone acceptance demo and report`）；工作树干净。
 - 关键文件：`apps/desktop/e2e/m2-acceptance.spec.ts`、`apps/desktop/e2e/fixtures.ts`
   （`launchCurveApp`）、`docs/reports/m2/REPORT.md` 与 `m2-01…04*.png`；
   TASKS/CHANGELOG/AGENTS/HANDOFF 已同步。
@@ -3412,7 +3412,7 @@ JSONL/IPC；未新增运行时依赖。接受前复核（2026-10-24）：`pnpm v
 | 冷启动 / 100k 打开 | **1,017ms / 637ms** | 2,500ms / 3,000ms |
 | 整应用 private 内存峰值 | **572MB** | 600MB |
 
-提交：**`9cac391`**（`test(m3): add milestone acceptance demo and report`）。
+提交：**`5e0951b`**（`test(m3): add milestone acceptance demo and report`）。
 Playwright 产物在 `apps/desktop/test-results/`（gitignore），含 timings、`m3-contract.json` 与
 失败时的 trace；截图已复制到 `docs/reports/m3/`。
 
@@ -3687,9 +3687,9 @@ T5.3、T5.4 已完成，下一步 T5.5。
 
 ## 9. 新会话启动检查清单
 
-- [ ] `git status --short` 干净；`git log` 包含 T5.1 代码/报告 **`eb152b4`**、T5.2 **`a9dcf75`**、
-      T5.3 **`02e30a8`**、T5.4 **`fb53d9b`**、T5.5（`git log -1 -- apps/desktop/src/renderer/features/settings`）、
-      T6.0 **`cc6dd5c`**、T6.1 **`2ea05cf`**、T6.2 **`15e43ed`**、T6.3 **`a78a5ca`** 与本交接文档提交。
+- [ ] `git status --short` 干净；`git log` 包含 T5.1 代码/报告 **`e3bb35d`**、T5.2 **`838b443`**、
+      T5.3 **`a53e064`**、T5.4 **`3e28fdf`**、T5.5（`git log -1 -- apps/desktop/src/renderer/features/settings`）、
+      T6.0 **`7fd48ce`**、T6.1 **`527fce0`**、T6.2 **`75b0a2b`**、T6.3 **`462ae6a`** 与本交接文档提交。
 - [ ] 已注入 PATH（§3.1），`pnpm --version` 为 11.28.5。
 - [ ] 会话文件策略为 `danger-full-access`（§3.2）；审批提示关闭。
 - [ ] 已读 `AGENTS.md`、本文件、`docs/reports/t6.3/REPORT.md`、`docs/reports/t6.2/REPORT.md`、

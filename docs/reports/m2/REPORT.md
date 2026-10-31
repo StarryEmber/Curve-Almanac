@@ -1,6 +1,6 @@
 # M2 验收报告 — 表格数据
 
-> 日期：2026-10-23 · 分支：`main` · 基线提交：`9e9e6d3`（T2.7 代码提交 `553f71b` 之后的交接文档）
+> 日期：2026-10-23 · 分支：`main` · 基线提交：`d7baded`（T2.7 代码提交 `1915f76` 之后的交接文档）
 > 环境：Windows 10 x64 · Node 24.21.0 · pnpm 11.28.5 · Electron 44.9.0 · 16GB / SSD
 > 验收口径：`docs/TASKS.md` M2、ADR-033 §7、HANDOFF §6、SPEC §16.1/§9.3/§9.5/§13.3
 > 结论：**单条 `apps/desktop/e2e/m2-acceptance.spec.ts` 通过，全量 E2E 64 passed；

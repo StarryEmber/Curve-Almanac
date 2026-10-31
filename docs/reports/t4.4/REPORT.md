@@ -210,5 +210,5 @@ T4.4 的 4 项验收全部通过：宽/长映射由 RenderModel 契约与 E2E �
 新增 ADR-043、SPEC §11.2/§11.3/§11.4/§11.5/§13.1/§13.2 实现边界与 4 条 E2E。下一步 T4.5
 （图表交互、空态与 PNG 导出），仍是一次只推进一个任务。
 
-提交：**`862063f`**（`feat(chart): add the chart list, wizard and inspector (T4.4)`）；
+提交：**`5ea074e`**（`feat(chart): add the chart list, wizard and inspector (T4.4)`）；
 本报告的交接提交见 `git log -1 -- docs/HANDOFF.md`。
