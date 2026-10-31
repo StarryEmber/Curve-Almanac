@@ -834,5 +834,8 @@
   `build/license.txt`、`electron-builder.yml` copyright、`packaging.test.ts`、README/发布说明同步；
   已用 MIT 重打安装包（最新 StarryEmber 版权：NSIS 112,421,015 B / portable 112,183,688 B）
   并通过 `package:smoke`。
-- Release：Git 作者改为 **StarryEmber**（noreply 邮箱），GitHub 仓库名 **curve-almanac**；
-  本地 tag `v0.1.0`；未推送（本机 GitHub 443 不通）。
+- Release：Git 作者改为 **StarryEmber \<StarryEmber@163.com\>**（全部 114 个历史提交 author/
+  committer 已重写），GitHub 仓库 **curve-almanac**；`main` 与 tag `v0.1.0` 已推送
+  （https://github.com/StarryEmber/Curve-Almanac）；Release 附件待上传。
+- Scope：v1 范围冻结，**不规划 v2**（ADR-060）。`docs/ROADMAP.md` 改为已知限制与维护范围，
+  删除 v2 功能设想；README/MANUAL/HANDOFF/DSH/TESTPLAN/PROMPTS/发布说明同步。

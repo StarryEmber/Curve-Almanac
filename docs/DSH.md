@@ -64,7 +64,7 @@ node --version              # v24.x
 | 改代码/跑测试 | [AGENTS](../AGENTS.md) → [DEVELOPER](DEVELOPER.md) → [SPEC](SPEC.md) §4/§6/§7 |
 | 当前状态/续作 | [HANDOFF](HANDOFF.md)（§0.3/§0.15）→ [维护交接](HANDOFF-MAINTENANCE.md) → [M6 报告](reports/m6/REPORT.md) |
 | 发布 | [TESTPLAN](TESTPLAN.md) §7 → [T6.4 报告](reports/t6.4/REPORT.md) → [T6.6 报告](reports/t6.6/REPORT.md) |
-| 已知限制/v2 | [ROADMAP](ROADMAP.md) + 各任务报告 §残留风险 |
+| 已知限制 | [ROADMAP](ROADMAP.md) + 各任务报告 §残留风险（不规划 v2，ADR-060） |
 | 决策原因 | [ADR 索引](adr/README.md)（ADR-001–057） |
 
 **优先级**：用户当前指令 > AGENTS/DSH > SPEC > TASKS/TESTPLAN > 历史报告。冲突时停下来问。
@@ -217,7 +217,7 @@ node -e "const a=require(process.argv[1]); console.log(a.listPackage(process.arg
 | 规格/测试矩阵/决策 | `docs/SPEC.md`、`docs/TESTPLAN.md`、`docs/adr/` |
 | 产品手册 | `docs/MANUAL.md` |
 | 维护交接/提示词 | `docs/HANDOFF-MAINTENANCE.md`、`docs/PROMPTS.md` |
-| 已知限制与 v2 | `docs/ROADMAP.md` |
+| 已知限制 | `docs/ROADMAP.md`（不规划 v2） |
 
 ## 13. 当前待办与开放决策
 

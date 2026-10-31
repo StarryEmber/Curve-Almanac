@@ -89,3 +89,4 @@
 | ADR-057 | 整应用内存门禁由 600MB 提高到 1024MB（1GB） | 已接受 | [057-memory-gate-1gb.md](057-memory-gate-1gb.md) |
 | ADR-058 | 开源许可证切换：UNLICENSED → MIT（公开发布） | 已接受 | [058-mit-license.md](058-mit-license.md) |
 | ADR-059 | 发布身份与仓库命名（StarryEmber / curve-almanac） | 已接受 | [059-release-identity.md](059-release-identity.md) |
+| ADR-060 | v1 范围冻结：不规划 v2 | 已接受 | [060-no-v2-roadmap.md](060-no-v2-roadmap.md) |

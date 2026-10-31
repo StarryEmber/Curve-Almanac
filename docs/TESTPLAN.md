@@ -399,7 +399,7 @@
   → T6.6 已实现：`userData/logs/main.log`、按天归档 `main-YYYY-MM-DD.log`、含今天保留 7 天、
   renderer 全局 error/rejection 经 `log:write`（10 条/分钟）。`e2e/logging.spec.ts` 2 条 +
   单测 14 条；见 `docs/reports/t6.6/REPORT.md` 与 ADR-056（已接受，选项 B）。
-- [x] 已知限制与 v2 路线写入 `docs/ROADMAP.md` 与发布说明。
+- [x] 已知限制写入 `docs/ROADMAP.md` 与发布说明（不规划 v2，ADR-060）。
   → `docs/ROADMAP.md`、README/MANUAL §已知限制。
 - [x] 回滚方案：保留上一版安装包与工作区迁移备份说明。
   → 保留 `release/` 上一版安装包；工作区 `backups/` + `.lock` 恢复；v1 只支持 `formatVersion: 1`。

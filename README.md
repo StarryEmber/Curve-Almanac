@@ -91,8 +91,8 @@ SmartScreen“未知发布者”提示；选择“更多信息 → 仍要运行�
 | [docs/HANDOFF.md](docs/HANDOFF.md) | 实施交接：环境事实、进度、续作说明 |
 | [docs/HANDOFF-MAINTENANCE.md](docs/HANDOFF-MAINTENANCE.md) | 维护交接：v1 发布后的更新、升级、发布与故障处理 |
 | [docs/PROMPTS.md](docs/PROMPTS.md) | 维护提示词模板：修复/升级/发布/文档/新功能 |
-| [docs/DECISIONS.md](docs/DECISIONS.md) + [docs/adr/](docs/adr/README.md) | 16 条锁定决策与 55 篇 ADR 索引 |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | v2 设想与 v1 已知限制 |
+| [docs/DECISIONS.md](docs/DECISIONS.md) + [docs/adr/](docs/adr/README.md) | 16 条锁定决策与 60 篇 ADR 索引 |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | v1 已知限制与维护范围（不规划 v2） |
 | [AGENTS.md](AGENTS.md) | 实现代理的强制守则 |
 
 ## 7. 开发与验证
@@ -144,7 +144,7 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts \
 
 - **仅 Windows x64**；macOS/Linux 未配置打包。安装包未签名、无自动更新/发布通道。
 - **强杀最多丢最后 1.5 s**（自动保存窗口内的修改）；恢复对话框会明确提示。
-- **无公式列、多表关联、SQL、云同步、协作**；v2 方向见 [ROADMAP](docs/ROADMAP.md)。
+- **无公式列、多表关联、SQL、云同步、协作**；v1 已知限制见 [ROADMAP](docs/ROADMAP.md)（不规划 v2）。
 - **插件是编译期静态模块**，不能下载/热更新；禁用状态只在本次会话有效；插件文案不本地化；
   插件导入器在渲染进程解析，超大文件可能阻塞 UI。
 - **插件图表预设**不会在检查器回显（`ChartSpec` 不含预设 id）。

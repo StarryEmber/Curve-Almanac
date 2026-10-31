@@ -1672,7 +1672,7 @@ export interface PluginDefinition {
   name: string;
   version: string;             // semver
   apiVersion: string;          // 宿主 API 版本，v1 = "1.0"
-  permissions?: string[];      // v2 预留；v1 忽略但保留字段
+  permissions?: string[];      // 兼容预留；v1 忽略但保留字段
   activate(ctx: PluginContext): void | Promise<void>;
   deactivate?(): void | Promise<void>;
 }
@@ -1805,9 +1805,11 @@ export interface PluginCommandContext {
 - 插件图表类型是**预设**：`ChartKindDef.seriesType` 映射到 v1 的三种 `ChartSpec.kind`，
   `defaults` 在建图时合并进 `ChartOptions`；`ChartSpec` 不持久化预设 id（ADR-054 复核条件）。
 
-### 14.5 v2 预留（不在 v1 实现）
+### 14.5 兼容预留（v1 不实现，不规划 v2）
 
-动态 ES 模块加载、沙箱 Worker、插件权限声明、插件市场、签名校验。v1 的注册表与 manifest 必须为这些留出 `permissions?: string[]` 字段（可为空，不实现）。
+动态 ES 模块加载、沙箱 Worker、插件权限声明、插件市场、签名校验不在 v1 实现，也**不承诺未来
+实现**（ADR-060）。v1 的注册表与 manifest 仅为前向兼容保留 `permissions?: string[]` 字段
+（可为空，不实现）。
 
 ---
 
