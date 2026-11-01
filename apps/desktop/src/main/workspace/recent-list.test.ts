@@ -68,13 +68,15 @@ describe('recent workspace list', () => {
     await expect(list.list()).resolves.toHaveLength(MAX_RECENT_ENTRIES);
   });
 
-  it('removes one entry case-insensitively and clears the rest (T5.3)', async () => {
+  it('removes one entry by path (case-insensitive on Windows) (T5.3)', async () => {
     const directory = await makeDirectory();
     const list = createRecentList({ userDataPath: directory });
     await list.add('C:\\ws\\Demo.cstudio', 'Demo');
     await list.add('C:\\ws\\Other.cstudio', 'Other');
 
-    await list.remove('c:\\ws\\demo.cstudio');
+    // `recentKey` lowercases only on Windows; Linux paths are case-sensitive.
+    const removePath = process.platform === 'win32' ? 'c:\\ws\\demo.cstudio' : 'C:\\ws\\Demo.cstudio';
+    await list.remove(removePath);
     await expect(list.list()).resolves.toMatchObject([{ name: 'Other' }]);
 
     await list.clear();

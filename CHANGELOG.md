@@ -842,3 +842,5 @@
 - Docs：README 重写为标准开源结构（首屏截图/下载/快速上手/精简文档索引），单页**逐段中英
   对照**（每节中文在上、英文在下）；M6 状态、验收 baseline、九步演示等内部信息移出 README，
   改由 `docs/DEVELOPER.md`/`docs/reports/t6.5/REPORT.md` 承载。
+- Fix：`recent-list.test.ts` 的“大小写不敏感删除”断言改为按平台（Windows 小写 / Linux 精确），
+  修复 CI Ubuntu 与 Windows 的 `test:coverage` 失败；`recentKey` 的产品行为不变。
