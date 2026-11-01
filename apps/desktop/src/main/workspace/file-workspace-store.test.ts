@@ -37,7 +37,7 @@ const TEMP_DIRECTORIES: string[] = [];
 function makeTemp(): string {
   const directory = mkdtempSync(join(tmpdir(), 'curve-store-'));
   TEMP_DIRECTORIES.push(directory);
-  return realpathSync(directory);
+  return realpathSync.native(directory);
 }
 
 afterEach(() => {

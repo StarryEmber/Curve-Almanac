@@ -92,7 +92,7 @@ afterEach(() => {
 function makeTemp(): string {
   const directory = mkdtempSync(join(tmpdir(), 'curve-m1-'));
   TEMP_DIRECTORIES.push(directory);
-  return realpathSync(directory);
+  return realpathSync.native(directory);
 }
 
 function createStore(userDataPath: string): FileWorkspaceStore {
