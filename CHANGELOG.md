@@ -844,3 +844,6 @@
   改由 `docs/DEVELOPER.md`/`docs/reports/t6.5/REPORT.md` 承载。
 - Fix：`recent-list.test.ts` 的“大小写不敏感删除”断言改为按平台（Windows 小写 / Linux 精确），
   修复 CI Ubuntu 与 Windows 的 `test:coverage` 失败；`recentKey` 的产品行为不变。
+- Fix：Windows CI 的临时目录是 8.3 短路径（`RUNNER~1`），测试用 `realpath`/`realpathSync`
+  规范化 workspace root，避免 `resolveInsideRoot` 将同一目录判成越界、recent 路径断言不一致；
+  产品代码不变。

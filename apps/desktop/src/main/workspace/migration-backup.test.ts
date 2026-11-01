@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -31,7 +32,7 @@ const TEMP_DIRECTORIES: string[] = [];
 function makeTemp(): string {
   const directory = mkdtempSync(join(tmpdir(), 'curve-migration-'));
   TEMP_DIRECTORIES.push(directory);
-  return directory;
+  return realpathSync(directory);
 }
 
 afterEach(() => {

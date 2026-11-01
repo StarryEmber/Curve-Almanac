@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -18,7 +18,7 @@ const TEMP_DIRECTORIES: string[] = [];
 async function makeRoot(): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), 'curve-path-'));
   TEMP_DIRECTORIES.push(directory);
-  return directory;
+  return realpath(directory);
 }
 
 afterEach(async () => {
