@@ -861,3 +861,5 @@
   在 CI=1 下通过。
 - Fix：F2 焦点兜底扩展到 edit/palette 的直接键盘用例（bringToFront + 双击兜底），
   edit/palette/ipc 10 条测试通过。
+- Fix：CI 下启用 CDP `Emulation.setFocusEmulationEnabled`，让无前台桌面的 runner 也能把
+  F2/方向键送到 renderer；M4 恢复后的导出文件名改为轮询非空。完整 E2E CI=1 113 passed（6.8m）。

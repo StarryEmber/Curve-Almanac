@@ -136,6 +136,17 @@ export async function launchCurveApp(options: LaunchCurveAppOptions): Promise<La
     });
   }
   await page.bringToFront().catch(() => undefined);
+  // GitHub's Windows runner has no foreground desktop; without focus
+  // emulation some keyboard tests see key events but the grid/editor ignores
+  // them. This also makes document.hasFocus() true for the renderer.
+  try {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+  } catch {
+    // Older Electron builds may not expose this CDP command; the mouse
+    // fallbacks in the specs still cover those environments.
+  }
+  await page.evaluate(() => window.focus()).catch(() => undefined);
   return { electronApp, page, launchStartedAt };
 }
 

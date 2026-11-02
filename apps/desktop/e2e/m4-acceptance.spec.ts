@@ -718,6 +718,7 @@ test.describe('M4 acceptance demo', () => {
       await restorePage.getByTestId('chart-export-open').click();
       const restoredExport = restorePage.getByTestId('chart-export-dialog');
       await expect(restoredExport).toBeVisible();
+      await expect(restorePage.getByTestId('chart-export-filename')).not.toHaveText('');
       const restoredSuggested = (
         await restorePage.getByTestId('chart-export-filename').textContent()
       )?.trim();
