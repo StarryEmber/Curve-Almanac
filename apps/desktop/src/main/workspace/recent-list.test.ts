@@ -75,7 +75,8 @@ describe('recent workspace list', () => {
     await list.add('C:\\ws\\Other.cstudio', 'Other');
 
     // `recentKey` lowercases only on Windows; Linux paths are case-sensitive.
-    const removePath = process.platform === 'win32' ? 'c:\\ws\\demo.cstudio' : 'C:\\ws\\Demo.cstudio';
+    const removePath =
+      process.platform === 'win32' ? 'c:\\ws\\demo.cstudio' : 'C:\\ws\\Demo.cstudio';
     await list.remove(removePath);
     await expect(list.list()).resolves.toMatchObject([{ name: 'Other' }]);
 
