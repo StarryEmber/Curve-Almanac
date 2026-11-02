@@ -123,6 +123,19 @@ export async function launchCurveApp(options: LaunchCurveAppOptions): Promise<La
   });
   const page = await electronApp.firstWindow();
   await page.waitForLoadState('domcontentloaded');
+  if (process.env['CI']) {
+    // GitHub's Windows runner reports a 1024x768 desktop, so the default
+    // 1440x900 window is clamped and tests that resize/zoom the layout fail.
+    // Give CI the same content size as a developer machine and focus the
+    // window so keyboard-first tests (F2, palette, undo) get real key events.
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      const [window] = BrowserWindow.getAllWindows();
+      window?.setBounds({ x: 0, y: 0, width: 1440, height: 900 });
+      window?.show();
+      window?.focus();
+    });
+  }
+  await page.bringToFront().catch(() => undefined);
   return { electronApp, page, launchStartedAt };
 }
 

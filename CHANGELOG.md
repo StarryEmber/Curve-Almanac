@@ -851,3 +851,6 @@
   不会重试；改为捕获缺失并返回 `undefined`，让 poll 等待设置写入。完整 E2E 112→113 全过。
 - CI：Playwright 在 GitHub Actions 下启用 `github` reporter，E2E 失败会生成指向失败 spec/
   断言的 annotation，便于直接定位。
+- Fix：CI 的 Windows runner 桌面只有 1024×768，默认 1440×900 窗口被压小，导致 22 条 E2E
+  （200% 缩放、图表 resize、F2 编辑等）失败；CI 下启动后固定窗口 1440×900 并聚焦，本地正常
+  路径不变。受影响的 autosave/chart-interaction/grid 15 条测试复跑通过。
