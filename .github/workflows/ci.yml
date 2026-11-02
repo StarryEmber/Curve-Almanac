@@ -142,6 +142,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The hosted runner starts at 1024x768; the app's default 1440x900 window
+      # would be clamped and layout/zoom E2E assertions would see a tiny
+      # viewport. Give the app the same desktop size as a developer machine.
+      - name: Set display resolution
+        shell: pwsh
+        run: |
+          try {
+            Set-DisplayResolution -Width 1920 -Height 1080 -ErrorAction Stop
+            Write-Host "Display resolution set to 1920x1080"
+          } catch {
+            Write-Warning "Could not set display resolution: $($_.Exception.Message)"
+          }
+
       # `pnpm e2e` builds the app and then drives it with Playwright `_electron`.
       # Never pass `--no-sandbox` here: that flag is an agent-shell workaround
       # (CURVE_E2E_NO_SANDBOX) and must not leak into CI or the app.
