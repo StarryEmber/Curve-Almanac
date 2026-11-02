@@ -458,9 +458,17 @@ test.describe('M5 acceptance demo', () => {
       await expect(second.page.getByTestId('titlebar')).toContainText('Settings');
       await expect(second.page.getByTestId('sidebar')).toContainText('Tables');
       await expect
-        .poll(
-          () => JSON.parse(readFileSync(settingsPath, 'utf8')) as { locale: string; theme: string },
-        )
+        .poll(() => {
+          try {
+            return JSON.parse(readFileSync(settingsPath, 'utf8')) as {
+              locale: string;
+              theme: string;
+            };
+          } catch {
+            // The settings write is asynchronous; let expect.poll retry.
+            return undefined;
+          }
+        })
         .toMatchObject({ locale: 'en-US', theme: 'dark' });
       metrics.language = 'en-US';
       metrics.theme = 'dark';

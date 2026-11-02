@@ -847,3 +847,5 @@
 - Fix：Windows CI 的临时目录是 8.3 短路径（`RUNNER~1`），测试用 `realpath`/`realpathSync.native`
   规范化 workspace root，避免 `resolveInsideRoot` 将同一目录判成越界、recent 路径断言不一致；
   产品代码不变。
+- Fix：M5 验收 E2E 在 `settings.json` 尚未落盘时直接 `readFileSync` 抛 ENOENT，`expect.poll`
+  不会重试；改为捕获缺失并返回 `undefined`，让 poll 等待设置写入。完整 E2E 112→113 全过。
