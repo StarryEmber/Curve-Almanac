@@ -596,8 +596,9 @@ test.describe('T2.1 data grid', () => {
     expect(overflow).toBe(true);
 
     // The grid still moves with the keyboard after zooming.
-    await page.getByTestId('grid-cell-0-0').click();
-    await page.keyboard.press('ArrowRight');
+    const firstCell = page.getByTestId('grid-cell-0-0');
+    await firstCell.click();
+    await firstCell.press('ArrowRight');
     await expect(page.locator('[data-active="true"]')).toHaveAttribute('data-col', '1');
   });
 

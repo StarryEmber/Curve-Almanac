@@ -863,3 +863,5 @@
   edit/palette/ipc 10 条测试通过。
 - Fix：CI 下启用 CDP `Emulation.setFocusEmulationEnabled`，让无前台桌面的 runner 也能把
   F2/方向键送到 renderer；M4 恢复后的导出文件名改为轮询非空。完整 E2E CI=1 113 passed（6.8m）。
+- Fix：200% 网格的方向键改用 `locator.press('ArrowRight')`，先聚焦单元格再发键，避免 CI
+  丢焦点；grid.spec 8 条通过。
