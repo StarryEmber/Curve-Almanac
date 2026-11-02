@@ -865,3 +865,5 @@
   F2/方向键送到 renderer；M4 恢复后的导出文件名改为轮询非空。完整 E2E CI=1 113 passed（6.8m）。
 - Fix：200% 网格的方向键改用 `locator.press('ArrowRight')`，先聚焦单元格再发键，避免 CI
   丢焦点；grid.spec 8 条通过。
+- Fix：undo/plugin/plugin-ui/m5/t6.5 的单元格编辑 helper 全部加入 F2 失败双击兜底；
+  相关 11 条测试 CI=1 通过。

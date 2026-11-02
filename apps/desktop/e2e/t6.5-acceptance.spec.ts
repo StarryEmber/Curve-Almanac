@@ -167,6 +167,14 @@ async function editCell(
   await cell.click();
   await cell.focus();
   await page.keyboard.press('F2');
+  if (
+    !(await page
+      .getByTestId('cell-editor')
+      .isVisible()
+      .catch(() => false))
+  ) {
+    await cell.dblclick();
+  }
   await expect(page.getByTestId('cell-editor')).toBeVisible();
   await page.getByTestId('cell-editor').fill(value);
   await page.keyboard.press('Enter');

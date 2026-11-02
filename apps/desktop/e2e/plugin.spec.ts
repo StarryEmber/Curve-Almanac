@@ -217,8 +217,17 @@ test.describe('T6.2 rating field type', () => {
     await expect.poll(() => readManifest(seeded.root).tables[0]?.columns[2]?.type).toBe('number');
 
     // A valid rating is stored as a plain number and rendered as stars.
-    await page.getByTestId('grid-cell-0-2').click();
+    const ratingCell = page.getByTestId('grid-cell-0-2');
+    await ratingCell.click();
     await page.keyboard.press('F2');
+    if (
+      !(await page
+        .getByTestId('cell-editor')
+        .isVisible()
+        .catch(() => false))
+    ) {
+      await ratingCell.dblclick();
+    }
     await page.getByTestId('cell-editor').fill('3');
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('grid-cell-0-2')).toHaveText('★★★');

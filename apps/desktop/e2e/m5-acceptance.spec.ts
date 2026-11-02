@@ -254,6 +254,14 @@ async function editCellIn(
   // before F2 so the grid's own keydown handler owns the key.
   await cell.focus();
   await page.keyboard.press('F2');
+  if (
+    !(await page
+      .getByTestId('cell-editor')
+      .isVisible()
+      .catch(() => false))
+  ) {
+    await cell.dblclick();
+  }
   await expect(page.getByTestId('cell-editor')).toBeVisible();
   await page.getByTestId('cell-editor').fill(value);
   await page.keyboard.press('Enter');

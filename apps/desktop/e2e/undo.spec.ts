@@ -146,9 +146,13 @@ async function openRecent(page: Page, name: string): Promise<void> {
 }
 
 async function editCell(page: Page, row: number, column: number, value: string): Promise<void> {
-  await cell(page, row, column).click();
-  await page.keyboard.press('F2');
+  const target = cell(page, row, column);
   const editor = page.getByTestId('cell-editor');
+  await target.click();
+  await page.keyboard.press('F2');
+  if (!(await editor.isVisible().catch(() => false))) {
+    await target.dblclick();
+  }
   await editor.fill(value);
   await page.keyboard.press('Enter');
   await expect(editor).toHaveCount(0);

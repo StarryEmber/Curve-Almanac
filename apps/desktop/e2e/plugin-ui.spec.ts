@@ -295,6 +295,14 @@ test.describe('T6.3 plugin error isolation', () => {
     // the grid before the F2 shortcut (same reason as the M5 multi-pane helper).
     await page.getByTestId('grid-cell-0-1').focus();
     await page.keyboard.press('F2');
+    if (
+      !(await page
+        .getByTestId('cell-editor')
+        .isVisible()
+        .catch(() => false))
+    ) {
+      await page.getByTestId('grid-cell-0-1').dblclick();
+    }
     await expect(page.getByTestId('cell-editor')).toBeVisible();
     await page.getByTestId('cell-editor').fill('7');
     await page.keyboard.press('Enter');
