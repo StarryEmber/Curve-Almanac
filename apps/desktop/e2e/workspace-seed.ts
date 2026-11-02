@@ -151,10 +151,18 @@ export async function editCell(
   column: number,
   value: string,
 ): Promise<void> {
-  await page.getByTestId(`grid-cell-${row}-${column}`).click();
+  const cell = page.getByTestId(`grid-cell-${row}-${column}`);
+  const editor = page.getByTestId('cell-editor');
+  await cell.click();
+  await page.bringToFront().catch(() => undefined);
   await page.keyboard.press('F2');
-  await expect(page.getByTestId('cell-editor')).toBeVisible();
-  await page.getByTestId('cell-editor').fill(value);
+  if (!(await editor.isVisible().catch(() => false))) {
+    // CI Windows runners can start the Electron window without OS keyboard
+    // focus. Double-click opens the same editor through the mouse path.
+    await cell.dblclick();
+  }
+  await expect(editor).toBeVisible();
+  await editor.fill(value);
   await page.keyboard.press('Enter');
 }
 

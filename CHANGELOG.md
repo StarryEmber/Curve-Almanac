@@ -854,3 +854,5 @@
 - Fix：CI 的 Windows runner 桌面只有 1024×768，默认 1440×900 窗口被压小，导致 22 条 E2E
   （200% 缩放、图表 resize、F2 编辑等）失败；CI 下启动后固定窗口 1440×900 并聚焦，本地正常
   路径不变。受影响的 autosave/chart-interaction/grid 15 条测试复跑通过。
+- Fix：手动 `launchCurveApp` 的 autosave 用例在 CI 上偶发窗口无键盘焦点，`editCell` 增加
+  `bringToFront`，F2 未打开编辑器时回退双击；autosave/edit 7 条测试在 CI=1 下通过。
