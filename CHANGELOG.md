@@ -859,3 +859,5 @@
 - Fix：200% 缩放类 E2E 改为按当前视口自适应缩放（本地仍 2×，小屏 CI 约 1.42× 以保持
   ~720 CSS px 布局）；图表 resize 断言改为“宽度发生变化”而非必须变小。受影响 31 条测试
   在 CI=1 下通过。
+- Fix：F2 焦点兜底扩展到 edit/palette 的直接键盘用例（bringToFront + 双击兜底），
+  edit/palette/ipc 10 条测试通过。

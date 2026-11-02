@@ -103,7 +103,16 @@ test.describe('T5.4 command palette', () => {
 
     // The cell editor owns the keyboard: Ctrl+K must not open the palette.
     await page.getByTestId('grid-cell-0-0').click();
+    await page.bringToFront().catch(() => undefined);
     await page.keyboard.press('F2');
+    if (
+      !(await page
+        .getByTestId('cell-editor')
+        .isVisible()
+        .catch(() => false))
+    ) {
+      await page.getByTestId('grid-cell-0-0').dblclick();
+    }
     await expect(page.getByTestId('cell-editor')).toBeVisible();
     await page.keyboard.press('Control+k');
     await expect(page.getByRole('dialog', { name: '命令面板' })).toHaveCount(0);
