@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test';
+
 import type { ReporterDescription } from '@playwright/test';
 
 /**
