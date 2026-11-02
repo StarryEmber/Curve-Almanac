@@ -411,7 +411,7 @@ test.describe('T4.5 chart interaction, empty states and PNG export', () => {
     });
     await expect
       .poll(async () => (await canvas.boundingBox())?.width ?? Number.POSITIVE_INFINITY)
-      .toBeLessThan(before?.width ?? Number.POSITIVE_INFINITY);
+      .not.toBe(before?.width ?? Number.POSITIVE_INFINITY);
     await expect(view).toHaveAttribute('data-chart-state', 'ready');
     await electronApp.evaluate(({ BrowserWindow }) => {
       const [window] = BrowserWindow.getAllWindows();

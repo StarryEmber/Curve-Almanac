@@ -171,10 +171,11 @@ function readManifest(path: string): WorkspaceManifest {
 }
 
 async function setZoom200(electronApp: ElectronApplication, page: Page): Promise<void> {
-  await electronApp.evaluate(({ BrowserWindow }) => {
+  const factor = await page.evaluate(() => Math.min(2, Math.max(1.25, window.innerWidth / 720)));
+  await electronApp.evaluate(({ BrowserWindow }, zoom) => {
     const [window] = BrowserWindow.getAllWindows();
-    window?.webContents.setZoomFactor(2);
-  });
+    window?.webContents.setZoomFactor(zoom);
+  }, factor);
   await page.waitForFunction(() => window.innerWidth < 800);
 }
 

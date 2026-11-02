@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { expect } from '@playwright/test';
 
 import { test } from './fixtures';
+import { zoomToNarrowLayout } from './workspace-seed';
 
 import type { CurveApi, WorkspaceManifest } from '../src/shared/contracts/ipc';
 import type { Page, TestInfo } from '@playwright/test';
@@ -585,11 +586,7 @@ test.describe('T2.1 data grid', () => {
     await seedWorkspace(page, testInfo, SEED_ROW_COUNT);
     await openSeededWorkspace(page);
 
-    await electronApp.evaluate(({ BrowserWindow }) => {
-      const [window] = BrowserWindow.getAllWindows();
-      window?.webContents.setZoomFactor(2);
-    });
-    await page.waitForFunction(() => window.innerWidth < 800);
+    await zoomToNarrowLayout(electronApp, page);
 
     await expect(page.getByRole('grid')).toBeVisible();
     await expect(page.getByTestId('grid-cell-0-0')).toBeVisible();

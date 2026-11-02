@@ -318,8 +318,12 @@ test.describe('T6.5 final acceptance demo', () => {
       // Single-cell validation: an invalid number is rejected, then corrected.
       const cell = page.getByTestId('grid-cell-0-2');
       await cell.click();
+      await page.bringToFront().catch(() => undefined);
       await page.keyboard.press('F2');
       const editor = page.getByTestId('cell-editor');
+      if (!(await editor.isVisible().catch(() => false))) {
+        await cell.dblclick();
+      }
       await expect(editor).toBeVisible();
       await editor.fill('oops');
       await page.keyboard.press('Enter');

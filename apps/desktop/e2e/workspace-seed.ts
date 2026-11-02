@@ -166,6 +166,23 @@ export async function editCell(
   await page.keyboard.press('Enter');
 }
 
+/**
+ * Zooms to 200%, or to the highest factor that still leaves ~720 CSS px of
+ * layout on small CI screens (1024x768 uses 1.42x instead of a 512px viewport
+ * where the grid is not visible). Developer machines still get exactly 2x.
+ */
+export async function zoomToNarrowLayout(
+  electronApp: ElectronApplication,
+  page: Page,
+): Promise<void> {
+  const factor = await page.evaluate(() => Math.min(2, Math.max(1.25, window.innerWidth / 720)));
+  await electronApp.evaluate(({ BrowserWindow }, zoom) => {
+    const [window] = BrowserWindow.getAllWindows();
+    window?.webContents.setZoomFactor(zoom);
+  }, factor);
+  await page.waitForFunction(() => window.innerWidth < 800);
+}
+
 export async function capture(
   target: Page | ElectronApplication,
   testInfo: TestInfo,

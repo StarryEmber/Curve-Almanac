@@ -13,7 +13,12 @@
 import { expect } from '@playwright/test';
 
 import { test } from './fixtures';
-import { expectWorkspaceOpen, openRecentWorkspace, seedSimpleWorkspace } from './workspace-seed';
+import {
+  expectWorkspaceOpen,
+  openRecentWorkspace,
+  seedSimpleWorkspace,
+  zoomToNarrowLayout,
+} from './workspace-seed';
 
 import type { Page, TestInfo } from '@playwright/test';
 
@@ -157,11 +162,7 @@ test.describe('T5.4 command palette', () => {
     test.setTimeout(120_000);
     await seed(page, testInfo);
 
-    await electronApp.evaluate(({ BrowserWindow }) => {
-      const [window] = BrowserWindow.getAllWindows();
-      window?.webContents.setZoomFactor(2);
-    });
-    await page.waitForFunction(() => window.innerWidth < 800);
+    await zoomToNarrowLayout(electronApp, page);
 
     await page.getByTestId('grid-cell-0-0').click();
     await openPalette(page);

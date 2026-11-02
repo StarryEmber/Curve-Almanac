@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { expect } from '@playwright/test';
 
 import { test } from './fixtures';
+import { zoomToNarrowLayout } from './workspace-seed';
 
 import type { CurveApi, WorkspaceManifest } from '../src/shared/contracts/ipc';
 import type { Page, TestInfo } from '@playwright/test';
@@ -442,11 +443,7 @@ test.describe('T3.2 table style rendering', () => {
 
     // 200% zoom keeps the decorated grid visible (keyboard navigation itself is
     // covered by grid.spec.ts; this feature adds no new interactive control).
-    await electronApp.evaluate(({ BrowserWindow }) => {
-      const [window] = BrowserWindow.getAllWindows();
-      window?.webContents.setZoomFactor(2);
-    });
-    await page.waitForFunction(() => window.innerWidth < 800);
+    await zoomToNarrowLayout(electronApp, page);
     await expect(page.getByTestId('data-grid')).toBeVisible();
     await expect(page.getByTestId('grid-cell-0-1')).toBeVisible();
     const zoomedFallback = await computedStyle(page, 'grid-cell-0-1');
@@ -602,11 +599,7 @@ test.describe('T3.2 table style rendering', () => {
     });
 
     // 200% zoom keeps the stacked editor and preview usable.
-    await electronApp.evaluate(({ BrowserWindow }) => {
-      const [window] = BrowserWindow.getAllWindows();
-      window?.webContents.setZoomFactor(2);
-    });
-    await page.waitForFunction(() => window.innerWidth < 800);
+    await zoomToNarrowLayout(electronApp, page);
     await expect(page.getByTestId('style-editor')).toBeVisible();
     await expect(preview).toBeVisible();
     await expect(page.getByTestId('style-density')).toBeVisible();

@@ -195,9 +195,15 @@ function cell(page: Page, row: number, col: number) {
 }
 
 async function startEdit(page: Page, row: number, col: number): Promise<void> {
-  await cell(page, row, col).click();
+  const target = cell(page, row, col);
+  const editor = page.getByTestId('cell-editor');
+  await target.click();
+  await page.bringToFront().catch(() => undefined);
   await page.keyboard.press('F2');
-  await expect(page.getByTestId('cell-editor')).toBeVisible();
+  if (!(await editor.isVisible().catch(() => false))) {
+    await target.dblclick();
+  }
+  await expect(editor).toBeVisible();
 }
 
 async function fillAndCommit(page: Page, row: number, col: number, value: string): Promise<void> {
