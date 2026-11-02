@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test';
+import type { ReporterDescription } from '@playwright/test';
 
 /**
  * Electron E2E setup (TESTPLAN §1, layer L4; ADR-014 keeps E2E Windows-only).
@@ -12,6 +13,16 @@ import { defineConfig } from '@playwright/test';
  * applies the same policy explicitly. The `use` block below keeps the policy in
  * one place for any future browser-context based specs.
  */
+const reporters: ReporterDescription[] = [
+  ['list'],
+  ['html', { outputFolder: 'playwright-report', open: 'never' }],
+];
+if (process.env['GITHUB_ACTIONS']) {
+  // Emit `::error file=...` annotations so CI failures point at the failing
+  // spec/assertion without downloading the job log.
+  reporters.push(['github']);
+}
+
 export default defineConfig({
   testDir: './e2e',
   outputDir: './test-results',
@@ -21,7 +32,7 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   forbidOnly: Boolean(process.env['CI']),
-  reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
+  reporter: reporters,
   use: {
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',

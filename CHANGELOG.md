@@ -849,3 +849,5 @@
   产品代码不变。
 - Fix：M5 验收 E2E 在 `settings.json` 尚未落盘时直接 `readFileSync` 抛 ENOENT，`expect.poll`
   不会重试；改为捕获缺失并返回 `undefined`，让 poll 等待设置写入。完整 E2E 112→113 全过。
+- CI：Playwright 在 GitHub Actions 下启用 `github` reporter，E2E 失败会生成指向失败 spec/
+  断言的 annotation，便于直接定位。
