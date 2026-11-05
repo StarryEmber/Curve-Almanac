@@ -631,6 +631,7 @@ test.describe('M4 acceptance demo', () => {
       const exportBody = page.getByTestId('chart-export-dialog');
       await expect(exportDialog).toBeVisible();
       await expect(exportBody).toBeVisible();
+      await expect(page.getByTestId('chart-export-filename')).not.toHaveText('');
       const suggestedName = (await page.getByTestId('chart-export-filename').textContent())?.trim();
       expect(suggestedName).toMatch(/^100k chart-\d{8}-\d{4}\.png$/u);
       await page.getByTestId('chart-export-background').selectOption('light');
