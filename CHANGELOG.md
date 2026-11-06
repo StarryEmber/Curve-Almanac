@@ -876,3 +876,9 @@
 - Docs：README 文档索引与“开发”一节补贡献/安全/行为准则链接；`docs/HANDOFF-MAINTENANCE.md`
   的状态卡、GitHub 发布状态与待决策同步社区规范文件与“私密漏洞报告需在仓库设置中开启”的提醒。
   本次无代码、依赖、`formatVersion`、IPC、CSP 或打包配置改动。
+- Fix：E2E `ipc.spec.ts:104`（“registers handlers only for the implemented channels”）在 CI 偶发
+  失败：`electron.launch()` 在主进程完成 `start()` 之前就返回，探针会在 IPC 注册前运行并读到空列表
+  （windows-2025 runner 上 112 passed / 1 failed，两次运行同点失败）。改为先
+  `await electronApp.firstWindow()`——窗口在 `registerIpc()` 之后才创建，确保处理器已注册；该用例是
+  唯一只用 `electronApp` 而不等待窗口的 E2E。用临时 3s 启动延迟复现原失败并在同一条件下验证修复，
+  移除延迟后 `ipc.spec` 4 passed。不改变断言语义、产品代码与安全选项。

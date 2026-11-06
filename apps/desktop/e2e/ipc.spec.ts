@@ -102,6 +102,13 @@ test.describe('T0.3 typed IPC', () => {
   });
 
   test('registers handlers only for the implemented channels', async ({ electronApp }) => {
+    // `electron.launch()` resolves before the main process finishes `start()`.
+    // The app registers its IPC handlers just before it creates the window, so
+    // wait for the window instead of racing startup: on the slower Windows
+    // Server 2025 runner the probe below ran before any handler existed and
+    // saw an empty list (112 passed, 1 failed).
+    await electronApp.firstWindow();
+
     // Electron has no public "is this channel handled?" API, so probe it: a
     // second `handle` call for the same channel throws. Channels we can claim
     // are therefore exactly the unhandled ones, and we remove them again.
