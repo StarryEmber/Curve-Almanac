@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞 / Security vulnerability
+    url: https://github.com/StarryEmber/Curve-Almanac/security/policy
+    about: 私密报告安全问题；不要在公开 issue 披露细节。请先读 SECURITY.md。
+  - name: 使用与安装问题 / Usage and installation
+    url: https://github.com/StarryEmber/Curve-Almanac/discussions
+    about: 安装、升级、数据恢复等使用问题；请先查用户手册 docs/MANUAL.md。
+  - name: 已知限制与范围 / Known limitations and scope
+    url: https://github.com/StarryEmber/Curve-Almanac/blob/main/docs/ROADMAP.md
+    about: v1 的已知限制、非目标与维护范围（不规划 v2，ADR-060）。

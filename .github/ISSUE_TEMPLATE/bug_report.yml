@@ -1,0 +1,133 @@
+name: Bug 报告 / Bug report
+description: 报告可复现的缺陷：崩溃、错误结果、数据异常或界面问题。安全问题请按 SECURITY.md 私密报告。
+title: '[Bug]: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。提交前请先搜索[已有 issue](https://github.com/StarryEmber/Curve-Almanac/issues) 与
+        [已知限制](https://github.com/StarryEmber/Curve-Almanac/blob/main/docs/ROADMAP.md)，并确认
+        已在最新发布上复现。
+
+        **安全漏洞不要在这里提交**，请按 [SECURITY.md](https://github.com/StarryEmber/Curve-Almanac/blob/main/SECURITY.md) 私密报告。
+        中英文均可 / Chinese or English are both welcome.
+
+  - type: dropdown
+    id: distribution
+    attributes:
+      label: 运行方式 / How it runs
+      options:
+        - 安装包（NSIS Setup）
+        - 便携版（portable）
+        - 源码开发模式（pnpm dev）
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本 / Version
+      description: 见 Release 文件名（如 0.1.0）；源码运行请写 `git log -1 --oneline` 的结果。
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: system
+    attributes:
+      label: 系统 / OS
+      description: Windows 版本与架构。应用仅支持 Windows 10/11 x64。
+      placeholder: Windows 11 23H2 x64
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scale
+    attributes:
+      label: 工作区规模 / Workspace size
+      description: 出问题时工作区大约有多少行数据（最接近的一项）。
+      options:
+        - 0–1,000 行
+        - 1,000–10,000 行
+        - 10,000–100,000 行
+        - 超过 100,000 行
+        - 不适用 / 空工作区
+    validations:
+      required: false
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么 / What happened
+      description: 一句话描述问题，便于快速分拣。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      description: 尽量最小化；说明从哪个界面开始、用了什么数据。
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果 / Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果 / Actual behavior
+      description: 包括错误提示、状态栏信息、是否可重试等。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: data-loss
+    attributes:
+      label: 是否涉及数据丢失或工作区损坏 / Data loss?
+      description: 涉及数据的问题会优先处理。
+      options:
+        - 否
+        - 是（数据丢失或损坏）
+        - 不确定
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志 / Logs
+      description: 日志在 `%APPDATA%\Curve Almanac\logs\main.log`（按天保存 7 天）。只贴相关片段，并先删掉真实路径、用户名与工作区名。
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或录屏 / Screenshots
+      description: 可直接拖拽图片到此处。
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认 / Checklist
+      options:
+        - label: 我已搜索现有 issue 与 `docs/ROADMAP.md` 的已知限制，未找到相同问题。
+          required: true
+        - label: 我已在最新发布（或当前 `main`）上复现该问题。
+          required: true
+        - label: 这不是安全漏洞；安全问题按 SECURITY.md 私密报告。
+          required: true

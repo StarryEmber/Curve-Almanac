@@ -12,7 +12,7 @@
 | 产品/版本 | Curve Almanac **0.1.0**（Windows 10/11 x64） |
 | 阶段 | v1 实施完成；**M0–M6 已关闭**；进入维护/发布阶段 |
 | 最新提交 | `git log -1 --oneline`（历史 commit hash 已随 2026-10-31 作者重写全部更新） |
-| 工作树 | 干净；**无 GitHub remote**；本地 tag `v0.1.0` 未推送 |
+| 工作树 | 干净；remote `origin` = `git@github.com:StarryEmber/Curve-Almanac.git`（SSH 可推送）；tag `v0.1.0` 已推送 |
 | 安装包 | `release/Curve Almanac Setup 0.1.0.exe`（112,421,015 B）· `release/Curve Almanac 0.1.0.exe`（112,183,688 B） |
 | SHA-256 | Setup `3F8685C7BE60CA2AC5CA8DD63098F7F1A38A98657E979D9841A0A169B20BF33E`；portable `D95E61436FC2DE5E60DD7F3EF791AD4A4495E24E10EDC2EAA904BFFEB6F52F28` |
 | 验证基线 | `pnpm verify` 198 files / 1831 tests；`pnpm e2e` 功能 111 passed + 2 内存门禁；`pnpm bench` exit 0 |
@@ -21,7 +21,7 @@
 | 签名 | **未签名**（SmartScreen 提示）；证书/签名策略未定 |
 | 许可证/主体 | **MIT**（根 `LICENSE`，ADR-058）；Copyright © 2026 **StarryEmber**；`build/license.txt` 同步；第三方组件各自许可 |
 | 仓库/作者 | GitHub 仓库 **curve-almanac**；根包名 `curve-almanac`；Git 作者 **StarryEmber**（ADR-059） |
-| 文档 | README、SPEC、TASKS、TESTPLAN、HANDOFF、MANUAL、DSH、DEVELOPER、ROADMAP、ADR-001–057 |
+| 文档 | README、SPEC、TASKS、TESTPLAN、HANDOFF、MANUAL、DSH、DEVELOPER、ROADMAP、CODE_OF_CONDUCT、CONTRIBUTING、SECURITY、`.github/ISSUE_TEMPLATE/`、ADR-001–057 |
 
 ## 1. 30 分钟接手清单
 
@@ -53,13 +53,14 @@
 ## 3. 发布状态与 GitHub
 
 - 本地安装包已重打（含 T6.6 的 `electron-log`）并通过冒烟；`release/` 被 gitignore，**未提交**。
-- **尚未推送 GitHub**：无 remote、无 tag。GitHub 发布前必须先定：
-  1. 源码公开还是仅公开二进制：私有仓库的 Release 附件不对公众开放；**当前已按用户决定
-     公开源码并采用 MIT（ADR-058）**；仍需仓库名、推送方式与 GitHub 网络。
-  2. 证书/签名：未签名可发布，但要在发布说明写明 SmartScreen；签名方案见 ADR-055 复核条件。
-  3. 分发渠道与仓库名（`curve-almanac` 建议）。
-- 建议路径（不改代码）：源码暂不公开 → 建公开的 `curve-almanac-releases` 仓库，只放发布说明、
-  安装包、`SHA256SUMS.txt`；源码仓库保持私有/本地。
+- **社区规范文件已就位**（2026-11-06）：`CODE_OF_CONDUCT.md`（Contributor Covenant 3.0）、
+  `CONTRIBUTING.md`、`SECURITY.md`、`.github/ISSUE_TEMPLATE/{bug_report,feature_request,config}.yml`；
+  GitHub Community Standards 应全部打勾。**还需在仓库 Settings → Code security 开启
+  “Private vulnerability reporting”**，否则 `SECURITY.md` 的首选入口不可用（邮件兜底仍有效）。
+- **已推送 GitHub**（2026-10-31 创建 `StarryEmber/Curve-Almanac`）：`main` 与 tag `v0.1.0` 已推送，
+  Release 附件（Setup/portable/`SHA256SUMS.txt`）仍待上传。剩余发布决定：
+  1. 证书/签名：未签名可发布，但要在发布说明写明 SmartScreen；签名方案见 ADR-055 复核条件。
+  2. 分发渠道：以 GitHub Release 为主；是否同时提供官网/网盘与校验和。
 - 发布前必须在**干净 Windows 用户/VM**复验（当前仅有“无既存安装/无 userData/非管理员”的本机冒烟；
   用户 2026-10-30 曾豁免一次，但正式发布建议补做）。
 
@@ -181,12 +182,16 @@ pnpm format:check
   CHANGELOG、HANDOFF 状态卡、TESTPLAN 基线。
 - 用户手册截图：用临时工作区与示例数据，避免真实路径/客户数据；不要覆盖 `docs/reports/*` 历史证据。
 - 新决策写 ADR（058+）并更新 `docs/adr/README.md`；ADR 不接受静默修改历史。
+- 社区规范文件（`CODE_OF_CONDUCT.md`、`CONTRIBUTING.md`、`SECURITY.md`、`.github/ISSUE_TEMPLATE/`）
+  随发布同步：联系方式、支持版本、issue 入口变化时更新；安全响应只写“尽力”，不要写成 SLA。
 - 手册/文档修改后跑 `pnpm format:check`，检查相对链接与图片路径。
 
 ## 13. 立即待办与待决策（交接给用户）
 
 1. **GitHub 发布**：公开源码 + MIT + 版权主体 StarryEmber 已决定（ADR-058/059）；仓库名
-   `curve-almanac`；待推送网络（本机到 github.com:443 不通）、tag/Release 与附件上传。
+   `curve-almanac`；`StarryEmber/Curve-Almanac` 已公开，`main` 与 tag `v0.1.0` 已推送（见
+   CHANGELOG）；待上传 Release 附件与 `SHA256SUMS.txt`。GitHub 侧还需开启 **Private
+   vulnerability reporting**（见 §3），并保持 Discussions 可用（issue 模板的“使用与安装问题”入口）。
 2. **干净机器复验**：正式发布前在全新 Windows 用户/VM 执行安装/启动/建工作区/卸载/数据保留。
 3. **签名**：是否购买 OV/EV 或使用企业自签名；未签名则发布说明必须写明 SmartScreen。
 4. **分发渠道**：官网/内网/网盘/GitHub Release；是否提供校验和。

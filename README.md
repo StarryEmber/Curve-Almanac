@@ -112,6 +112,9 @@ See the [User Manual](docs/MANUAL.md) for the full walkthrough.
 
 - [用户手册](docs/MANUAL.md)：安装、15 分钟上手、功能详解、快捷键、FAQ、限制。
 - [开发者指南](docs/DEVELOPER.md)：目录、命令、依赖边界、测试、打包。
+- [贡献指南](CONTRIBUTING.md)：参与范围、环境、提交与 PR 规则、验证门禁。
+- [安全策略](SECURITY.md)：支持的版本、私密报告漏洞与响应流程。
+- [行为准则](CODE_OF_CONDUCT.md)：社区行为约定与举报方式。
 - [已知限制](docs/ROADMAP.md)：v1 限制与维护范围（不规划 v2）。
 - [DSH/自动化指南](docs/DSH.md)：环境、命令、测试、打包与发布流程。
 
@@ -119,16 +122,20 @@ See the [User Manual](docs/MANUAL.md) for the full walkthrough.
 
 - [User Manual](docs/MANUAL.md): install, 15-minute tutorial, every feature, shortcuts, FAQ, limitations.
 - [Developer Guide](docs/DEVELOPER.md): repository layout, commands, boundaries, tests, packaging.
+- [Contributing](CONTRIBUTING.md): scope, setup, commit and PR rules, verification gates.
+- [Security Policy](SECURITY.md): supported versions, private vulnerability reporting, response process.
+- [Code of Conduct](CODE_OF_CONDUCT.md): community expectations and how to report incidents.
 - [Known Limitations](docs/ROADMAP.md): v1 limitations and maintenance scope (no v2 roadmap).
 - [Agent/Automation Guide](docs/DSH.md): environment, commands, testing, packaging, release workflow.
 
 ## 开发 / Development
 
 **中文**：要求 Node.js ≥ 20.11、pnpm 11。完整测试、基准、打包与发布流程见
-[开发者指南](docs/DEVELOPER.md)。
+[开发者指南](docs/DEVELOPER.md)；参与贡献的分支、提交信息与 PR 规则见[贡献指南](CONTRIBUTING.md)。
 
 **English**: Requires Node.js ≥ 20.11 and pnpm 11. Full test, benchmark, packaging, and release
-instructions are in the [Developer Guide](docs/DEVELOPER.md).
+instructions are in the [Developer Guide](docs/DEVELOPER.md); branching, commit-message, and PR
+conventions are in [Contributing](CONTRIBUTING.md).
 
 ```bash
 pnpm install

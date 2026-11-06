@@ -867,3 +867,12 @@
   丢焦点；grid.spec 8 条通过。
 - Fix：undo/plugin/plugin-ui/m5/t6.5 的单元格编辑 helper 全部加入 F2 失败双击兜底；
   相关 11 条测试 CI=1 通过。
+- Docs：补齐 GitHub 社区规范（Community Standards）缺失的四项：根 `CODE_OF_CONDUCT.md`
+  （Contributor Covenant 3.0 英文正文 + 中文要点，举报渠道与执行阶梯已填写）、`CONTRIBUTING.md`
+  （中英双语：范围、环境、分支/提交/PR、验证门禁、禁做清单、许可与 AI 辅助约定）、`SECURITY.md`
+  （支持版本、私密报告渠道、响应流程、范围/非范围、安全设计概览）与
+  `.github/ISSUE_TEMPLATE/`（`bug_report.yml`、`feature_request.yml`、`config.yml`，空白 issue
+  关闭并给出安全/Discussions/已知限制三个入口）。
+- Docs：README 文档索引与“开发”一节补贡献/安全/行为准则链接；`docs/HANDOFF-MAINTENANCE.md`
+  的状态卡、GitHub 发布状态与待决策同步社区规范文件与“私密漏洞报告需在仓库设置中开启”的提醒。
+  本次无代码、依赖、`formatVersion`、IPC、CSP 或打包配置改动。
