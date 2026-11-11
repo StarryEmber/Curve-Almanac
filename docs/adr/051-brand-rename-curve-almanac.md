@@ -54,7 +54,7 @@ i18n 消息表都从它取值；两处**静态**重复（`apps/desktop/package.j
 ### 4. userData 目录变更，不做自动迁移
 
 Electron 由应用名推导 `userData`（`app.setName(APP_NAME)` 在 `app.whenReady()` 之前调用），因此
-`%APPDATA%/Curve Studio` 变为 `%APPDATA%/Curve Almanac`。v1 尚未发布，本次**不做**自动迁移：
+`%APPDATA%/Curve Studio` 变为 `%APPDATA%/Curve Almanac`。当时 v1 还未发布，本次**不做**自动迁移：
 
 - `settings.json`、`recent.json`、`window-state.json` 重置为默认值，用户需要重新选择主题/语言、
   并重新从“打开工作区”进入旧工作区（工作区本身在用户目录里，数据不丢）；
