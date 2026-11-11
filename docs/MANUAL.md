@@ -73,14 +73,14 @@ Curve Almanac 是一个**本地、离线、表格驱动**的曲线可视化工�
 
 ### 2.2 安装版（推荐）
 
-1. 双击 `Curve Almanac Setup 0.1.0.exe`。
+1. 双击 `Curve-Almanac-Setup-0.1.0.exe`。
 2. 安装包是**每用户安装**，默认目录 `%LOCALAPPDATA%\Programs\Curve Almanac`，不要求管理员权限。
 3. 按向导完成安装；会创建开始菜单与桌面快捷方式。
 4. 首次运行若出现 SmartScreen“未知发布者”，选择 **更多信息 → 仍要运行**（v1 安装包未签名）。
 
 ### 2.3 便携版
 
-双击 `Curve Almanac 0.1.0.exe`。它会自解压到临时目录运行，不写安装目录；适合临时机器或 U 盘。
+双击 `Curve-Almanac-0.1.0.exe`。它会自解压到临时目录运行，不写安装目录；适合临时机器或 U 盘。
 便携版与安装版使用**同一个** `%APPDATA%\Curve Almanac` 用户数据目录。
 
 ### 2.4 首次启动

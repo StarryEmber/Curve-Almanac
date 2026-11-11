@@ -58,9 +58,9 @@ restored on the next launch.
 
 1. 打开 [Releases](https://github.com/StarryEmber/Curve-Almanac/releases)。
 2. 下载任一文件：
-   - `Curve Almanac Setup 0.1.0.exe`：每用户安装包，默认安装到
+   - `Curve-Almanac-Setup-0.1.0.exe`：每用户安装包，默认安装到
      `%LOCALAPPDATA%\Programs\Curve Almanac`。
-   - `Curve Almanac 0.1.0.exe`：便携版单文件，运行时自解压到临时目录。
+   - `Curve-Almanac-0.1.0.exe`：便携版单文件，运行时自解压到临时目录。
 3. 运行。安装包**未签名**，SmartScreen 可能提示“未知发布者”；选择 **更多信息 → 仍要运行**。
 
 卸载**不会**删除数据：`%APPDATA%\Curve Almanac`（设置/最近工作区/窗口状态/日志）与
@@ -72,9 +72,9 @@ Requires **Windows 10/11 x64**.
 
 1. Open [Releases](https://github.com/StarryEmber/Curve-Almanac/releases).
 2. Download one of:
-   - `Curve Almanac Setup 0.1.0.exe` — per-user installer (defaults to
+   - `Curve-Almanac-Setup-0.1.0.exe` — per-user installer (defaults to
      `%LOCALAPPDATA%\Programs\Curve Almanac`).
-   - `Curve Almanac 0.1.0.exe` — portable single file; extracts to a temporary directory at launch.
+   - `Curve-Almanac-0.1.0.exe` — portable single file; extracts to a temporary directory at launch.
 3. Run it. The installer is **unsigned**, so SmartScreen may show “Unknown publisher”; choose
    **More info → Run anyway**.
 
