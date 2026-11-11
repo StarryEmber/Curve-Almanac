@@ -17,8 +17,8 @@ ADR-060 冻结，当前以维护为主：修 bug、补文档、改进可访问�
 | 报告安全漏洞 | 走私密渠道（[SECURITY.md](SECURITY.md)），不要在公开 issue 披露细节 |
 | 使用/安装问题 | 先查[用户手册](docs/MANUAL.md)与[已知限制](docs/ROADMAP.md)，再到 [Discussions](https://github.com/StarryEmber/Curve-Almanac/discussions) 提问 |
 
-`docs/ROADMAP.md` 列出 v1 的已知限制与非目标；`docs/V2-PLAN.md` 只是**未批准的提案**
-（ADR-060 仍冻结范围）。请不要把提案当成待办，也不要在未确认前按提案实现。
+`docs/ROADMAP.md` 列出 v1 的已知限制与非目标。本仓库**不规划 v2**（ADR-060 冻结范围），
+请不要把未确认的设想当成待办，也不要在未确认前按设想实现。
 
 ## 2. 环境
 
@@ -112,8 +112,8 @@ pnpm dev         # 开发模式（HMR）
 
 Curve Almanac is a personally maintained, MIT-licensed Windows desktop app. **The v1 scope is frozen
 (ADR-060)**: fixes, documentation, accessibility and release-quality work are welcome; new features
-need agreement with the maintainer first. `docs/V2-PLAN.md` is an unapproved proposal, not a TODO
-list.
+need agreement with the maintainer first. This repository does not plan a v2 (ADR-060), so nothing
+here is a TODO list for future features.
 
 - **Security issues** — report privately per [SECURITY.md](SECURITY.md); never open a public issue.
 - **Conduct** — [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

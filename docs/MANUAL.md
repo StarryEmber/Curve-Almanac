@@ -741,4 +741,3 @@ v1 插件编译期静态导入，不能运行时下载；禁用仅本次会话�
 | [DEVELOPER](DEVELOPER.md) | 开发/测试/打包 |
 | [ROADMAP](ROADMAP.md) | v1 已知限制与维护范围（不规划 v2） |
 | [TESTPLAN](TESTPLAN.md) | 测试矩阵与发布检查清单 |
-| [DSH 使用手册](DSH.md) | 供 DSH/自动化代理操作本仓库的说明 |

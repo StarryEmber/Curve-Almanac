@@ -36,7 +36,7 @@
 
 | 主题 | 先读 |
 |---|---|
-| 维护/发布流程 | `docs/HANDOFF-MAINTENANCE.md`、`docs/DSH.md` |
+| 维护/发布流程 | `docs/DEVELOPER.md`、`AGENTS.md` |
 | 存储/规模 | ADR-003、ADR-011、SPEC §2.2/§7 |
 | 插件 | ADR-010、ADR-052–054、SPEC §14 |
 | 打包/分发 | ADR-001、ADR-016、ADR-055、SPEC §16.6 |

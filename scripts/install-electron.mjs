@@ -9,7 +9,7 @@
  * This repository-level `postinstall` restores the conventional behaviour:
  * make sure the runtime matching the installed `electron` version exists, and
  * skip the download when it already does. `ELECTRON_MIRROR` /
- * `ELECTRON_CUSTOM_DIR` are honoured (see `docs/HANDOFF.md` §3.4).
+ * `ELECTRON_CUSTOM_DIR` are honoured (see `docs/DEVELOPER.md`).
  *
  * It runs with inherited stdio and no pipes so it also works in restricted
  * shells that forbid piped child processes.
@@ -62,7 +62,7 @@ if (result.error) {
 if (result.status !== 0) {
   console.error(
     '[install-electron] the Electron runtime could not be downloaded. ' +
-      'Retry with ELECTRON_MIRROR set (docs/HANDOFF.md §3.4), or run ' +
+      'Retry with ELECTRON_MIRROR set (docs/DEVELOPER.md), or run ' +
       `"node ${installer}" manually.`,
   );
   process.exit(1);

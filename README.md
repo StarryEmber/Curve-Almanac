@@ -116,7 +116,6 @@ See the [User Manual](docs/MANUAL.md) for the full walkthrough.
 - [安全策略](SECURITY.md)：支持的版本、私密报告漏洞与响应流程。
 - [行为准则](CODE_OF_CONDUCT.md)：社区行为约定与举报方式。
 - [已知限制](docs/ROADMAP.md)：v1 限制与维护范围（不规划 v2）。
-- [DSH/自动化指南](docs/DSH.md)：环境、命令、测试、打包与发布流程。
 
 **English**
 
@@ -126,7 +125,6 @@ See the [User Manual](docs/MANUAL.md) for the full walkthrough.
 - [Security Policy](SECURITY.md): supported versions, private vulnerability reporting, response process.
 - [Code of Conduct](CODE_OF_CONDUCT.md): community expectations and how to report incidents.
 - [Known Limitations](docs/ROADMAP.md): v1 limitations and maintenance scope (no v2 roadmap).
-- [Agent/Automation Guide](docs/DSH.md): environment, commands, testing, packaging, release workflow.
 
 ## 开发 / Development
 
