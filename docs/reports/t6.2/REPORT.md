@@ -111,7 +111,6 @@ pnpm format:check
 
 ![rating 列：★ 格式化、列表徽标、无载入警告](t6.2-rating.png)
 
-![导入向导：Points JSON 预览（x / y / label）](t6.2-importer.png)
 
 截图由 `apps/desktop/e2e/plugin.spec.ts` 生成后复制到此；`docs/reports/m0/*.png` 已用
 `git checkout` 还原（E2E 会重写它们）。

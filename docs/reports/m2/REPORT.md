@@ -61,7 +61,6 @@ M2 的验收演示已固化为一条真实 Electron 端到端用例：新建工�
 4. 断言 `aria-colcount=6`、`aria-rowcount=201`、`data-visible-rows=200`，前三行引号/
    内嵌换行单元格内容正确；`autosave-status` 为“已保存”。
 
-![粘贴 200 行](m2-01-paste.png)
 
 ### 3.2 导入 100k GBK CSV（含坏行）
 
@@ -73,7 +72,6 @@ M2 的验收演示已固化为一条真实 Electron 端到端用例：新建工�
    远低于 8s 预算；随后 `autosave-status=已保存`。
 5. 磁盘：manifest `rowCount=100197`，JSONL **100,197** 个内容行。
 
-![导入 100k 行](m2-02-import.png)
 
 ### 3.3 筛选与 3 级排序
 
@@ -96,7 +94,6 @@ M2 的验收演示已固化为一条真实 Electron 端到端用例：新建工�
    `pointerup` 提交产生一步差；因此验收用双击自适应提交确定值，拖动本身另行断言 >160。
    未为此修改生产代码。
 
-![筛选、排序、列宽与冻结](m2-03-view-state.png)
 
 ### 3.5 退出并重启 Electron
 
@@ -116,7 +113,6 @@ M2 的验收演示已固化为一条真实 Electron 端到端用例：新建工�
      `e1dc160265c6f518f17e5c8079676a489029951d22ec344d8f236748650fba35`。
    - 打开/重启未重写 JSONL，manifest 的视图状态与界面逐项相等。
 
-![重启后还原](m2-04-restored.png)
 
 ## 4. 门禁结果（2026-10-23）
 

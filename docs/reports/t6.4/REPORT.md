@@ -88,7 +88,6 @@ pnpm package:smoke
 
 ![安装后的 Curve Almanac：标题栏、欢迎页与状态栏版本 0.1.0](t6.4-installed-window.png)
 
-![在已安装应用中用默认路径 Documents/Curve Almanac 新建 T6.4 Smoke 工作区](t6.4-installed-workspace.png)
 
 截图由 `apps/desktop/e2e` 之外的 `scripts/package-smoke.ts` 生成后直接写入本目录；
 `docs/reports/m0/*.png` 未被本次运行改写（没有跑全量 E2E）。

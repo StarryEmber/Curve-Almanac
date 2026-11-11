@@ -118,13 +118,11 @@ CI 在 E2E 失败时上传 `apps/desktop/test-results` 与 `apps/desktop/playwri
 
 ## 3. 截图证据
 
-- `docs/reports/m0/t0.2-window.png` — E1 截图用例（每次 `pnpm e2e` 重写）
-- `docs/reports/m0/t0.4-shell-light.png` — T0.4 浅色基线
-- `docs/reports/m0/t0.4-shell-dark.png` — T0.4 深色基线
-- `docs/reports/m0/t0.2-dev-window.png` — T0.2 开发窗口（历史证据，未重写）
+本节原先列出的 4 张窗口截图（`t0.2-window`、`t0.2-dev-window`、`t0.4-shell-light`、
+`t0.4-shell-dark`）已随截图瘦身移除：m0 时期的画面是旧品牌，且 t0.2 的图每次 `pnpm e2e`
+都会被重写、字节不稳定，不适合作为长期证据。
 
-截图受真实鼠标悬停位置影响，**字节不稳定**；T0.4 已决定不断言像素，只断言令牌与计算样式
-（TESTPLAN §8 / TASKS T0.4 备注）。因此 `pnpm e2e` 后工作树可能出现截图差异，属预期。
+T0.4 已决定不断言像素，只断言令牌与计算样式（TESTPLAN §8 / TASKS T0.4 备注），因此不保留图片。
 
 ## 4. 里程碑交付
 

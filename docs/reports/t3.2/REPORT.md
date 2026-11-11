@@ -132,15 +132,11 @@ pnpm bench
 
 ## 8. 视觉证据
 
-![report-light](t3.2-report-light.png)
 
-![compact-light](t3.2-compact-light.png)
 
-![dark](t3.2-dark.png)
 
 ![finance](t3.2-finance.png)
 
-![bars](t3.2-bars.png)
 
 ## 9. 残留风险
 

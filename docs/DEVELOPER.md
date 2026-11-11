@@ -108,7 +108,7 @@ ui ← desktop
 
 - 里程碑演示：`e2e/m2..m5-acceptance.spec.ts`；最终九步演示：
   `e2e/t6.5-acceptance.spec.ts`（见 `docs/reports/t6.5/REPORT.md` §3），截图 + metrics 输出到 `test-results`。
-- 演示会重写 `docs/reports/m0/*.png`；提交前用 `git checkout -- docs/reports/m0` 还原。
+- `docs/reports/m0/*.png` 是历史截图目录，已在 `.gitignore` 中；新截图只写到 `test-results`。
 
 ## 7. 构建、打包与发布
 

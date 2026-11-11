@@ -143,13 +143,10 @@ pnpm exec playwright test --config apps/desktop/playwright.config.ts \
 
 ## 7. 截图证据
 
-![2 pane + 比例 0.35](t5.1-layout-split.png)
 
 ![4 pane（水平 + 垂直，空 pane 可关闭）](t5.1-layout-four-panes.png)
 
-![非法 layout 回退单 pane + warning](t5.1-layout-fallback.png)
 
-![重启后 2 pane、比例与每个 pane 的活动标签恢复](t5.1-layout-restored.png)
 
 ## 8. 残留风险与未覆盖
 

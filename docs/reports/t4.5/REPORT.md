@@ -130,9 +130,7 @@ chartSummaryText(model, t): string
 
 ![100k 采样图的工具栏、图例与缩放](t4.5-chart-interaction.png)
 
-![PNG 导出对话框（深色背景 + 文件名）](t4.5-export-dialog.png)
 
-![未映射空态与配置映射行动按钮](t4.5-empty-state.png)
 
 ## 6. 验证命令与结果
 

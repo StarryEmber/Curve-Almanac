@@ -187,13 +187,9 @@ pnpm bench
 
 ## 7. 截图证据
 
-![设置对话框：切到 en-US、深色、自动保存关闭](t5.5-settings-dialog.png)
 
-![重启后仍为深色英文界面](t5.5-settings-restored.png)
 
-![自动保存关闭时关闭工作区的保存/放弃/取消](t5.5-unsaved-close.png)
 
-![200% 缩放下的 +30% 伪本地化设置对话框](t5.5-settings-200.png)
 
 ## 8. 残留风险与未覆盖
 

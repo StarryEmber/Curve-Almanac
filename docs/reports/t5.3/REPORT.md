@@ -178,13 +178,11 @@ pnpm bench
 
 ## 7. 截图证据
 
-![编辑后状态栏显示“保存中…”，1.5s 后 JSONL 落盘](t5.3-autosave-status.png)
+本任务没有随仓库保留截图：`t5.3-autosave-status` 与 `t5.3-save-failure` 是旧品牌画面，
+恢复流程的三张图则直接显示本机测试目录（`...\test-results\...`），都不适合公开。
 
-![只读表文件导致“保存失败”，内存值与重试按钮仍在](t5.3-save-failure.png)
-
-> 恢复流程的三张截图已移除：画面直接显示本机测试目录（`...\test-results\...`），不适合公开。
-> 覆盖仍然是三条：强杀后重启出现“上次未正常退出”（尝试恢复/直接打开）、伪造 stale 锁时的
-> 选择、manifest 损坏时列出 `backups/manifest.*.json.bak` 并要求确认重建。
+覆盖仍然是三条：强杀后重启出现“上次未正常退出”（尝试恢复/直接打开）、伪造 stale 锁时的
+选择、manifest 损坏时列出 `backups/manifest.*.json.bak` 并要求确认重建。
 
 ## 8. 残留风险与未覆盖
 

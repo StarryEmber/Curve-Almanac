@@ -157,11 +157,8 @@ pnpm bench
 
 ## 7. 截图证据
 
-![Ctrl+K 命令面板按“分栏”过滤，显示快捷键与不可用原因](t5.4-palette-search.png)
 
-![表格视图下“复制当前图表”禁用并显示“当前视图不是图表”](t5.4-palette-disabled.png)
 
-![200% 缩放下的命令面板（无结果态与 ↑↓/Home/End 断言在同一用例）](t5.4-palette-empty-200.png)
 
 ## 8. 性能/内存修复记录
 
