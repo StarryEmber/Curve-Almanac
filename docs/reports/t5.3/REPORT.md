@@ -182,11 +182,9 @@ pnpm bench
 
 ![只读表文件导致“保存失败”，内存值与重试按钮仍在](t5.3-save-failure.png)
 
-![强杀后重启出现“上次未正常退出”，提供尝试恢复/直接打开](t5.3-recovery-stale-lock.png)
-
-![伪造 stale 锁时的“尝试恢复/直接打开”选择](t5.3-recovery-lock-choices.png)
-
-![manifest 损坏时列出 backups/manifest.*.json.bak 并要求确认重建](t5.3-recovery-manifest.png)
+> 恢复流程的三张截图已移除：画面直接显示本机测试目录（`...\test-results\...`），不适合公开。
+> 覆盖仍然是三条：强杀后重启出现“上次未正常退出”（尝试恢复/直接打开）、伪造 stale 锁时的
+> 选择、manifest 损坏时列出 `backups/manifest.*.json.bak` 并要求确认重建。
 
 ## 8. 残留风险与未覆盖
 
