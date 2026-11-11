@@ -1,5 +1,5 @@
 /**
- * M3 acceptance demo (TASKS M3, HANDOFF §6A).
+ * M3 acceptance demo (TASKS M3, docs/reports/m3/REPORT.md).
  *
  * One end-to-end scenario that walks the milestone acceptance script:
  *
@@ -113,7 +113,7 @@ const HOT_ROW_IDS = ['r2', 'r3'] as const;
 const COOL_ROW_IDS = ['r1', 'r4', 'r5', 'r6'] as const;
 
 // The twelve computed values compared between the source workspace and the
-// imported template in the target workspace (HANDOFF §6A step 5).
+// imported template in the target workspace (docs/reports/m3/REPORT.md step 5).
 interface StyleContract {
   headerBg: string;
   bodyBg: string;

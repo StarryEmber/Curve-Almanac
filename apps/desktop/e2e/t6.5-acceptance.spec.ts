@@ -20,7 +20,7 @@
  * Every step except the initial fixture setup goes through the real UI. The
  * only IPC calls in this spec are the read-only manifest/JSONL assertions after
  * the fact. Screenshots are attached as evidence; no pixel equality is
- * asserted (HANDOFF §3.6).
+ * asserted (docs/DEVELOPER.md §6).
  */
 
 import { execFileSync } from 'node:child_process';

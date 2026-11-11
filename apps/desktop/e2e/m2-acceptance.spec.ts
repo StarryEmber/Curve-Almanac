@@ -1,5 +1,5 @@
 /**
- * M2 acceptance demo (TASKS M2, ADR-033 §7, HANDOFF §6).
+ * M2 acceptance demo (TASKS M2, ADR-033 §7, docs/reports/m2/REPORT.md).
  *
  * One end-to-end scenario: create a workspace/table in the UI, paste 200 rows
  * (including the T2.4 quoted/embedded-newline fragment), import the 100k GBK

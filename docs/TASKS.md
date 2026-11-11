@@ -379,7 +379,7 @@ T6.2 + T2.5 + T3.2 → T6.3
     4 passed）；`pnpm format:check` exit 0。
   - 覆盖：原子写中断（注入 writer 失败后旧文件不变）、损坏 manifest、高版本、`../`/非法 table id →
     `E_PATH_DENIED`、备份 3 份与恢复、锁 stale/active/corrupt、最近列表去重/上限/损坏降级、7 天清理。
-  - 残留：`app.requestSingleInstanceLock()` 仍未实现（SPEC §7.5，HANDOFF §6.5 已记录）；应用退出时
+  - 残留：`app.requestSingleInstanceLock()` 仍未实现（SPEC §7.5 已记录）；应用退出时
     未主动 `closeAll`，正常 `workspace:close` 会删除 `.lock`。
 
 <a id="t13"></a>
@@ -451,7 +451,7 @@ T6.2 + T2.5 + T3.2 → T6.3
 - 验证：`pnpm exec vitest run packages/app-core`
 
 **M1 验收演示**：脚本/测试创建 `Demo.cstudio` → 写入 1,000 行 → 关闭重开 → 数据逐行相等；篡改 manifest → 报错且原文件不变；伪造 `.lock` → 走恢复提示。输出报告后停下。
-（2026-10-21 已执行并获用户接受；报告：`docs/reports/m1/REPORT.md`；验收测试：`apps/desktop/src/main/workspace/m1-acceptance.test.ts`。三条演示全部通过；SPEC §7.5 的完整恢复交互按 ADR-026 后置到 T5.3，T2.1 只呈现 warning。T2.1 开工前仍需逐项确认 HANDOFF §7.5 的决策。）
+（2026-10-21 已执行并获用户接受；报告：`docs/reports/m1/REPORT.md`；验收测试：`apps/desktop/src/main/workspace/m1-acceptance.test.ts`。三条演示全部通过；SPEC §7.5 的完整恢复交互按 ADR-026 后置到 T5.3，T2.1 只呈现 warning。T2.1 开工前仍需逐项确认 当时的 8 个待定决策，见 `docs/reports/m1/REPORT.md`。）
 
 ---
 
@@ -1148,7 +1148,7 @@ T6.2 + T2.5 + T3.2 → T6.3
   - [x] null 不参与采样三角计算，输出仍为 null。
   - [x] 属性测试：输出点数 ≤ target 且 x 单调。
 - 验证：`pnpm exec vitest run packages/chart-model --testNamePattern sample && pnpm bench -- --sample`
-  （Vitest 5 用 `--testNamePattern` 过滤；`-- --grep` 不会过滤，见 HANDOFF §3.6）
+  （Vitest 5 用 `--testNamePattern` 过滤；`-- --grep` 不会过滤）
 
   实现备注（2026-10-25，ADR-041）：
   - 决策：`sampling.ts` 新增 `lttbIndices(x, y, target)`（升序原始下标、保留首尾**非空**点、

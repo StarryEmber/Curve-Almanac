@@ -19,7 +19,7 @@ import type { Page, TestInfo } from '@playwright/test';
  * fresh id. Charts are asserted through the RenderModel contract that
  * `ChartView` exposes as `data-chart-*` attributes (series names/count, style,
  * points), the persisted manifest and the real canvas (presence only — pixel
- * equality is not stable on Windows at 125% DPI, see HANDOFF §3.6).
+ * equality is not stable on Windows at 125% DPI, see docs/DEVELOPER.md §6).
  */
 
 const SEED_NAME = 'Chart Demo';

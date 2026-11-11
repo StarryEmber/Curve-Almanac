@@ -1,5 +1,5 @@
 /**
- * M4 acceptance demo (TASKS M4, TESTPLAN E6, HANDOFF §0.1).
+ * M4 acceptance demo (TASKS M4, TESTPLAN E6, docs/reports/m4/REPORT.md).
  *
  * One end-to-end scenario that walks the milestone acceptance script:
  *
@@ -23,7 +23,7 @@
  * (same pattern as the M2/M3/T4.x specs); every chart interaction above is
  * driven through the UI. Charts are asserted through the `data-chart-*` render
  * contract (SPEC §11.5), the persisted manifest and the exported PNG bytes; no
- * whole-chart pixel equality is asserted (HANDOFF §3.6).
+ * whole-chart pixel equality is asserted (docs/DEVELOPER.md §6).
  */
 
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -422,7 +422,7 @@ test.describe('M4 acceptance demo', () => {
     mkdirSync(parent, { recursive: true });
     const sourceRoot = join(parent, `${SOURCE_NAME}.cstudio`);
     const hundredKRoot = seedHundredKChart(testInfo);
-    // One save-dialog stub per launch (HANDOFF §0.1); its path receives the PNG.
+    // One save-dialog stub per launch (docs/reports/m4/REPORT.md); its path receives the PNG.
     const pngPath = join(parent, 'm4-100k.png');
     const unusedImport = join(parent, 'unused.json');
     const metrics: Record<string, string | number | boolean> = {};
