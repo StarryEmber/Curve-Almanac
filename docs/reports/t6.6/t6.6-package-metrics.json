@@ -1,11 +1,11 @@
 {
   "artifacts": {
     "setup": {
-      "file": "D:\\DSH_Work_Space\\curve-studio\\release\\Curve Almanac Setup 0.1.0.exe",
+      "file": "<repo>\\release\\Curve Almanac Setup 0.1.0.exe",
       "bytes": 112421015
     },
     "portable": {
-      "file": "D:\\DSH_Work_Space\\curve-studio\\release\\Curve Almanac 0.1.0.exe",
+      "file": "<repo>\\release\\Curve Almanac 0.1.0.exe",
       "bytes": 112183688
     },
     "unpackedBytes": 391201672
@@ -24,23 +24,23 @@
     "forbidden": 0
   },
   "installed": {
-    "dir": "C:\\Users\\MECHREVO\\AppData\\Local\\Programs\\Curve Almanac",
-    "exe": "C:\\Users\\MECHREVO\\AppData\\Local\\Programs\\Curve Almanac\\Curve Almanac.exe",
-    "startMenuShortcut": "C:\\Users\\MECHREVO\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Curve Almanac.lnk",
-    "desktopShortcut": "C:\\Users\\MECHREVO\\Desktop\\Curve Almanac.lnk",
+    "dir": "C:\\Users\\<user>\\AppData\\Local\\Programs\\Curve Almanac",
+    "exe": "C:\\Users\\<user>\\AppData\\Local\\Programs\\Curve Almanac\\Curve Almanac.exe",
+    "startMenuShortcut": "C:\\Users\\<user>\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Curve Almanac.lnk",
+    "desktopShortcut": "C:\\Users\\<user>\\Desktop\\Curve Almanac.lnk",
     "uninstallDisplayName": "Curve Almanac 0.1.0"
   },
   "runtime": {
     "isPackaged": true,
     "version": "0.1.0",
-    "userData": "C:\\Users\\MECHREVO\\AppData\\Roaming\\Curve Almanac",
+    "userData": "C:\\Users\\<user>\\AppData\\Roaming\\Curve Almanac",
     "userDataExistedBefore": true,
     "windowStateCreated": true,
     "nodeGlobals": "absent",
     "csp": "production"
   },
   "workspace": {
-    "dir": "C:\\Users\\MECHREVO\\Documents\\Curve Almanac\\T6.4 Smoke.cstudio",
+    "dir": "C:\\Users\\<user>\\Documents\\Curve Almanac\\T6.4 Smoke.cstudio",
     "manifestSha256": "fe500763168fa9693d771cc114df9e697a10ea17f70977cf8b0d96b20df750a4",
     "retainedAfterUninstall": true
   },

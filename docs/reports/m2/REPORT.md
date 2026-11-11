@@ -160,7 +160,7 @@ M2 的验收演示已固化为一条真实 Electron 端到端用例：新建工�
 - 复现单条验收：
 
 ```powershell
-$env:PATH = "D:\DSH_Work_Space\tools\bin;C:\Users\MECHREVO\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin;$env:PATH"
+$env:PATH = "C:\Users\<user>\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin;$env:PATH"
 $env:CURVE_E2E_NO_SANDBOX = '1'
 Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 pnpm build

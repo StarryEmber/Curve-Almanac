@@ -19,7 +19,7 @@ agent shell 内按 `docs/HANDOFF.md §3.3` 注入环境变量（普通终端直�
 Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 $env:NO_SANDBOX = '1'
 $env:CURVE_E2E = '1'
-$env:CURVE_E2E_USER_DATA = 'D:\DSH_Work_Space\curve-studio\apps\desktop\test-results\dev-user-data'
+$env:CURVE_E2E_USER_DATA = '<repo>\apps\desktop\test-results\dev-user-data'
 pnpm dev
 ```
 
@@ -89,7 +89,7 @@ Running 15 tests using 1 worker
 
 ### 2.6 干净克隆（T0.5 验收项）
 
-从提交 `5cb985a` 克隆到 `D:\DSH_Work_Space\curve-studio-clean`：
+从提交 `5cb985a` 克隆到 `<repo>-clean`：
 
 | 步骤 | 结果 |
 |---|---|
