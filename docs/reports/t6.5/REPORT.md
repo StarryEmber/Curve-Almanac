@@ -2,7 +2,7 @@
 
 - 任务：T6.5 全量验收与文档收尾（依赖 M0–M6 全部任务；覆盖全部 FR/NFR）
 - 日期：2026-10-30
-- 决策：无新增架构决策；发现的 NFR-06 日志偏差已由后续任务 T6.6（ADR-056 选项 B，`electron-log`）闭环，见 [ADR-056](../adr/056-t65-log-file-deviation.md) 与 [T6.6 报告](../t6.6/REPORT.md)
+- 决策：无新增架构决策；发现的 NFR-06 日志偏差已由后续任务 T6.6（ADR-056 选项 B，`electron-log`）闭环，见 [ADR-056](../../adr/056-t65-log-file-deviation.md) 与 [T6.6 报告](../t6.6/REPORT.md)
 - 范围：全量 `pnpm verify && pnpm e2e && pnpm bench`、README §6 九步端到端演示、SPEC §17 证据矩阵、
   发布检查清单、README/用户手册/开发者指南/ADR 索引/ROADMAP 收尾；**不改**运行时代码、IPC、
   数据格式、CSP、打包配置与 `formatVersion`
@@ -61,7 +61,7 @@ pnpm package
 110 passed / 1 failed，`chart-perf` privatePeak **602MB** 超过当时 600MB 门禁（T6.2/T6.3 已记录的
 509–608MB 波动，未放宽门槛）；第 3 次全量 **111 passed**，chart-perf **520MB**。九步演示在
 第 3 次运行中一次通过。**后续**：T6.6 时同机基线升到 618–639MB，用户决定把门禁提高到 1GB
-（[ADR-057](../adr/057-memory-gate-1gb.md)）；本报告中的 600MB 是当时门禁，保留为历史事实。
+（[ADR-057](../../adr/057-memory-gate-1gb.md)）；本报告中的 600MB 是当时门禁，保留为历史事实。
 
 ## 3. README §6 九步演示
 
@@ -204,7 +204,7 @@ pnpm package
 **NFR-06 偏差与闭环**：T6.5 检查发现 `logger.ts` 自 T0.3 起只写 console，SPEC §5.1/§16.5 的
 `electron-log` 不在依赖中，renderer 也没有全局 error 转发；崩溃恢复本身完整通过。用户选择
 **选项 B**，由 **T6.6**（2026-10-30）新增 `electron-log`、按天轮转/7 天保留与 renderer 限流转发，
-`e2e/logging.spec.ts` 2 条 + 单测 14 条通过；详见 [ADR-056](../adr/056-t65-log-file-deviation.md)
+`e2e/logging.spec.ts` 2 条 + 单测 14 条通过；详见 [ADR-056](../../adr/056-t65-log-file-deviation.md)
 （已接受）与 [T6.6 报告](../t6.6/REPORT.md)。
 
 ## 6. 发布检查清单（TESTPLAN §7 签字）
@@ -235,13 +235,13 @@ pnpm package
 - **体积**：NSIS 112 MB / 解压 391 MB；可评估裁剪 locales。
 - **chart-perf 内存**：当时门禁 600 MB，本机波动 509–608 MB；本次通过为 520 MB，第二次全量曾 602 MB。
   未放宽门槛；复跑前先确认外部负载（本机游戏客户端会占 CPU/内存）。**2026-10-30 后续**：T6.6
-  验收时同机基线升到 618–639 MB，用户决定把门禁提高到 1GB（[ADR-057](../adr/057-memory-gate-1gb.md)）；
+  验收时同机基线升到 618–639 MB，用户决定把门禁提高到 1GB（[ADR-057](../../adr/057-memory-gate-1gb.md)）；
   本报告的历史 600MB 记录保留为当时事实。
 - **插件**：禁用不持久化、文案不本地化、图表预设不回显、大文件导入在主线程（ADR-053/054）。
 - **CSV 导出**使用存储格式化，不套用语义字段格式。
 - **主进程原生对话框**仍为英文。
 - **macOS/Linux** 未配置；v1 只承诺 Windows x64。
-- 更多 v2 方向见 [ROADMAP](../ROADMAP.md)。
+- 范围与限制见 [ROADMAP](../../ROADMAP.md)（不规划 v2，ADR-060）。
 
 ## 8. 文档与仓库变更
 
