@@ -96,6 +96,7 @@ ui ← desktop
 | L4 E2E | `pnpm e2e` | `apps/desktop/e2e`（1 worker，真实 Electron） |
 | L5 基准 | `pnpm bench` | `scripts/bench.ts` → `bench/report.json` |
 | 覆盖率 | `pnpm test:coverage` | 全局 lines ≥ 70%，纯逻辑包 ≥ 85% |
+| 文档链接 | `pnpm docs:links` | 仓库内所有 `.md` 的相对链接与图片 |
 
 - E2E 的对话框替身只在未打包且 `CURVE_E2E=1` 时生效（目录/保存/导入/退出确认）；生产包必须失效。
 - 200% 缩放与纯键盘是每个 UI 任务的冒烟项；图表断言用 `data-chart-*` 渲染契约，不做像素基线。
