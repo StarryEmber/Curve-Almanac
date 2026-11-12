@@ -40,3 +40,6 @@ debug.log
 Thumbs.db
 .idea/
 .vscode/*
+
+# 历史 E2E 截图目录（T10）：保留忽略规则，防止本地重写或误提交。
+docs/reports/m0/*.png

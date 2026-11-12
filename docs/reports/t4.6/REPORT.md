@@ -106,7 +106,6 @@ chart-canvas: data-chart-update-ms, data-chart-update-count, data-chart-instance
 
 ![100k 采样图性能视图（工具栏、缩放窗口、采样徽标）](t4.6-chart-perf.png)
 
-![11 次切换后的图表视图（实例数仍为 1）](t4.6-chart-switches.png)
 
 ## 6. 验证命令与结果
 

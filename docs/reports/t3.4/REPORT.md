@@ -154,7 +154,6 @@ T3.4 预览自测：**3ms/100ms**；200% 缩放与纯键盘流程在同一 spec 
 
 T3.4 样式编辑器（条件规则 + 预览；Gamma 行命中“Hot”）：
 
-![t3.4-style-editor-rules](t3.4-style-editor-rules.png)
 
 令牌组（紧凑密度、行高调整后的实时预览）：
 

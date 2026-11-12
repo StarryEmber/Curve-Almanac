@@ -169,9 +169,7 @@ memoryPeakMB 956（Node 管线趋势，非应用门禁）
 
 ## 7. 截图证据
 
-![Edit 菜单显示“撤销 编辑单元格（Ctrl+Z）”，网格为 5 次编辑后的值](t5.2-history-menu.png)
 
-![撤销 5 次后菜单显示空撤销栈与“重做 编辑单元格”](t5.2-history-undone.png)
 
 ## 8. 残留风险与未覆盖
 

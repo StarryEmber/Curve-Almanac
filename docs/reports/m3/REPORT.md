@@ -58,27 +58,21 @@
 
 | Report（浅） | Compact（浅） | Dark | Finance |
 |---|---|---|---|
-| ![report](m3-01-report-light.png) | ![compact](m3-02-compact-light.png) | ![dark](m3-03-dark.png) | ![finance](m3-04-finance.png) |
 
 样式编辑器（密度 compact、表头 `#123456`、Sensor A/180px/1 位小数、前 6 行预览）：
 
-![style editor](m3-05-style-editor.png)
 
 条件规则“高温”（r2/r3 红底 + 警告图标，r4/r5 未命中）：
 
-![conditional rule](m3-06-conditional-rule.png)
 
 导出 CSV（当前筛选/排序，4 行 × 6 列，仅可见列）：
 
-![export dialog](m3-07-export-dialog.png)
 
 导入到全新工作区（1 条规则、1 个列覆盖、预览已应用规则）：
 
-![import dialog](m3-09-import-dialog.png)
 
 重启还原（4/6 行、1 个条件、降序、冻结 2 列、规则仍生效）：
 
-![restored](m3-10-restored.png)
 
 完整清单：`m3-01`…`m3-10`（10 张，截图为设备像素，断言不依赖像素；`m3-08-source-final.png`
 为源工作区最终状态）。

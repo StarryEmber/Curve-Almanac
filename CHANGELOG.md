@@ -2,9 +2,24 @@
 
 本文件记录 Curve Almanac（原 Curve Studio）的所有重要变更。格式参考
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
-版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。应用代码尚未发布（0.x），条目按任务 ID 归档在 `Unreleased` 下。
+版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。0.1.0 已于 2026-10-30 发布；0.1.0 之后的变更记在 `Unreleased` 下。
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-10-30
+
+Windows 10/11 x64 首个公开发布（MIT）。完整说明见 [发布说明](docs/releases/0.1.0.md)。
+
+- 工作区：新建/打开/最近、1.5 s 自动保存、崩溃恢复、递归分栏与布局持久化
+- 表格：5 种存储类型、列角色/主键/枚举/单位/精度、键盘编辑与校验、区域粘贴
+- 数据：CSV/JSON 导入（编码/分隔符/坏行）、CSV 导出、筛选与多级排序、10 万行
+- 外观：4 套模板、样式编辑器、列覆盖、条件格式、模板 CRUD 与导入导出
+- 图表：折线/散点/柱状、宽/长表映射、缩放/图例/tooltip、LTTB 采样、2× PNG
+- 效率：撤销/重做、快捷键、命令面板、设置（主题/语言/自动保存）
+- 插件：静态插件 SDK、示例插件、错误隔离
+- 已知限制：仅 Windows x64、安装包未签名、无自动更新/遥测
+
+## 0.1.0 开发日志（任务级，历史记录）
 
 ### Added
 
@@ -836,7 +851,7 @@
   并通过 `package:smoke`。
 - Release：Git 作者改为 **StarryEmber \<StarryEmber@163.com\>**（全部 114 个历史提交 author/
   committer 已重写），GitHub 仓库 **curve-almanac**；`main` 与 tag `v0.1.0` 已推送
-  （https://github.com/StarryEmber/Curve-Almanac）；Release 附件待上传。
+  （https://github.com/StarryEmber/Curve-Almanac）；Release 附件已随 v0.1.0 发布（见 `docs/releases/0.1.0.md`）。
 - Scope：v1 范围冻结，**不规划 v2**（ADR-060）。`docs/ROADMAP.md` 改为已知限制与维护范围，
   删除 v2 功能设想；README/MANUAL/HANDOFF/DSH/TESTPLAN/PROMPTS/发布说明同步。
 - Docs：README 重写为标准开源结构（首屏截图/下载/快速上手/精简文档索引），单页**逐段中英

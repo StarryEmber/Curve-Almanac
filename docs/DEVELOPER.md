@@ -108,7 +108,7 @@ ui ← desktop
 
 - 里程碑演示：`e2e/m2..m5-acceptance.spec.ts`；最终九步演示：
   `e2e/t6.5-acceptance.spec.ts`（见 `docs/reports/t6.5/REPORT.md` §3），截图 + metrics 输出到 `test-results`。
-- 演示会重写 `docs/reports/m0/*.png`；提交前用 `git checkout -- docs/reports/m0` 还原。
+- `docs/reports/m0/*.png` 是历史截图目录，已在 `.gitignore` 中；新截图只写到 `test-results`。
 
 ## 7. 构建、打包与发布
 
@@ -123,7 +123,7 @@ pnpm package:smoke  # 真实安装→启动→建工作区→卸载→数据保�
   `apps/desktop/package.json`；`files` 只含 `out/**` + `package.json`；asar；`publish: null`。
 - main 仍外部依赖 `write-file-atomic`（+ `signal-exit`），由 electron-builder 收进 asar。
 - 打包需要网络下载 Electron/NSIS/winCodeSign；GitHub 不可达时设置
-  `ELECTRON_MIRROR`/`ELECTRON_BUILDER_BINARIES_MIRROR` 指向 npmmirror（见 HANDOFF §3.6）。
+  `ELECTRON_MIRROR`/`ELECTRON_BUILDER_BINARIES_MIRROR` 指向 npmmirror。
 - 本机受限 shell：`CURVE_E2E_NO_SANDBOX=1` 给 Electron 加 `--no-sandbox`（不改应用安全选项）；
   冒烟脚本先把安装器复制到 `%TEMP%` 再执行。
 - 发布检查清单见 `TESTPLAN.md §7`；产物未签名（SmartScreen 提示），v1 无自动更新。
@@ -158,4 +158,4 @@ pnpm package:smoke  # 真实安装→启动→建工作区→卸载→数据保�
 | 单测 5 s 超时 | 先单文件复跑；高负载下偶发，禁止改全局 timeout |
 | 覆盖率下降 | 新逻辑补测试；不要调低阈值 |
 
-更多环境事实（本机路径、镜像、已知 flake）见 [HANDOFF.md §3](HANDOFF.md)。
+更多环境事实（镜像、已知 flake）见 §7 与 §10。

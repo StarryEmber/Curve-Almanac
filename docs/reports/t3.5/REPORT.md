@@ -156,7 +156,6 @@ E2E 关键断言：
 
 导入预览（名称/规则/覆盖数量、应用到当前视图、真实前 50 行渲染、条件规则与列覆盖）：
 
-![t3.5-template-import](t3.5-template-import.png)
 
 截图由 `e2e/template.spec.ts` 在真实 Electron 中生成并 attach；像素不稳定，断言不依赖截图。
 

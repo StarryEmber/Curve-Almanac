@@ -2,7 +2,7 @@
 
 - 任务：T6.5 全量验收与文档收尾（依赖 M0–M6 全部任务；覆盖全部 FR/NFR）
 - 日期：2026-10-30
-- 决策：无新增架构决策；发现的 NFR-06 日志偏差已由后续任务 T6.6（ADR-056 选项 B，`electron-log`）闭环，见 [ADR-056](../adr/056-t65-log-file-deviation.md) 与 [T6.6 报告](../t6.6/REPORT.md)
+- 决策：无新增架构决策；发现的 NFR-06 日志偏差已由后续任务 T6.6（ADR-056 选项 B，`electron-log`）闭环，见 [ADR-056](../../adr/056-t65-log-file-deviation.md) 与 [T6.6 报告](../t6.6/REPORT.md)
 - 范围：全量 `pnpm verify && pnpm e2e && pnpm bench`、README §6 九步端到端演示、SPEC §17 证据矩阵、
   发布检查清单、README/用户手册/开发者指南/ADR 索引/ROADMAP 收尾；**不改**运行时代码、IPC、
   数据格式、CSP、打包配置与 `formatVersion`
@@ -18,7 +18,7 @@
 | `docs/ROADMAP.md` | v1 已知限制（含复核条件）与 v2 设想（存储/插件/平台/体验/数据交换/工程） |
 | `docs/TESTPLAN.md` | 新增 E12 九步验收场景；§7 发布清单逐项签字与豁免记录 |
 | `docs/adr/056-t65-log-file-deviation.md` | 记录 T6.5 发现的日志落盘偏差与三个处理选项（提议，待用户裁决） |
-| `docs/reports/t6.5/` | 本报告 + 13 张 UI 截图 + 导出的 `t6.5-chart.png` + `t6.5-metrics.json` |
+| `docs/reports/t6.5/` | 本报告 + `t6.5-06-import-100k.png` + `t6.5-metrics.json`（其余截图见 `docs/images/manual/`） |
 | `docs/TASKS.md` / `CHANGELOG.md` / `docs/HANDOFF.md` / `AGENTS.md` | 勾选 T6.5、记录 M6 演示、更新基线与交接 |
 
 **不新增**运行时依赖、IPC 通道、manifest 字段或 `formatVersion` 变更；`pnpm-lock.yaml` 未变。
@@ -61,7 +61,7 @@ pnpm package
 110 passed / 1 failed，`chart-perf` privatePeak **602MB** 超过当时 600MB 门禁（T6.2/T6.3 已记录的
 509–608MB 波动，未放宽门槛）；第 3 次全量 **111 passed**，chart-perf **520MB**。九步演示在
 第 3 次运行中一次通过。**后续**：T6.6 时同机基线升到 618–639MB，用户决定把门禁提高到 1GB
-（[ADR-057](../adr/057-memory-gate-1gb.md)）；本报告中的 600MB 是当时门禁，保留为历史事实。
+（[ADR-057](../../adr/057-memory-gate-1gb.md)）；本报告中的 600MB 是当时门禁，保留为历史事实。
 
 ## 3. README §6 九步演示
 
@@ -70,15 +70,15 @@ pnpm package
 
 | # | 步骤 | 实际结果 | 证据 |
 |---|---|---|---|
-| 1 | 新建 `Demo.cstudio` | 欢迎页 →“新建工作区”→ 名称/保存位置（E2E 目录替身）→ 创建工作区；`manifest.json` 生成 | `t6.5-01-workspace.png` |
+| 1 | 新建 `Demo.cstudio` | 欢迎页 →“新建工作区”→ 名称/保存位置（E2E 目录替身）→ 创建工作区；`manifest.json` 生成 | `docs/images/manual/manual-01-workspace.png` |
 | 2 | 建 `温度记录`（4 列 + id 主键） | 列对话框逐列创建：time/date/x、sensor_a/number/y、sensor_b/number/y、site/text/series；manifest 5 列、角色正确 | 同上 |
-| 3 | 粘贴 200 行 + 修正类型错误 | 先粘贴含 `n/a` 的矩阵 → 整批拒绝、列出第 58 行/Sensor A/类型不匹配、网格仍 0 行；修正后粘贴 200 行（`aria-rowcount 201`）；单格 `oops` 被拒（`aria-invalid`）后改为 31.5 落盘 | `t6.5-02-paste-error.png`、`t6.5-03-pasted-rows.png` |
-| 4 | 应用模板 + 密度 + 条件格式 + 另存 | 应用 `builtin.report-light`；密度 compact（预览 3ms）；`sensor_a > 30` 红底/警告图标；另存 `我的报表`（视图 styleId 指向新样式） | `t6.5-04-style.png` |
-| 5 | 折线图：宽→长、缩放、关图例、PNG | 宽表 2 系列 → 长表 3 系列（site）→ 缩放 start>0 → 图例 none → PNG 1702×856（2×）落盘 | `t6.5-05-chart-wide.png`、`t6.5-05b-chart-long.png`、`t6.5-chart.png` |
-| 6 | 新表导入 100,000 行 CSV + 滚动/出图 | GB18030 自动识别；映射 id→已有、name/value/day/active/site→新建列；total 100000 / accepted 99997 / skipped 3；提交后 `aria-rowcount 99998`；滚动 100k 网格；图表 sampled=true、源点 99997、渲染 2000、resolve 32ms / update 19ms | `t6.5-06-import-100k.png`、`t6.5-06b-100k-chart.png` |
-| 7 | 撤销 5 / 重做 3 + 强杀恢复 | 历史深度 +5 → 撤销 5 回 31.5 → 重做 3 回 43；提交 77 落盘后改为 999 并 `taskkill /F /T`，`.lock` 保留 | `t6.5-07-history.png`、`t6.5-07b-before-kill.png` |
-| 8 | 重启 → 最近工作区 → 全部还原 | 恢复对话框（含“最后 1.5 秒”提示）→“尝试恢复”；2 pane、`温度趋势` 图表 ready、样式 `我的报表`、首行 77、无 999、`.lock` 释放 | `t6.5-08-recovery.png`、`t6.5-08b-restored.png` |
-| 9 | 模板导出 → 新工作区导入/应用 | 导出 `curve-table-style`（name=我的报表、builtin=false）→ 新工作区 `模板验证` → 导入并应用到新表；`data-table-style` 指向重分配后的新 id | `t6.5-09-template-imported.png` |
+| 3 | 粘贴 200 行 + 修正类型错误 | 先粘贴含 `n/a` 的矩阵 → 整批拒绝、列出第 58 行/Sensor A/类型不匹配、网格仍 0 行；修正后粘贴 200 行（`aria-rowcount 201`）；单格 `oops` 被拒（`aria-invalid`）后改为 31.5 落盘 | `docs/images/manual/manual-02-pasted-rows.png`（粘贴被拒那张未随仓库保留） |
+| 4 | 应用模板 + 密度 + 条件格式 + 另存 | 应用 `builtin.report-light`；密度 compact（预览 3ms）；`sensor_a > 30` 红底/警告图标；另存 `我的报表`（视图 styleId 指向新样式） | `docs/images/manual/manual-03-style.png` |
+| 5 | 折线图：宽→长、缩放、关图例、PNG | 宽表 2 系列 → 长表 3 系列（site）→ 缩放 start>0 → 图例 none → PNG 1702×856（2×）落盘 | `docs/images/manual/manual-04-chart-wide.png`、`docs/images/manual/manual-08-chart-long.png` |
+| 6 | 新表导入 100,000 行 CSV + 滚动/出图 | GB18030 自动识别；映射 id→已有、name/value/day/active/site→新建列；total 100000 / accepted 99997 / skipped 3；提交后 `aria-rowcount 99998`；滚动 100k 网格；图表 sampled=true、源点 99997、渲染 2000、resolve 32ms / update 19ms | `t6.5-06-import-100k.png`、`docs/images/manual/manual-09-100k-chart.png` |
+| 7 | 撤销 5 / 重做 3 + 强杀恢复 | 历史深度 +5 → 撤销 5 回 31.5 → 重做 3 回 43；提交 77 落盘后改为 999 并 `taskkill /F /T`，`.lock` 保留 | （截图未随仓库保留） |
+| 8 | 重启 → 最近工作区 → 全部还原 | 恢复对话框（含“最后 1.5 秒”提示）→“尝试恢复”；2 pane、`温度趋势` 图表 ready、样式 `我的报表`、首行 77、无 999、`.lock` 释放 | `docs/images/manual/manual-05-restored.png`（恢复对话框见 `docs/images/manual/manual-11-recovery.png`） |
+| 9 | 模板导出 → 新工作区导入/应用 | 导出 `curve-table-style`（name=我的报表、builtin=false）→ 新工作区 `模板验证` → 导入并应用到新表；`data-table-style` 指向重分配后的新 id | `docs/images/manual/manual-07-template-imported.png` |
 
 `t6.5-metrics.json`：
 
@@ -204,7 +204,7 @@ pnpm package
 **NFR-06 偏差与闭环**：T6.5 检查发现 `logger.ts` 自 T0.3 起只写 console，SPEC §5.1/§16.5 的
 `electron-log` 不在依赖中，renderer 也没有全局 error 转发；崩溃恢复本身完整通过。用户选择
 **选项 B**，由 **T6.6**（2026-10-30）新增 `electron-log`、按天轮转/7 天保留与 renderer 限流转发，
-`e2e/logging.spec.ts` 2 条 + 单测 14 条通过；详见 [ADR-056](../adr/056-t65-log-file-deviation.md)
+`e2e/logging.spec.ts` 2 条 + 单测 14 条通过；详见 [ADR-056](../../adr/056-t65-log-file-deviation.md)
 （已接受）与 [T6.6 报告](../t6.6/REPORT.md)。
 
 ## 6. 发布检查清单（TESTPLAN §7 签字）
@@ -212,7 +212,7 @@ pnpm package
 | # | 项 | 结果 | 证据/说明 |
 |---|---|---|---|
 | 1 | `pnpm verify`、`pnpm e2e`、`pnpm bench` 全绿并归档 | ✅ | 本报告 §2；verify 196/1816、e2e 111、bench exit 0 |
-| 2 | README §6 九步演示一次通过（截图） | ✅ | §3；13 张 UI 截图 + 导出 PNG |
+| 2 | README §6 九步演示一次通过（截图） | ✅ | §3；截图见 `docs/images/manual/` |
 | 3 | SPEC §17 全部 FR 有证据 | ✅ | §5；29 条 FR/扩展全部有测试或演示 |
 | 4 | Windows 干净用户安装 → 启动 → 建工作区 → 卸载 → 数据仍在 | 🧍 **豁免** | 用户 2026-10-30 明确“不做干净机器复验”；以 T6.4 `package:smoke`（无既存安装/无 userData/非管理员）PASS 作为替代证据 |
 | 5 | 版本号、`appId`、图标、许可证正确 | ✅ | `packaging.test.ts` 5 条；`appId=com.curvealmanac.app`、`0.1.0`、ICO 7 档、`license.txt` |
@@ -235,13 +235,13 @@ pnpm package
 - **体积**：NSIS 112 MB / 解压 391 MB；可评估裁剪 locales。
 - **chart-perf 内存**：当时门禁 600 MB，本机波动 509–608 MB；本次通过为 520 MB，第二次全量曾 602 MB。
   未放宽门槛；复跑前先确认外部负载（本机游戏客户端会占 CPU/内存）。**2026-10-30 后续**：T6.6
-  验收时同机基线升到 618–639 MB，用户决定把门禁提高到 1GB（[ADR-057](../adr/057-memory-gate-1gb.md)）；
+  验收时同机基线升到 618–639 MB，用户决定把门禁提高到 1GB（[ADR-057](../../adr/057-memory-gate-1gb.md)）；
   本报告的历史 600MB 记录保留为当时事实。
 - **插件**：禁用不持久化、文案不本地化、图表预设不回显、大文件导入在主线程（ADR-053/054）。
 - **CSV 导出**使用存储格式化，不套用语义字段格式。
 - **主进程原生对话框**仍为英文。
 - **macOS/Linux** 未配置；v1 只承诺 Windows x64。
-- 更多 v2 方向见 [ROADMAP](../ROADMAP.md)。
+- 范围与限制见 [ROADMAP](../../ROADMAP.md)（不规划 v2，ADR-060）。
 
 ## 8. 文档与仓库变更
 

@@ -17,7 +17,7 @@ import type { Page, TestInfo } from '@playwright/test';
  * (colours, row height, alignment, formatting, zebra) and attaches one grid
  * screenshot per template as visual evidence. Pixel equality is deliberately
  * not asserted: the E2E suite runs on Windows at 125% DPI and screenshots are
- * not stable byte-for-byte (see HANDOFF §3.6).
+ * not stable byte-for-byte (see docs/DEVELOPER.md §6).
  */
 
 const SEED_NAME = 'Style Demo';

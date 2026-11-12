@@ -9,7 +9,7 @@ body:
         请先搜索已有 issue 与 [Discussions](https://github.com/StarryEmber/Curve-Almanac/discussions)，
         并阅读[已知限制与范围](https://github.com/StarryEmber/Curve-Almanac/blob/main/docs/ROADMAP.md)。
 
-        v1 功能范围已冻结（ADR-060），`docs/V2-PLAN.md` 只是**未批准的提案**。说清场景比“我想要某个
+        v1 功能范围已冻结（ADR-060），任何 v2 设想都只是**未批准的提案**。说清场景比“我想要某个
         按钮”更有帮助。中英文均可 / Chinese or English are both welcome.
 
   - type: dropdown

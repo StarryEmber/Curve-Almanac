@@ -51,7 +51,7 @@
 - 仓库已有 pnpm workspace（9 个 `@curve/*` 包 + `@curve/desktop` + `plugins/plugin-sample`）、
   可运行的 Electron 壳、`domain`/`persistence`/`table-engine`/`app-core` 的实现、带主题/i18n 的
   App Shell、插件 SDK/宿主与示例插件，以及 21 个已接线 IPC 通道（另含 1 个 main→renderer 退出
-  事件）；**续作前先读 `docs/HANDOFF.md`**。
+  事件）；**实现历史见 `git log` 与 `docs/reports/`**。
 - 每个任务的协议与里程碑停点见 §8。
 
 ## 1. 必读顺序

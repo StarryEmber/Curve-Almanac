@@ -18,7 +18,7 @@
  * The seed only writes table data/manifest through `window.api` (same pattern as
  * M2/M3/M4); every layout, history, recovery and settings action goes through
  * the real UI. Screenshots are attached to the report; no pixel equality is
- * asserted (HANDOFF §3.6).
+ * asserted (docs/DEVELOPER.md §6).
  */
 
 import { execFileSync } from 'node:child_process';

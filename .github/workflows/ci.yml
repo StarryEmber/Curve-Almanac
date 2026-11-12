@@ -1,4 +1,4 @@
-# CI — Curve Studio commit gate (T0.5)
+# CI — Curve Almanac commit gate
 
 # 门禁定义见 TESTPLAN §1 / ADR-014：
 #   - L1–L3（lint / dependencies / typecheck / test+coverage / build）在 Windows 与 Linux 上都要过；
@@ -7,10 +7,22 @@
 name: CI
 
 on:
+  # 纯文档提交不再触发全量质量门禁（Windows E2E 在 docs-only 提交上失败过多次）。
+  # 注意：若以后给 main 加 branch protection 并把 CI 设为 required check，跳过整个
+  # workflow 会让 check 一直 pending；那时应只对 push 用 paths-ignore，PR 侧改用
+  # job 级 `if` 跳过 e2e/bench。
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
   workflow_dispatch:
 
 permissions:
@@ -32,14 +44,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Reads the pinned `packageManager` field (pnpm@11.28.5).
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -50,6 +62,15 @@ jobs:
       # ESLint (zero warnings) + dependency-cruiser boundary rules (ADR-017).
       - name: Lint
         run: pnpm lint
+
+      # CONTRIBUTING §5 requires formatting checks; CI never ran this before T9.
+      - name: Format check
+        run: pnpm format:check
+
+      # Markdown relative links/images (scripts/check-doc-links.mjs, T6). Docs are
+      # excluded from prettier, so this is the only automated gate on the docs tree.
+      - name: Doc link check
+        run: pnpm docs:links
 
       - name: Typecheck
         run: pnpm typecheck
@@ -64,7 +85,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.os }}
           path: coverage
@@ -83,13 +104,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -112,7 +133,7 @@ jobs:
 
       - name: Upload benchmark report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bench-report
           path: bench/report.json
@@ -128,13 +149,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -165,7 +186,7 @@ jobs:
       # e2e/fixtures.ts attaches them to the report as well.
       - name: Upload Playwright artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-artifacts
           path: |

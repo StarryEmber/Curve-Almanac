@@ -128,13 +128,10 @@ SelectOption.disabled?: boolean
 
 **截图证据**（E2E 生成后复制到本目录）：
 
-![新建图表向导与实时预览](t4.4-new-chart.png)
 
 ![长表图表视图（3 系列、深色背景、色盲友好调色板、X/Y 轴名）](t4.4-chart-view.png)
 
-![删除映射列后的可操作错误态与内嵌重映射](t4.4-chart-error.png)
 
-![200% 缩放下键盘打开的向导](t4.4-wizard-zoom.png)
 
 ## 6. 验证命令与结果
 

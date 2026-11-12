@@ -17,7 +17,7 @@ import type { Page, TestInfo } from '@playwright/test';
  * Charts are asserted through the RenderModel contract (`data-chart-*`), the
  * DOM toolbar state (legend/zoom) and the real canvas (tooltip, PNG pixels).
  * Pixel equality of the whole chart is not asserted: Windows/DPI differences
- * make it unstable (HANDOFF §3.6).
+ * make it unstable (docs/DEVELOPER.md §6).
  */
 
 const BENCH_WORKSPACE = join(repositoryRoot, 'bench', '.fixtures', '100k-workspace');

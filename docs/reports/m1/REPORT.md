@@ -40,8 +40,8 @@ T2.1 之前 renderer 还没有欢迎页、表列表与网格（`AppShell` 主区
 - 复现命令：
 
 ```powershell
-$env:PATH = "D:\DSH_Work_Space\tools\bin;C:\Users\MECHREVO\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin;$env:PATH"
-cd D:\DSH_Work_Space\curve-studio
+$env:PATH = "C:\Users\<user>\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin;$env:PATH"
+cd <repo>
 pnpm exec vitest run apps/desktop/src/main/workspace/m1-acceptance.test.ts --reporter=verbose
 ```
 

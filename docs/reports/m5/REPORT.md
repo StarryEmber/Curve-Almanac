@@ -49,19 +49,12 @@
 
 ## 3. 证据
 
-![2 pane、3 标签：Sensors + Readings / Sensors (2)](m5-01-two-panes.png)
 
-![撤销 5 次后 Edit 菜单：可撤销“调整布局”，可重做“编辑单元格”](m5-02-history.png)
 
-![提交 200 后、编辑 999 并强杀前](m5-03-before-kill.png)
 
-![强杀后重启：上次未正常退出，提示最后 1.5 秒可能丢失](m5-04-recovery.png)
 
-![尝试恢复后：2 pane、3 标签与已提交的 200](m5-05-restored-layout.png)
 
-![设置对话框：英文 + 深色，自动保存开启](m5-06-english-dark.png)
 
-![重启后：英文/深色、2 pane、3 标签、Readings 值 200](m5-07-restart-restored.png)
 
 ## 4. 用例与运行
 

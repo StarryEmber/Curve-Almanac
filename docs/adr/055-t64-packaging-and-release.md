@@ -36,7 +36,7 @@
 
 ### 2. 发布身份
 
-- `appId: com.curvealmanac.app`（ADR-051 的唯一计划值；v1 尚未发布，不存在旧 `appId` 升级
+- `appId: com.curvealmanac.app`（ADR-051 的唯一计划值；v1 首发之前不存在旧 `appId` 升级
   问题）。
 - `productName: Curve Almanac`；`apps/desktop/package.json` 的 `productName` 与
   `src/shared/brand.ts` 的 `APP_NAME` 由 `brand.test.ts` 保持相等（T6.0 已建立）。

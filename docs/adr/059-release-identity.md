@@ -32,7 +32,7 @@ v1 发布前需要把“产品名”和“法律/发布主体”分开，并确�
 3. **根包名**：`package.json` 的 `name` 改为 `curve-almanac`（私有包，不发布 npm）；内部
    `@curve/*` 包名、`appId=com.curvealmanac.app`、`productName=Curve Almanac`、
    `formatVersion`、IPC、数据格式**均不变**。
-4. **GitHub 仓库**：`curve-almanac`。本地仓库目录当前仍为 `D:\DSH_Work_Space\curve-studio`；
+4. **GitHub 仓库**：`curve-almanac`。本地仓库目录当前仍为 `<repo>`；
    目录重命名不是发布前置条件，GitHub 远端名以本 ADR 为准。
 5. **Git 作者**：`git config user.name=StarryEmber`、
    `user.email=StarryEmber@163.com`（2026-10-31 用户提供真实邮箱）。

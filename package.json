@@ -20,6 +20,7 @@
     "lint:boundaries": "depcruise apps packages plugins --config .dependency-cruiser.cjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "docs:links": "node scripts/check-doc-links.mjs",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",

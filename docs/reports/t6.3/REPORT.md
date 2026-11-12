@@ -130,9 +130,7 @@ pnpm bench
 
 ![插件管理器：示例插件已禁用，贡献数为 0，日志记录激活/停用](t6.3-disabled.png)
 
-![插件导入器抛错：内联错误 + 带插件名的错误 toast（含“查看插件日志”）](t6.3-error-toast.png)
 
-![重新启用后导入器下拉恢复，选项带来源后缀](t6.3-registry.png)
 
 截图由 `apps/desktop/e2e/plugin-ui.spec.ts` 生成后复制到此；`docs/reports/m0/*.png` 已用
 `git checkout` 还原（E2E 会重写它们）。

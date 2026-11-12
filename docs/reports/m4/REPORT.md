@@ -63,31 +63,24 @@ E6 第 3 步原文要求“缩放/关图例…重开应用后保留”。ADR-044
 
 宽表折线（2 个 Y、2 系列、12 点）：
 
-![wide chart](m4-01-wide-chart.png)
 
 长表多系列（3 系列 = 3 个 distinct site；调色板 vivid、线宽 4，缩放已重置为 0–100）：
 
-![long chart](m4-02-long-interactions.png)
 
 删除映射列后的可操作错误态（`missing-columns` + 内嵌重映射）：
 
-![remap error](m4-03-remap-error.png)
 
 100k 点采样图（“已采样”徽标，100000 → 2000 点）：
 
-![100k sampled](m4-04-100k-sampled.png)
 
 PNG 导出对话框（白色背景、2x、建议文件名）：
 
-![export dialog](m4-05-export-dialog.png)
 
 重启后的源图表（映射到 `Sensor B`、vivid/4px 保留，缩放/图例已复位）：
 
-![source restored](m4-06-source-restored.png)
 
 重启后的 100k 图表（采样徽标与点数还原）：
 
-![100k restored](m4-07-100k-restored.png)
 
 ## 5. 验收逐项（TESTPLAN E6 / TASKS M4）
 

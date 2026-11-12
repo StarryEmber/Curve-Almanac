@@ -21,6 +21,7 @@
 | 日志 | 按天归档但**跨天后首次写入**才轮转；单日无大小上限；无日志查看器/导出（T6.6，ADR-056） | 00:00 定时器或大小上限需补测试；日志查看器需新 UI/IPC |
 | 性能 | 100k 图表切换 private 峰值 509–639 MB（门禁 1GB，ADR-057；600MB 历史门禁余量仅 1.5–2.5%） | 环境受控后连续 3 次 <600MB 可降回（新 ADR）；持续 >1GB 时按 ADR-045 复核缓存/实例 |
 | 体积 | NSIS 112 MB / 解压 391 MB | 裁剪 locales/组件；保留 Chromium 许可证 |
+| 发布命名 | 安装包 `artifactName` 带空格（`${productName} Setup ${version}.${ext}`），GitHub 上传时会把空格转成点，和 README/校验和里的文件名对不上 | v0.1.1 起把 `artifactName` 改为 `Curve-Almanac-Setup-${version}.${ext}` / `Curve-Almanac-${version}.${ext}`，同步 `apps/desktop/test/packaging.test.ts` 断言并重打包冒烟 |
 
 ## 2. 明确非目标（v1 不做）
 
@@ -36,7 +37,7 @@
 
 | 主题 | 先读 |
 |---|---|
-| 维护/发布流程 | `docs/HANDOFF-MAINTENANCE.md`、`docs/DSH.md` |
+| 维护/发布流程 | `docs/DEVELOPER.md`、`AGENTS.md` |
 | 存储/规模 | ADR-003、ADR-011、SPEC §2.2/§7 |
 | 插件 | ADR-010、ADR-052–054、SPEC §14 |
 | 打包/分发 | ADR-001、ADR-016、ADR-055、SPEC §16.6 |
